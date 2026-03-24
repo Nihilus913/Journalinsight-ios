@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "79178F2B-7DDA-433F-8658-37FCC2802A4F",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:JournalInsight.xcodeproj",
+      "identifier" : "08599C1E2DBC254700BDD52D",
+      "name" : "JournalInsight"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:JournalInsight.xcodeproj",
+        "identifier" : "08599C2B2DBC254700BDD52D",
+        "name" : "JournalInsightTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:JournalInsight.xcodeproj",
+        "identifier" : "08599C352DBC254700BDD52D",
+        "name" : "JournalInsightUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
