@@ -1,29 +1,20 @@
 import Foundation
 import BackgroundTasks
 
-// Identifier must match BGTaskSchedulerPermittedIdentifiers in Info.plist
+// Identifier must match BGTaskSchedulerPermittedIdentifiers in Info.plist (added in SP4 when Garmin sync arrives).
 let kBGSyncTaskIdentifier = "com.journalinsight.backgroundSync"
 
+// SP2: scaffolding only. Real registration happens in SP4 when Garmin sync provides actual work
+// for the background slot. Registering an empty handler in SP2 would waste BGTask budget allocation.
 enum BackgroundSyncManager {
 
-    // Call from application(_:didFinishLaunchingWithOptions:) or @main init
+    /// SP2 no-op. Implemented in SP4 once Garmin sync is wired up.
     static func registerTasks() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: kBGSyncTaskIdentifier, using: nil) { task in
-            handleSync(task: task as! BGAppRefreshTask)
-        }
+        // Intentionally empty. See file header comment.
     }
 
-    // Schedule next background refresh — call after every sync completes
+    /// SP2 no-op. Implemented in SP4 once Garmin sync is wired up.
     static func scheduleNext() {
-        let request = BGAppRefreshTaskRequest(identifier: kBGSyncTaskIdentifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 3600)  // at least 1 hour out
-        try? BGTaskScheduler.shared.submit(request)
-    }
-
-    private static func handleSync(task: BGAppRefreshTask) {
-        scheduleNext()
-        task.expirationHandler = { task.setTaskCompleted(success: false) }
-        // SP2 only: observer handles new workouts reactively. Garmin sync arrives in SP4.
-        task.setTaskCompleted(success: true)
+        // Intentionally empty. See file header comment.
     }
 }
