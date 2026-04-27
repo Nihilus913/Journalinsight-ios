@@ -57,4 +57,9 @@ struct TrainingStreakCalculatorTests {
                        makeEntry(daysAgo: 15), makeEntry(daysAgo: 16)]
         #expect(TrainingStreakCalculator.bestStreak(from: entries) == 3)
     }
+
+    @Test("bestStreak returns 1 for single entry")
+    func bestStreakSingleEntry() {
+        #expect(TrainingStreakCalculator.bestStreak(from: [makeEntry(daysAgo: 5)]) == 1)
+    }
 }
