@@ -15,7 +15,7 @@ enum WidgetSize: String, Codable {
 }
 
 enum WidgetType: String, Codable, CaseIterable {
-    case streak, session, questions, calendar, goals
+    case streak, session, questions, calendar, goals, training
 
     var title: String {
         switch self {
@@ -24,6 +24,7 @@ enum WidgetType: String, Codable, CaseIterable {
         case .questions: return "Questions Overview"
         case .calendar: return "Calendar Overview"
         case .goals: return "Goals Gantt Chart"
+        case .training: return "Training"
         }
     }
 
@@ -34,6 +35,7 @@ enum WidgetType: String, Codable, CaseIterable {
         case .questions: return "questionmark.bubble.fill"
         case .calendar: return "calendar"
         case .goals: return "target"
+        case .training: return "figure.strengthtraining.traditional"
         }
     }
 }
@@ -209,6 +211,7 @@ struct MainScreenView: View {
         case .questions: QuestionsDetailView()
         case .calendar: CalendarView(selectedDate: $selectedDate)
         case .goals: GoalsDetailView()
+        case .training: TrainingDetailView()
         }
     }
 
@@ -359,6 +362,13 @@ struct WidgetCardView: View {
                 Text("\(thisWeek) this week")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            case .training:
+                VStack {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.title2)
+                    Text("Training")
+                        .font(.caption)
+                }
             case .goals, .questions:
                 EmptyView()
             }
