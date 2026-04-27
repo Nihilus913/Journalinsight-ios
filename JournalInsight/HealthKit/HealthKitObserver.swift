@@ -20,11 +20,11 @@ final class HealthKitObserver {
         guard HealthKitPermissions.isAvailable else { return }
         let workoutType = HKObjectType.workoutType()
 
-        query = HKObserverQuery(sampleType: workoutType, predicate: nil) { [weak self] _, completionHandler, error in
-            guard error == nil else { completionHandler(); return }
+        query = HKObserverQuery(sampleType: workoutType, predicate: nil) { _, completionHandler, error in
+            completionHandler()  // release HK immediately; anchored query catches up next delivery
+            guard error == nil else { return }
             Task { @MainActor [weak self] in
                 await self?.handleNewWorkouts()
-                completionHandler()
             }
         }
         store.execute(query!)
@@ -50,19 +50,24 @@ final class HealthKitObserver {
             store.execute(query)
         }
 
+        var allSucceeded = true
         for sample in samples.compactMap({ $0 as? HKWorkout }) {
-            await insertIfNeeded(workout: sample)
+            if !(await insertIfNeeded(workout: sample)) {
+                allSucceeded = false
+            }
         }
 
-        if let newAnchor { saveAnchor(newAnchor) }
+        // Only advance anchor if every insert (or skip-due-to-dedup) succeeded.
+        // If a save failed, retry on next delivery with the old anchor.
+        if allSucceeded, let newAnchor { saveAnchor(newAnchor) }
     }
 
-    private func insertIfNeeded(workout: HKWorkout) async {
+    private func insertIfNeeded(workout: HKWorkout) async -> Bool {
         let id = workout.uuid
         let descriptor = FetchDescriptor<WorkoutEntry>(
             predicate: #Predicate { $0.healthKitWorkoutId == id }
         )
-        guard (try? modelContext.fetchCount(descriptor)) == 0 else { return }
+        guard (try? modelContext.fetchCount(descriptor)) == 0 else { return true }  // already inserted, that's fine
 
         let entry = WorkoutEntry(
             date: workout.startDate,
@@ -71,7 +76,12 @@ final class HealthKitObserver {
             healthKitWorkoutId: id
         )
         modelContext.insert(entry)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            return false
+        }
     }
 
     private static let anchorKey = "hkWorkoutAnchor"
