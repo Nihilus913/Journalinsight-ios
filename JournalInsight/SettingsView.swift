@@ -289,6 +289,7 @@ struct SettingsView: View {
                 workoutDays = days
             } else {
                 workoutDays = [2, 5]
+                saveWorkoutDays()
             }
         }
         .onChange(of: selectedItem) { _, newItem in

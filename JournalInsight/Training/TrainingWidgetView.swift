@@ -7,7 +7,7 @@ struct TrainingWidgetView: View {
     @Query(sort: \WorkoutEntry.date, order: .reverse) private var entries: [WorkoutEntry]
 
     @State private var recovery: RecoverySnapshot? = nil
-    @AppStorage(StorageKeys.workoutDays) private var workoutDaysData: Data = Data()
+    @AppStorage(StorageKeys.workoutDays) private var workoutDaysData: Data = (try? JSONEncoder().encode([2, 5])) ?? Data()
 
     private var streak: Int { TrainingStreakCalculator.currentStreak(from: entries) }
     private var lastEntry: WorkoutEntry? { entries.first }
