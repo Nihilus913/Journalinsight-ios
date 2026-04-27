@@ -270,28 +270,48 @@ Before any assessment logic is written, each signal in the registry must have:
 
 The existing `docs/research/energy-balance-sport-performance.md` (HealthTraining project, 20 references) covers nutrition × performance interactions. Additional literature is needed for HRV, sleep architecture, and ACWR. This research is a deliverable of SP3b, not an assumption.
 
+### Reference implementation: HealthTraining gate logic
+
+The HealthTraining pipeline (`app/planning/service.py`) contains a validated production implementation of derived metric computation and gate evaluation. SP3b ports this logic to Swift and extends it — it does not call the FastAPI.
+
+The Python implementation provides:
+
+- **`_compute_derived_metrics`** — ACWR, 7-day averages (kcal, protein, sleep, RHR, steps, body battery, kcal burned), kcal/goal ratio, protein/kg body weight, caloric deficit/surplus, estimated weekly weight change, trend direction (up/down/flat) per metric
+- **`evaluate_kpi_gates`** — rule evaluation against configurable thresholds (REDUCE / MAINTAIN / PROGRESS). Rules are stored in the DB (`plan.kpi_target`), not hardcoded — the iOS equivalent stores them in SwiftData for offline use
+- **Threshold constants** — `_PROGRESS_KCAL_RATIO_MIN = 0.80`, `_PROGRESS_KCAL_RATIO_MAX = 1.10`, `_PROGRESS_PROTEIN_PER_KG = 2.0 g/kg`, `_TRACKING_KCAL_MIN = 1200`, `_MIN_TRACKED_DAYS = 4`
+
+The iOS implementation:
+1. Ports all `_compute_derived_metrics` calculations to Swift
+2. Ports `evaluate_kpi_gates` rule evaluation to Swift, with rules stored in SwiftData
+3. Extends the signal set with HRV, sleep architecture, body battery, and any additional SP3a signals — inputs the web dashboard does not have
+4. Preserves the REDUCE / MAINTAIN / PROGRESS taxonomy for conceptual consistency
+
 ### Assessment output
 
 The engine produces a `TrainingAssessment`, not a score:
 
 ```swift
 struct TrainingAssessment {
-    let recommendation: Recommendation   // .proceed, .proceedWithCaution, .reduceLoad, .rest
-    let planAdjustments: [PlanAdjustment] // e.g. reduce sets, reduce weight %, note recovery
+    let recommendation: Recommendation
+    let planAdjustments: [PlanAdjustment]
     let contributingSignals: [SignalContribution]
-    let disclaimer: String               // always present
+    let trends: [String: TrendDirection]   // mirrors HealthTraining trend arrows
+    let disclaimer: String                 // always present
     let generatedAt: Date
 }
 
+// Preserves HealthTraining REDUCE/MAINTAIN/PROGRESS taxonomy
 enum Recommendation {
-    case proceed            // signals are positive, proceed as planned
-    case proceedWithCaution // mixed signals, proceed but monitor
-    case reduceLoad         // clear negative signals, reduce volume/intensity
-    case rest               // strong negative signals across multiple dimensions
+    case progress       // fueling good, recovery good, ACWR has headroom → increase load
+    case maintain       // stable signals, proceed as planned
+    case reduce         // chronic underfueling, poor recovery, or high injury risk → reduce load
+    case rest           // strong negative signals across multiple dimensions → active recovery only
 }
+
+enum TrendDirection { case up, down, flat }
 ```
 
-The recommendation is never "do not train" — it is always "here is the adjusted plan given today's context." Even `.rest` explains what lighter active recovery looks like.
+The recommendation is never "do not train" — even `.rest` describes what active recovery looks like today.
 
 ### Nutrition as a composite factor
 
