@@ -8,7 +8,7 @@ struct LoggedExercise: Codable, Equatable {
     var sets: Int
     var reps: Int
     var weightKg: Double?
-    var garminExerciseName: String?
+    var garminExerciseName: String?  // SP4: validated Garmin catalogue name
 }
 
 enum WorkoutSource: String, Codable {
@@ -30,7 +30,7 @@ class WorkoutEntry {
             (try? JSONDecoder().decode([LoggedExercise].self, from: exercisesData)) ?? []
         }
         set {
-            exercisesData = try! JSONEncoder().encode(newValue)
+            exercisesData = (try? JSONEncoder().encode(newValue)) ?? Data()
         }
     }
 
@@ -42,7 +42,7 @@ class WorkoutEntry {
         self.date = date
         self.source = source
         self.durationSec = durationSec
-        self.exercisesData = try! JSONEncoder().encode(exercises)
+        self.exercisesData = (try? JSONEncoder().encode(exercises)) ?? Data()
         self.notes = notes
         self.garminActivityId = garminActivityId
         self.healthKitWorkoutId = healthKitWorkoutId
