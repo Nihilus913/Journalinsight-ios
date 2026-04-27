@@ -33,6 +33,51 @@ Each SP is independently deployable. SP2 runs before SP3a/b because HealthKit in
 
 ---
 
+## Sync architecture (applies to SP2 + SP4)
+
+### Core principle
+
+The user never opens the app and waits for data. Sync happens in the background on a schedule and on meaningful triggers. The app always opens into a current state.
+
+### Sync order
+
+Order is strict — Garmin data must be fresh before the assessment engine runs:
+
+1. **Garmin Connect sync** — pull latest activities, daily summaries, workout templates
+2. **HealthKit read** — pull latest HRV, sleep, nutrition, steps, active calories
+3. **SwiftData update** — write new `WorkoutEntry` records, update signal cache
+4. **Assessment recalculation** — recompute `TrainingAssessment` with fresh signals
+5. **Widget + notification refresh** — update Training widget, reschedule workout notification if plan changed
+
+Steps 2–5 must not run with stale Garmin data. If Garmin sync fails (network unavailable, token expired), the app continues with the last successful Garmin snapshot and notes the staleness in the assessment confidence.
+
+### Background sync mechanisms
+
+| Mechanism | Used for | Frequency |
+|---|---|---|
+| `BGAppRefreshTask` | Full Garmin + HealthKit sync | iOS-scheduled, typically 1–4× per day based on usage patterns |
+| `HKObserverQuery` + `enableBackgroundDelivery` | HealthKit new data notifications | Real-time, fires when YAZIO/Garmin writes new data to HealthKit |
+| On app foreground | Full sync if last sync > 30 min ago | Every foreground transition after threshold |
+
+`BGAppRefreshTask` is registered at app launch. iOS schedules it intelligently — the app cannot guarantee exact timing, but the system learns usage patterns and fires it ahead of typical open times.
+
+`HKObserverQuery` covers HealthKit-native signals (HRV, sleep, nutrition). When YAZIO writes new nutrition data, the observer fires and triggers a HealthKit-only re-read (steps 2–4 above, skipping step 1 since Garmin data has not changed).
+
+### Manual sync
+
+Always available via a pull-to-refresh gesture on the Training screen and a "Sync now" button in Settings → Training. Manual sync runs the full 5-step sequence. A spinner is shown only for manual sync — background sync is silent.
+
+Manual sync exists because Garmin's own sync to the Connect app is sometimes delayed. If the user knows they just completed a workout but the app hasn't received it yet, they can force a pull. This is a known limitation of the Garmin ecosystem, not a bug in JournalInsight.
+
+### Failure handling
+
+- **Garmin auth expired**: surface a non-blocking banner "Garmin session expired — tap to reconnect." Assessment runs on last known data, clearly marked as stale.
+- **HealthKit permission revoked**: assessment omits affected signals, notes them as `.unavailable` in output.
+- **Network unavailable**: sync skipped silently in background, retried on next foreground. Manual sync shows an error.
+- **Partial sync** (Garmin succeeds, HealthKit stale): assessment runs, confidence scores reflect per-signal freshness.
+
+---
+
 ## SP1 — Foundation
 
 ### WorkoutEntry model
@@ -275,7 +320,7 @@ Garmin Connect uses OAuth 1.0a. The app uses `ASWebAuthenticationSession` for th
 
 ### Pull: activity ingestion
 
-On app foreground and on background refresh: fetch recent activities from `/activitylist-service/activities/search/activities`. Strength training activities create or update `WorkoutEntry` records with `source: .garmin` and `garminActivityId` set. Exercise set detail fetched from `/activity-service/activity/{id}/exerciseSets`.
+Triggered by the sync architecture (BGAppRefreshTask, foreground threshold, or manual sync). Fetches recent activities from `/activitylist-service/activities/search/activities`. Strength training activities create or update `WorkoutEntry` records with `source: .garmin` and `garminActivityId` set. Exercise set detail fetched from `/activity-service/activity/{id}/exerciseSets`.
 
 ### Pull: daily metrics
 
