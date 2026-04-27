@@ -31,4 +31,15 @@ struct WorkoutEntryTests {
         #expect(ex.weightKg == 40.0)
         #expect(ex.garminExerciseName == "BENCH_PRESS")
     }
+
+    @Test("exercises round-trip through exercisesData")
+    func exercisesRoundTrip() {
+        let entry = WorkoutEntry(date: .now, source: .manual, durationSec: 3600)
+        let ex = LoggedExercise(name: "Squat", sets: 4, reps: 6, weightKg: 80.0, garminExerciseName: "SQUAT")
+        entry.exercises = [ex]
+        let retrieved = entry.exercises
+        #expect(retrieved.count == 1)
+        #expect(retrieved.first == ex)
+        #expect(entry.exercisesData.isEmpty == false)
+    }
 }

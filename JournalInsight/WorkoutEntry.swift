@@ -2,7 +2,7 @@
 import Foundation
 import SwiftData
 
-struct LoggedExercise: Codable {
+struct LoggedExercise: Codable, Equatable {
     var name: String
     var sets: Int
     var reps: Int
@@ -21,15 +21,15 @@ class WorkoutEntry {
     var durationSec: Int
     var exercisesData: Data
     var notes: String?
-    var garminActivityId: Int64?
-    var healthKitWorkoutId: UUID?
+    @Attribute(.unique) var garminActivityId: Int64?
+    @Attribute(.unique) var healthKitWorkoutId: UUID?
 
     var exercises: [LoggedExercise] {
         get {
             (try? JSONDecoder().decode([LoggedExercise].self, from: exercisesData)) ?? []
         }
         set {
-            exercisesData = (try? JSONEncoder().encode(newValue)) ?? Data()
+            exercisesData = try! JSONEncoder().encode(newValue)
         }
     }
 
@@ -41,7 +41,7 @@ class WorkoutEntry {
         self.date = date
         self.source = source
         self.durationSec = durationSec
-        self.exercisesData = (try? JSONEncoder().encode(exercises)) ?? Data()
+        self.exercisesData = try! JSONEncoder().encode(exercises)
         self.notes = notes
         self.garminActivityId = garminActivityId
         self.healthKitWorkoutId = healthKitWorkoutId
