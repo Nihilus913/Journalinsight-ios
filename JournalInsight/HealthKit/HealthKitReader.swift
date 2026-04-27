@@ -28,6 +28,7 @@ actor HealthKitReader {
         let hrvVal = await hrv
         let (sleepDur, sleepDeep) = await sleep
 
+        // sleepScore intentionally nil in SP2 — populated from Garmin metadata in SP4.
         return RecoverySnapshot(
             sleepDurationSec: sleepDur,
             deepSleepSec: sleepDeep,
