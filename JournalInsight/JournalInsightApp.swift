@@ -22,6 +22,6 @@ struct JournalInsightApp: App {
                 .tint(accentColorChoice.color)
                 .frame(minWidth: 400, minHeight: 600)
         }
-        .modelContainer(for: [JournalEntry.self, Goal.self, Tag.self])
+        .modelContainer(for: [JournalEntry.self, Goal.self, Tag.self, WorkoutEntry.self])
     }
 }
