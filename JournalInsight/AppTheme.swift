@@ -81,4 +81,5 @@ enum StorageKeys {
     static let workoutReminderHour = "workoutReminderHour"
     static let workoutReminderMinute = "workoutReminderMinute"
     static let workoutReminderEnabled = "workoutReminderEnabled"
+    static let healthKitEnabled = "healthKitEnabled"
 }

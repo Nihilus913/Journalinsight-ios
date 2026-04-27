@@ -26,6 +26,7 @@ struct SettingsView: View {
     @AppStorage(StorageKeys.workoutReminderEnabled) private var workoutReminderEnabled: Bool = false
     @AppStorage(StorageKeys.workoutReminderHour) private var workoutReminderHour: Int = 7
     @AppStorage(StorageKeys.workoutReminderMinute) private var workoutReminderMinute: Int = 0
+    @AppStorage(StorageKeys.healthKitEnabled) private var healthKitEnabled: Bool = false
     @State private var workoutDays: [Int] = []
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
@@ -203,6 +204,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Workout days")
                         .font(.subheadline)
+                    // Calendar.weekday is 1-indexed: 1=Sunday, 2=Monday, …, 7=Saturday.
                     HStack(spacing: 6) {
                         ForEach(Array(zip([1,2,3,4,5,6,7], ["S","M","T","W","T","F","S"])), id: \.0) { day, label in
                             let isSelected = workoutDays.contains(day)
@@ -255,6 +257,19 @@ struct SettingsView: View {
                     .onChange(of: workoutReminderHour) { _, _ in rescheduleWorkoutReminders() }
                     .onChange(of: workoutReminderMinute) { _, _ in rescheduleWorkoutReminders() }
                 }
+
+                // Apple Health connection — gates HKObserver startup on next launch
+                Toggle("Connect Apple Health", isOn: $healthKitEnabled)
+                    .onChange(of: healthKitEnabled) { _, enabled in
+                        guard enabled, HealthKitPermissions.isAvailable else { return }
+                        Task {
+                            try? await HealthKitPermissions.shared.requestAuthorization(
+                                toShare: HealthKitPermissions.writeTypes,
+                                read: HealthKitPermissions.readTypes
+                            )
+                            // Observer will start on next app launch when healthKitEnabled is now true.
+                        }
+                    }
 
                 HStack {
                     Label("Garmin Connect", systemImage: "applewatch")

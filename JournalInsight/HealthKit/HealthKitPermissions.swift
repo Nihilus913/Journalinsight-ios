@@ -3,6 +3,8 @@ import HealthKit
 
 enum HealthKitPermissions {
 
+    static let shared = HKHealthStore()
+
     // All types the app reads — requested together on first Training feature use
     static var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [

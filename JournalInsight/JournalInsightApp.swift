@@ -15,8 +15,8 @@ struct JournalInsightApp: App {
     @AppStorage(StorageKeys.selectedAppearance) private var selectedAppearance: AppAppearance = .system
     @AppStorage(StorageKeys.textSize) private var textSize: TextSizeChoice = .medium
     @AppStorage(StorageKeys.accentColor) private var accentColorChoice: AccentColorChoice = .teal
+    @AppStorage(StorageKeys.healthKitEnabled) private var healthKitEnabled: Bool = false
 
-    @State private var healthStore = HKHealthStore()
     @State private var hkObserver: HealthKitObserver?
 
     var body: some Scene {
@@ -32,14 +32,14 @@ struct JournalInsightApp: App {
                 }
         }
         .modelContainer(for: [JournalEntry.self, Goal.self, Tag.self, WorkoutEntry.self]) { result in
-            if case .success(let container) = result {
+            if case .success(let container) = result, healthKitEnabled {
                 let context = container.mainContext
-                let observer = HealthKitObserver(store: healthStore, modelContext: context)
+                let observer = HealthKitObserver(store: HealthKitPermissions.shared, modelContext: context)
                 hkObserver = observer
 
                 Task { @MainActor in
                     if HealthKitPermissions.isAvailable {
-                        try? await healthStore.requestAuthorization(
+                        try? await HealthKitPermissions.shared.requestAuthorization(
                             toShare: HealthKitPermissions.writeTypes,
                             read: HealthKitPermissions.readTypes
                         )

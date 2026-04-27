@@ -77,7 +77,7 @@ struct TrainingWidgetView: View {
         .padding(.horizontal, size == .small ? 0 : 4)
         .task {
             if isWorkoutDay && HealthKitPermissions.isAvailable {
-                let reader = HealthKitReader()
+                let reader = HealthKitReader(store: HealthKitPermissions.shared)
                 recovery = await reader.latestRecovery()
             }
         }
