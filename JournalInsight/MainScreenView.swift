@@ -363,12 +363,7 @@ struct WidgetCardView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             case .training:
-                VStack {
-                    Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.title2)
-                    Text("Training")
-                        .font(.caption)
-                }
+                TrainingWidgetView(size: size)
             case .goals, .questions:
                 EmptyView()
             }
