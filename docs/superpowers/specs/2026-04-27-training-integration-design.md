@@ -28,8 +28,9 @@ Notifications are forward-looking ("Monday plan ready: Bench 3×8 @ 40kg") not b
 | SP3a | Signal ingestion framework | Full HealthKit pipeline, signal normalisation, confidence scoring |
 | SP3b | Composite assessment engine | Research-grounded readiness model, extensible signal registry |
 | SP4 | Garmin Connect integration | OAuth, activity pull, plan push, bidirectional sync |
+| SP5 | Domain widgets + detail views | Nutrition, Recovery, Energy, Strength, Gate widgets; Day Detail; Feel → Journal bridge |
 
-Each SP is independently deployable. SP2 runs before SP3a/b because HealthKit integration is needed for the signal pipeline. SP4 is last because it requires external OAuth and is the highest-complexity SP.
+Each SP is independently deployable. SP2 runs before SP3a/b because HealthKit integration is needed for the signal pipeline. SP4 is last because it requires external OAuth and is the highest-complexity SP. SP5 depends on SP2 (data sources) and SP3b (Gate widget), but individual widgets can ship as SP2 data becomes available.
 
 ---
 
@@ -362,16 +363,90 @@ When a user swaps an exercise (equipment unavailable, injury, preference), the a
 
 ---
 
+## SP5 — Domain widgets + detail views
+
+### Overview
+
+SP5 brings the full HealthTraining web dashboard into the iOS widget grid. The web dashboard has six domains (Overview, Energy, Nutrition, Recovery, Strength, Training). Each becomes a new `WidgetType` case with a compact home-screen widget and a full-screen detail view. The Training detail view already exists via SP1–SP4; SP5 delivers the remaining five.
+
+### New WidgetType cases
+
+Added to the existing `WidgetType` enum alongside `.training`:
+
+| Case | Compact widget shows | Full detail view |
+|---|---|---|
+| `.gate` | REDUCE / MAINTAIN / PROGRESS chip + one-line rationale | Contributing signals, triggered rules, trend arrows, override option |
+| `.nutrition` | 7-day tracking dots (green/yellow/red/grey) + today kcal / protein | Daily macro log (kcal, protein, carbs, fat), TDEE, deficit, tracking quality history |
+| `.recovery` | Sleep score + body battery + RHR — latest values | Sleep stages (deep/light/REM/awake), HRV, ACWR, readiness, full daily log |
+| `.energy` | Avg deficit (adj) + est. weekly Δweight | TDEE raw vs adj, per-day deficit table, compliance warning when tracking < 4/7 days |
+| `.strength` | Muscle balance summary (N balanced / N moderate / N undertrained) + days since last session | Muscle Focus tab, Muscle Map tab, Session Log tab, Progression tab (inline weight editing) |
+
+All widgets follow the ADHD trigger principle: they show actionable state, not failure states.
+
+### Tracking quality dots
+
+The 7-day dot row (green = full tracking ≥3 meals + ≥1200 kcal, yellow = partial ≥1 meal, red = nothing logged, grey = no sync data) is a shared component reused in the `.nutrition` widget and the `.energy` detail view. Threshold constants match HealthTraining: `_TRACKING_KCAL_MIN = 1200`, `_TRACKING_MEALS_MIN = 3`.
+
+### Day Detail view
+
+Tapping any date row in any detail view opens a `DayDetailView` sheet:
+
+- **Meals section**: per-meal food item list (meal name, food name, amount_g, kcal, protein_g, carbs_g, fat_g) — sourced from HealthKit/YAZIO data
+- **Activities section**: activity name, type, duration, avg HR, calories — sourced from HealthKit + Garmin
+- **Strength sets section**: exercise name, category, sets, reps, weight — sourced from Garmin exercise set data (SP4)
+
+The Day Detail view is read-only on iOS. It is the mobile equivalent of the web dashboard's `DayDetailPanel`.
+
+### Muscle map (Strength detail view)
+
+The Strength detail view contains four tabs, mirroring the web dashboard:
+
+**Muscle Focus tab**: Each trained muscle category displayed as a row — category name, training frequency badge (balanced / moderate / undertrained), 14-day trend arrow, exercise list, last trained date. A balance overview bar (N balanced / N moderate / N undertrained) sits at the top. Cardio leg work (running/cycling/walking) contributes to quads/glutes/hamstrings/calves as a separate "Legs (Cardio)" row.
+
+**Muscle Map tab**: Simplified SwiftUI implementation — a grid of muscle capsules arranged in front/back columns. Each capsule is colour-coded: green (balanced), amber (moderate), red (undertrained), grey (not trained), blue (cardio only). This captures the same information as the web's `react-body-highlighter` SVG silhouette without requiring a third-party dependency. The capsule grid uses the same `MUSCLE_CATEGORY_MAP` and `MUSCLE_META` logic as the web dashboard. A full SVG body-silhouette view can replace this in a future phase.
+
+**Session Log tab**: Grouped by workout date, one row per exercise — exercise name, category, sets, reps, weight. Tap a session to open `DayDetailView`.
+
+**Progression tab**: Grouped by session (Monday Full Body, etc.), same structure as the web's `ProgressionView`. Each exercise row shows current weight and progression step. Tap to edit inline (SwiftUI text field overlay). Changes call the Garmin plan update endpoint (SP4) and write to SwiftData.
+
+### Feel → Journal Entry bridge
+
+When a `WorkoutEntry` is created (by HealthKit auto-detection in SP2 or Garmin pull in SP4), the app presents a lightweight feel sheet:
+
+- **Rating**: 5 buttons (1–5), mapping to the existing `Mood` enum: 1→`.terrible`, 2→`.bad`, 3→`.okay`, 4→`.good`, 5→`.great`
+- **Notes**: optional free text field
+- **Pre-filled body**: workout summary (exercises, weights, sets) auto-populated from the `WorkoutEntry`
+
+On submit, a `JournalEntry` is created with:
+- `date` = workout date
+- `moodRaw` = mapped feel score
+- `text` = pre-filled workout summary + any user notes
+- `tags` = `["workout"]` auto-applied
+
+The feel sheet is non-blocking — it can be dismissed without submitting. If dismissed, no `JournalEntry` is created. This bridges the training data with JournalInsight's core journaling purpose: the Remarkable handwritten journal remains the long-form reflection medium; the auto-generated entry is a structured data snapshot that Streaks and Goals can reference.
+
+`JournalEntry` and `WorkoutEntry` remain independent models. The bridge is one-way: a WorkoutEntry can produce a JournalEntry, but a JournalEntry does not reference a WorkoutEntry.
+
+### Out of scope in SP5
+
+- **Supplements page** — not connected to training decisions
+- **Meal-plan page** — nutritional planning out of scope
+- **Date range picker as a persistent control** — each detail view has its own segmented 7/14/30d control rather than a global window setting
+
+---
+
 ## What already exists in JournalInsight (no rebuild needed)
 
 | Feature | File | Extension needed |
 |---|---|---|
 | Streak + milestones + celebration | `StreakDetailView.swift`, `StreakCalculator.swift` | Add `trainingStreak()` parallel method |
 | Notification scheduling | `NotificationManager.swift` | Add `scheduleWorkoutReminder()` |
-| Widget system + drag/resize | `MainScreenView.swift` | Add `.training` WidgetType case |
+| Widget system + drag/resize | `MainScreenView.swift` | Add `.training`, `.gate`, `.nutrition`, `.recovery`, `.energy`, `.strength` WidgetType cases |
 | Goals tracking | `Goal.swift`, `GoalsDetailView.swift` | Link training goals to WorkoutEntry completion |
 | Settings (notifications, appearance) | `SettingsView.swift` | Add Training section |
 | Data export | `DataExporter.swift` | Add WorkoutEntry export |
+| Mood enum + JournalEntry model | `JournalEntry.swift` | No changes — feel score maps directly to existing `Mood` cases |
+| Session detail sheet pattern | `SessionDetailView.swift` | Reuse slide-in sheet pattern for DayDetailView and Strength session detail |
 
 ---
 
