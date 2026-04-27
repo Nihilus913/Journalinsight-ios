@@ -83,8 +83,13 @@ struct TrainingDetailView: View {
                                 VStack(alignment: .leading) {
                                     Text(entry.date.formatted(date: .abbreviated, time: .omitted))
                                         .font(.subheadline.weight(.medium))
-                                    Text("\(entry.durationSec / 60) min · \(entry.source.rawValue)")
-                                        .font(.caption).foregroundStyle(.secondary)
+                                    HStack(spacing: 6) {
+                                        Text("\(entry.durationSec / 60) min")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                        Label(entry.source.rawValue, systemImage: entry.source.icon)
+                                            .font(.caption2)
+                                            .foregroundStyle(entry.source.color)
+                                    }
                                 }
                                 Spacer()
                                 if !entry.exercises.isEmpty {

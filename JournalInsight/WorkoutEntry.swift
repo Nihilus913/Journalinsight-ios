@@ -1,6 +1,7 @@
 // JournalInsight/WorkoutEntry.swift
 import Foundation
 import SwiftData
+import SwiftUI
 
 struct LoggedExercise: Codable, Equatable {
     var name: String
@@ -45,5 +46,23 @@ class WorkoutEntry {
         self.notes = notes
         self.garminActivityId = garminActivityId
         self.healthKitWorkoutId = healthKitWorkoutId
+    }
+}
+
+extension WorkoutSource {
+    var icon: String {
+        switch self {
+        case .manual:    return "pencil"
+        case .healthKit: return "heart.fill"
+        case .garmin:    return "applewatch"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .manual:    return .orange
+        case .healthKit: return .red
+        case .garmin:    return .blue
+        }
     }
 }
