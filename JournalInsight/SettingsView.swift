@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 #if canImport(UIKit)
 import UIKit
@@ -17,8 +18,19 @@ struct SettingsView: View {
     @State private var showSaved = false
     @State private var wallpaperImageData: Data? = WallpaperStorage.load()
     @AppStorage(StorageKeys.selectedAppearance) private var selectedAppearance: AppAppearance = .system
+    @AppStorage(StorageKeys.accentColor) private var accentColorChoice: AccentColorChoice = .teal
+    @AppStorage(StorageKeys.textSize) private var textSize: TextSizeChoice = .medium
+    @AppStorage(StorageKeys.notificationsEnabled) private var notificationsEnabled: Bool = false
+    @AppStorage(StorageKeys.notificationHour) private var notificationHour: Int = 20
+    @AppStorage(StorageKeys.notificationMinute) private var notificationMinute: Int = 0
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
+
+    // Export (Feature #8)
+    @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
+    @State private var showExportSheet = false
+    @State private var exportFormat: ExportFormat = .csv
+    @State private var exportURL: URL?
 
     var body: some View {
         Form {
@@ -70,14 +82,29 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Theme") {
-                Text("Coming Soon: Theme Selection")
-                    .foregroundColor(.secondary)
+            // Feature #13: Theme
+            Section("Accent Color") {
+                Picker("Accent Color", selection: $accentColorChoice) {
+                    ForEach(AccentColorChoice.allCases) { choice in
+                        HStack {
+                            Circle()
+                                .fill(choice.color)
+                                .frame(width: 16, height: 16)
+                            Text(choice.label)
+                        }
+                        .tag(choice)
+                    }
+                }
             }
 
+            // Feature #13: Text Size
             Section("Text Size") {
-                Text("Coming Soon: Font Settings")
-                    .foregroundColor(.secondary)
+                Picker("Text Size", selection: $textSize) {
+                    ForEach(TextSizeChoice.allCases) { choice in
+                        Text(choice.label).tag(choice)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
             }
 
             Section("Appearance") {
@@ -87,6 +114,85 @@ struct SettingsView: View {
                     Text("Dark").tag(AppAppearance.dark)
                 }
                 .pickerStyle(SegmentedPickerStyle())
+            }
+
+            // Feature #5: Notification Reminders
+            Section("Daily Reminder") {
+                Toggle("Enable Reminder", isOn: $notificationsEnabled)
+                    .onChange(of: notificationsEnabled) { _, enabled in
+                        if enabled {
+                            Task {
+                                let granted = await NotificationManager.requestAuthorization()
+                                if granted {
+                                    NotificationManager.scheduleDailyReminder(hour: notificationHour, minute: notificationMinute)
+                                } else {
+                                    notificationsEnabled = false
+                                }
+                            }
+                        } else {
+                            NotificationManager.cancelReminder()
+                        }
+                    }
+
+                if notificationsEnabled {
+                    HStack {
+                        Text("Reminder Time")
+                        Spacer()
+                        Picker("Hour", selection: $notificationHour) {
+                            ForEach(0..<24, id: \.self) { h in
+                                Text(String(format: "%02d", h)).tag(h)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        Text(":")
+                        Picker("Minute", selection: $notificationMinute) {
+                            ForEach([0, 15, 30, 45], id: \.self) { m in
+                                Text(String(format: "%02d", m)).tag(m)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                    }
+                    .onChange(of: notificationHour) { _, _ in
+                        NotificationManager.scheduleDailyReminder(hour: notificationHour, minute: notificationMinute)
+                    }
+                    .onChange(of: notificationMinute) { _, _ in
+                        NotificationManager.scheduleDailyReminder(hour: notificationHour, minute: notificationMinute)
+                    }
+                }
+            }
+
+            // Feature #8: Data Export
+            Section("Export Data") {
+                if entries.isEmpty {
+                    Text("No entries to export")
+                        .foregroundColor(.secondary)
+                } else {
+                    Picker("Format", selection: $exportFormat) {
+                        ForEach(ExportFormat.allCases) { format in
+                            Text(format.label).tag(format)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+
+                    Button {
+                        generateExport()
+                    } label: {
+                        Label("Export \(entries.count) Entries", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
+            // Feature #12: iCloud Sync
+            Section("Sync") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("iCloud Sync", systemImage: "icloud.fill")
+                        .font(.body)
+                    Text("Data syncs automatically via iCloud when the app is configured with a CloudKit container.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .navigationTitle("Personalize")
@@ -105,6 +211,65 @@ struct SettingsView: View {
             }
         }
         .photosPicker(isPresented: $showImagePicker, selection: $selectedItem)
+        .sheet(isPresented: $showExportSheet) {
+            if let url = exportURL {
+                ShareSheetView(url: url)
+            }
+        }
+    }
+
+    private func generateExport() {
+        switch exportFormat {
+        case .csv:
+            let csv = DataExporter.exportCSV(entries: entries)
+            if let url = DataExporter.writeToTemporaryFile(content: csv, filename: "journal_entries.csv") {
+                exportURL = url
+                showExportSheet = true
+            }
+        case .json:
+            if let data = DataExporter.exportJSON(entries: entries),
+               let url = DataExporter.writeToTemporaryFile(data: data, filename: "journal_entries.json") {
+                exportURL = url
+                showExportSheet = true
+            }
+        }
+    }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheetView: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.green)
+                Text("Export Ready")
+                    .font(.title2)
+                Text(url.lastPathComponent)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                ShareLink(item: url) {
+                    Label("Share File", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+            }
+            .padding()
+            .navigationTitle("Export")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 
@@ -162,4 +327,5 @@ struct FullscreenWallpaperView: View {
     NavigationStack {
         SettingsView()
     }
+    .modelContainer(for: [JournalEntry.self, Tag.self], inMemory: true)
 }

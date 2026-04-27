@@ -14,6 +14,7 @@ struct QuestionsDetailView: View {
     @State private var answerText: String = ""
     @State private var selectedPrompt: String?
     @State private var showingEntry = false
+    @State private var selectedMood: Mood?
 
     private static let prompts: [String] = [
         "What are you grateful for today?",
@@ -41,6 +42,7 @@ struct QuestionsDetailView: View {
                     Button {
                         selectedPrompt = prompt
                         answerText = ""
+                        selectedMood = nil
                         showingEntry = true
                     } label: {
                         HStack {
@@ -58,6 +60,7 @@ struct QuestionsDetailView: View {
                     Button {
                         selectedPrompt = prompt
                         answerText = ""
+                        selectedMood = nil
                         showingEntry = true
                     } label: {
                         Text(prompt)
@@ -78,6 +81,28 @@ struct QuestionsDetailView: View {
                                 .foregroundColor(AppTheme.primaryColor)
                         }
                     }
+
+                    Section("How are you feeling?") {
+                        HStack(spacing: 16) {
+                            ForEach(Mood.allCases) { mood in
+                                Button {
+                                    selectedMood = selectedMood == mood ? nil : mood
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Text(mood.emoji)
+                                            .font(.title2)
+                                        Text(mood.label)
+                                            .font(.caption2)
+                                    }
+                                    .padding(6)
+                                    .background(selectedMood == mood ? AppTheme.primaryColor.opacity(0.2) : Color.clear)
+                                    .cornerRadius(8)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
                     Section("Your Response") {
                         TextEditor(text: $answerText)
                             .frame(minHeight: 150)
@@ -97,7 +122,7 @@ struct QuestionsDetailView: View {
                             } else {
                                 fullText = answerText.trimmingCharacters(in: .whitespacesAndNewlines)
                             }
-                            let entry = JournalEntry(date: Date(), text: fullText, duration: 0)
+                            let entry = JournalEntry(date: Date(), text: fullText, duration: 0, mood: selectedMood)
                             modelContext.insert(entry)
                             showingEntry = false
                         }
