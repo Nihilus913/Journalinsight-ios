@@ -23,6 +23,10 @@ struct SettingsView: View {
     @AppStorage(StorageKeys.notificationsEnabled) private var notificationsEnabled: Bool = false
     @AppStorage(StorageKeys.notificationHour) private var notificationHour: Int = 20
     @AppStorage(StorageKeys.notificationMinute) private var notificationMinute: Int = 0
+    @AppStorage(StorageKeys.workoutReminderEnabled) private var workoutReminderEnabled: Bool = false
+    @AppStorage(StorageKeys.workoutReminderHour) private var workoutReminderHour: Int = 7
+    @AppStorage(StorageKeys.workoutReminderMinute) private var workoutReminderMinute: Int = 0
+    @State private var workoutDays: [Int] = []
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
 
@@ -194,11 +198,83 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            Section("Training") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Workout days")
+                        .font(.subheadline)
+                    HStack(spacing: 6) {
+                        ForEach(Array(zip([1,2,3,4,5,6,7], ["S","M","T","W","T","F","S"])), id: \.0) { day, label in
+                            let isSelected = workoutDays.contains(day)
+                            Button(label) {
+                                if isSelected { workoutDays.removeAll { $0 == day } }
+                                else { workoutDays.append(day) }
+                                saveWorkoutDays()
+                                rescheduleWorkoutReminders()
+                            }
+                            .frame(width: 36, height: 36)
+                            .background(isSelected ? Color.orange : Color.gray.opacity(0.15))
+                            .foregroundStyle(isSelected ? .white : .primary)
+                            .clipShape(Circle())
+                            .font(.caption.weight(.semibold))
+                        }
+                    }
+                }
+
+                Toggle("Workout reminder", isOn: $workoutReminderEnabled)
+                    .onChange(of: workoutReminderEnabled) { _, enabled in
+                        if enabled {
+                            Task {
+                                let granted = await NotificationManager.requestAuthorization()
+                                if !granted { workoutReminderEnabled = false }
+                                else { rescheduleWorkoutReminders() }
+                            }
+                        } else {
+                            NotificationManager.cancelWorkoutReminders()
+                        }
+                    }
+
+                if workoutReminderEnabled {
+                    HStack {
+                        Text("Reminder time")
+                        Spacer()
+                        Picker("Hour", selection: $workoutReminderHour) {
+                            ForEach(4..<13, id: \.self) { h in
+                                Text(String(format: "%02d", h)).tag(h)
+                            }
+                        }
+                        .pickerStyle(.menu).labelsHidden()
+                        Text(":")
+                        Picker("Minute", selection: $workoutReminderMinute) {
+                            ForEach([0, 15, 30, 45], id: \.self) { m in
+                                Text(String(format: "%02d", m)).tag(m)
+                            }
+                        }
+                        .pickerStyle(.menu).labelsHidden()
+                    }
+                    .onChange(of: workoutReminderHour) { _, _ in rescheduleWorkoutReminders() }
+                    .onChange(of: workoutReminderMinute) { _, _ in rescheduleWorkoutReminders() }
+                }
+
+                HStack {
+                    Label("Garmin Connect", systemImage: "applewatch")
+                    Spacer()
+                    Text("Connect in SP4")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .navigationTitle("Personalize")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             nameField = userName
+            if let data = UserDefaults.standard.data(forKey: StorageKeys.workoutDays),
+               let days = try? JSONDecoder().decode([Int].self, from: data) {
+                workoutDays = days
+            } else {
+                workoutDays = [2, 5]
+            }
         }
         .onChange(of: selectedItem) { _, newItem in
             if let newItem {
@@ -233,6 +309,22 @@ struct SettingsView: View {
                 showExportSheet = true
             }
         }
+    }
+
+    private func saveWorkoutDays() {
+        if let data = try? JSONEncoder().encode(workoutDays) {
+            UserDefaults.standard.set(data, forKey: StorageKeys.workoutDays)
+        }
+    }
+
+    private func rescheduleWorkoutReminders() {
+        guard workoutReminderEnabled else { return }
+        NotificationManager.scheduleWorkoutReminder(
+            weekdays: workoutDays,
+            hour: workoutReminderHour,
+            minute: workoutReminderMinute,
+            planSummary: ""
+        )
     }
 }
 
