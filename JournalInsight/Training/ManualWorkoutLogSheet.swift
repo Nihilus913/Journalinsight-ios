@@ -51,6 +51,7 @@ struct ManualWorkoutLogSheet: View {
             notes: notes.isEmpty ? nil : notes
         )
         modelContext.insert(entry)
+        try? modelContext.save()
         dismiss()
     }
 }
