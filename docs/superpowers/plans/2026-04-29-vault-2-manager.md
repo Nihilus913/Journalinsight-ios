@@ -72,7 +72,7 @@ git commit -m "feat(vault): add StorageKeys.lockPolicy"
 - Create: `JournalInsight/Vault/LockPolicySettings.swift`
 - Create: `JournalInsightTests/LockPolicySettingsTests.swift`
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```swift
 // JournalInsightTests/LockPolicySettingsTests.swift
@@ -118,14 +118,14 @@ struct LockPolicySettingsTests {
 }
 ```
 
-- [ ] **Step 2.2: Run tests to verify they fail**
+- [x] **Step 2.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/LockPolicySettings
 ```
 Expected: FAIL.
 
-- [ ] **Step 2.3: Implement LockPolicySettings**
+- [x] **Step 2.3: Implement LockPolicySettings**
 
 ```swift
 // JournalInsight/Vault/LockPolicySettings.swift
@@ -159,14 +159,14 @@ final class LockPolicySettings {
 }
 ```
 
-- [ ] **Step 2.4: Run tests to verify they pass**
+- [x] **Step 2.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/LockPolicySettings
 ```
 Expected: 4 tests passing.
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add JournalInsight/Vault/LockPolicySettings.swift JournalInsightTests/LockPolicySettingsTests.swift
