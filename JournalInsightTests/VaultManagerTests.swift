@@ -96,4 +96,69 @@ struct VaultManagerTests {
         let unlockedFinal = await vault.isUnlocked
         #expect(unlockedFinal == false)
     }
+
+    @Test("Immediately policy locks on background entry")
+    func immediatelyLocks() async throws {
+        let fake = FakeKeychain()
+        fake.seedKey(SymmetricKey(size: .bits256))
+        let suite = UserDefaults(suiteName: "test.vm.\(UUID())")!
+        suite.set(LockPolicy.immediately.rawValue, forKey: StorageKeys.lockPolicy)
+        let settings = LockPolicySettings(suite: suite)
+        let vault = VaultManager(keychain: fake, lockPolicy: settings)
+        _ = try await vault.sessionKey()
+        await vault.handleScenePhaseChange(.background)
+        let state = await vault.currentState
+        #expect(state == .sealed)
+    }
+
+    @Test("Non-immediate policy does not lock immediately on background")
+    func nonImmediateLeavesUnlocked() async throws {
+        let fake = FakeKeychain()
+        fake.seedKey(SymmetricKey(size: .bits256))
+        let suite = UserDefaults(suiteName: "test.vm.\(UUID())")!
+        suite.set(LockPolicy.fiveMinutes.rawValue, forKey: StorageKeys.lockPolicy)
+        let settings = LockPolicySettings(suite: suite)
+        let vault = VaultManager(keychain: fake, lockPolicy: settings)
+        _ = try await vault.sessionKey()
+        await vault.handleScenePhaseChange(.background)
+        let unlocked = await vault.isUnlocked
+        #expect(unlocked == true)
+    }
+
+    @Test("Returning active before deadline leaves unlocked")
+    func returnActiveBeforeDeadline() async throws {
+        let fake = FakeKeychain()
+        fake.seedKey(SymmetricKey(size: .bits256))
+        let suite = UserDefaults(suiteName: "test.vm.\(UUID())")!
+        suite.set(LockPolicy.fiveMinutes.rawValue, forKey: StorageKeys.lockPolicy)
+        let settings = LockPolicySettings(suite: suite)
+        let vault = VaultManager(keychain: fake, lockPolicy: settings)
+        _ = try await vault.sessionKey()
+        await vault.handleScenePhaseChange(.background)
+        // Pretend 1 second of background passed (well under 5 minute deadline)
+        try await Task.sleep(for: .milliseconds(50))
+        await vault.handleScenePhaseChange(.active)
+        let unlocked = await vault.isUnlocked
+        #expect(unlocked == true)
+    }
+
+    @Test("Returning active past deadline locks")
+    func returnActivePastDeadline() async throws {
+        let fake = FakeKeychain()
+        fake.seedKey(SymmetricKey(size: .bits256))
+        let suite = UserDefaults(suiteName: "test.vm.\(UUID())")!
+        // Use a synthetic policy with a near-zero duration via test injection.
+        suite.set(LockPolicy.immediately.rawValue, forKey: StorageKeys.lockPolicy)
+        // Switch policy to oneMinute mid-test isn't realistic — use the test
+        // hook `simulateBackgroundElapsed` documented in the manager.
+        let settings = LockPolicySettings(suite: suite)
+        settings.current = .fiveMinutes
+        let vault = VaultManager(keychain: fake, lockPolicy: settings)
+        _ = try await vault.sessionKey()
+        await vault.handleScenePhaseChange(.background)
+        await vault.simulateBackgroundElapsed(seconds: 600)         // 10 minutes
+        await vault.handleScenePhaseChange(.active)
+        let state = await vault.currentState
+        #expect(state == .sealed)
+    }
 }

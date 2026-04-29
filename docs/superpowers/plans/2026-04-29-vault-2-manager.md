@@ -578,7 +578,7 @@ git commit -m "feat(vault): add VaultManager actor with sessionKey/lockNow and s
 - Modify: `JournalInsight/Vault/VaultManager.swift`
 - Modify: `JournalInsightTests/VaultManagerTests.swift`
 
-- [ ] **Step 5.1: Append failing tests**
+- [x] **Step 5.1: Append failing tests**
 
 Add these tests to the existing `VaultManagerTests` suite:
 
@@ -649,14 +649,14 @@ func returnActivePastDeadline() async throws {
 }
 ```
 
-- [ ] **Step 5.2: Run tests to verify they fail**
+- [x] **Step 5.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/VaultManager
 ```
 Expected: FAIL (no `handleScenePhaseChange`, `simulateBackgroundElapsed`).
 
-- [ ] **Step 5.3: Add idle-timer methods to VaultManager**
+- [x] **Step 5.3: Add idle-timer methods to VaultManager**
 
 Append the following to `VaultManager`:
 
@@ -722,14 +722,14 @@ Append the following to `VaultManager`:
 
 You will also need to import `SwiftUI` if not already (for `ScenePhase`).
 
-- [ ] **Step 5.4: Run tests to verify they pass**
+- [x] **Step 5.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/VaultManager
 ```
 Expected: 11 tests passing (7 from Task 4 + 4 new).
 
-- [ ] **Step 5.5: Commit**
+- [x] **Step 5.5: Commit**
 
 ```bash
 git add JournalInsight/Vault/VaultManager.swift JournalInsightTests/VaultManagerTests.swift
@@ -740,10 +740,10 @@ git commit -m "feat(vault): wire VaultManager scenePhase handler with idle-timer
 
 ## Plan-2 acceptance
 
-- [ ] All 4 LockPolicySettings tests pass.
-- [ ] All 11 VaultManager tests pass.
-- [ ] `xcodebuild build` succeeds.
-- [ ] `VaultManager` actor exposes: `sessionKey() async throws -> SymmetricKey`, `lockNow()`, `handleScenePhaseChange(_:) async`, `currentState`, `isUnlocked`.
-- [ ] No file outside `JournalInsight/Vault/`, `JournalInsight/AppTheme.swift`, or `JournalInsightTests/` is modified.
+- [x] All 4 LockPolicySettings tests pass.
+- [x] All 11 VaultManager tests pass.
+- [x] `xcodebuild build` succeeds.
+- [x] `VaultManager` actor exposes: `sessionKey() async throws -> SymmetricKey`, `lockNow()`, `handleScenePhaseChange(_:) async`, `currentState`, `isUnlocked`.
+- [x] No file outside `JournalInsight/Vault/`, `JournalInsight/AppTheme.swift`, or `JournalInsightTests/` is modified.
 
 When all five tasks are checked, this plan is complete.

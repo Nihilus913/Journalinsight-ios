@@ -99,4 +99,64 @@ actor VaultManager {
         case .unexpectedStatus:           return .keychainUnavailable
         }
     }
+
+    // MARK: - Idle-timer / scenePhase
+
+    func handleScenePhaseChange(_ phase: ScenePhase) async {
+        switch phase {
+        case .background, .inactive:
+            handleEnteredBackground()
+        case .active:
+            handleBecameActive()
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleEnteredBackground() {
+        guard isUnlocked else { return }
+        let policy = lockPolicy.current
+        if policy == .immediately {
+            lockNow()
+            return
+        }
+        lastBackgroundEntry = Date()
+        idleTask?.cancel()
+        let duration = policy.duration
+        idleTask = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard let self else { return }
+            await self.lockIfStillBackgrounded()
+        }
+    }
+
+    private func handleBecameActive() {
+        idleTask?.cancel()
+        idleTask = nil
+        guard isUnlocked, let last = lastBackgroundEntry else {
+            lastBackgroundEntry = nil
+            return
+        }
+        let elapsed = Date().timeIntervalSince(last)
+        if elapsed >= TimeInterval(lockPolicy.current.duration.components.seconds) {
+            lockNow()
+        }
+        lastBackgroundEntry = nil
+    }
+
+    private func lockIfStillBackgrounded() {
+        // Called from the sleep task on the actor's executor.
+        guard lastBackgroundEntry != nil else { return }
+        lockNow()
+    }
+
+    /// Test-only helper — bumps `lastBackgroundEntry` backwards in time so
+    /// the deadline comparison in `handleBecameActive` triggers without a real wait.
+    /// Hidden under `#if DEBUG` to avoid shipping in release.
+    #if DEBUG
+    func simulateBackgroundElapsed(seconds: TimeInterval) {
+        guard let last = lastBackgroundEntry else { return }
+        lastBackgroundEntry = last.addingTimeInterval(-seconds)
+    }
+    #endif
 }
