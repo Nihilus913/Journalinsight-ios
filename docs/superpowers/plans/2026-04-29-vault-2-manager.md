@@ -232,7 +232,7 @@ git commit -m "feat(vault): add VaultError public error type"
 - Create: `JournalInsight/Vault/VaultManager.swift`
 - Create: `JournalInsightTests/VaultManagerTests.swift`
 
-- [ ] **Step 4.1: Write failing tests**
+- [x] **Step 4.1: Write failing tests**
 
 ```swift
 // JournalInsightTests/VaultManagerTests.swift
@@ -336,14 +336,14 @@ struct VaultManagerTests {
 }
 ```
 
-- [ ] **Step 4.2: Run tests to verify they fail**
+- [x] **Step 4.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/VaultManager
 ```
 Expected: FAIL (`VaultManager` not defined).
 
-- [ ] **Step 4.3: Implement VaultManager**
+- [x] **Step 4.3: Implement VaultManager**
 
 ```swift
 // JournalInsight/Vault/VaultManager.swift
@@ -556,14 +556,14 @@ actor VaultManager {
 
 Use the **final shape** above. Delete the earlier draft.
 
-- [ ] **Step 4.4: Run tests to verify they pass**
+- [x] **Step 4.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/VaultManager
 ```
 Expected: 7 tests passing.
 
-- [ ] **Step 4.5: Commit**
+- [x] **Step 4.5: Commit**
 
 ```bash
 git add JournalInsight/Vault/VaultManager.swift JournalInsightTests/VaultManagerTests.swift
