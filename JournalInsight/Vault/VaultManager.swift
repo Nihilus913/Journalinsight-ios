@@ -44,9 +44,18 @@ actor VaultManager {
 
     /// Returns a session-cached master key, prompting biometric and loading
     /// (or generating) the iCloud-Keychain key on first call.
+    ///
+    /// Note (spec §3, transition table):
+    /// - The `osBlocked → sealed` transition is self-correcting via the keychain retry
+    ///   path below. iOS short-circuits with `errSecBiometryLockout` (no biometric prompt)
+    ///   when the lockout is still active, so retrying does not spam the user; once iOS
+    ///   releases the lockout, the next `sessionKey()` call succeeds.
+    /// - The `unlocked → sealed` on biometric ACL invalidation (re-enroll) is detected
+    ///   only on the next sealed→unlocking attempt, not mid-session. A cached key
+    ///   continues to work for the current session until lock or background-timeout.
     func sessionKey() async throws -> SymmetricKey {
         if case .unlocked(let key) = state { return key }
-        if case .osBlocked = state { throw VaultError.osBlocked }
+        // .osBlocked falls through to retry — see header note above.
         state = .unlocking
         do {
             let key = try await keychain.loadMasterKey()
