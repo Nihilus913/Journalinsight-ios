@@ -61,9 +61,10 @@ struct KeychainStore: KeychainService {
         case errSecAuthFailed:
             throw KeychainError.authFailed
         default:
-            // -25293 is biometryLockout on some OS versions
+            // errSecBiometryLockout is only declared as a public symbol on macOS, but
+            // the underlying kernel returns -25293 on iOS as well. Hard-coded by necessity.
             if status == -25293 { throw KeychainError.biometryLockout }
-            Logger.vault.error("loadMasterKey unexpected status=\(status)")
+            Logger.vault.error("loadMasterKey unexpected status=\(status, privacy: .public)")
             throw KeychainError.unexpectedStatus(status)
         }
     }
@@ -106,7 +107,7 @@ struct KeychainStore: KeychainService {
 
         let addStatus = SecItemAdd(attributes as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
-            Logger.vault.error("SecItemAdd failed status=\(addStatus)")
+            Logger.vault.error("SecItemAdd failed status=\(addStatus, privacy: .public)")
             throw KeychainError.unexpectedStatus(addStatus)
         }
         return key
