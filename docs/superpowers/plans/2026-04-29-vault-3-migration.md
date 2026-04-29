@@ -154,7 +154,7 @@ git commit -m "feat(model): JournalEntry transitional V1 shape with ciphertext c
 - Create: `JournalInsight/Storage/SchemaVersions.swift`
 - Create: `JournalInsightTests/SchemaVersionsTests.swift`
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```swift
 // JournalInsightTests/SchemaVersionsTests.swift
@@ -187,14 +187,14 @@ struct SchemaVersionsTests {
 }
 ```
 
-- [ ] **Step 2.2: Run tests to verify they fail**
+- [x] **Step 2.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/SchemaVersions
 ```
 Expected: FAIL (`JournalSchemaV0`, `JournalSchemaV1`, `JournalMigrationPlan` not defined).
 
-- [ ] **Step 2.3: Create SchemaVersions.swift**
+- [x] **Step 2.3: Create SchemaVersions.swift**
 
 ```swift
 // JournalInsight/Storage/SchemaVersions.swift
@@ -238,14 +238,14 @@ enum JournalMigrationPlan: SchemaMigrationPlan {
 }
 ```
 
-- [ ] **Step 2.4: Run tests to verify they pass**
+- [x] **Step 2.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/SchemaVersions
 ```
 Expected: 3 tests passing.
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add JournalInsight/Storage/SchemaVersions.swift JournalInsightTests/SchemaVersionsTests.swift
