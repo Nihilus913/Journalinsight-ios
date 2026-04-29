@@ -32,7 +32,7 @@
 **Files:**
 - Modify: `JournalInsight/AppTheme.swift`
 
-- [ ] **Step 1.1: Add `lockPolicy` to `StorageKeys`**
+- [x] **Step 1.1: Add `lockPolicy` to `StorageKeys`**
 
 Find the `StorageKeys` enum at the bottom of `AppTheme.swift`. Add one line:
 
@@ -50,14 +50,14 @@ enum StorageKeys {
 }
 ```
 
-- [ ] **Step 1.2: Build succeeds**
+- [x] **Step 1.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 1.3: Commit**
+- [x] **Step 1.3: Commit**
 
 ```bash
 git add JournalInsight/AppTheme.swift
