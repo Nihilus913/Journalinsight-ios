@@ -91,4 +91,21 @@ struct EnvelopeCodecTests {
             _ = try EnvelopeCodec.decode(envelope.cipher, key: key, entryID: entryID, schemaVersion: 1)
         }
     }
+
+    @Test("decode rejects empty data as malformed")
+    func emptyDataMalformed() throws {
+        #expect(throws: EnvelopeError.malformed) {
+            _ = try EnvelopeCodec.decode(Data(), key: key, entryID: entryID, schemaVersion: 1)
+        }
+    }
+
+    @Test("decode rejects too-short envelope as malformed")
+    func tooShortMalformed() throws {
+        // Below the 29-byte minimum (1 version + 12 nonce + 16 tag) but with a valid version byte
+        var data = Data([EnvelopeCodec.currentVersion])
+        data.append(contentsOf: Array(repeating: UInt8(0), count: 20))   // total 21 bytes
+        #expect(throws: EnvelopeError.malformed) {
+            _ = try EnvelopeCodec.decode(data, key: key, entryID: entryID, schemaVersion: 1)
+        }
+    }
 }

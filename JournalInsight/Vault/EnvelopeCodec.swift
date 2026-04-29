@@ -20,7 +20,7 @@ enum EnvelopeError: Error, Equatable {
 enum EnvelopeCodec {
     static let currentVersion: UInt8 = 0x01
 
-    struct Envelope {
+    struct Envelope: Sendable {
         var cipher: Data
         var nonce: Data
     }
