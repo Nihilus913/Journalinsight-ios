@@ -180,7 +180,7 @@ git commit -m "feat(vault): add @Observable LockPolicySettings persisted to User
 **Files:**
 - Create: `JournalInsight/Vault/VaultError.swift`
 
-- [ ] **Step 3.1: Create VaultError**
+- [x] **Step 3.1: Create VaultError**
 
 ```swift
 // JournalInsight/Vault/VaultError.swift
@@ -210,14 +210,14 @@ enum VaultError: Error, LocalizedError, Equatable {
 }
 ```
 
-- [ ] **Step 3.2: Build succeeds**
+- [x] **Step 3.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 3.3: Commit**
+- [x] **Step 3.3: Commit**
 
 ```bash
 git add JournalInsight/Vault/VaultError.swift
