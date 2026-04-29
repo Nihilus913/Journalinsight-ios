@@ -97,7 +97,7 @@ struct JournalEntryTests {
         let date = Date()
         let entry = JournalEntry(date: date, text: "Hello", duration: 300)
         #expect(entry.date == date)
-        #expect(entry.text == "Hello")
+        #expect(entry.text == "Hello") // post-Plan 3: entry.text is String?, comparison still works
         #expect(entry.duration == 300)
     }
 

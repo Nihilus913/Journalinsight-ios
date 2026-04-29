@@ -147,7 +147,7 @@ struct SessionDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            Text(entry.text)
+                            Text(entry.text ?? "")
                                 .lineLimit(2)
                             Text("\(Int(entry.duration) / 60) min")
                                 .font(.caption2)

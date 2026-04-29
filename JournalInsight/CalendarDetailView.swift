@@ -135,7 +135,7 @@ struct CalendarView: View {
                                             if let mood = entry.mood {
                                                 Text(mood.emoji)
                                             }
-                                            Text(entry.text)
+                                            Text(entry.text ?? "")
                                                 .lineLimit(3)
                                             Spacer()
                                         }

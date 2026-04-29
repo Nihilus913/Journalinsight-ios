@@ -31,7 +31,7 @@
 **Files:**
 - Modify: `JournalInsight/JournalEntry.swift`
 
-- [ ] **Step 1.1: Replace JournalEntry contents**
+- [x] **Step 1.1: Replace JournalEntry contents**
 
 Open `JournalInsight/JournalEntry.swift`. Replace the entire file with:
 
@@ -125,21 +125,21 @@ final class JournalEntry {
 > - `JournalEntry.id` is now a stored property — required for CloudKit and AAD.
 > - All properties have defaults — required by SwiftData+CloudKit.
 
-- [ ] **Step 1.2: Build succeeds**
+- [x] **Step 1.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED. (Existing tests may now fail because `JournalEntry.text` is `String?`; that is expected and addressed in Plan 5.)
 
-- [ ] **Step 1.3: Run only the existing tests that *don't* touch entry text**
+- [x] **Step 1.3: Run only the existing tests that *don't* touch entry text**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/StreakCalculator
 ```
 Expected: PASS (StreakCalculator tests don't read `text`).
 
-- [ ] **Step 1.4: Commit**
+- [x] **Step 1.4: Commit**
 
 ```bash
 git add JournalInsight/JournalEntry.swift

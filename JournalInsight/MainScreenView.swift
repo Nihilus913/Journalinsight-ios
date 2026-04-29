@@ -74,7 +74,7 @@ struct MainScreenView: View {
         guard !searchText.isEmpty else { return journalEntries }
         let query = searchText.lowercased()
         return journalEntries.filter {
-            $0.text.lowercased().contains(query) ||
+            ($0.text ?? "").lowercased().contains(query) ||
             ($0.mood?.label.lowercased().contains(query) ?? false) ||
             $0.tags.contains(where: { $0.name.lowercased().contains(query) })
         }
@@ -291,7 +291,7 @@ struct EntryRowView: View {
                     .font(.caption2)
                     .foregroundColor(AppTheme.primaryColor)
             }
-            Text(entry.text)
+            Text(entry.text ?? "")
                 .lineLimit(2)
             if !entry.tags.isEmpty {
                 HStack(spacing: 4) {
@@ -703,7 +703,7 @@ struct EditEntrySheet: View {
                 }
             }
             .onAppear {
-                entryText = entry.text
+                entryText = entry.text ?? ""
                 entryDate = entry.date
                 durationMinutes = entry.duration / 60
                 selectedMood = entry.mood

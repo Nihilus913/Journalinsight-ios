@@ -24,7 +24,7 @@ enum DataExporter {
         var lines = ["date,text,duration_seconds,mood,tags"]
         for entry in entries {
             let date = dateFormatter.string(from: entry.date)
-            let text = entry.text.replacingOccurrences(of: "\"", with: "\"\"")
+            let text = (entry.text ?? "").replacingOccurrences(of: "\"", with: "\"\"")
             let mood = entry.mood?.label ?? ""
             let tags = entry.tags.map(\.name).joined(separator: "; ")
             lines.append("\"\(date)\",\"\(text)\",\(Int(entry.duration)),\"\(mood)\",\"\(tags)\"")
@@ -36,7 +36,7 @@ enum DataExporter {
         let items: [[String: Any]] = entries.map { entry in
             var dict: [String: Any] = [
                 "date": dateFormatter.string(from: entry.date),
-                "text": entry.text,
+                "text": entry.text ?? "",
                 "duration_seconds": Int(entry.duration)
             ]
             if let mood = entry.mood {
