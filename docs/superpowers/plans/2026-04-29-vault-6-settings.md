@@ -36,7 +36,7 @@
 **Files:**
 - Create: `JournalInsight/Sync/SyncStatus.swift`
 
-- [ ] **Step 1.1: Create file**
+- [x] **Step 1.1: Create file**
 
 ```swift
 // JournalInsight/Sync/SyncStatus.swift
@@ -57,14 +57,14 @@ enum PauseReason: Equatable {
 }
 ```
 
-- [ ] **Step 1.2: Build succeeds**
+- [x] **Step 1.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 1.3: Commit**
+- [x] **Step 1.3: Commit**
 
 ```bash
 git add JournalInsight/Sync/SyncStatus.swift
