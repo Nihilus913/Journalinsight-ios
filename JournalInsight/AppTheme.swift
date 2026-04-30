@@ -78,4 +78,5 @@ enum StorageKeys {
     static let notificationMinute = "notificationMinute"
     static let widgetLayout = "widgetLayout"
     static let lockPolicy = "lockPolicy"
+    static let lastSuccessfulMigrationVersion = "lastSuccessfulMigrationVersion"
 }

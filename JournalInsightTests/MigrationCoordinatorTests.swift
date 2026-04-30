@@ -181,4 +181,16 @@ struct MigrationCoordinatorRunTests {
         #expect(e.schemaVersion == 0)
         #expect(e.text == "x")
     }
+
+    @Test("run sets lastSuccessfulMigrationVersion on clean completion")
+    func writesFlag() async throws {
+        let suite = UserDefaults(suiteName: "test.mc.flag.\(UUID())")!
+        suite.removeObject(forKey: StorageKeys.lastSuccessfulMigrationVersion)
+        let ctx = try makeContext()
+        let vault = makeVault(seed: SymmetricKey(size: .bits256))
+        let e = JournalEntry(date: .now, text: "x", duration: 600)
+        ctx.insert(e); try ctx.save()
+        try await MigrationCoordinator.run(in: ctx, vault: vault, defaults: suite) { _, _ in }
+        #expect(suite.integer(forKey: StorageKeys.lastSuccessfulMigrationVersion) == 1)
+    }
 }

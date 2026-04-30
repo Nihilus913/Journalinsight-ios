@@ -30,6 +30,7 @@ struct MigrationCoordinator {
     static func run(
         in ctx: ModelContext,
         vault: VaultManager,
+        defaults: UserDefaults = .standard,
         progress: @MainActor (Int, Int) -> Void = { _, _ in }
     ) async throws {
         let pendingFetch = FetchDescriptor<JournalEntry>(
@@ -76,5 +77,7 @@ struct MigrationCoordinator {
             let allTags = try ctx.fetch(FetchDescriptor<Tag>())
             for tag in allTags { ctx.delete(tag) }
         }
+
+        defaults.set(1, forKey: StorageKeys.lastSuccessfulMigrationVersion)
     }
 }

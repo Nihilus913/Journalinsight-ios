@@ -647,7 +647,7 @@ git commit -m "test(migration): cover quarantine smoke + vault-unavailable abort
 
 This task adds a UserDefaults flag set after a clean run, which Plan 4 reads to decide whether to skip the migration screen. The flag is *advisory only* — `pendingCount` remains the source of truth.
 
-- [ ] **Step 6.1: Add flag key**
+- [x] **Step 6.1: Add flag key**
 
 In `JournalInsight/AppTheme.swift`, append to `StorageKeys`:
 
@@ -655,7 +655,7 @@ In `JournalInsight/AppTheme.swift`, append to `StorageKeys`:
     static let lastSuccessfulMigrationVersion = "lastSuccessfulMigrationVersion"
 ```
 
-- [ ] **Step 6.2: Add tests**
+- [x] **Step 6.2: Add tests**
 
 Append to `MigrationCoordinatorRunTests`:
 
@@ -673,7 +673,7 @@ Append to `MigrationCoordinatorRunTests`:
     }
 ```
 
-- [ ] **Step 6.3: Update `run` signature**
+- [x] **Step 6.3: Update `run` signature**
 
 Modify `MigrationCoordinator.run`:
 
@@ -690,14 +690,14 @@ Modify `MigrationCoordinator.run`:
     }
 ```
 
-- [ ] **Step 6.4: Run tests**
+- [x] **Step 6.4: Run tests**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/MigrationCoordinator
 ```
 Expected: 8 tests passing.
 
-- [ ] **Step 6.5: Commit**
+- [x] **Step 6.5: Commit**
 
 ```bash
 git add JournalInsight/AppTheme.swift JournalInsight/Migration/MigrationCoordinator.swift JournalInsightTests/MigrationCoordinatorTests.swift
@@ -708,10 +708,10 @@ git commit -m "feat(migration): persist lastSuccessfulMigrationVersion advisory 
 
 ## Plan-3 acceptance
 
-- [ ] All 3 SchemaVersions tests pass.
-- [ ] All 8 MigrationCoordinator tests pass.
-- [ ] `xcodebuild build` succeeds; existing `StreakCalculator` tests still pass.
-- [ ] `MigrationCoordinator.run` is idempotent and honours per-row transactions.
-- [ ] No file outside `JournalInsight/Storage/`, `JournalInsight/Migration/`, `JournalInsight/JournalEntry.swift`, `JournalInsight/AppTheme.swift`, `JournalInsightTests/` is modified.
+- [x] All 3 SchemaVersions tests pass.
+- [x] All 8 MigrationCoordinator tests pass.
+- [x] `xcodebuild build` succeeds; existing `StreakCalculator` tests still pass.
+- [x] `MigrationCoordinator.run` is idempotent and honours per-row transactions.
+- [x] No file outside `JournalInsight/Storage/`, `JournalInsight/Migration/`, `JournalInsight/JournalEntry.swift`, `JournalInsight/AppTheme.swift`, `JournalInsightTests/` is modified.
 
 When all six tasks are checked, this plan is complete.
