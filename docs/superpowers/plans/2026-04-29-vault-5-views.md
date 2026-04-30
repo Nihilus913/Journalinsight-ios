@@ -39,7 +39,7 @@
 - Create: `JournalInsight/Repositories/EntryRepository.swift`
 - Create: `JournalInsightTests/EntryRepositoryTests.swift`
 
-- [ ] **Step 1.1: Write failing tests**
+- [x] **Step 1.1: Write failing tests**
 
 ```swift
 // JournalInsightTests/EntryRepositoryTests.swift
@@ -154,14 +154,14 @@ struct EntryRepositoryTests {
 }
 ```
 
-- [ ] **Step 1.2: Run tests to verify they fail**
+- [x] **Step 1.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/EntryRepository
 ```
 Expected: FAIL.
 
-- [ ] **Step 1.3: Implement EntryRepository**
+- [x] **Step 1.3: Implement EntryRepository**
 
 ```swift
 // JournalInsight/Repositories/EntryRepository.swift
@@ -271,14 +271,14 @@ struct EntryRepository {
 }
 ```
 
-- [ ] **Step 1.4: Run tests to verify they pass**
+- [x] **Step 1.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/EntryRepository
 ```
 Expected: 5 tests passing.
 
-- [ ] **Step 1.5: Commit**
+- [x] **Step 1.5: Commit**
 
 ```bash
 git add JournalInsight/Repositories/EntryRepository.swift JournalInsightTests/EntryRepositoryTests.swift
