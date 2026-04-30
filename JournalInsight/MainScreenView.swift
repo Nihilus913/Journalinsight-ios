@@ -62,6 +62,7 @@ struct MainScreenView: View {
     @Query(sort: \JournalEntry.date, order: .reverse) private var journalEntries: [JournalEntry]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.entryRepository) private var entryRepository
+    @Environment(SyncStatusObserver.self) private var syncObserver: SyncStatusObserver?
     @State private var selectedDate: Date? = nil
 
     @AppStorage(StorageKeys.userName) private var userName: String = ""
@@ -106,6 +107,10 @@ struct MainScreenView: View {
             NavigationStack {
                 ScrollView {
                     VStack(spacing: 20) {
+                        if !searchText.isEmpty {
+                            searchUnavailableBanner
+                        }
+
                         widgetGrid
 
                         if !filteredEntries.isEmpty {
@@ -119,6 +124,11 @@ struct MainScreenView: View {
                 .navigationBarTitleDisplayMode(.large)
                 .searchable(text: $searchText, prompt: "Search entries...")
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        if let observer = syncObserver {
+                            SyncStatusToolbarIcon(status: observer.status)
+                        }
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink(destination: SettingsView()) {
                             Image(systemName: "gearshape.fill")
@@ -137,7 +147,6 @@ struct MainScreenView: View {
                 if userName.isEmpty {
                     showingNamePrompt = true
                 }
-                seedSampleDataIfNeeded()
             }
             .sheet(isPresented: $showingNamePrompt) {
                 NamePromptSheet(userName: $userName, isPresented: $showingNamePrompt)
@@ -245,11 +254,19 @@ struct MainScreenView: View {
         }
     }
 
-    private func seedSampleDataIfNeeded() {
-        // Sample data is no longer seeded into real users' databases.
-        // Plan 6 deletes this method entirely. For v1.0 transitional builds
-        // run by Plan 5 worker, do nothing.
-        // Closes audit finding H-3.
+    @ViewBuilder
+    private var searchUnavailableBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            Text("Search isn't available yet — coming in v1.1.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.06))
+        .cornerRadius(10)
     }
 
     struct WidgetDropDelegate: DropDelegate {

@@ -16,6 +16,7 @@ struct JournalInsightApp: App {
     @State private var bootCoordinator: BootCoordinator?
     @State private var migrationSheetState: MigrationSheet.State = .idle
     @State private var vault: VaultManager?
+    @State private var syncObserver = SyncStatusObserver()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -68,6 +69,7 @@ struct JournalInsightApp: App {
                 .modelContainer(container)
                 .environment(lockPolicy)
                 .environment(\.vault, vault!)
+                .environment(syncObserver)
         }
     }
 

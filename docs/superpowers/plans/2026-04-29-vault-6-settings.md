@@ -774,7 +774,7 @@ git commit -m "feat(storage): WallpaperStorage uses .completeFileProtection and 
 **Files:**
 - Modify: `JournalInsight/MainScreenView.swift`
 
-- [ ] **Step 9.1: Add toolbar icon**
+- [x] **Step 9.1: Add toolbar icon**
 
 Find the `.toolbar { ... }` block on `MainScreenView`. Add a new `ToolbarItem` *before* the existing settings/add buttons:
 
@@ -792,11 +792,11 @@ Add the environment property near the other `@Environment` declarations in `Main
     @Environment(SyncStatusObserver.self) private var syncObserver: SyncStatusObserver?
 ```
 
-- [ ] **Step 9.2: Drop `seedSampleDataIfNeeded`**
+- [x] **Step 9.2: Drop `seedSampleDataIfNeeded`**
 
 Plan 5 left a stub `seedSampleDataIfNeeded` that does nothing in release builds. Remove the call from `.onAppear` and delete the method altogether. Audit H-3 closed.
 
-- [ ] **Step 9.3: Inject SyncStatusObserver from JournalInsightApp**
+- [x] **Step 9.3: Inject SyncStatusObserver from JournalInsightApp**
 
 Add to `JournalInsightApp.body`'s `.ready(let container)` branch:
 
@@ -815,14 +815,14 @@ Add to `JournalInsightApp` state:
     @State private var syncObserver = SyncStatusObserver()
 ```
 
-- [ ] **Step 9.4: Build + smoke run**
+- [x] **Step 9.4: Build + smoke run**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED. Launch on simulator, navigate to dashboard. With CloudKit unavailable in simulator (no signed-in iCloud account), the toolbar icon should appear with a `paused` style.
 
-- [ ] **Step 9.5: Commit**
+- [x] **Step 9.5: Commit**
 
 ```bash
 git add JournalInsight/MainScreenView.swift JournalInsight/JournalInsightApp.swift
