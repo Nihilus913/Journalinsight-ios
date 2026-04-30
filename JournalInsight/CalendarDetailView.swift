@@ -11,6 +11,7 @@ import SwiftData
 struct CalendarView: View {
     @Binding var selectedDate: Date?
     @Query(sort: \JournalEntry.date) private var entries: [JournalEntry]
+    @Environment(\.entryRepository) private var repo
     @State private var scope: CalendarScope = .month
     @State private var navigationDate: Date = Date()
 
@@ -106,10 +107,7 @@ struct CalendarView: View {
                                 }
 
                             let dayEntries = entries.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
-                            if let firstMood = dayEntries.compactMap(\.mood).first {
-                                Text(firstMood.emoji)
-                                    .font(.system(size: 10))
-                            } else if !dayEntries.isEmpty {
+                            if !dayEntries.isEmpty {
                                 Circle()
                                     .fill(AppTheme.primaryColor)
                                     .frame(width: 6, height: 6)
@@ -131,29 +129,28 @@ struct CalendarView: View {
                                     .font(.headline)
                                 ForEach(dayEntries) { entry in
                                     VStack(alignment: .leading, spacing: 4) {
-                                        HStack {
-                                            if let mood = entry.mood {
-                                                Text(mood.emoji)
-                                            }
-                                            Text(entry.text ?? "")
-                                                .lineLimit(3)
-                                            Spacer()
-                                        }
-                                        Text("Duration: \(Int(entry.duration) / 60) min")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        if !entry.tags.isEmpty {
-                                            HStack(spacing: 4) {
-                                                ForEach(entry.tags) { tag in
-                                                    Text(tag.name)
-                                                        .font(.caption2)
-                                                        .padding(.horizontal, 6)
-                                                        .padding(.vertical, 2)
-                                                        .background(AppTheme.primaryColor.opacity(0.15))
-                                                        .clipShape(Capsule())
+                                        if let repo = repo {
+                                            EntryUnlockGate(entry: entry, repo: repo) { body in
+                                                HStack {
+                                                    if let mood = body.mood { Text(mood.emoji) }
+                                                    Text(body.text).lineLimit(3)
+                                                    Spacer()
+                                                }
+                                                if !body.tags.isEmpty {
+                                                    HStack(spacing: 4) {
+                                                        ForEach(body.tags, id: \.self) { tag in
+                                                            Text(tag)
+                                                                .font(.caption2)
+                                                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                                                .background(AppTheme.primaryColor.opacity(0.15))
+                                                                .clipShape(Capsule())
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
+                                        Text("Duration: \(Int(entry.duration) / 60) min")
+                                            .font(.caption).foregroundColor(.secondary)
                                     }
                                     .padding(10)
                                     .background(Color.primary.opacity(0.05))

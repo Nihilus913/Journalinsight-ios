@@ -740,7 +740,7 @@ git commit -m "feat(views): AddEntrySheet/EditEntrySheet save and load via Entry
 **Files:**
 - Modify: `JournalInsight/CalendarDetailView.swift`
 
-- [ ] **Step 5.1: Show day-cell mood emoji only on tap (lazy decrypt)**
+- [x] **Step 5.1: Show day-cell mood emoji only on tap (lazy decrypt)**
 
 Find the day-cell `VStack(spacing: 2) { ... }` block. The mood emoji line currently reads from `entry.mood`. With encrypted bodies, mood is no longer accessible without unlock. Replace the `if let firstMood = ...` block with a simple "has entry" indicator:
 
@@ -755,7 +755,7 @@ Find the day-cell `VStack(spacing: 2) { ... }` block. The mood emoji line curren
 
 Mood emojis become available in the bottom-of-screen "Entries for {date}" section, where the user has tapped a day and can incur the unlock cost.
 
-- [ ] **Step 5.2: Update the day-detail entries list**
+- [x] **Step 5.2: Update the day-detail entries list**
 
 Find the inner `ForEach(dayEntries) { entry in ... }` block. Replace its content with:
 
@@ -797,14 +797,14 @@ Add at the top of `CalendarView`:
     @Environment(\.entryRepository) private var repo
 ```
 
-- [ ] **Step 5.3: Build succeeds**
+- [x] **Step 5.3: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 5.4: Commit**
+- [x] **Step 5.4: Commit**
 
 ```bash
 git add JournalInsight/CalendarDetailView.swift
