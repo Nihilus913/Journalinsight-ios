@@ -67,7 +67,16 @@ struct MigrationCoordinator {
                 Logger.migration.error(
                     "quarantine entry=\(entry.id, privacy: .private(mask: .hash)) reason=\(error.localizedDescription, privacy: .public)"
                 )
-                try ctx.transaction { entry.schemaVersion = -1 }
+                // Quarantine-mark in its own do/catch: if this also fails, leave the row at
+                // schemaVersion == 0 so the next run() can retry. Never abort the whole loop
+                // because of a single quarantine-mark failure.
+                do {
+                    try ctx.transaction { entry.schemaVersion = -1 }
+                } catch {
+                    Logger.migration.error(
+                        "quarantine-mark also failed entry=\(entry.id, privacy: .private(mask: .hash)) reason=\(error.localizedDescription, privacy: .public)"
+                    )
+                }
             }
             progress(i + 1, total)
         }
