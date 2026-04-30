@@ -310,6 +310,44 @@ struct DataExporterTests {
     }
 }
 
+// MARK: - DataExporter Sanitization Tests (audit S-9)
+
+@Suite("DataExporter sanitization")
+struct DataExporterSanitizationTests {
+
+    @Test("CSV escapes leading equals")
+    func escapesEquals() {
+        let entry = JournalEntry(date: Date(), text: "=2+2", duration: 0)
+        let csv = DataExporter.exportCSV(entries: [entry])
+        let dataLine = csv.components(separatedBy: "\n")[1]
+        #expect(dataLine.contains("\"'=2+2\""))
+    }
+
+    @Test("CSV escapes leading at-sign")
+    func escapesAt() {
+        let entry = JournalEntry(date: Date(), text: "@SUM(A1:A99)", duration: 0)
+        let csv = DataExporter.exportCSV(entries: [entry])
+        let dataLine = csv.components(separatedBy: "\n")[1]
+        #expect(dataLine.contains("\"'@SUM(A1:A99)\""))
+    }
+
+    @Test("CSV escapes leading dash")
+    func escapesDash() {
+        let entry = JournalEntry(date: Date(), text: "-100", duration: 0)
+        let csv = DataExporter.exportCSV(entries: [entry])
+        let dataLine = csv.components(separatedBy: "\n")[1]
+        #expect(dataLine.contains("\"'-100\""))
+    }
+
+    @Test("CSV does not escape regular text")
+    func leavesRegularText() {
+        let entry = JournalEntry(date: Date(), text: "Hello world", duration: 0)
+        let csv = DataExporter.exportCSV(entries: [entry])
+        let dataLine = csv.components(separatedBy: "\n")[1]
+        #expect(!dataLine.contains("\"'Hello"))
+    }
+}
+
 // MARK: - Widget Layout Persistence Tests
 
 @Suite("Widget Layout")

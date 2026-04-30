@@ -286,7 +286,7 @@ git commit -m "feat(sync): add SyncStatusToolbarIcon (visible only when paused/e
 - Modify: `JournalInsight/DataExporter.swift`
 - Modify: `JournalInsightTests/JournalInsightTests.swift`
 
-- [ ] **Step 4.1: Write failing tests**
+- [x] **Step 4.1: Write failing tests**
 
 In `JournalInsightTests/JournalInsightTests.swift`, append a new suite:
 
@@ -328,7 +328,7 @@ struct DataExporterSanitizationTests {
 }
 ```
 
-- [ ] **Step 4.2: Run tests to verify they fail**
+- [x] **Step 4.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/DataExporter
@@ -337,7 +337,7 @@ Expected: 4 new tests FAIL.
 
 > Note: With Plan 5 in place, `JournalEntry.text` is `Optional<String>` and post-migration it is `nil`. `DataExporter` currently reads `entry.text` directly. Update it to *also* take an optional plaintext fallback OR run through `EntryRepository`. For Plan 6 we keep the simplest approach: have the exporter take pre-decoded `(date, text, durationSeconds, mood, tags)` tuples instead of `[JournalEntry]`. This requires a small API refactor.
 
-- [ ] **Step 4.3: Refactor DataExporter to take tuples + sanitize**
+- [x] **Step 4.3: Refactor DataExporter to take tuples + sanitize**
 
 Replace `JournalInsight/DataExporter.swift` with:
 
@@ -462,14 +462,14 @@ enum DataExporter {
 }
 ```
 
-- [ ] **Step 4.4: Run tests to verify they pass**
+- [x] **Step 4.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/DataExporter
 ```
 Expected: original tests + 4 new sanitization tests pass.
 
-- [ ] **Step 4.5: Commit**
+- [x] **Step 4.5: Commit**
 
 ```bash
 git add JournalInsight/DataExporter.swift JournalInsightTests/JournalInsightTests.swift
