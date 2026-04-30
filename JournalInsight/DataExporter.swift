@@ -96,7 +96,11 @@ enum DataExporter {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         try? FileManager.default.removeItem(at: url)
         do {
-            try content.write(to: url, atomically: true, encoding: .utf8)
+            // Use Data.write so we can request .completeFileProtection — String.write
+            // honors only the default protection class and would leave plaintext export
+            // readable while the device is locked. Pairs with the JSON writer below.
+            let data = Data(content.utf8)
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
             try? (url as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
             return url
         } catch {

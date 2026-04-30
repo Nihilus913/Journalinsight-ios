@@ -65,11 +65,16 @@ struct JournalInsightApp: App {
                 syncSheetStateFromCoordinator(coord)
             }
         case .ready(let container):
-            MainScreenView()
-                .modelContainer(container)
-                .environment(lockPolicy)
-                .environment(\.vault, vault!)
-                .environment(syncObserver)
+            // `vault` is non-nil by construction here (initBoot assigns it before
+            // building the BootCoordinator that produces .ready), but prefer an
+            // explicit if-let to avoid a force-unwrap in the hot view body.
+            if let vault {
+                MainScreenView()
+                    .modelContainer(container)
+                    .environment(lockPolicy)
+                    .environment(\.vault, vault)
+                    .environment(syncObserver)
+            }
         }
     }
 
