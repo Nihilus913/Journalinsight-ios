@@ -570,7 +570,7 @@ git commit -m "feat(views): EntryRowView reads via EntryRepository through Entry
 **Files:**
 - Modify: `JournalInsight/MainScreenView.swift`
 
-- [ ] **Step 4.1: Rewrite AddEntrySheet body to use repo**
+- [x] **Step 4.1: Rewrite AddEntrySheet body to use repo**
 
 Find `AddEntrySheet`. Change its declaration:
 
@@ -597,7 +597,7 @@ struct AddEntrySheet: View {
     @State private var timerTask: Task<Void, Never>?
 ```
 
-- [ ] **Step 4.2: Replace the Tags section body**
+- [x] **Step 4.2: Replace the Tags section body**
 
 Find the `Section("Tags") { ... }` block in `AddEntrySheet`. Replace it with:
 
@@ -641,7 +641,7 @@ Find the `Section("Tags") { ... }` block in `AddEntrySheet`. Replace it with:
                 }
 ```
 
-- [ ] **Step 4.3: Replace the Save button body**
+- [x] **Step 4.3: Replace the Save button body**
 
 Find the `ToolbarItem(placement: .confirmationAction) { Button("Save") { ... } }` block in `AddEntrySheet`. Replace with:
 
@@ -668,7 +668,7 @@ Find the `ToolbarItem(placement: .confirmationAction) { Button("Save") { ... } }
                 }
 ```
 
-- [ ] **Step 4.4: Apply equivalent changes to EditEntrySheet**
+- [x] **Step 4.4: Apply equivalent changes to EditEntrySheet**
 
 Find `EditEntrySheet`. Replace its `@Query private var allTags: [Tag]` with `@State private var knownTags: [String] = []` and `@Environment(\.entryRepository) private var repo`.
 
@@ -719,14 +719,14 @@ Replace the `.onAppear` block on `EditEntrySheet` with:
             }
 ```
 
-- [ ] **Step 4.5: Build succeeds**
+- [x] **Step 4.5: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 4.6: Commit**
+- [x] **Step 4.6: Commit**
 
 ```bash
 git add JournalInsight/MainScreenView.swift

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import os
 
 // MARK: - Widget Types
 
@@ -409,7 +410,7 @@ struct NamePromptSheet: View {
 struct AddEntrySheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query private var allTags: [Tag]
+    @Environment(\.entryRepository) private var repo
 
     @State private var entryDate = Date()
     @State private var entryText = ""
@@ -417,6 +418,9 @@ struct AddEntrySheet: View {
     @State private var selectedMood: Mood? = nil
     @State private var selectedTags: Set<String> = []
     @State private var newTagName = ""
+
+    // Tag suggestions are derived from in-memory cache once vault is unlocked.
+    @State private var knownTags: [String] = []
 
     // Timer state (Feature #4)
     @State private var useTimer = false
@@ -493,22 +497,18 @@ struct AddEntrySheet: View {
                 }
 
                 Section("Tags") {
-                    if !allTags.isEmpty {
+                    if !knownTags.isEmpty {
                         FlowLayout(spacing: 8) {
-                            ForEach(allTags) { tag in
+                            ForEach(knownTags, id: \.self) { tag in
                                 Button {
-                                    if selectedTags.contains(tag.name) {
-                                        selectedTags.remove(tag.name)
-                                    } else {
-                                        selectedTags.insert(tag.name)
-                                    }
+                                    if selectedTags.contains(tag) { selectedTags.remove(tag) }
+                                    else { selectedTags.insert(tag) }
                                 } label: {
-                                    Text(tag.name)
+                                    Text(tag)
                                         .font(.caption)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(selectedTags.contains(tag.name) ? AppTheme.primaryColor : Color.primary.opacity(0.1))
-                                        .foregroundColor(selectedTags.contains(tag.name) ? .white : .primary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(selectedTags.contains(tag) ? AppTheme.primaryColor : Color.primary.opacity(0.1))
+                                        .foregroundColor(selectedTags.contains(tag) ? .white : .primary)
                                         .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
@@ -521,11 +521,13 @@ struct AddEntrySheet: View {
                         Button("Add") {
                             let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard !name.isEmpty else { return }
-                            if !allTags.contains(where: { $0.name == name }) {
-                                let tag = Tag(name: name)
-                                modelContext.insert(tag)
+                            // Case-insensitive dedupe
+                            if let existing = knownTags.first(where: { $0.lowercased() == name.lowercased() }) {
+                                selectedTags.insert(existing)
+                            } else {
+                                knownTags.append(name)
+                                selectedTags.insert(name)
                             }
-                            selectedTags.insert(name)
                             newTagName = ""
                         }
                         .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -545,18 +547,21 @@ struct AddEntrySheet: View {
                     Button("Save") {
                         stopTimer()
                         let duration: TimeInterval = useTimer ? TimeInterval(timerSeconds) : durationMinutes * 60
-                        let entryTags = allTags.filter { selectedTags.contains($0.name) }
-                        let entry = JournalEntry(
-                            date: entryDate,
-                            text: entryText.trimmingCharacters(in: .whitespacesAndNewlines),
-                            duration: duration,
-                            mood: selectedMood,
-                            tags: entryTags
-                        )
-                        modelContext.insert(entry)
-                        dismiss()
+                        let text = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let mood = selectedMood
+                        let tags = Array(selectedTags)
+                        guard let repo else { return }
+                        Task { @MainActor in
+                            do {
+                                try await repo.create(date: entryDate, duration: duration, text: text, mood: mood, tags: tags)
+                                dismiss()
+                            } catch {
+                                // Stay on the sheet; user retries.
+                                Logger.vault.error("create entry failed: \(error.localizedDescription, privacy: .public)")
+                            }
+                        }
                     }
-                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo == nil)
                 }
             }
         }
@@ -597,7 +602,8 @@ struct EditEntrySheet: View {
     @Bindable var entry: JournalEntry
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var allTags: [Tag]
+    @Environment(\.entryRepository) private var repo
+    @State private var knownTags: [String] = []
 
     @State private var entryText: String = ""
     @State private var entryDate: Date = Date()
@@ -649,22 +655,18 @@ struct EditEntrySheet: View {
                 }
 
                 Section("Tags") {
-                    if !allTags.isEmpty {
+                    if !knownTags.isEmpty {
                         FlowLayout(spacing: 8) {
-                            ForEach(allTags) { tag in
+                            ForEach(knownTags, id: \.self) { tag in
                                 Button {
-                                    if selectedTags.contains(tag.name) {
-                                        selectedTags.remove(tag.name)
-                                    } else {
-                                        selectedTags.insert(tag.name)
-                                    }
+                                    if selectedTags.contains(tag) { selectedTags.remove(tag) }
+                                    else { selectedTags.insert(tag) }
                                 } label: {
-                                    Text(tag.name)
+                                    Text(tag)
                                         .font(.caption)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(selectedTags.contains(tag.name) ? AppTheme.primaryColor : Color.primary.opacity(0.1))
-                                        .foregroundColor(selectedTags.contains(tag.name) ? .white : .primary)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(selectedTags.contains(tag) ? AppTheme.primaryColor : Color.primary.opacity(0.1))
+                                        .foregroundColor(selectedTags.contains(tag) ? .white : .primary)
                                         .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
@@ -677,11 +679,13 @@ struct EditEntrySheet: View {
                         Button("Add") {
                             let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard !name.isEmpty else { return }
-                            if !allTags.contains(where: { $0.name == name }) {
-                                let tag = Tag(name: name)
-                                modelContext.insert(tag)
+                            // Case-insensitive dedupe
+                            if let existing = knownTags.first(where: { $0.lowercased() == name.lowercased() }) {
+                                selectedTags.insert(existing)
+                            } else {
+                                knownTags.append(name)
+                                selectedTags.insert(name)
                             }
-                            selectedTags.insert(name)
                             newTagName = ""
                         }
                         .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -696,22 +700,39 @@ struct EditEntrySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        entry.text = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let text = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let mood = selectedMood
+                        let tags = Array(selectedTags)
+                        let duration = durationMinutes * 60
                         entry.date = entryDate
-                        entry.duration = durationMinutes * 60
-                        entry.mood = selectedMood
-                        entry.tags = allTags.filter { selectedTags.contains($0.name) }
-                        dismiss()
+                        entry.duration = duration
+                        guard let repo else { return }
+                        Task { @MainActor in
+                            do {
+                                try await repo.update(entry, text: text, mood: mood, tags: tags)
+                                dismiss()
+                            } catch {
+                                Logger.vault.error("update entry failed: \(error.localizedDescription, privacy: .public)")
+                            }
+                        }
                     }
-                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo == nil)
                 }
             }
             .onAppear {
-                entryText = entry.text ?? ""
-                entryDate = entry.date
-                durationMinutes = entry.duration / 60
-                selectedMood = entry.mood
-                selectedTags = Set(entry.tags.map(\.name))
+                Task { @MainActor in
+                    guard let repo else { return }
+                    do {
+                        let body = try await repo.body(for: entry)
+                        entryText = body.text
+                        selectedMood = body.mood
+                        selectedTags = Set(body.tags)
+                    } catch {
+                        Logger.vault.error("load entry for edit failed: \(error.localizedDescription, privacy: .public)")
+                    }
+                    entryDate = entry.date
+                    durationMinutes = entry.duration / 60
+                }
             }
         }
     }
