@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import os
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -25,6 +26,8 @@ struct SettingsView: View {
     @AppStorage(StorageKeys.notificationMinute) private var notificationMinute: Int = 0
     @AppStorage(StorageKeys.lockPolicy) private var lockPolicyRaw: String = LockPolicy.fiveMinutes.rawValue
     @Environment(\.vault) private var vault: VaultManager?
+    @Environment(\.entryRepository) private var entryRepository
+    @Environment(SyncStatusObserver.self) private var syncObserver: SyncStatusObserver?
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
 
@@ -33,6 +36,8 @@ struct SettingsView: View {
     @State private var showExportSheet = false
     @State private var exportFormat: ExportFormat = .csv
     @State private var exportURL: URL?
+    @State private var exportInProgress = false
+    @State private var exportError: String?
 
     var body: some View {
         Form {
@@ -181,30 +186,63 @@ struct SettingsView: View {
                 }
             }
 
-            // Feature #8: Data Export — temporarily disabled while encrypted-vault rollout
-            // (v1.0) is in flight. DataExporter still reads plaintext columns that are now
-            // nil after encryption, which would silently produce empty exports. Plan 6 will
-            // route DataExporter through EntryRepository to decrypt entries on demand.
+            // Feature #8: Data Export — routed through EntryRepository (Plan 6 / CF-1)
             Section("Export Data") {
                 if entries.isEmpty {
                     Text("No entries to export")
                         .foregroundColor(.secondary)
                 } else {
-                    Label("Export is temporarily unavailable while we update encrypted storage. Coming back in v1.0.1.", systemImage: "lock.shield.fill")
+                    Picker("Format", selection: $exportFormat) {
+                        ForEach(ExportFormat.allCases) { fmt in
+                            Text(fmt.label).tag(fmt)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Label("These exports are not encrypted. Anyone with the file can read it.", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(.orange)
+
+                    Button {
+                        Task { await generateExport() }
+                    } label: {
+                        if exportInProgress {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Preparing export…")
+                            }
+                        } else {
+                            Label("Export \(entries.count) entr\(entries.count == 1 ? "y" : "ies")", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    .disabled(exportInProgress || entryRepository == nil)
+
+                    if let exportError {
+                        Text(exportError)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 }
             }
 
-            // Feature #12: iCloud Sync
-            Section("Sync") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("iCloud Sync", systemImage: "icloud.fill")
-                        .font(.body)
-                    Text("Data syncs automatically via iCloud when the app is configured with a CloudKit container.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            Section("iCloud Sync") {
+                if let observer = syncObserver {
+                    SyncStatusRow(status: observer.status)
                 }
+                Text("Your entries are encrypted on this device. Apple sees only encrypted data on iCloud.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    Link("Manage in Settings.app", destination: url)
+                }
+            }
+
+            Section("Back Up Outside iCloud") {
+                Text("Your journal syncs via iCloud automatically. To save a copy somewhere else (Dropbox, Google Drive, ProtonDrive), use Export below and save the file to that provider via the Files app.")
+                    .font(.caption)
+                Label("Exported files are NOT encrypted.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
             }
         }
         .navigationTitle("Personalize")
@@ -230,19 +268,57 @@ struct SettingsView: View {
         }
     }
 
-    private func generateExport() {
+    @MainActor
+    private func generateExport() async {
+        guard let repo = entryRepository else {
+            exportError = "Vault unavailable. Try again."
+            return
+        }
+        exportInProgress = true
+        exportError = nil
+        defer { exportInProgress = false }
+
+        // Decrypt each entry through the repository (will trigger biometric once if locked).
+        var records: [ExportRecord] = []
+        records.reserveCapacity(entries.count)
+        for entry in entries {
+            do {
+                let body = try await repo.body(for: entry)
+                records.append(
+                    ExportRecord(
+                        date: entry.date,
+                        text: body.text,
+                        durationSeconds: Int(entry.duration),
+                        mood: body.mood?.label,
+                        tags: body.tags
+                    )
+                )
+            } catch VaultError.userCancelled {
+                exportError = "Export cancelled."
+                return
+            } catch {
+                Logger.crypto.error("export decrypt failed: \(error.localizedDescription, privacy: .public)")
+                exportError = "Couldn't decrypt one or more entries."
+                return
+            }
+        }
+
         switch exportFormat {
         case .csv:
-            let csv = DataExporter.exportCSV(entries: entries)
+            let csv = DataExporter.exportCSV(records: records)
             if let url = DataExporter.writeToTemporaryFile(content: csv, filename: "journal_entries.csv") {
                 exportURL = url
                 showExportSheet = true
+            } else {
+                exportError = "Couldn't write export file."
             }
         case .json:
-            if let data = DataExporter.exportJSON(entries: entries),
+            if let data = DataExporter.exportJSON(records: records),
                let url = DataExporter.writeToTemporaryFile(data: data, filename: "journal_entries.json") {
                 exportURL = url
                 showExportSheet = true
+            } else {
+                exportError = "Couldn't write export file."
             }
         }
     }
@@ -332,6 +408,48 @@ struct FullscreenWallpaperView: View {
             .navigationTitle("Wallpaper")
             .navigationBarTitleDisplayMode(.inline)
         #endif
+    }
+}
+
+// MARK: - Sync Status Row
+
+private struct SyncStatusRow: View {
+    let status: SyncStatus
+
+    var body: some View {
+        HStack {
+            label
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        switch status {
+        case .syncing:
+            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Syncing…") }
+        case .idle:
+            HStack(spacing: 6) { Image(systemName: "checkmark.icloud").foregroundStyle(.green); Text("Up to date") }
+        case .paused(let reason):
+            HStack(spacing: 6) {
+                Image(systemName: "icloud.slash").foregroundStyle(.orange)
+                Text(reasonText(reason))
+            }
+        case .error(let msg):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.icloud.fill").foregroundStyle(.red)
+                Text(msg).lineLimit(2)
+            }
+        }
+    }
+
+    private func reasonText(_ reason: PauseReason) -> String {
+        switch reason {
+        case .notSignedIntoiCloud:        return "Paused — sign into iCloud."
+        case .iCloudKeychainUnavailable:  return "Paused — enable iCloud Keychain."
+        case .networkOffline:             return "Paused — offline."
+        case .schemaMismatch:             return "Paused — updating."
+        }
     }
 }
 

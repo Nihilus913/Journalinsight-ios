@@ -533,7 +533,7 @@ git commit -m "feat(settings): add Privacy & Lock section with policy picker and
 **Files:**
 - Modify: `JournalInsight/SettingsView.swift`
 
-- [ ] **Step 6.1: Replace the misleading Sync section**
+- [x] **Step 6.1: Replace the misleading Sync section**
 
 Find the existing `Section("Sync") { ... }` block. Replace it with:
 
@@ -609,7 +609,7 @@ private struct SyncStatusRow: View {
 }
 ```
 
-- [ ] **Step 6.2: Add Export warning callout**
+- [x] **Step 6.2: Add Export warning callout**
 
 Find the `Section("Export Data") { ... }` block. Inside it, after the format picker, add:
 
@@ -619,14 +619,14 @@ Find the `Section("Export Data") { ... }` block. Inside it, after the format pic
                         .foregroundColor(.orange)
 ```
 
-- [ ] **Step 6.3: Build succeeds**
+- [x] **Step 6.3: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 6.4: Commit**
+- [x] **Step 6.4: Commit**
 
 ```bash
 git add JournalInsight/SettingsView.swift
