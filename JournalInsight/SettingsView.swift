@@ -23,6 +23,8 @@ struct SettingsView: View {
     @AppStorage(StorageKeys.notificationsEnabled) private var notificationsEnabled: Bool = false
     @AppStorage(StorageKeys.notificationHour) private var notificationHour: Int = 20
     @AppStorage(StorageKeys.notificationMinute) private var notificationMinute: Int = 0
+    @AppStorage(StorageKeys.lockPolicy) private var lockPolicyRaw: String = LockPolicy.fiveMinutes.rawValue
+    @Environment(\.vault) private var vault: VaultManager?
     @State private var showImagePicker = false
     @State private var selectedItem: PhotosPickerItem? = nil
 
@@ -51,6 +53,22 @@ struct SettingsView: View {
                         .foregroundColor(.green)
                         .transition(.opacity)
                 }
+            }
+
+            Section("Privacy & Lock") {
+                Picker("Lock when I leave the app", selection: $lockPolicyRaw) {
+                    ForEach(LockPolicy.allCases, id: \.rawValue) { policy in
+                        Text(policy.displayLabel).tag(policy.rawValue)
+                    }
+                }
+
+                Button("Lock Now", role: .destructive) {
+                    Task { await vault?.lockNow() }
+                }
+
+                Text("Face ID or your device passcode unlocks your journal.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Section("Wallpaper") {

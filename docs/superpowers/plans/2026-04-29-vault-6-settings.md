@@ -483,7 +483,7 @@ git commit -m "feat(export): sanitize CSV leading characters (audit S-9) and add
 **Files:**
 - Modify: `JournalInsight/SettingsView.swift`
 
-- [ ] **Step 5.1: Add new section above "Wallpaper"**
+- [x] **Step 5.1: Add new section above "Wallpaper"**
 
 Open `SettingsView.swift`. Find the `Section("Name") { ... }` block. Add this section right after it:
 
@@ -512,14 +512,14 @@ Add at the top of the struct's stored properties:
     @Environment(VaultManager.self) private var vault: VaultManager?
 ```
 
-- [ ] **Step 5.2: Build succeeds**
+- [x] **Step 5.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 5.3: Commit**
+- [x] **Step 5.3: Commit**
 
 ```bash
 git add JournalInsight/SettingsView.swift
