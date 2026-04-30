@@ -98,11 +98,16 @@ final class BootCoordinator {
                 cloudKitDatabase: .none
             )
         }
-        return try ModelContainer(
-            for: schema,
-            migrationPlan: JournalMigrationPlan.self,
-            configurations: cfg
-        )
+        // We rely on SwiftData's automatic lightweight migration for the V0→V1
+        // shape change (additive columns with defaults, dropped Tag uniqueness,
+        // widened text/moodRaw nullability). An explicit `migrationPlan:` was
+        // attempted but SwiftData crashes when V0 and V1 reference identical
+        // model types at the Swift type level — see ContainerSwapTests, which
+        // surfaced this as the release-blocker design flaw. Per-row schema
+        // version is tracked via `JournalEntry.schemaVersion` and gated by
+        // MigrationCoordinator.pendingCount; SchemaVersions.swift remains as
+        // documentation of intent.
+        return try ModelContainer(for: schema, configurations: cfg)
     }
 
     private func ensureFileProtection() throws {
