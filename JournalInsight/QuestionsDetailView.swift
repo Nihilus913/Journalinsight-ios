@@ -7,10 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import os
 
 struct QuestionsDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.entryRepository) private var repo
     @State private var answerText: String = ""
     @State private var selectedPrompt: String?
     @State private var showingEntry = false
@@ -122,11 +124,18 @@ struct QuestionsDetailView: View {
                             } else {
                                 fullText = answerText.trimmingCharacters(in: .whitespacesAndNewlines)
                             }
-                            let entry = JournalEntry(date: Date(), text: fullText, duration: 0, mood: selectedMood)
-                            modelContext.insert(entry)
-                            showingEntry = false
+                            let mood = selectedMood
+                            guard let repo else { return }
+                            Task { @MainActor in
+                                do {
+                                    try await repo.create(date: Date(), duration: 0, text: fullText, mood: mood, tags: [])
+                                    showingEntry = false
+                                } catch {
+                                    Logger.vault.error("prompt entry save failed: \(error.localizedDescription, privacy: .public)")
+                                }
+                            }
                         }
-                        .disabled(answerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(answerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo == nil)
                     }
                 }
             }

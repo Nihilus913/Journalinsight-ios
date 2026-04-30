@@ -11,6 +11,26 @@ import Charts
 
 struct SessionDetailView: View {
     @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
+    @Environment(\.entryRepository) private var repo
+    @State private var moodDistribution: [(mood: Mood, count: Int)] = []
+    @State private var moodLoadAttempted = false
+
+    private func loadMoodDistribution() async {
+        guard !moodLoadAttempted else { return }
+        moodLoadAttempted = true
+        guard let repo else { return }
+        var counts: [Mood: Int] = [:]
+        for entry in entries {
+            do {
+                let body = try await repo.body(for: entry)
+                if let mood = body.mood { counts[mood, default: 0] += 1 }
+            } catch {
+                continue
+            }
+        }
+        moodDistribution = counts.map { ($0.key, $0.value) }
+            .sorted { $0.0.rawValue < $1.0.rawValue }
+    }
 
     private var totalEntries: Int { entries.count }
 
@@ -53,14 +73,6 @@ struct SessionDetailView: View {
             let total = entries.filter { calendar.isDate($0.date, inSameDayAs: date) }
                 .reduce(0.0) { $0 + $1.duration / 60.0 }
             return (date, total)
-        }
-    }
-
-    // Mood distribution
-    private var moodDistribution: [(mood: Mood, count: Int)] {
-        Mood.allCases.compactMap { mood in
-            let count = entries.filter { $0.mood == mood }.count
-            return count > 0 ? (mood, count) : nil
         }
     }
 
@@ -122,8 +134,12 @@ struct SessionDetailView: View {
                     .frame(height: 180)
                 }
 
-                if !moodDistribution.isEmpty {
-                    Section("Mood Distribution") {
+                Section("Mood Distribution") {
+                    if moodDistribution.isEmpty {
+                        Button { Task { await loadMoodDistribution() } } label: {
+                            Label("Unlock to see mood breakdown", systemImage: "lock.fill")
+                        }
+                    } else {
                         Chart(moodDistribution, id: \.mood) { item in
                             BarMark(
                                 x: .value("Mood", item.mood.emoji),
@@ -140,18 +156,23 @@ struct SessionDetailView: View {
                     ForEach(entries.prefix(5)) { entry in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                if let mood = entry.mood {
-                                    Text(mood.emoji)
-                                }
                                 Text(entry.date, style: .date)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(Int(entry.duration) / 60) min")
+                                    .font(.caption2)
+                                    .foregroundColor(AppTheme.primaryColor)
                             }
-                            Text(entry.text ?? "")
-                                .lineLimit(2)
-                            Text("\(Int(entry.duration) / 60) min")
-                                .font(.caption2)
-                                .foregroundColor(AppTheme.primaryColor)
+                            if let repo = repo {
+                                EntryUnlockGate(entry: entry, repo: repo) { body in
+                                    HStack {
+                                        if let mood = body.mood { Text(mood.emoji) }
+                                        Text(body.text).lineLimit(2)
+                                        Spacer()
+                                    }
+                                }
+                            }
                         }
                         .padding(.vertical, 2)
                     }

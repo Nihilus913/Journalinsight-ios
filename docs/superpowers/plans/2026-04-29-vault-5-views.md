@@ -820,7 +820,7 @@ git commit -m "feat(views): CalendarView day-cells use plaintext metadata, day-d
 - Modify: `JournalInsight/StreakDetailView.swift`
 - Modify: `JournalInsight/QuestionsDetailView.swift`
 
-- [ ] **Step 6.1: SessionDetailView — guard mood chart**
+- [x] **Step 6.1: SessionDetailView — guard mood chart**
 
 Find the `Section("Mood Distribution")` block. Wrap it in a guard so it only renders when at least one entry has been decrypted into the cache. Simpler: render it as a "Tap to unlock" card that calls into the repo lazily.
 
@@ -873,11 +873,11 @@ In the body, replace the `if !moodDistribution.isEmpty { Section("Mood Distribut
 
 Recent Entries section: replace its body with `EntryUnlockGate` per row similar to Task 3.
 
-- [ ] **Step 6.2: StreakDetailView — total entries unchanged (count of plaintext rows)**
+- [x] **Step 6.2: StreakDetailView — total entries unchanged (count of plaintext rows)**
 
 `StreakDetailView` reads `entries.count` for "Total Entries" and uses `StreakCalculator` which only reads `date`. Both work without unlock.  No changes needed except removing dependency on `entry.mood` if any (`preferredTimeOfDay` reads `entry.date`, which is plaintext — fine).
 
-- [ ] **Step 6.3: QuestionsDetailView — save through repo**
+- [x] **Step 6.3: QuestionsDetailView — save through repo**
 
 Find the `Save` button:
 
@@ -911,14 +911,14 @@ Add at the top of the view:
     @Environment(\.entryRepository) private var repo
 ```
 
-- [ ] **Step 6.4: Build + run all tests**
+- [x] **Step 6.4: Build + run all tests**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: All existing tests pass.
 
-- [ ] **Step 6.5: Commit**
+- [x] **Step 6.5: Commit**
 
 ```bash
 git add JournalInsight/SessionDetailView.swift JournalInsight/StreakDetailView.swift JournalInsight/QuestionsDetailView.swift
