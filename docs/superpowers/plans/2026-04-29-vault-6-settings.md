@@ -79,7 +79,7 @@ git commit -m "feat(sync): add SyncStatus enum + PauseReason"
 - Create: `JournalInsight/Sync/SyncStatusObserver.swift`
 - Create: `JournalInsightTests/SyncStatusObserverTests.swift`
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```swift
 // JournalInsightTests/SyncStatusObserverTests.swift
@@ -121,14 +121,14 @@ struct SyncStatusObserverTests {
 }
 ```
 
-- [ ] **Step 2.2: Run tests to verify they fail**
+- [x] **Step 2.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/SyncStatusObserver
 ```
 Expected: FAIL.
 
-- [ ] **Step 2.3: Implement SyncStatusObserver**
+- [x] **Step 2.3: Implement SyncStatusObserver**
 
 ```swift
 // JournalInsight/Sync/SyncStatusObserver.swift
@@ -198,14 +198,14 @@ final class SyncStatusObserver {
 }
 ```
 
-- [ ] **Step 2.4: Run tests to verify they pass**
+- [x] **Step 2.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/SyncStatusObserver
 ```
 Expected: 4 tests passing.
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add JournalInsight/Sync/SyncStatusObserver.swift JournalInsightTests/SyncStatusObserverTests.swift
