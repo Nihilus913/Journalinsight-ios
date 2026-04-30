@@ -17,16 +17,26 @@ struct SessionDetailView: View {
 
     private func loadMoodDistribution() async {
         guard !moodLoadAttempted else { return }
-        moodLoadAttempted = true
         guard let repo else { return }
         var counts: [Mood: Int] = [:]
+        var anySuccess = false
         for entry in entries {
             do {
                 let body = try await repo.body(for: entry)
+                anySuccess = true
                 if let mood = body.mood { counts[mood, default: 0] += 1 }
+            } catch VaultError.userCancelled {
+                // User dismissed biometric — keep moodLoadAttempted false so
+                // the next tap of the unlock button will retry.
+                return
             } catch {
                 continue
             }
+        }
+        // Only mark as attempted once we have at least one decryption
+        // (so a fresh sealed vault on first open doesn't trap the user).
+        if anySuccess || entries.isEmpty {
+            moodLoadAttempted = true
         }
         moodDistribution = counts.map { ($0.key, $0.value) }
             .sorted { $0.0.rawValue < $1.0.rawValue }

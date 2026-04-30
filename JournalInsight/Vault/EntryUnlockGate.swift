@@ -45,8 +45,8 @@ struct EntryUnlockGate<Content: View>: View {
                     .controlSize(.small)
             case .unlocked(let body):
                 content(body)
-            case .failed:
-                failedPill
+            case .failed(let message):
+                failedPill(message: message)
             }
         }
     }
@@ -63,7 +63,7 @@ struct EntryUnlockGate<Content: View>: View {
         .onTapGesture { Task { await tryUnlock(force: true) } }
     }
 
-    private var failedPill: some View {
+    private func failedPill(message: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
@@ -73,6 +73,8 @@ struct EntryUnlockGate<Content: View>: View {
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(Color.primary.opacity(0.06))
         .clipShape(Capsule())
+        .help(message)
+        .accessibilityLabel("Couldn't unlock: \(message)")
         .onTapGesture { Task { await tryUnlock(force: true) } }
     }
 
