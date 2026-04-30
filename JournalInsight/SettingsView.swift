@@ -163,24 +163,18 @@ struct SettingsView: View {
                 }
             }
 
-            // Feature #8: Data Export
+            // Feature #8: Data Export — temporarily disabled while encrypted-vault rollout
+            // (v1.0) is in flight. DataExporter still reads plaintext columns that are now
+            // nil after encryption, which would silently produce empty exports. Plan 6 will
+            // route DataExporter through EntryRepository to decrypt entries on demand.
             Section("Export Data") {
                 if entries.isEmpty {
                     Text("No entries to export")
                         .foregroundColor(.secondary)
                 } else {
-                    Picker("Format", selection: $exportFormat) {
-                        ForEach(ExportFormat.allCases) { format in
-                            Text(format.label).tag(format)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-
-                    Button {
-                        generateExport()
-                    } label: {
-                        Label("Export \(entries.count) Entries", systemImage: "square.and.arrow.up")
-                    }
+                    Label("Export is temporarily unavailable while we update encrypted storage. Coming back in v1.0.1.", systemImage: "lock.shield.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

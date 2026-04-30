@@ -88,6 +88,10 @@ actor VaultManager {
         idleTask = nil
         lastBackgroundEntry = nil
         state = .sealed
+        // Notify the EntryRepository cache so plaintext is purged from memory
+        // (spec §1 plaintext-lifetime guarantee). NotificationCenter posting from
+        // the actor's executor is safe; observers run on whatever queue they registered for.
+        NotificationCenter.default.post(name: .journalInsightVaultDidLock, object: nil)
     }
 
     // MARK: - Error mapping
@@ -168,4 +172,10 @@ actor VaultManager {
         lastBackgroundEntry = last.addingTimeInterval(-seconds)
     }
     #endif
+}
+
+extension Notification.Name {
+    /// Posted by `VaultManager.lockNow()`. Observed by `EntryRepository.Cache`
+    /// to drop in-memory plaintext on every lock event (spec §1).
+    static let journalInsightVaultDidLock = Notification.Name("com.tobias.JournalInsight.VaultDidLock")
 }

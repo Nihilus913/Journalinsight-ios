@@ -61,6 +61,7 @@ struct WidgetRow: Identifiable {
 struct MainScreenView: View {
     @Query(sort: \JournalEntry.date, order: .reverse) private var journalEntries: [JournalEntry]
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.entryRepository) private var entryRepository
     @State private var selectedDate: Date? = nil
 
     @AppStorage(StorageKeys.userName) private var userName: String = ""
@@ -198,7 +199,14 @@ struct MainScreenView: View {
                 EntryRowView(entry: entry, onEdit: {
                     entryToEdit = entry
                 }, onDelete: {
-                    modelContext.delete(entry)
+                    // Route deletion through the repository so cached plaintext for this
+                    // entry is invalidated alongside the SwiftData delete. Falls back to
+                    // direct model-context delete only if the repo isn't yet bridged in.
+                    if let repo = entryRepository {
+                        try? repo.delete(entry)
+                    } else {
+                        modelContext.delete(entry)
+                    }
                 })
             }
         }

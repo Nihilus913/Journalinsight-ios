@@ -94,7 +94,17 @@ struct EntryRepository {
     @MainActor
     final class Cache {
         static let shared = Cache()
-        private init() {}
+        private init() {
+            // On every lock event from VaultManager, drop all cached plaintext.
+            // Spec §1 mandates plaintext only lives in memory between unlock and lock.
+            NotificationCenter.default.addObserver(
+                forName: .journalInsightVaultDidLock,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.storage.removeAll()
+            }
+        }
         private var storage: [PersistentIdentifier: EntryBody] = [:]
 
         func body(for id: PersistentIdentifier) -> EntryBody? { storage[id] }

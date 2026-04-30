@@ -39,8 +39,7 @@ struct EntryUnlockGate<Content: View>: View {
         Group {
             switch phase {
             case .idle:
-                lockedPill
-                    .task { await tryUnlock() }
+                lockedPill                                      // tap-only — no auto biometric prompt
             case .unlocking:
                 ProgressView()
                     .controlSize(.small)
