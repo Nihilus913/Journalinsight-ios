@@ -556,7 +556,7 @@ git commit -m "feat(migration): MigrationCoordinator.run encrypts v0 entries wit
 **Files:**
 - Modify: `JournalInsightTests/MigrationCoordinatorTests.swift`
 
-- [ ] **Step 5.1: Append failing test**
+- [x] **Step 5.1: Append failing test**
 
 Add to `MigrationCoordinatorRunTests`:
 
@@ -622,14 +622,14 @@ Add to `MigrationCoordinatorRunTests`:
     }
 ```
 
-- [ ] **Step 5.2: Run tests to verify they pass**
+- [x] **Step 5.2: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/MigrationCoordinator
 ```
 Expected: 7 tests passing.
 
-- [ ] **Step 5.3: Commit**
+- [x] **Step 5.3: Commit**
 
 ```bash
 git add JournalInsightTests/MigrationCoordinatorTests.swift
