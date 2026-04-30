@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UserNotifications
 import os
 #if canImport(UIKit)
 import UIKit
@@ -249,6 +250,7 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             nameField = userName
+            Task { await syncNotificationToggleWithSystem() }
         }
         .onChange(of: selectedItem) { _, newItem in
             if let newItem {
@@ -265,6 +267,23 @@ struct SettingsView: View {
             if let url = exportURL {
                 ShareSheetView(url: url)
             }
+        }
+    }
+
+    private func syncNotificationToggleWithSystem() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .denied, .notDetermined:
+            // Toggle reflects reality — disable it so the UI doesn't lie.
+            if notificationsEnabled {
+                notificationsEnabled = false
+                NotificationManager.cancelReminder()
+            }
+        case .authorized, .provisional, .ephemeral:
+            break                                                  // toggle is honest
+        @unknown default:
+            break
         }
     }
 
@@ -357,6 +376,10 @@ struct ShareSheetView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+        .onDisappear {
+            try? FileManager.default.removeItem(at: url)
+            Logger.storage.info("export file cleaned up")
         }
     }
 }

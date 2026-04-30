@@ -640,7 +640,7 @@ git commit -m "feat(settings): replace misleading iCloud copy and add Back Up Ou
 **Files:**
 - Modify: `JournalInsight/SettingsView.swift`
 
-- [ ] **Step 7.1: Re-validate notification authorization on appear**
+- [x] **Step 7.1: Re-validate notification authorization on appear**
 
 Find the `.onAppear` modifier on the `Form` (around line 200). Replace its body with:
 
@@ -674,7 +674,7 @@ Add this method to `SettingsView`:
 
 Add `import UserNotifications` at the top if not already present.
 
-- [ ] **Step 7.2: ShareSheet cleanup**
+- [x] **Step 7.2: ShareSheet cleanup**
 
 Find `ShareSheetView` in `SettingsView.swift`. Add `.onDisappear`:
 
@@ -695,14 +695,14 @@ struct ShareSheetView: View {
 }
 ```
 
-- [ ] **Step 7.3: Build succeeds**
+- [x] **Step 7.3: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 7.4: Commit**
+- [x] **Step 7.4: Commit**
 
 ```bash
 git add JournalInsight/SettingsView.swift
