@@ -67,9 +67,12 @@ final class BootCoordinator {
             try await MigrationCoordinator.run(in: ctx, vault: vault) { [weak self] current, total in
                 self?.state = .migrating(current: current, total: total)
             }
-            // Tear down pre-container by dropping references + swap to final.
-            cachedPreContainer = nil
+            // Build the final container BEFORE dropping the pre-container reference.
+            // If the CloudKit-enabled open throws (e.g. iCloud signed out, network glitch),
+            // we keep the cached pre-container so Retry can re-attempt without bricking
+            // the user. cachedPreContainer is nilled only after final build succeeds.
             let final = try buildContainer(cloudKit: true)
+            cachedPreContainer = nil
             state = .ready(final)
         } catch {
             Logger.migration.error("migration failed: \(error.localizedDescription, privacy: .public)")
