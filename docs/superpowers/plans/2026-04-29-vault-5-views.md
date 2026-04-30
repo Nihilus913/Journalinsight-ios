@@ -933,7 +933,7 @@ git commit -m "feat(views): rewire Session/Streak/Questions views to use EntryRe
 - Modify: `JournalInsight/StreakCalculator.swift`
 - Modify: `JournalInsightTests/JournalInsightTests.swift`
 
-- [ ] **Step 7.1: Append failing tests**
+- [x] **Step 7.1: Append failing tests**
 
 In `JournalInsightTests/JournalInsightTests.swift`, find the `StreakCalculatorTests` suite. Add:
 
@@ -970,14 +970,14 @@ In `JournalInsightTests/JournalInsightTests.swift`, find the `StreakCalculatorTe
     }
 ```
 
-- [ ] **Step 7.2: Run tests to verify they fail**
+- [x] **Step 7.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/StreakCalculator
 ```
 Expected: 2 of the new tests FAIL (legacy implementation has bugs).
 
-- [ ] **Step 7.3: Fix bestStreak (DST-safe)**
+- [x] **Step 7.3: Fix bestStreak (DST-safe)**
 
 Replace `StreakCalculator.bestStreak`:
 
@@ -1005,7 +1005,7 @@ Replace `StreakCalculator.bestStreak`:
     }
 ```
 
-- [ ] **Step 7.4: Fix preferredTimeOfDay (circular mean)**
+- [x] **Step 7.4: Fix preferredTimeOfDay (circular mean)**
 
 Replace `StreakCalculator.preferredTimeOfDay`:
 
@@ -1033,14 +1033,14 @@ Replace `StreakCalculator.preferredTimeOfDay`:
     }
 ```
 
-- [ ] **Step 7.5: Run tests to verify they pass**
+- [x] **Step 7.5: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/StreakCalculator
 ```
 Expected: All StreakCalculator tests pass.
 
-- [ ] **Step 7.6: Commit**
+- [x] **Step 7.6: Commit**
 
 ```bash
 git add JournalInsight/StreakCalculator.swift JournalInsightTests/JournalInsightTests.swift
@@ -1051,10 +1051,10 @@ git commit -m "fix(streak): DST-safe bestStreak comparison and circular-mean pre
 
 ## Plan-5 acceptance
 
-- [ ] All 5 EntryRepository tests pass.
-- [ ] All StreakCalculator tests including 2 new ones pass.
-- [ ] `xcodebuild build` succeeds for the whole scheme.
-- [ ] No view in the app reads `JournalEntry.text`, `mood`, or `tags` directly any more — all goes through `EntryRepository` / `EntryUnlockGate`.
+- [x] All 5 EntryRepository tests pass.
+- [x] All StreakCalculator tests including 2 new ones pass.
+- [x] `xcodebuild build` succeeds for the whole scheme.
+- [x] No view in the app reads `JournalEntry.text`, `mood`, or `tags` directly any more — all goes through `EntryRepository` / `EntryUnlockGate`.
 - [ ] Manual: run on simulator, create new entry → save → verify it appears in list with "Tap to unlock" pill on first read.
 
 When all seven tasks are checked, this plan is complete.

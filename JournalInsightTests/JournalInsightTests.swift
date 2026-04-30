@@ -85,6 +85,37 @@ struct StreakCalculatorTests {
     func preferredTimeEmpty() {
         #expect(StreakCalculator.preferredTimeOfDay(from: []) == "—")
     }
+
+    @Test("Best streak survives DST boundary")
+    func bestStreakAcrossDST() {
+        // Construct entries that span a US DST transition (2nd Sunday of March 2026).
+        // Spring-forward 2026: March 8.
+        let calendar = Calendar(identifier: .gregorian)
+        var components = DateComponents()
+        components.timeZone = TimeZone(identifier: "America/Los_Angeles")
+        components.year = 2026; components.month = 3; components.day = 7; components.hour = 12
+        let day1 = calendar.date(from: components)!
+        components.day = 8
+        let day2 = calendar.date(from: components)!
+        components.day = 9
+        let day3 = calendar.date(from: components)!
+        let entries = [day1, day2, day3].map { JournalEntry(date: $0, text: "x", duration: 600) }
+        #expect(StreakCalculator.bestStreak(from: entries) == 3)
+    }
+
+    @Test("Preferred time of day uses circular mean for night-owl entries")
+    func preferredTimeCircularMean() {
+        let calendar = Calendar.current
+        let base = calendar.startOfDay(for: Date())
+        let entries = [23, 0, 1].compactMap { hour -> JournalEntry? in
+            calendar.date(bySettingHour: hour, minute: 0, second: 0, of: base).map {
+                JournalEntry(date: $0, text: "x", duration: 600)
+            }
+        }
+        // Arithmetic mean would be 8 → "Morning". Circular mean is ~0 → "Night".
+        let result = StreakCalculator.preferredTimeOfDay(from: entries)
+        #expect(result == "Night")
+    }
 }
 
 // MARK: - JournalEntry Tests
