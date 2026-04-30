@@ -1,0 +1,34 @@
+# .swiftlint.yml
+included:
+  - JournalInsight
+  - JournalInsightTests
+  - JournalInsightUITests
+
+excluded:
+  - .claude
+  - docs
+
+opt_in_rules:
+  - empty_count
+  - first_where
+  - sorted_first_last
+
+custom_rules:
+  vault_log_privacy_required:
+    name: "Vault log must include privacy: parameter"
+    regex: 'Logger\.(vault|migration|sync|crypto|storage)\s*\.\s*(error|warning|notice|info|debug)\s*\(\s*"[^"]*\\\([^,)]*\)[^"]*"\s*\)'
+    message: "Logger calls in vault/migration/sync/crypto/storage paths must use 'privacy: .public' or 'privacy: .private(...)'. Hard CI failure."
+    severity: error
+
+  no_try_question_in_vault:
+    name: "try? forbidden in vault paths"
+    regex: '\btry\?'
+    included:
+      - JournalInsight/Vault
+      - JournalInsight/Migration
+      - JournalInsight/Repositories
+      - JournalInsight/Storage
+    message: "Use try with explicit catch in security-critical paths."
+    severity: error
+
+line_length: 200
