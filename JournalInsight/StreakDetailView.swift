@@ -9,7 +9,10 @@ import SwiftUI
 import SwiftData
 
 struct StreakDetailView: View {
-    @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
+    // Quarantined rows excluded — see MainScreenView for rationale (audit I-B/I-C).
+    @Query(filter: #Predicate<JournalEntry> { $0.schemaVersion >= 0 },
+           sort: \JournalEntry.date, order: .reverse)
+    private var entries: [JournalEntry]
     @State private var showCelebration = false
 
     private var currentStreak: Int {

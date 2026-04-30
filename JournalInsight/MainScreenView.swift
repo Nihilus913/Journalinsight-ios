@@ -59,7 +59,12 @@ struct WidgetRow: Identifiable {
 // MARK: - Main Screen
 
 struct MainScreenView: View {
-    @Query(sort: \JournalEntry.date, order: .reverse) private var journalEntries: [JournalEntry]
+    // Filter quarantined rows (schemaVersion == -1) so they don't pollute the dashboard,
+    // streak counts, or session stats. They still exist in the store; a future "review
+    // quarantined entries" UI would surface them deliberately. (Audit I-B/I-C.)
+    @Query(filter: #Predicate<JournalEntry> { $0.schemaVersion >= 0 },
+           sort: \JournalEntry.date, order: .reverse)
+    private var journalEntries: [JournalEntry]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.entryRepository) private var entryRepository
     @Environment(SyncStatusObserver.self) private var syncObserver: SyncStatusObserver?

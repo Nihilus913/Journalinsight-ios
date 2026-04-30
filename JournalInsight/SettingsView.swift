@@ -33,7 +33,11 @@ struct SettingsView: View {
     @State private var selectedItem: PhotosPickerItem? = nil
 
     // Export (Feature #8)
-    @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
+    // Quarantined rows excluded — they hold no plaintext (post-audit-I-A fix) and
+    // would export as empty records anyway. (Audit I-B/I-C.)
+    @Query(filter: #Predicate<JournalEntry> { $0.schemaVersion >= 0 },
+           sort: \JournalEntry.date, order: .reverse)
+    private var entries: [JournalEntry]
     @State private var showExportSheet = false
     @State private var exportFormat: ExportFormat = .csv
     @State private var exportURL: URL?

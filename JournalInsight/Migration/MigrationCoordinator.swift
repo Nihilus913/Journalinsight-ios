@@ -67,15 +67,37 @@ struct MigrationCoordinator {
                 Logger.migration.error(
                     "quarantine entry=\(entry.id, privacy: .private(mask: .hash)) reason=\(error.localizedDescription, privacy: .public)"
                 )
-                // Quarantine-mark in its own do/catch: if this also fails, leave the row at
-                // schemaVersion == 0 so the next run() can retry. Never abort the whole loop
-                // because of a single quarantine-mark failure.
+                // Quarantine-mark + plaintext-clearance in its own do/catch.
+                //
+                // Spec §1 mandates plaintext only ever lives in process memory. A quarantined
+                // row that retained text/moodRaw/tags would (a) survive on disk in the
+                // SwiftData store, (b) replicate to CloudKit as plaintext, (c) be readable
+                // by any future tool that fetches the row. We accept the data-preservation
+                // cost: a row whose source data couldn't even be JSON-encoded was likely
+                // already corrupted, and the user cannot recover it from the encrypted store
+                // either. The schemaVersion = -1 marker is what surfaces the row for any
+                // future "review quarantined entries" affordance.
+                //
+                // If the quarantine-mark write itself fails, we still attempt to nil the
+                // plaintext (best-effort defense-in-depth) and leave schemaVersion at 0 so
+                // the next run() retries.
                 do {
-                    try ctx.transaction { entry.schemaVersion = -1 }
+                    try ctx.transaction {
+                        entry.schemaVersion = -1
+                        entry.text = nil
+                        entry.moodRaw = nil
+                        entry.tags = []
+                    }
                 } catch {
                     Logger.migration.error(
                         "quarantine-mark also failed entry=\(entry.id, privacy: .private(mask: .hash)) reason=\(error.localizedDescription, privacy: .public)"
                     )
+                    // Defense-in-depth: try to clear plaintext even if the version mark failed.
+                    try? ctx.transaction {
+                        entry.text = nil
+                        entry.moodRaw = nil
+                        entry.tags = []
+                    }
                 }
             }
             progress(i + 1, total)

@@ -10,7 +10,10 @@ import SwiftData
 
 struct CalendarView: View {
     @Binding var selectedDate: Date?
-    @Query(sort: \JournalEntry.date) private var entries: [JournalEntry]
+    // Quarantined rows excluded — see MainScreenView for rationale (audit I-B/I-C).
+    @Query(filter: #Predicate<JournalEntry> { $0.schemaVersion >= 0 },
+           sort: \JournalEntry.date)
+    private var entries: [JournalEntry]
     @Environment(\.entryRepository) private var repo
     @State private var scope: CalendarScope = .month
     @State private var navigationDate: Date = Date()
