@@ -392,7 +392,12 @@ enum WallpaperStorage {
     }
 
     static func save(_ data: Data) {
-        try? data.write(to: fileURL)
+        do {
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            try? (fileURL as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        } catch {
+            Logger.storage.error("wallpaper save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     static func load() -> Data? {

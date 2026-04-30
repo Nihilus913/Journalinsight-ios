@@ -716,7 +716,7 @@ git commit -m "fix(settings): notifications toggle re-syncs with system on appea
 **Files:**
 - Modify: `JournalInsight/SettingsView.swift`
 
-- [ ] **Step 8.1: Update WallpaperStorage**
+- [x] **Step 8.1: Update WallpaperStorage**
 
 Find the `enum WallpaperStorage` (near the bottom of `SettingsView.swift`). Replace with:
 
@@ -746,21 +746,21 @@ enum WallpaperStorage {
 }
 ```
 
-- [ ] **Step 8.2: Build succeeds**
+- [x] **Step 8.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 8.3: Run all tests**
+- [x] **Step 8.3: Run all tests**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: All tests pass (the existing `WallpaperStorage round-trip` test still passes — `.write(to:options:)` is API-compatible).
 
-- [ ] **Step 8.4: Commit**
+- [x] **Step 8.4: Commit**
 
 ```bash
 git add JournalInsight/SettingsView.swift
