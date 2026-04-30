@@ -219,7 +219,7 @@ git commit -m "feat(sync): SyncStatusObserver mapping CloudKit events to SyncSta
 **Files:**
 - Create: `JournalInsight/Sync/SyncStatusToolbarIcon.swift`
 
-- [ ] **Step 3.1: Implement view**
+- [x] **Step 3.1: Implement view**
 
 ```swift
 // JournalInsight/Sync/SyncStatusToolbarIcon.swift
@@ -264,14 +264,14 @@ struct SyncStatusToolbarIcon: View {
 }
 ```
 
-- [ ] **Step 3.2: Build succeeds**
+- [x] **Step 3.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 3.3: Commit**
+- [x] **Step 3.3: Commit**
 
 ```bash
 git add JournalInsight/Sync/SyncStatusToolbarIcon.swift
