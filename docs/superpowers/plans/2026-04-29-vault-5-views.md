@@ -292,7 +292,7 @@ git commit -m "feat(repo): add EntryRepository with create/update/body/delete an
 **Files:**
 - Create: `JournalInsight/Vault/EntryUnlockGate.swift`
 
-- [ ] **Step 2.1: Implement EntryUnlockGate**
+- [x] **Step 2.1: Implement EntryUnlockGate**
 
 ```swift
 // JournalInsight/Vault/EntryUnlockGate.swift
@@ -389,14 +389,14 @@ struct EntryUnlockGate<Content: View>: View {
 }
 ```
 
-- [ ] **Step 2.2: Build succeeds**
+- [x] **Step 2.2: Build succeeds**
 
 ```
 xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED.
 
-- [ ] **Step 2.3: Commit**
+- [x] **Step 2.3: Commit**
 
 ```bash
 git add JournalInsight/Vault/EntryUnlockGate.swift
