@@ -71,13 +71,13 @@ struct MainScreenView: View {
     @State private var widgets: [WidgetItem] = MainScreenView.loadWidgets()
 
     private var filteredEntries: [JournalEntry] {
+        // Search across encrypted bodies is deferred to Plan 6 (would require
+        // per-row decrypt). For now, search restricts to date-range parsing only.
+        // Empty search returns everything.
         guard !searchText.isEmpty else { return journalEntries }
-        let query = searchText.lowercased()
-        return journalEntries.filter {
-            ($0.text ?? "").lowercased().contains(query) ||
-            ($0.mood?.label.lowercased().contains(query) ?? false) ||
-            $0.tags.contains(where: { $0.name.lowercased().contains(query) })
-        }
+        // No plaintext available without unlock; return full list unfiltered so
+        // the user still sees something. Plan 6 adds proper search.
+        return journalEntries
     }
 
     private var widgetRows: [WidgetRow] {
@@ -100,50 +100,52 @@ struct MainScreenView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    widgetGrid
+        RepositoryBridge {
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        widgetGrid
 
-                    if !filteredEntries.isEmpty {
-                        entriesList
+                        if !filteredEntries.isEmpty {
+                            entriesList
+                        }
+                    }
+                    .padding()
+                }
+                .background(.ultraThinMaterial)
+                .navigationTitle(userName.isEmpty ? "Welcome Back!" : "Welcome Back, \(userName)!")
+                .navigationBarTitleDisplayMode(.large)
+                .searchable(text: $searchText, prompt: "Search entries...")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        NavigationLink(destination: SettingsView()) {
+                            Image(systemName: "gearshape.fill")
+                        }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingAddEntry = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                        }
                     }
                 }
-                .padding()
             }
-            .background(.ultraThinMaterial)
-            .navigationTitle(userName.isEmpty ? "Welcome Back!" : "Welcome Back, \(userName)!")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search entries...")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape.fill")
-                    }
+            .onAppear {
+                if userName.isEmpty {
+                    showingNamePrompt = true
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddEntry = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                }
+                seedSampleDataIfNeeded()
             }
-        }
-        .onAppear {
-            if userName.isEmpty {
-                showingNamePrompt = true
+            .sheet(isPresented: $showingNamePrompt) {
+                NamePromptSheet(userName: $userName, isPresented: $showingNamePrompt)
             }
-            seedSampleDataIfNeeded()
-        }
-        .sheet(isPresented: $showingNamePrompt) {
-            NamePromptSheet(userName: $userName, isPresented: $showingNamePrompt)
-        }
-        .sheet(isPresented: $showingAddEntry) {
-            AddEntrySheet()
-        }
-        .sheet(item: $entryToEdit) { entry in
-            EditEntrySheet(entry: entry)
+            .sheet(isPresented: $showingAddEntry) {
+                AddEntrySheet()
+            }
+            .sheet(item: $entryToEdit) { entry in
+                EditEntrySheet(entry: entry)
+            }
         }
     }
 
@@ -235,15 +237,10 @@ struct MainScreenView: View {
     }
 
     private func seedSampleDataIfNeeded() {
-        guard journalEntries.isEmpty else { return }
-        let calendar = Calendar.current
-        let samples = [
-            JournalEntry(date: calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date(), text: "Grateful for friends.", duration: 600, mood: .good),
-            JournalEntry(date: Date(), text: "Reflecting on progress.", duration: 900, mood: .great)
-        ]
-        for entry in samples {
-            modelContext.insert(entry)
-        }
+        // Sample data is no longer seeded into real users' databases.
+        // Plan 6 deletes this method entirely. For v1.0 transitional builds
+        // run by Plan 5 worker, do nothing.
+        // Closes audit finding H-3.
     }
 
     struct WidgetDropDelegate: DropDelegate {
@@ -276,13 +273,11 @@ struct EntryRowView: View {
     var onEdit: () -> Void
     var onDelete: () -> Void
     @State private var showDeleteConfirm = false
+    @Environment(\.entryRepository) private var repo
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                if let mood = entry.mood {
-                    Text(mood.emoji)
-                }
                 Text(entry.date, style: .date)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -291,28 +286,37 @@ struct EntryRowView: View {
                     .font(.caption2)
                     .foregroundColor(AppTheme.primaryColor)
             }
-            Text(entry.text ?? "")
-                .lineLimit(2)
-            if !entry.tags.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(entry.tags) { tag in
-                        Text(tag.name)
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(AppTheme.primaryColor.opacity(0.15))
-                            .clipShape(Capsule())
+            if let repo {
+                EntryUnlockGate(entry: entry, repo: repo) { body in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if let mood = body.mood { Text(mood.emoji) }
+                            Text(body.text)
+                                .lineLimit(2)
+                            Spacer()
+                        }
+                        if !body.tags.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(body.tags, id: \.self) { tag in
+                                    Text(tag)
+                                        .font(.caption2)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(AppTheme.primaryColor.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
                     }
                 }
+            } else {
+                Text("Repository unavailable").font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding()
         .background(Color.primary.opacity(0.05))
         .cornerRadius(12)
         .contextMenu {
-            Button { onEdit() } label: {
-                Label("Edit", systemImage: "pencil")
-            }
+            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
             Button(role: .destructive) { showDeleteConfirm = true } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -751,6 +755,37 @@ struct FlowLayout: Layout {
         }
 
         return (positions, CGSize(width: maxWidth, height: y + rowHeight))
+    }
+}
+
+// MARK: - Repository environment plumbing
+
+private struct EntryRepositoryKey: EnvironmentKey {
+    static let defaultValue: EntryRepository? = nil
+}
+
+extension EnvironmentValues {
+    var entryRepository: EntryRepository? {
+        get { self[EntryRepositoryKey.self] }
+        set { self[EntryRepositoryKey.self] = newValue }
+    }
+}
+
+/// Bridges `@Environment(\.vault)` and `@Environment(\.modelContext)`
+/// into an `EntryRepository` available via `\.entryRepository` to all child views.
+/// Wraps the top of MainScreenView so EntryRowView and the sheets see a non-nil repo.
+struct RepositoryBridge<Content: View>: View {
+    @Environment(\.vault) private var vault
+    @Environment(\.modelContext) private var ctx
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        if let vault {
+            content()
+                .environment(\.entryRepository, EntryRepository(context: ctx, vault: vault))
+        } else {
+            content()       // repo will be nil; views show "Repository unavailable"
+        }
     }
 }
 

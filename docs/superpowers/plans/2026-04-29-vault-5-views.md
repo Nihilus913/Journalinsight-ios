@@ -410,11 +410,11 @@ git commit -m "feat(vault): add EntryUnlockGate with locked/unlocking/unlocked/f
 **Files:**
 - Modify: `JournalInsight/MainScreenView.swift`
 
-- [ ] **Step 3.1: Read current EntryRowView and AddEntrySheet to understand**
+- [x] **Step 3.1: Read current EntryRowView and AddEntrySheet to understand**
 
 Open `JournalInsight/MainScreenView.swift`. Find `EntryRowView` (around line 274) and `AddEntrySheet` (around line 405).
 
-- [ ] **Step 3.2: Update top-level imports + injected environment**
+- [x] **Step 3.2: Update top-level imports + injected environment**
 
 At the top of the file (after `import SwiftData`), the file already has the imports needed. We will inject `EntryRepository` via environment in the rendering hierarchy. To make `EntryRepository` injectable, add an `EnvironmentKey`:
 
@@ -432,7 +432,7 @@ extension EnvironmentValues {
 }
 ```
 
-- [ ] **Step 3.3: Rewrite EntryRowView**
+- [x] **Step 3.3: Rewrite EntryRowView**
 
 Replace the entire `struct EntryRowView` with:
 
@@ -498,7 +498,7 @@ struct EntryRowView: View {
 }
 ```
 
-- [ ] **Step 3.4: Add RepositoryBridge view**
+- [x] **Step 3.4: Add RepositoryBridge view**
 
 Append to the file:
 
@@ -518,7 +518,7 @@ struct RepositoryBridge<Content: View>: View {
 }
 ```
 
-- [ ] **Step 3.5: Wrap MainScreenView body with RepositoryBridge**
+- [x] **Step 3.5: Wrap MainScreenView body with RepositoryBridge**
 
 In `MainScreenView.body`, find the existing `NavigationStack { ... }` at the top of `body`. Wrap it:
 
@@ -534,7 +534,7 @@ In `MainScreenView.body`, find the existing `NavigationStack { ... }` at the top
 
 Indent the existing body one level to fit inside the closure. Do not add any other modifiers between `RepositoryBridge { ... }` and `NavigationStack { ... }`.
 
-- [ ] **Step 3.6: Neutralise the sample-data seed in release**
+- [x] **Step 3.6: Neutralise the sample-data seed in release**
 
 Find `seedSampleDataIfNeeded()`. Replace its entire body with:
 
@@ -549,14 +549,14 @@ Find `seedSampleDataIfNeeded()`. Replace its entire body with:
 
 This stub stays until Plan 6 Task 9 step 9.2 deletes both the method and its `.onAppear` call.
 
-- [ ] **Step 3.7: Build + run all tests**
+- [x] **Step 3.7: Build + run all tests**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 Expected: BUILD SUCCEEDED, all existing tests still pass (we haven't broken anything).
 
-- [ ] **Step 3.8: Commit**
+- [x] **Step 3.8: Commit**
 
 ```bash
 git add JournalInsight/MainScreenView.swift
