@@ -360,7 +360,7 @@ git commit -m "feat(migration): add MigrationCoordinator pendingCount and quaran
 - Modify: `JournalInsight/Migration/MigrationCoordinator.swift`
 - Modify: `JournalInsightTests/MigrationCoordinatorTests.swift`
 
-- [ ] **Step 4.1: Append failing tests**
+- [x] **Step 4.1: Append failing tests**
 
 Add a new suite to the test file:
 
@@ -464,14 +464,14 @@ struct MigrationCoordinatorRunTests {
 }
 ```
 
-- [ ] **Step 4.2: Run tests to verify they fail**
+- [x] **Step 4.2: Run tests to verify they fail**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/MigrationCoordinator
 ```
 Expected: FAIL (`run` not defined).
 
-- [ ] **Step 4.3: Implement run**
+- [x] **Step 4.3: Implement run**
 
 Append to `MigrationCoordinator`:
 
@@ -535,14 +535,14 @@ Append to `MigrationCoordinator`:
     }
 ```
 
-- [ ] **Step 4.4: Run tests to verify they pass**
+- [x] **Step 4.4: Run tests to verify they pass**
 
 ```
 xcodebuild test -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:JournalInsightTests/MigrationCoordinator
 ```
 Expected: 5 tests passing (2 from Task 3 + 3 new).
 
-- [ ] **Step 4.5: Commit**
+- [x] **Step 4.5: Commit**
 
 ```bash
 git add JournalInsight/Migration/MigrationCoordinator.swift JournalInsightTests/MigrationCoordinatorTests.swift
