@@ -33,7 +33,7 @@
 **Files:**
 - Create: `JournalInsight/PrivacyInfo.xcprivacy`
 
-- [ ] **Step 1.1: Create the manifest**
+- [x] **Step 1.1: Create the manifest**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -69,7 +69,7 @@
 </plist>
 ```
 
-- [ ] **Step 1.2: Add to Xcode target (manual)**
+- [ ] **Step 1.2: Add to Xcode target (manual)** — *(deferred: synchronized folders auto-include)*
 
 In Xcode:
 1. File → Add Files to "JournalInsight"…
@@ -84,7 +84,7 @@ xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,nam
 ```
 Expected: BUILD SUCCEEDED. Xcode validates the manifest at build time — any syntax error surfaces here.
 
-- [ ] **Step 1.4: Commit**
+- [x] **Step 1.4: Commit**
 
 ```bash
 git add JournalInsight/PrivacyInfo.xcprivacy
@@ -98,7 +98,7 @@ git commit -m "feat(privacy): add PrivacyInfo.xcprivacy with UserDefaults and Fi
 **Files:**
 - Create: `JournalInsight/JournalInsight.entitlements`
 
-- [ ] **Step 2.1: Create entitlements file**
+- [x] **Step 2.1: Create entitlements file**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -123,7 +123,7 @@ git commit -m "feat(privacy): add PrivacyInfo.xcprivacy with UserDefaults and Fi
 
 > When preparing a release build: switch `aps-environment` to `production`. The standard pattern is two entitlements files (`JournalInsight.entitlements` for Debug, `JournalInsight.Release.entitlements` for Release) wired through the build settings — but for v1.0 we keep one file and document the swap in the deployment checklist (Task 5).
 
-- [ ] **Step 2.2: Wire entitlements into the target (manual)**
+- [ ] **Step 2.2: Wire entitlements into the target (manual)** — *(deferred for user; required before App Store submission)*
 
 In Xcode:
 1. Select the `JournalInsight` project.
@@ -144,7 +144,7 @@ xcodebuild build -scheme JournalInsight -destination 'platform=iOS Simulator,nam
 ```
 Expected: BUILD SUCCEEDED. The simulator build does not actually exercise iCloud (no signed-in account), but capability validation runs at build time.
 
-- [ ] **Step 2.4: Commit**
+- [x] **Step 2.4: Commit**
 
 ```bash
 git add JournalInsight/JournalInsight.entitlements
@@ -160,7 +160,7 @@ git commit -m "feat(capabilities): add iCloud (CloudKit), Push Notifications, Ba
 **Files:**
 - Create: `.swiftlint.yml`
 
-- [ ] **Step 3.1: Create SwiftLint config**
+- [x] **Step 3.1: Create SwiftLint config**
 
 ```yaml
 # .swiftlint.yml
@@ -201,7 +201,7 @@ line_length: 200
 
 > **Note:** SwiftLint is not currently in the project. Installing it is a separate developer-environment concern; the `.swiftlint.yml` file is checked in regardless so any developer who runs `swiftlint` (or any CI that adds it) gets the enforcement automatically.
 
-- [ ] **Step 3.2: Verify SwiftLint runs locally if installed (optional)**
+- [x] **Step 3.2: Verify SwiftLint runs locally if installed (optional)** — *(swiftlint not installed; skipped per plan note)*
 
 ```
 which swiftlint && swiftlint --quiet || echo "(swiftlint not installed — skip)"
@@ -210,7 +210,7 @@ Expected: either zero violations on the current code base, or "swiftlint not ins
 
 If installed and any violations are reported, fix them before continuing.
 
-- [ ] **Step 3.3: Commit**
+- [x] **Step 3.3: Commit**
 
 ```bash
 git add .swiftlint.yml
@@ -226,7 +226,7 @@ git commit -m "feat(ci): add SwiftLint config with vault_log_privacy_required an
 
 This task does not deploy CloudKit — it documents the manual steps so the release engineer follows the same recipe every release.
 
-- [ ] **Step 4.1: Create checklist**
+- [x] **Step 4.1: Create checklist**
 
 ```markdown
 # CloudKit Production Deployment — Release Checklist
@@ -268,7 +268,7 @@ This task does not deploy CloudKit — it documents the manual steps so the rele
 If a schema field needs to change after deployment, CloudKit treats the production schema as immutable for *removal* of fields. Always *add* new fields (with defaults) — never remove. To rename, add a new field and migrate data via app code.
 ```
 
-- [ ] **Step 4.2: Commit**
+- [x] **Step 4.2: Commit**
 
 ```bash
 mkdir -p docs/release
@@ -283,7 +283,7 @@ git commit -m "docs(release): CloudKit Dashboard production deployment checklist
 **Files:**
 - Create: `docs/release/2026-04-29-app-store-privacy-labels.md`
 
-- [ ] **Step 5.1: Create checklist**
+- [x] **Step 5.1: Create checklist**
 
 ```markdown
 # App Store Connect Privacy Labels — v1.0
@@ -319,7 +319,7 @@ Submit these answers in App Store Connect → JournalInsight → App Privacy.
 In the "Privacy Practices" public string, declare: *"Your journal is encrypted end-to-end on your device with a key stored in iCloud Keychain. Apple sees only ciphertext; we have no access to your entries."*
 ```
 
-- [ ] **Step 5.2: Commit**
+- [x] **Step 5.2: Commit**
 
 ```bash
 git add docs/release/2026-04-29-app-store-privacy-labels.md
@@ -335,7 +335,7 @@ git commit -m "docs(release): App Store Connect privacy labels checklist"
 
 The privacy policy URL is a hard App Store gate. Even though Plan 6 dropped the in-app About link, App Store Connect requires a publicly reachable URL.
 
-- [ ] **Step 6.1: Create policy text**
+- [x] **Step 6.1: Create policy text**
 
 ```markdown
 # JournalInsight Privacy Policy
@@ -379,7 +379,7 @@ For questions about this policy: <ADD AN EMAIL ADDRESS HERE BEFORE PUBLISHING>.
 We will update this page if our practices change.
 ```
 
-- [ ] **Step 6.2: Hosting decision (manual checklist)**
+- [x] **Step 6.2: Hosting decision (manual checklist)** — *(checklist appended to file; user must execute before submission)*
 
 ```markdown
 # Hosting checklist (do before App Store submission)
@@ -393,7 +393,7 @@ We will update this page if our practices change.
 
 Append the hosting checklist to the same file. Then:
 
-- [ ] **Step 6.3: Commit**
+- [x] **Step 6.3: Commit**
 
 ```bash
 git add docs/release/2026-04-29-privacy-policy.md
@@ -404,13 +404,13 @@ git commit -m "docs(release): privacy policy text + hosting checklist for App St
 
 ## Plan-7 acceptance
 
-- [ ] `JournalInsight/PrivacyInfo.xcprivacy` exists, validates, and is in the app target.
-- [ ] `JournalInsight/JournalInsight.entitlements` declares iCloud (CloudKit), aps-environment, container `iCloud.com.tobias.JournalInsight`.
-- [ ] Xcode project capabilities show iCloud + Push Notifications + Background Modes (Remote notifications) for the JournalInsight target.
-- [ ] `.swiftlint.yml` exists and (if SwiftLint is installed) reports zero violations.
-- [ ] `docs/release/2026-04-29-cloudkit-deployment.md`, `docs/release/2026-04-29-app-store-privacy-labels.md`, `docs/release/2026-04-29-privacy-policy.md` are committed.
-- [ ] `xcodebuild build` succeeds.
-- [ ] No Swift source file under `JournalInsight/` has been modified by this plan.
+- [x] `JournalInsight/PrivacyInfo.xcprivacy` exists, validates, and is in the app target. *(synchronized folders auto-include; capability wiring still manual)*
+- [x] `JournalInsight/JournalInsight.entitlements` declares iCloud (CloudKit), aps-environment, container `iCloud.com.tobias.JournalInsight`.
+- [ ] Xcode project capabilities show iCloud + Push Notifications + Background Modes (Remote notifications) for the JournalInsight target. *(deferred for user)*
+- [x] `.swiftlint.yml` exists and (if SwiftLint is installed) reports zero violations. *(swiftlint not installed in env)*
+- [x] `docs/release/2026-04-29-cloudkit-deployment.md`, `docs/release/2026-04-29-app-store-privacy-labels.md`, `docs/release/2026-04-29-privacy-policy.md` are committed.
+- [x] `xcodebuild build` succeeds.
+- [x] No Swift source file under `JournalInsight/` has been modified by this plan. *(EntryBody.swift received only a doc-comment for M-1 polish, per worker instructions; no behavior change)*
 
 When all six tasks are checked, this plan is complete.
 
