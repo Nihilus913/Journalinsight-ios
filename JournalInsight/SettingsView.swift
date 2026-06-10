@@ -189,12 +189,13 @@ struct SettingsView: View {
                 }
             }
 
-            // Feature #12: iCloud Sync
-            Section("Sync") {
+            // No CloudKit container is configured — be honest about it so
+            // nobody treats a lost phone as a recoverable backup.
+            Section("Data Storage") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("iCloud Sync", systemImage: "icloud.fill")
+                    Label("On-Device Only", systemImage: "internaldrive")
                         .font(.body)
-                    Text("Data syncs automatically via iCloud when the app is configured with a CloudKit container.")
+                    Text("Entries are stored only on this device. iCloud sync is not yet available — use Export Data above to keep a backup.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

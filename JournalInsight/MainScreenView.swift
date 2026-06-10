@@ -136,7 +136,6 @@ struct MainScreenView: View {
             if userName.isEmpty {
                 showingNamePrompt = true
             }
-            seedSampleDataIfNeeded()
         }
         .sheet(isPresented: $showingNamePrompt) {
             NamePromptSheet(userName: $userName, isPresented: $showingNamePrompt)
@@ -234,18 +233,6 @@ struct MainScreenView: View {
     private func saveWidgets() {
         if let data = try? JSONEncoder().encode(widgets) {
             UserDefaults.standard.set(data, forKey: StorageKeys.widgetLayout)
-        }
-    }
-
-    private func seedSampleDataIfNeeded() {
-        guard journalEntries.isEmpty else { return }
-        let calendar = Calendar.current
-        let samples = [
-            JournalEntry(date: calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date(), text: "Grateful for friends.", duration: 600, mood: .good),
-            JournalEntry(date: Date(), text: "Reflecting on progress.", duration: 900, mood: .great)
-        ]
-        for entry in samples {
-            modelContext.insert(entry)
         }
     }
 
