@@ -32,6 +32,13 @@ struct CalendarView: View {
         return formatter
     }()
 
+    /// Single source of truth for grid date math: ISO-8601 (Monday-first) weeks.
+    private static let gridCalendar: Calendar = {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.locale = Locale.autoupdatingCurrent
+        return calendar
+    }()
+
     var body: some View {
         ZStack {
             AppTheme.backgroundColor
@@ -82,7 +89,7 @@ struct CalendarView: View {
                 .pickerStyle(SegmentedPickerStyle())
 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7)) {
-                    ForEach(Calendar.current.shortWeekdaySymbols, id: \.self) { day in
+                    ForEach(CalendarGrid.mondayFirstWeekdaySymbols(calendar: Self.gridCalendar), id: \.self) { day in
                         Text(day.prefix(2))
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -93,27 +100,31 @@ struct CalendarView: View {
                 .padding()
 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7)) {
-                    ForEach(datesToDisplay, id: \.self) { date in
-                        VStack(spacing: 2) {
-                            Text(Self.dayFormatter.string(from: date))
-                                .font(.body)
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(Calendar.current.isDate(date, inSameDayAs: selectedDate ?? Date()) ? AppTheme.primaryColor.opacity(0.3) : Color.clear)
-                                .clipShape(Circle())
-                                .onTapGesture {
-                                    selectedDate = date
-                                }
+                    ForEach(Array(cellsToDisplay.enumerated()), id: \.offset) { _, cell in
+                        if let date = cell {
+                            VStack(spacing: 2) {
+                                Text(Self.dayFormatter.string(from: date))
+                                    .font(.body)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .background(Calendar.current.isDate(date, inSameDayAs: selectedDate ?? Date()) ? AppTheme.primaryColor.opacity(0.3) : Color.clear)
+                                    .clipShape(Circle())
+                                    .onTapGesture {
+                                        selectedDate = date
+                                    }
 
-                            let dayEntries = entries.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
-                            if let firstMood = dayEntries.compactMap(\.mood).first {
-                                Text(firstMood.emoji)
-                                    .font(.system(size: 10))
-                            } else if !dayEntries.isEmpty {
-                                Circle()
-                                    .fill(AppTheme.primaryColor)
-                                    .frame(width: 6, height: 6)
+                                let dayEntries = entries.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
+                                if let firstMood = dayEntries.compactMap(\.mood).first {
+                                    Text(firstMood.emoji)
+                                        .font(.system(size: 10))
+                                } else if !dayEntries.isEmpty {
+                                    Circle()
+                                        .fill(AppTheme.primaryColor)
+                                        .frame(width: 6, height: 6)
+                                }
                             }
+                        } else {
+                            Color.clear
                         }
                     }
                 }
@@ -204,8 +215,16 @@ struct CalendarView: View {
 
     // MARK: - Helpers
 
+    /// Grid cells: month scope is padded with leading nils so day 1 sits
+    /// under its actual weekday; week scopes already start on Monday.
+    private var cellsToDisplay: [Date?] {
+        scope == .month
+            ? CalendarGrid.monthCells(for: datesToDisplay, calendar: Self.gridCalendar)
+            : datesToDisplay
+    }
+
     private var datesToDisplay: [Date] {
-        let calendar = Calendar(identifier: .iso8601)
+        let calendar = Self.gridCalendar
 
         switch scope {
         case .month:
