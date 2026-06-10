@@ -99,4 +99,9 @@ enum StorageKeys {
     static let notificationHour = "notificationHour"
     static let notificationMinute = "notificationMinute"
     static let widgetLayout = "widgetLayout"
+    static let workoutDays = "workoutDays"
+    static let workoutReminderHour = "workoutReminderHour"
+    static let workoutReminderMinute = "workoutReminderMinute"
+    static let workoutReminderEnabled = "workoutReminderEnabled"
+    static let healthKitEnabled = "healthKitEnabled"
 }
