@@ -113,7 +113,7 @@ struct MainScreenView: View {
             }
             .background(.ultraThinMaterial)
             .navigationTitle(userName.isEmpty ? "Welcome Back!" : "Welcome Back, \(userName)!")
-            .navigationBarTitleDisplayMode(.large)
+            .largeNavigationTitle()
             .searchable(text: $searchText, prompt: "Search entries...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -529,7 +529,7 @@ struct AddEntrySheet: View {
                 }
             }
             .navigationTitle("New Entry")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -685,7 +685,7 @@ struct EditEntrySheet: View {
                 }
             }
             .navigationTitle("Edit Entry")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

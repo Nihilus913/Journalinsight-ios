@@ -138,7 +138,7 @@ struct StreakDetailView: View {
             .padding()
         }
         .navigationTitle("Streak")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .onAppear {
             if isOnMilestone {
                 withAnimation(.spring(response: 0.5)) {

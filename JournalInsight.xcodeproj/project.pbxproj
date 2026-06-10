@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		082A077F2F744534004743DD /* AUDIT_REPORT.md in Resources */ = {isa = PBXBuildFile; fileRef = 082A077E2F744534004743DD /* AUDIT_REPORT.md */; };
 		08710C482F73189600E385CD /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 08710C472F73189600E385CD /* CLAUDE.md */; };
 		08710C4E2F731DBF00E385CD /* RELEASE_NOTES.md in Resources */ = {isa = PBXBuildFile; fileRef = 08710C4D2F731DBF00E385CD /* RELEASE_NOTES.md */; };
 /* End PBXBuildFile section */
@@ -29,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		082A077E2F744534004743DD /* AUDIT_REPORT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AUDIT_REPORT.md; sourceTree = "<group>"; };
 		08599C1F2DBC254700BDD52D /* JournalInsight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08599C2C2DBC254700BDD52D /* JournalInsightTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08599C362DBC254700BDD52D /* JournalInsightUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalInsightUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,6 +92,7 @@
 				08599C202DBC254700BDD52D /* Products */,
 				08710C472F73189600E385CD /* CLAUDE.md */,
 				08710C4D2F731DBF00E385CD /* RELEASE_NOTES.md */,
+				082A077E2F744534004743DD /* AUDIT_REPORT.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -225,6 +228,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				082A077F2F744534004743DD /* AUDIT_REPORT.md in Resources */,
 				08710C4E2F731DBF00E385CD /* RELEASE_NOTES.md in Resources */,
 				08710C482F73189600E385CD /* CLAUDE.md in Resources */,
 			);

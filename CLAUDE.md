@@ -36,19 +36,21 @@ git add CLAUDE.md && git commit -m "docs: update Claude change log"
 
 | File | Last Modified | Summary |
 |------|--------------|---------|
-| `AppTheme.swift` | 2026-03-24 | Added `AppAppearance`, `CalendarScope`, `StorageKeys` |
-| `MainScreenView.swift` | 2026-03-24 | SwiftData `@Query`, add-entry sheet, nav title, responsive widgets, widget card icons |
-| `CalendarDetailView.swift` | 2026-03-24 | Uses `@Query` instead of passed-in entries, DST-safe date math |
-| `SettingsView.swift` | 2026-03-24 | `@AppStorage` via `StorageKeys`, auto-dismiss saved indicator, wallpaper file storage |
-| `StreakDetailView.swift` | 2026-03-24 | Data-driven streaks via `StreakCalculator`, `@Query` |
-| `SessionDetailView.swift` | 2026-03-24 | Full implementation with stats from `@Query` entries |
-| `QuestionsDetailView.swift` | 2026-03-24 | Journaling prompts with entry creation |
+| `AppTheme.swift` | 2026-03-25 | Added `AccentColorChoice`, `TextSizeChoice`, notification/widget storage keys |
+| `MainScreenView.swift` | 2026-03-25 | Search, edit/delete entries, timer, tags, mood, live widget data, persist layout |
+| `CalendarDetailView.swift` | 2026-03-25 | Month navigation (back/forward/today), mood emojis on calendar dots |
+| `SettingsView.swift` | 2026-03-25 | Accent color, text size, notification reminders, data export, iCloud info |
+| `StreakDetailView.swift` | 2026-03-25 | Milestone tracking with progress bars and celebration banners |
+| `SessionDetailView.swift` | 2026-03-25 | Swift Charts: weekly entries bar chart, duration trend line, mood distribution |
+| `QuestionsDetailView.swift` | 2026-03-25 | Mood selection when creating entries from prompts |
 | `GoalsDetailView.swift` | 2026-03-24 | Full goal CRUD with progress tracking via SwiftData |
-| `JournalEntry.swift` | 2026-03-24 | Converted to SwiftData `@Model` class |
-| `JournalInsightApp.swift` | 2026-03-24 | Added `.modelContainer` for `JournalEntry` and `Goal` |
+| `JournalEntry.swift` | 2026-03-25 | Added `Mood` enum, `Tag` model, mood/tags properties |
+| `JournalInsightApp.swift` | 2026-03-25 | Tag model container, dynamic type size, tint color |
 | `Goal.swift` | 2026-03-24 | **NEW** — SwiftData `@Model` for goals |
 | `StreakCalculator.swift` | 2026-03-24 | **NEW** — Extracted testable streak/time-of-day logic |
-| `JournalInsightTests.swift` | 2026-03-24 | 16 real tests: streak, goal, wallpaper storage, entry, keys |
+| `JournalInsightTests.swift` | 2026-03-25 | 39 unit tests across 12 suites covering all features |
+| `NotificationManager.swift` | 2026-03-25 | **NEW** — Daily reminder scheduling via UNUserNotificationCenter |
+| `DataExporter.swift` | 2026-03-25 | **NEW** — CSV/JSON export for journal entries |
 
 ---
 
@@ -98,6 +100,34 @@ git add CLAUDE.md && git commit -m "docs: update Claude change log"
 
 ---
 
+### Session — 2026-03-25 (Session 3)
+**Goal:** Implement 14 new features (edit/delete, search, mood, timer, notifications, calendar nav, tags, export, charts, milestones, live widgets, iCloud, theme/text size, persist layout)
+**Files touched:** All source files + 2 new files + tests
+**Changes:**
+- [JournalEntry.swift] Added `Mood` enum (5 moods with emoji/label), `Tag` SwiftData `@Model` with unique name constraint, `moodRaw`/`mood` computed property, `tags` relationship on `JournalEntry`.
+- [AppTheme.swift] Added `AccentColorChoice` enum (6 color options), `TextSizeChoice` enum (4 sizes mapped to `DynamicTypeSize`), new `StorageKeys` for accent color, text size, notifications, and widget layout.
+- [JournalInsightApp.swift] Registered `Tag.self` in model container. Applied `.dynamicTypeSize()` and `.tint()` from user preferences.
+- [NotificationManager.swift] **NEW FILE** — `UNUserNotificationCenter` wrapper for requesting authorization, scheduling daily reminders, and cancelling them.
+- [DataExporter.swift] **NEW FILE** — CSV and JSON export with mood/tag support, temp file writing utilities.
+- [MainScreenView.swift] Major rewrite:
+  - Feature #1: `EntryRowView` with context menu edit/delete, `EditEntrySheet` for editing entries, delete confirmation dialog.
+  - Feature #2: `.searchable()` modifier with local filtering on text, mood, and tags.
+  - Feature #3: Mood picker in `AddEntrySheet` with emoji buttons.
+  - Feature #4: Timer mode toggle with start/pause/reset using async `Task.sleep`.
+  - Feature #7: Tag picker with flow layout, create-new-tag inline field.
+  - Feature #11: `WidgetCardView` shows live streak count, entry count, this-week count.
+  - Feature #14: Widget layout saved/loaded via JSON in `UserDefaults`.
+  - Moved `WidgetType`, `WidgetSize`, `WidgetItem` to file scope as `Codable` enums/structs.
+  - Added `FlowLayout` custom `Layout` for tag chips.
+- [CalendarDetailView.swift] Feature #6: Month navigation with chevron buttons and "Today" reset. Shows mood emojis instead of plain dots. Shows all entries for selected day with mood/tags. Navigation animates between months/weeks.
+- [SessionDetailView.swift] Feature #9: Swift Charts integration — `BarMark` for weekly entry counts, `LineMark`+`AreaMark` for duration trends, `BarMark` for mood distribution. Added mood emoji in recent entries.
+- [StreakDetailView.swift] Feature #10: Milestone tracking for 7/14/30/50/100/200/365 days. Progress bar to next milestone. Celebration banner with star animation on milestone days. Uses `symbolEffect(.bounce)`.
+- [SettingsView.swift] Feature #5: Notification toggle with authorization request, hour/minute pickers. Feature #8: Export format picker (CSV/JSON) with `ShareLink`. Feature #12: iCloud sync info section. Feature #13: Accent color picker and text size segmented control. Replaced "Coming Soon" placeholders.
+- [QuestionsDetailView.swift] Added mood picker in the prompt response sheet.
+- [JournalInsightTests.swift] Expanded from 16 to 39 unit tests across 12 suites: added Mood (4 tests), Tag (1 test), JournalEntry mood/tags (4 tests), DataExporter CSV/JSON (7 tests), WidgetLayout Codable (2 tests), AccentColorChoice (2 tests), TextSizeChoice (2 tests), expanded StorageKeys (1 test with 8 assertions).
+**Diff summary:** 14 features implemented, 2 new files, all existing views updated, test count increased from 16 to 39. All 42 tests pass (39 unit + 3 UI).
+**Status:** Done
+
 <!-- ADD NEW SESSIONS BELOW THIS LINE -->
 
 
@@ -110,19 +140,21 @@ A running index of key files in the project — updated by Claude as new files a
 
 | File | Role | Notes |
 |------|------|-------|
-| `AppTheme.swift` | Theme constants & shared enums | Colors, `AppAppearance`, `CalendarScope`, `StorageKeys` |
-| `JournalEntry.swift` | Data model | SwiftData `@Model` class |
+| `AppTheme.swift` | Theme constants & shared enums | Colors, `AppAppearance`, `CalendarScope`, `AccentColorChoice`, `TextSizeChoice`, `StorageKeys` |
+| `JournalEntry.swift` | Data models | `JournalEntry` @Model, `Tag` @Model, `Mood` enum |
 | `Goal.swift` | Data model | SwiftData `@Model` for goals with progress tracking |
 | `StreakCalculator.swift` | Business logic | Testable streak computation utilities |
-| `JournalInsightApp.swift` | App entry point | Model container for `JournalEntry` + `Goal`, appearance |
-| `MainScreenView.swift` | Main dashboard | Widget grid, add-entry sheet, name prompt |
-| `CalendarDetailView.swift` | Calendar detail view | Multi-scope calendar with `@Query` entries |
-| `SettingsView.swift` | Settings/personalization | Name, wallpaper, appearance, `WallpaperStorage` |
-| `StreakDetailView.swift` | Streak stats | Data-driven via `StreakCalculator` |
-| `SessionDetailView.swift` | Session KPIs | Stats computed from `@Query` entries |
-| `QuestionsDetailView.swift` | Journaling prompts | Daily prompts, creates entries on save |
+| `NotificationManager.swift` | Notifications | Daily reminder scheduling via `UNUserNotificationCenter` |
+| `DataExporter.swift` | Export | CSV/JSON export with mood/tag support |
+| `JournalInsightApp.swift` | App entry point | Model container, dynamic type size, tint color |
+| `MainScreenView.swift` | Main dashboard | Widget grid, search, edit/delete, timer, tags, mood, persist layout |
+| `CalendarDetailView.swift` | Calendar detail view | Month navigation, mood emojis, multi-scope |
+| `SettingsView.swift` | Settings/personalization | Name, wallpaper, accent color, text size, notifications, export, iCloud |
+| `StreakDetailView.swift` | Streak stats | Milestones, celebration banners, progress to next milestone |
+| `SessionDetailView.swift` | Session KPIs | Swift Charts: entries, duration, mood distribution |
+| `QuestionsDetailView.swift` | Journaling prompts | Daily prompts with mood selection |
 | `GoalsDetailView.swift` | Goals tracking | CRUD goals with progress bars |
-| `JournalInsightTests.swift` | Unit tests | 16 tests across 5 suites |
+| `JournalInsightTests.swift` | Unit tests | 39 tests across 12 suites |
 
 ---
 
@@ -130,13 +162,11 @@ A running index of key files in the project — updated by Claude as new files a
 
 Items identified during sessions that need follow-up:
 
-- `WidgetDropDelegate` uses `NSItemProvider` with string UUIDs — consider `Transferable` protocol for type-safe drag-and-drop
-- Widget layout/order is not persisted — resets on relaunch
-- No edit/delete flow for journal entries (only create)
-- No iCloud sync configured for SwiftData (requires entitlements)
-- Calendar view always shows current month/week — no month navigation
+- `WidgetDropDelegate` uses `NSItemProvider` with string IDs — consider `Transferable` protocol for type-safe drag-and-drop
+- iCloud sync requires CloudKit entitlement and container configuration in Xcode project settings
 - QuestionsDetailView prompt rotation is deterministic but not customizable
 - UI tests are still boilerplate — could add real interaction tests
+- Notification permissions may need to be re-requested if denied initially
 
 ---
 
@@ -146,7 +176,7 @@ Items identified during sessions that need follow-up:
 - Prefer **Swift best practices**: `async/await`, `@MainActor`, value types where possible
 - Use **SwiftUI** unless UIKit is already established in the file
 - Use `StorageKeys` enum for all `UserDefaults` / `@AppStorage` key strings
-- Models: `JournalEntry` and `Goal` are SwiftData `@Model` classes
+- Models: `JournalEntry`, `Goal`, and `Tag` are SwiftData `@Model` classes
 - When suggesting changes, always show the **before/after** diff in code blocks
 - Flag any **breaking changes**, deprecated APIs, or potential **memory leaks**
 - If you see a pattern repeated across files, suggest a **refactor**

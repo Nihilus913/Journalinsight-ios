@@ -196,7 +196,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Personalize")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .onAppear {
             nameField = userName
         }
@@ -263,7 +263,7 @@ struct ShareSheetView: View {
             }
             .padding()
             .navigationTitle("Export")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -307,18 +307,18 @@ struct FullscreenWallpaperView: View {
                     .padding()
             }
             .navigationTitle("Wallpaper")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
         } else {
             Text("Unable to load image")
                 .foregroundColor(.secondary)
                 .navigationTitle("Wallpaper")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
         }
         #else
         Text("Image preview not available on this platform.")
             .foregroundColor(.secondary)
             .navigationTitle("Wallpaper")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
         #endif
     }
 }

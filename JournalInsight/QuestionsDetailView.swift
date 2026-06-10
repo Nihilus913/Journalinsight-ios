@@ -70,7 +70,7 @@ struct QuestionsDetailView: View {
             }
         }
         .navigationTitle("Prompts")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .sheet(isPresented: $showingEntry) {
             NavigationStack {
                 Form {
@@ -109,7 +109,7 @@ struct QuestionsDetailView: View {
                     }
                 }
                 .navigationTitle("Write Entry")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { showingEntry = false }

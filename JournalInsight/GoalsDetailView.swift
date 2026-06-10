@@ -29,7 +29,7 @@ struct GoalsDetailView: View {
             .onDelete(perform: deleteGoals)
         }
         .navigationTitle("Goals")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -110,7 +110,7 @@ struct AddGoalSheet: View {
                 }
             }
             .navigationTitle("New Goal")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

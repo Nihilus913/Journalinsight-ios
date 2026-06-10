@@ -34,7 +34,7 @@ struct CalendarView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemBackground)
+            AppTheme.backgroundColor
                 .ignoresSafeArea()
 
             VStack {
@@ -175,7 +175,7 @@ struct CalendarView: View {
             }
         }
         .navigationTitle("Calendar Details")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
     }
 
     // MARK: - Navigation (Feature #6)

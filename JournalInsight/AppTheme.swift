@@ -11,7 +11,11 @@ struct AppTheme {
     static let primaryColor = Color.teal
     static let secondaryColor = Color.gray
     static let accentColor = Color.orange
+    #if canImport(UIKit)
     static let backgroundColor = Color(.systemBackground)
+    #else
+    static let backgroundColor = Color(nsColor: .windowBackgroundColor)
+    #endif
     static let textColor = Color.primary
 }
 
@@ -65,6 +69,24 @@ enum TextSizeChoice: String, CaseIterable, Identifiable {
         case .large: return .large
         case .extraLarge: return .xxxLarge
         }
+    }
+}
+
+extension View {
+    @ViewBuilder func inlineNavigationTitle() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder func largeNavigationTitle() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.large)
+        #else
+        self
+        #endif
     }
 }
 

@@ -159,7 +159,7 @@ struct SessionDetailView: View {
             }
         }
         .navigationTitle("Session KPIs")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
     }
 
     private func colorForMood(_ mood: Mood) -> Color {
