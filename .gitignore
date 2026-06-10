@@ -1,1 +1,12 @@
+# Claude worktrees / tool state
 .worktrees/
+.claude/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# macOS
+.DS_Store
