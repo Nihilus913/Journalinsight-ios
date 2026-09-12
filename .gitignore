@@ -10,3 +10,7 @@ build/
 
 # macOS
 .DS_Store
+
+# Swift migration (XcodeGen skeleton)
+Packages/*/.build/
+*.xcresult

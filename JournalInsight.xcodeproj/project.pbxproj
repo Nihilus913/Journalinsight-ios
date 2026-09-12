@@ -1,0 +1,463 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
+		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
+		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BABADAAD1782F1D86388AE75 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BC6F7ABA57B0B1A90E8A2220;
+			remoteInfo = JournalInsight;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightApp.swift; sourceTree = "<group>"; };
+		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE1DEEDD9B02F9398A695569 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
+		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E51330D71BCE8DD9E7DABBBA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0F1DA0A1D7D5D8969A37070C /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				FC17C93F596DA8A04D63D272 /* JICore */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		41EE3A0FCA253EF9D89E8C03 /* AppTests */ = {
+			isa = PBXGroup;
+			children = (
+				EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */,
+			);
+			path = AppTests;
+			sourceTree = "<group>";
+		};
+		7E21C80B99A2A95B8D6662A4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */,
+				C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CEC801B7EB7C3D95D253F53F /* App */ = {
+			isa = PBXGroup;
+			children = (
+				50213A12F93450C6AD416BAD /* Assets.xcassets */,
+				4BC54E4B616D60F658404378 /* Info.plist */,
+				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
+				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D402D815E19C29C7AC5E9C2C = {
+			isa = PBXGroup;
+			children = (
+				CEC801B7EB7C3D95D253F53F /* App */,
+				41EE3A0FCA253EF9D89E8C03 /* AppTests */,
+				0F1DA0A1D7D5D8969A37070C /* Packages */,
+				7E21C80B99A2A95B8D6662A4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDEEF76565D476A532BAC5DA /* Build configuration list for PBXNativeTarget "JournalInsight" */;
+			buildPhases = (
+				764C5C539785D8F6A67B9BA3 /* Sources */,
+				689A6C016E3B8B7837D372EC /* Resources */,
+				E51330D71BCE8DD9E7DABBBA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = JournalInsight;
+			packageProductDependencies = (
+				B82481EAAF8B8DF915C28007 /* JICore */,
+			);
+			productName = JournalInsight;
+			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D9A92894867253C7C97099F5 /* JournalInsightTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E7D766803A200235C577C1E /* Build configuration list for PBXNativeTarget "JournalInsightTests" */;
+			buildPhases = (
+				C8491042735CE3EBA9753B38 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5CCE0D08C1F678FFCF7FC53A /* PBXTargetDependency */,
+			);
+			name = JournalInsightTests;
+			packageProductDependencies = (
+			);
+			productName = JournalInsightTests;
+			productReference = C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		176761A01ACFDD70C3ECCAD3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					BC6F7ABA57B0B1A90E8A2220 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					D9A92894867253C7C97099F5 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = AA2B386C84CF31FD674B80B9 /* Build configuration list for PBXProject "JournalInsight" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D402D815E19C29C7AC5E9C2C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7E21C80B99A2A95B8D6662A4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */,
+				D9A92894867253C7C97099F5 /* JournalInsightTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		689A6C016E3B8B7837D372EC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		764C5C539785D8F6A67B9BA3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
+				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C8491042735CE3EBA9753B38 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5CCE0D08C1F678FFCF7FC53A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */;
+			targetProxy = BABADAAD1782F1D86388AE75 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		62631C6BF2ECD41A51796A65 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		98C471587510175E39810206 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A3CADB726F9D0CD1FFA91B41 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A8E6B6F9FCD54218F2B255F0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsightTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/JournalInsight.app/JournalInsight";
+			};
+			name = Release;
+		};
+		C1F5E6A6F95EE46B756AA91B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E4A778F741DC7D9A430C919C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsightTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/JournalInsight.app/JournalInsight";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8E7D766803A200235C577C1E /* Build configuration list for PBXNativeTarget "JournalInsightTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4A778F741DC7D9A430C919C /* Debug */,
+				A8E6B6F9FCD54218F2B255F0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AA2B386C84CF31FD674B80B9 /* Build configuration list for PBXProject "JournalInsight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1F5E6A6F95EE46B756AA91B /* Debug */,
+				98C471587510175E39810206 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DDEEF76565D476A532BAC5DA /* Build configuration list for PBXNativeTarget "JournalInsight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				62631C6BF2ECD41A51796A65 /* Debug */,
+				A3CADB726F9D0CD1FFA91B41 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JICore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B82481EAAF8B8DF915C28007 /* JICore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JICore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 176761A01ACFDD70C3ECCAD3 /* Project object */;
+}
