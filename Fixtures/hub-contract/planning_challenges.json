@@ -1,0 +1,84 @@
+{
+  "challenges": [
+    {
+      "challenge_id": 1,
+      "completed_at": "2026-09-08T05:22:59.927561+02:00",
+      "created_at": "2026-08-31T05:12:13.152896+02:00",
+      "hypothesis": "H1 (Toby): completed discharge-rebound cycles reduce stress and restore sleep, so executing the textbook plan outperforms gate-trimmed weeks on actual readiness trend. H2 (gate): overriding caps degrades next-morning readiness cumulatively. Verdicts recorded during the experiment are predictions, not commands -- the HR<=175 safety floor and symptom-day exemption stand outside it, non-negotiable.",
+      "progress": {
+        "count": 4,
+        "execution_score": 100,
+        "pace": "on_pace",
+        "target": 4,
+        "wants_complete_prompt": false
+      },
+      "result_note": null,
+      "session_filter": "interval",
+      "start_date": "2026-08-13",
+      "status": "completed",
+      "target_sessions": 4,
+      "title": "Gate-compliance experiment",
+      "updated_at": "2026-09-08T05:22:59.927561+02:00"
+    },
+    {
+      "challenge_id": 2,
+      "completed_at": "2026-08-31T06:36:37.642176+02:00",
+      "created_at": "2026-08-31T06:36:34.956878+02:00",
+      "hypothesis": "adversarial verify roundtrip check",
+      "progress": {
+        "count": 0,
+        "execution_score": 0,
+        "pace": "on_pace",
+        "target": 2,
+        "wants_complete_prompt": false
+      },
+      "result_note": null,
+      "session_filter": "interval",
+      "start_date": "2026-08-31",
+      "status": "archived",
+      "target_sessions": 2,
+      "title": "R3b verify test challenge",
+      "updated_at": "2026-09-07T23:38:22.567041+02:00"
+    },
+    {
+      "challenge_id": 6,
+      "completed_at": "2026-09-08T00:38:55.572425+02:00",
+      "created_at": "2026-09-08T00:38:55.510329+02:00",
+      "hypothesis": "x",
+      "progress": {
+        "count": 0,
+        "execution_score": 0,
+        "pace": "on_pace",
+        "target": 2,
+        "wants_complete_prompt": false
+      },
+      "result_note": "verify note",
+      "session_filter": "interval",
+      "start_date": "2031-06-01",
+      "status": "completed",
+      "target_sessions": 2,
+      "title": "e25-verify-archive-9981",
+      "updated_at": "2026-09-08T00:38:55.572425+02:00"
+    },
+    {
+      "challenge_id": 7,
+      "completed_at": "2026-09-08T00:48:03.373078+02:00",
+      "created_at": "2026-09-08T00:45:41.136552+02:00",
+      "hypothesis": "adversarial-verify-complete-flow",
+      "progress": {
+        "count": 0,
+        "execution_score": 0,
+        "pace": "on_pace",
+        "target": 1,
+        "wants_complete_prompt": false
+      },
+      "result_note": null,
+      "session_filter": "interval",
+      "start_date": "2031-01-01",
+      "status": "completed",
+      "target_sessions": 1,
+      "title": "e25-verify-1244-complete",
+      "updated_at": "2026-09-08T00:48:03.373078+02:00"
+    }
+  ]
+}

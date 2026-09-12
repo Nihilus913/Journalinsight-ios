@@ -1,0 +1,24 @@
+{
+  "nutrition": {
+    "carbs_g": 172.0,
+    "fat_g": 59.125,
+    "kcal_goal": 1935.0,
+    "protein_g": 184.9
+  },
+  "steps_daily": 15000,
+  "strength": [
+    {
+      "exercise": "bench",
+      "target_kg": 100.0
+    },
+    {
+      "exercise": "row",
+      "target_kg": 100.0
+    }
+  ],
+  "weight": {
+    "base_kg": 80.2,
+    "target_date": "2026-10-31",
+    "target_kg": 75.0
+  }
+}

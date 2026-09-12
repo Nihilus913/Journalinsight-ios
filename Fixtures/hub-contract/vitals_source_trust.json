@@ -1,0 +1,32 @@
+{
+  "sources": [
+    {
+      "dso_key": 1,
+      "metric_class": "overnight_vitals",
+      "note": "Same sleep-anchored window as GarminAPI (historical bulk load via garmindb CLI, pre-P2). Legacy source -- garmindb ingestion path removed in the P2 refactor, so no new rows accrue here, but existing history keeps this trust tier.",
+      "source_label": "GarminDB",
+      "trust_tier": "trusted"
+    },
+    {
+      "dso_key": 2,
+      "metric_class": "daytime_hr_stress",
+      "note": "Daytime HR, stress, body-battery drain, active-calorie and training-load readings are inflated by methylphenidate (Concerta 54mg): daytime stress +48%, TE +26-71%, training load +71%, BB drain +58%, ambient HR +16..+29bpm wake-gated, escalating over a consecutive-dosing block (memory/user_methylphenidate.md 2026-07-22/23 calibration audit). NEVER silently corrected -- callers must surface the flag (dose_log.json dosed-day context), not subtract an offset from the stored value.",
+      "source_label": "GarminAPI",
+      "trust_tier": "flagged"
+    },
+    {
+      "dso_key": 2,
+      "metric_class": "overnight_vitals",
+      "note": "Sleep-window RHR/HRV/stress/sleep score. Methylphenidate ambient offset is wake-gated: +0.6bpm asleep vs +16..+29bpm awake -- overnight readings are a real physiological state regardless of same-day dosing (memory/user_methylphenidate.md GATE RULE, reversed after the 2026-07-23 calibration audit that refuted an earlier exemption attempt).",
+      "source_label": "GarminAPI",
+      "trust_tier": "trusted"
+    },
+    {
+      "dso_key": 4,
+      "metric_class": "cross_device_vitals",
+      "note": "Apple Watch same-day vitals do not track Garmin's: RHR raw Pearson corr 0.038 (n=48 paired days, Apple +6.4bpm above Garmin), HRV corr -0.347 (n=31), gate agreement 50% -- forensically confirmed not a data-completeness artifact (docs/superpowers/specs/2026-08-16-source-agnostic-gate-design.md). Root cause is measurement window (Apple = all-day sedentary, drug-contaminated; Garmin = sleep-window, clean), not device noise -- two independent sleep-anchored devices (WHOOP, Garmin) correlate 0.431 on RHR, an order of magnitude tighter. Usable only baseline-relative, per source -- never compare Apple and Garmin absolute values directly.",
+      "source_label": "AppleHealth",
+      "trust_tier": "low"
+    }
+  ]
+}

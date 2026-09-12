@@ -1,0 +1,52 @@
+{
+  "targets": [
+    {
+      "description": "REDUCE: overreaching risk",
+      "metric": "acwr",
+      "operator": ">",
+      "target_id": 6,
+      "threshold": 1.3,
+      "threshold_hi": null
+    },
+    {
+      "description": "REDUCE: chronic underfueling (5+ of 7 days)",
+      "metric": "avg_kcal_7d",
+      "operator": "<",
+      "target_id": 7,
+      "threshold": 1600.0,
+      "threshold_hi": null
+    },
+    {
+      "description": "REDUCE: insufficient protein (5+ of 7 days)",
+      "metric": "avg_protein_7d",
+      "operator": "<",
+      "target_id": 8,
+      "threshold": 130.0,
+      "threshold_hi": null
+    },
+    {
+      "description": "REDUCE: poor sleep quality (4+ of 7 days)",
+      "metric": "sleep_score_7d",
+      "operator": "<",
+      "target_id": 9,
+      "threshold": 55.0,
+      "threshold_hi": null
+    },
+    {
+      "description": "MAINTAIN: undertraining",
+      "metric": "acwr",
+      "operator": "<",
+      "target_id": 10,
+      "threshold": 0.8,
+      "threshold_hi": null
+    },
+    {
+      "description": "PROGRESS zone 0.80\u20131.30 (combined with nutrition gates)",
+      "metric": "acwr",
+      "operator": "between",
+      "target_id": 11,
+      "threshold": 0.8,
+      "threshold_hi": 1.3
+    }
+  ]
+}

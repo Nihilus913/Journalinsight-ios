@@ -1,0 +1,20 @@
+{
+  "bedtime_consistency_nights": 28,
+  "bedtime_consistency_sd_min": 102.9,
+  "bedtime_consistency_sources": [
+    "GarminAPI"
+  ],
+  "debt_baseline_hours": 7.383,
+  "debt_date": "2026-09-11",
+  "debt_hours": -0.27,
+  "debt_source": "GarminAPI",
+  "last_night_date": "2026-09-11",
+  "last_night_deep_sleep_sec": 4860,
+  "last_night_duration_sec": 24540,
+  "last_night_light_sleep_sec": 15180,
+  "last_night_rem_sleep_sec": 4500,
+  "last_night_source": "GarminAPI",
+  "score_computed": 82,
+  "score_computed_date": "2026-09-11",
+  "score_computed_source": "GarminAPI"
+}

@@ -1,0 +1,445 @@
+{
+  "generated_at": "2026-09-12T14:47:58.722044+00:00",
+  "provenance_gap": "E14-3 (provenance) landed as a correctness fix to Apple Health source matching (app/ingestion/apple_health.py), not a scorable metric -- no sub-score exists for it yet. The composite below is a weighted mean over freshness + range_validity + trust only, renormalized to whichever of those actually apply to a given (source, metric) row.",
+  "quality_score": [
+    {
+      "components_available": [
+        "freshness"
+      ],
+      "components_missing": [
+        "range_validity",
+        "trust",
+        "provenance"
+      ],
+      "composite": 0.0,
+      "dso_key": 1,
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "GarminDB",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": null,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 1.0
+      }
+    },
+    {
+      "components_available": [
+        "freshness"
+      ],
+      "components_missing": [
+        "range_validity",
+        "trust",
+        "provenance"
+      ],
+      "composite": 0.0,
+      "dso_key": 1,
+      "metric": "training_load",
+      "metric_label": "Training load (ACWR)",
+      "source": "GarminDB",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": null,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 1.0
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "trust"
+      ],
+      "components_missing": [
+        "range_validity",
+        "provenance"
+      ],
+      "composite": 0.0962,
+      "dso_key": 4,
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "AppleHealth",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": null,
+        "trust": 0.25
+      },
+      "weights_used": {
+        "freshness": 0.6154,
+        "trust": 0.3846
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "trust"
+      ],
+      "components_missing": [
+        "range_validity",
+        "provenance"
+      ],
+      "composite": 0.3846,
+      "dso_key": 1,
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "GarminDB",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": null,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.6154,
+        "trust": 0.3846
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.4122,
+      "dso_key": 4,
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "AppleHealth",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": 0.9991,
+        "trust": 0.25
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.4125,
+      "dso_key": 4,
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "AppleHealth",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": 1.0,
+        "trust": 0.25
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.4125,
+      "dso_key": 4,
+      "metric": "body",
+      "metric_label": "Body metrics (weight / body fat)",
+      "source": "AppleHealth",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": 1.0,
+        "trust": 0.25
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness"
+      ],
+      "components_missing": [
+        "range_validity",
+        "trust",
+        "provenance"
+      ],
+      "composite": 0.5,
+      "dso_key": 2,
+      "metric": "activity",
+      "metric_label": "Activities",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 0.5,
+        "range_validity": null,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 1.0
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.5466,
+      "dso_key": 1,
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "GarminDB",
+      "sub_scores": {
+        "freshness": 0.0,
+        "range_validity": 0.8474,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "trust"
+      ],
+      "components_missing": [
+        "range_validity",
+        "provenance"
+      ],
+      "composite": 0.8077,
+      "dso_key": 2,
+      "metric": "training_load",
+      "metric_label": "Training load (ACWR)",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": null,
+        "trust": 0.5
+      },
+      "weights_used": {
+        "freshness": 0.6154,
+        "trust": 0.3846
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.875,
+      "dso_key": 2,
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": 1.0,
+        "trust": 0.5
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 0.9726,
+      "dso_key": 2,
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": 0.9217,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity"
+      ],
+      "components_missing": [
+        "trust",
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 3,
+      "metric": "body",
+      "metric_label": "Body metrics (weight / body fat)",
+      "source": "YAZIO",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": 1.0,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 0.5333,
+        "range_validity": 0.4667
+      }
+    },
+    {
+      "components_available": [
+        "freshness"
+      ],
+      "components_missing": [
+        "range_validity",
+        "trust",
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 3,
+      "metric": "nutrition",
+      "metric_label": "Nutrition (YAZIO)",
+      "source": "YAZIO",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": null,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 1.0
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "trust"
+      ],
+      "components_missing": [
+        "range_validity",
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 2,
+      "metric": "recovery",
+      "metric_label": "Recovery (readiness)",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": null,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.6154,
+        "trust": 0.3846
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "trust"
+      ],
+      "components_missing": [
+        "range_validity",
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 1,
+      "metric": "recovery",
+      "metric_label": "Recovery (readiness)",
+      "source": "GarminDB",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": null,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.6154,
+        "trust": 0.3846
+      }
+    },
+    {
+      "components_available": [
+        "freshness",
+        "range_validity",
+        "trust"
+      ],
+      "components_missing": [
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 2,
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": 1.0,
+        "trust": 1.0
+      },
+      "weights_used": {
+        "freshness": 0.4,
+        "range_validity": 0.35,
+        "trust": 0.25
+      }
+    },
+    {
+      "components_available": [
+        "freshness"
+      ],
+      "components_missing": [
+        "range_validity",
+        "trust",
+        "provenance"
+      ],
+      "composite": 1.0,
+      "dso_key": 2,
+      "metric": "vo2max",
+      "metric_label": "VO2max",
+      "source": "GarminAPI",
+      "sub_scores": {
+        "freshness": 1.0,
+        "range_validity": null,
+        "trust": null
+      },
+      "weights_used": {
+        "freshness": 1.0
+      }
+    }
+  ],
+  "weights": {
+    "freshness": 0.4,
+    "range_validity": 0.35,
+    "trust": 0.25
+  }
+}

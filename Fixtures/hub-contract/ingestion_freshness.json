@@ -1,0 +1,1429 @@
+{
+  "freshness": [
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 51,
+      "dso_key": 4,
+      "first_date": "2024-01-01",
+      "gap_count": 20,
+      "gaps": [
+        {
+          "days": 2,
+          "end": "2024-07-21",
+          "start": "2024-07-20"
+        },
+        {
+          "days": 1,
+          "end": "2024-09-01",
+          "start": "2024-09-01"
+        },
+        {
+          "days": 1,
+          "end": "2024-09-05",
+          "start": "2024-09-05"
+        },
+        {
+          "days": 1,
+          "end": "2024-09-08",
+          "start": "2024-09-08"
+        },
+        {
+          "days": 3,
+          "end": "2024-09-12",
+          "start": "2024-09-10"
+        },
+        {
+          "days": 1,
+          "end": "2024-09-22",
+          "start": "2024-09-22"
+        },
+        {
+          "days": 1,
+          "end": "2024-10-03",
+          "start": "2024-10-03"
+        },
+        {
+          "days": 2,
+          "end": "2024-10-06",
+          "start": "2024-10-05"
+        },
+        {
+          "days": 2,
+          "end": "2024-10-12",
+          "start": "2024-10-11"
+        },
+        {
+          "days": 1,
+          "end": "2024-10-17",
+          "start": "2024-10-17"
+        },
+        {
+          "days": 2,
+          "end": "2024-10-20",
+          "start": "2024-10-19"
+        },
+        {
+          "days": 4,
+          "end": "2024-10-27",
+          "start": "2024-10-24"
+        },
+        {
+          "days": 5,
+          "end": "2024-11-04",
+          "start": "2024-10-31"
+        },
+        {
+          "days": 1,
+          "end": "2024-11-13",
+          "start": "2024-11-13"
+        },
+        {
+          "days": 2,
+          "end": "2024-11-17",
+          "start": "2024-11-16"
+        },
+        {
+          "days": 1,
+          "end": "2024-11-20",
+          "start": "2024-11-20"
+        },
+        {
+          "days": 1,
+          "end": "2024-12-20",
+          "start": "2024-12-20"
+        },
+        {
+          "days": 1,
+          "end": "2025-08-31",
+          "start": "2025-08-31"
+        },
+        {
+          "days": 1,
+          "end": "2025-09-03",
+          "start": "2025-09-03"
+        },
+        {
+          "days": 11,
+          "end": "2025-09-15",
+          "start": "2025-09-05"
+        }
+      ],
+      "last_date": "2026-07-23",
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "AppleHealth",
+      "state": "red",
+      "total_missing_days": 44
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 165,
+      "dso_key": 1,
+      "first_date": "2025-05-27",
+      "gap_count": 14,
+      "gaps": [
+        {
+          "days": 4,
+          "end": "2025-06-20",
+          "start": "2025-06-17"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-03",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 3,
+          "end": "2026-02-08",
+          "start": "2026-02-06"
+        },
+        {
+          "days": 6,
+          "end": "2026-02-17",
+          "start": "2026-02-12"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-21",
+          "start": "2026-02-21"
+        },
+        {
+          "days": 8,
+          "end": "2026-03-03",
+          "start": "2026-02-24"
+        }
+      ],
+      "last_date": "2026-03-31",
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "GarminDB",
+      "state": "red",
+      "total_missing_days": 82
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 478,
+      "dso_key": 4,
+      "first_date": "2024-01-29",
+      "gap_count": 32,
+      "gaps": [
+        {
+          "days": 9,
+          "end": "2024-02-08",
+          "start": "2024-01-31"
+        },
+        {
+          "days": 2,
+          "end": "2024-02-13",
+          "start": "2024-02-12"
+        },
+        {
+          "days": 31,
+          "end": "2024-03-16",
+          "start": "2024-02-15"
+        },
+        {
+          "days": 15,
+          "end": "2024-04-01",
+          "start": "2024-03-18"
+        },
+        {
+          "days": 36,
+          "end": "2024-05-08",
+          "start": "2024-04-03"
+        },
+        {
+          "days": 41,
+          "end": "2024-06-19",
+          "start": "2024-05-10"
+        },
+        {
+          "days": 155,
+          "end": "2024-11-22",
+          "start": "2024-06-21"
+        },
+        {
+          "days": 21,
+          "end": "2024-12-14",
+          "start": "2024-11-24"
+        },
+        {
+          "days": 34,
+          "end": "2025-01-18",
+          "start": "2024-12-16"
+        },
+        {
+          "days": 1,
+          "end": "2025-01-20",
+          "start": "2025-01-20"
+        },
+        {
+          "days": 2,
+          "end": "2025-01-23",
+          "start": "2025-01-22"
+        },
+        {
+          "days": 1,
+          "end": "2025-01-25",
+          "start": "2025-01-25"
+        },
+        {
+          "days": 5,
+          "end": "2025-02-02",
+          "start": "2025-01-29"
+        },
+        {
+          "days": 2,
+          "end": "2025-02-05",
+          "start": "2025-02-04"
+        },
+        {
+          "days": 1,
+          "end": "2025-02-07",
+          "start": "2025-02-07"
+        },
+        {
+          "days": 1,
+          "end": "2025-02-12",
+          "start": "2025-02-12"
+        },
+        {
+          "days": 3,
+          "end": "2025-02-16",
+          "start": "2025-02-14"
+        },
+        {
+          "days": 3,
+          "end": "2025-02-20",
+          "start": "2025-02-18"
+        },
+        {
+          "days": 17,
+          "end": "2025-03-10",
+          "start": "2025-02-22"
+        },
+        {
+          "days": 1,
+          "end": "2025-03-12",
+          "start": "2025-03-12"
+        },
+        {
+          "days": 2,
+          "end": "2025-03-15",
+          "start": "2025-03-14"
+        },
+        {
+          "days": 5,
+          "end": "2025-03-21",
+          "start": "2025-03-17"
+        },
+        {
+          "days": 2,
+          "end": "2025-03-24",
+          "start": "2025-03-23"
+        },
+        {
+          "days": 1,
+          "end": "2025-03-26",
+          "start": "2025-03-26"
+        },
+        {
+          "days": 2,
+          "end": "2025-03-29",
+          "start": "2025-03-28"
+        },
+        {
+          "days": 2,
+          "end": "2025-04-06",
+          "start": "2025-04-05"
+        },
+        {
+          "days": 6,
+          "end": "2025-04-22",
+          "start": "2025-04-17"
+        },
+        {
+          "days": 3,
+          "end": "2025-04-29",
+          "start": "2025-04-27"
+        },
+        {
+          "days": 1,
+          "end": "2025-05-03",
+          "start": "2025-05-03"
+        },
+        {
+          "days": 1,
+          "end": "2025-05-07",
+          "start": "2025-05-07"
+        },
+        {
+          "days": 3,
+          "end": "2025-05-11",
+          "start": "2025-05-09"
+        },
+        {
+          "days": 4,
+          "end": "2025-05-18",
+          "start": "2025-05-15"
+        }
+      ],
+      "last_date": "2025-05-22",
+      "metric": "body",
+      "metric_label": "Body metrics (weight / body fat)",
+      "source": "AppleHealth",
+      "state": "red",
+      "total_missing_days": 413
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 125,
+      "dso_key": 4,
+      "first_date": "2024-01-01",
+      "gap_count": 33,
+      "gaps": [
+        {
+          "days": 1,
+          "end": "2024-01-20",
+          "start": "2024-01-20"
+        },
+        {
+          "days": 1,
+          "end": "2024-01-29",
+          "start": "2024-01-29"
+        },
+        {
+          "days": 1,
+          "end": "2024-03-03",
+          "start": "2024-03-03"
+        },
+        {
+          "days": 5,
+          "end": "2024-03-21",
+          "start": "2024-03-17"
+        },
+        {
+          "days": 1,
+          "end": "2024-03-24",
+          "start": "2024-03-24"
+        },
+        {
+          "days": 4,
+          "end": "2024-03-31",
+          "start": "2024-03-28"
+        },
+        {
+          "days": 2,
+          "end": "2024-04-07",
+          "start": "2024-04-06"
+        },
+        {
+          "days": 2,
+          "end": "2024-04-21",
+          "start": "2024-04-20"
+        },
+        {
+          "days": 2,
+          "end": "2024-04-29",
+          "start": "2024-04-28"
+        },
+        {
+          "days": 5,
+          "end": "2024-05-07",
+          "start": "2024-05-03"
+        },
+        {
+          "days": 4,
+          "end": "2024-05-17",
+          "start": "2024-05-14"
+        },
+        {
+          "days": 8,
+          "end": "2024-05-27",
+          "start": "2024-05-20"
+        },
+        {
+          "days": 3,
+          "end": "2024-06-02",
+          "start": "2024-05-31"
+        },
+        {
+          "days": 1,
+          "end": "2024-06-15",
+          "start": "2024-06-15"
+        },
+        {
+          "days": 1,
+          "end": "2024-07-02",
+          "start": "2024-07-02"
+        },
+        {
+          "days": 2,
+          "end": "2024-07-14",
+          "start": "2024-07-13"
+        },
+        {
+          "days": 4,
+          "end": "2024-07-22",
+          "start": "2024-07-19"
+        },
+        {
+          "days": 122,
+          "end": "2024-11-24",
+          "start": "2024-07-26"
+        },
+        {
+          "days": 13,
+          "end": "2024-12-28",
+          "start": "2024-12-16"
+        },
+        {
+          "days": 2,
+          "end": "2024-12-31",
+          "start": "2024-12-30"
+        },
+        {
+          "days": 17,
+          "end": "2025-06-13",
+          "start": "2025-05-28"
+        },
+        {
+          "days": 1,
+          "end": "2025-06-22",
+          "start": "2025-06-22"
+        },
+        {
+          "days": 1,
+          "end": "2025-07-05",
+          "start": "2025-07-05"
+        },
+        {
+          "days": 91,
+          "end": "2025-10-21",
+          "start": "2025-07-23"
+        },
+        {
+          "days": 11,
+          "end": "2025-11-14",
+          "start": "2025-11-04"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-16",
+          "start": "2025-12-16"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-20",
+          "start": "2025-12-20"
+        },
+        {
+          "days": 1,
+          "end": "2026-01-04",
+          "start": "2026-01-04"
+        },
+        {
+          "days": 2,
+          "end": "2026-01-22",
+          "start": "2026-01-21"
+        },
+        {
+          "days": 1,
+          "end": "2026-01-25",
+          "start": "2026-01-25"
+        },
+        {
+          "days": 1,
+          "end": "2026-01-28",
+          "start": "2026-01-28"
+        },
+        {
+          "days": 2,
+          "end": "2026-01-31",
+          "start": "2026-01-30"
+        },
+        {
+          "days": 53,
+          "end": "2026-04-29",
+          "start": "2026-03-08"
+        }
+      ],
+      "last_date": "2026-05-10",
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "AppleHealth",
+      "state": "red",
+      "total_missing_days": 367
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 166,
+      "dso_key": 1,
+      "first_date": "2025-05-28",
+      "gap_count": 10,
+      "gaps": [
+        {
+          "days": 1,
+          "end": "2025-06-09",
+          "start": "2025-06-09"
+        },
+        {
+          "days": 7,
+          "end": "2025-06-21",
+          "start": "2025-06-15"
+        },
+        {
+          "days": 29,
+          "end": "2025-07-22",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 1,
+          "end": "2025-08-04",
+          "start": "2025-08-04"
+        },
+        {
+          "days": 12,
+          "end": "2025-11-03",
+          "start": "2025-10-23"
+        },
+        {
+          "days": 22,
+          "end": "2025-12-07",
+          "start": "2025-11-16"
+        },
+        {
+          "days": 5,
+          "end": "2025-12-15",
+          "start": "2025-12-11"
+        },
+        {
+          "days": 8,
+          "end": "2025-12-24",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 18,
+          "end": "2026-01-15",
+          "start": "2025-12-29"
+        },
+        {
+          "days": 32,
+          "end": "2026-03-06",
+          "start": "2026-02-03"
+        }
+      ],
+      "last_date": "2026-03-30",
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "GarminDB",
+      "state": "red",
+      "total_missing_days": 135
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 165,
+      "dso_key": 1,
+      "first_date": "2026-03-27",
+      "gap_count": 1,
+      "gaps": [
+        {
+          "days": 2,
+          "end": "2026-03-30",
+          "start": "2026-03-29"
+        }
+      ],
+      "last_date": "2026-03-31",
+      "metric": "training_load",
+      "metric_label": "Training load (ACWR)",
+      "source": "GarminDB",
+      "state": "red",
+      "total_missing_days": 2
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 65,
+      "dso_key": 4,
+      "first_date": "2024-01-01",
+      "gap_count": 31,
+      "gaps": [
+        {
+          "days": 2,
+          "end": "2024-01-28",
+          "start": "2024-01-27"
+        },
+        {
+          "days": 4,
+          "end": "2024-03-07",
+          "start": "2024-03-04"
+        },
+        {
+          "days": 1,
+          "end": "2024-03-15",
+          "start": "2024-03-15"
+        },
+        {
+          "days": 3,
+          "end": "2024-03-19",
+          "start": "2024-03-17"
+        },
+        {
+          "days": 1,
+          "end": "2024-03-29",
+          "start": "2024-03-29"
+        },
+        {
+          "days": 1,
+          "end": "2024-04-07",
+          "start": "2024-04-07"
+        },
+        {
+          "days": 2,
+          "end": "2024-05-31",
+          "start": "2024-05-30"
+        },
+        {
+          "days": 1,
+          "end": "2024-07-03",
+          "start": "2024-07-03"
+        },
+        {
+          "days": 3,
+          "end": "2024-07-22",
+          "start": "2024-07-20"
+        },
+        {
+          "days": 1,
+          "end": "2024-07-28",
+          "start": "2024-07-28"
+        },
+        {
+          "days": 111,
+          "end": "2024-11-17",
+          "start": "2024-07-30"
+        },
+        {
+          "days": 3,
+          "end": "2024-11-21",
+          "start": "2024-11-19"
+        },
+        {
+          "days": 2,
+          "end": "2024-11-24",
+          "start": "2024-11-23"
+        },
+        {
+          "days": 12,
+          "end": "2024-12-27",
+          "start": "2024-12-16"
+        },
+        {
+          "days": 1,
+          "end": "2025-02-24",
+          "start": "2025-02-24"
+        },
+        {
+          "days": 1,
+          "end": "2025-03-07",
+          "start": "2025-03-07"
+        },
+        {
+          "days": 16,
+          "end": "2025-06-13",
+          "start": "2025-05-29"
+        },
+        {
+          "days": 1,
+          "end": "2025-06-22",
+          "start": "2025-06-22"
+        },
+        {
+          "days": 91,
+          "end": "2025-10-21",
+          "start": "2025-07-23"
+        },
+        {
+          "days": 11,
+          "end": "2025-11-14",
+          "start": "2025-11-04"
+        },
+        {
+          "days": 1,
+          "end": "2026-01-22",
+          "start": "2026-01-22"
+        },
+        {
+          "days": 1,
+          "end": "2026-01-25",
+          "start": "2026-01-25"
+        },
+        {
+          "days": 2,
+          "end": "2026-01-31",
+          "start": "2026-01-30"
+        },
+        {
+          "days": 51,
+          "end": "2026-04-27",
+          "start": "2026-03-08"
+        },
+        {
+          "days": 1,
+          "end": "2026-04-29",
+          "start": "2026-04-29"
+        },
+        {
+          "days": 1,
+          "end": "2026-05-11",
+          "start": "2026-05-11"
+        },
+        {
+          "days": 15,
+          "end": "2026-05-27",
+          "start": "2026-05-13"
+        },
+        {
+          "days": 3,
+          "end": "2026-05-31",
+          "start": "2026-05-29"
+        },
+        {
+          "days": 7,
+          "end": "2026-06-08",
+          "start": "2026-06-02"
+        },
+        {
+          "days": 5,
+          "end": "2026-06-14",
+          "start": "2026-06-10"
+        },
+        {
+          "days": 23,
+          "end": "2026-07-08",
+          "start": "2026-06-16"
+        }
+      ],
+      "last_date": "2026-07-09",
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "AppleHealth",
+      "state": "red",
+      "total_missing_days": 378
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 165,
+      "dso_key": 1,
+      "first_date": "2025-05-27",
+      "gap_count": 14,
+      "gaps": [
+        {
+          "days": 4,
+          "end": "2025-06-20",
+          "start": "2025-06-17"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-03",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 3,
+          "end": "2026-02-08",
+          "start": "2026-02-06"
+        },
+        {
+          "days": 6,
+          "end": "2026-02-17",
+          "start": "2026-02-12"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-21",
+          "start": "2026-02-21"
+        },
+        {
+          "days": 8,
+          "end": "2026-03-03",
+          "start": "2026-02-24"
+        }
+      ],
+      "last_date": "2026-03-31",
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "GarminDB",
+      "state": "red",
+      "total_missing_days": 82
+    },
+    {
+      "cadence_days": 3,
+      "coverage_checked": false,
+      "days_stale": 8,
+      "dso_key": 2,
+      "first_date": "2025-05-28",
+      "gap_count": null,
+      "gaps": null,
+      "last_date": "2026-09-04",
+      "metric": "activity",
+      "metric_label": "Activities",
+      "source": "GarminAPI",
+      "state": "amber",
+      "total_missing_days": null
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 2,
+      "first_date": "2025-05-27",
+      "gap_count": 16,
+      "gaps": [
+        {
+          "days": 5,
+          "end": "2025-06-20",
+          "start": "2025-06-16"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-03",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 3,
+          "end": "2026-02-08",
+          "start": "2026-02-06"
+        },
+        {
+          "days": 6,
+          "end": "2026-02-17",
+          "start": "2026-02-12"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-21",
+          "start": "2026-02-21"
+        },
+        {
+          "days": 8,
+          "end": "2026-03-03",
+          "start": "2026-02-24"
+        },
+        {
+          "days": 6,
+          "end": "2026-05-06",
+          "start": "2026-05-01"
+        },
+        {
+          "days": 2,
+          "end": "2026-05-09",
+          "start": "2026-05-08"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "activity_summary",
+      "metric_label": "Activity summary (steps / active kcal)",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": 91
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 3,
+      "first_date": "2025-05-27",
+      "gap_count": 0,
+      "gaps": [],
+      "last_date": "2026-09-11",
+      "metric": "body",
+      "metric_label": "Body metrics (weight / body fat)",
+      "source": "YAZIO",
+      "state": "green",
+      "total_missing_days": 0
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 3,
+      "first_date": "2025-05-27",
+      "gap_count": 0,
+      "gaps": [],
+      "last_date": "2026-09-11",
+      "metric": "nutrition",
+      "metric_label": "Nutrition (YAZIO)",
+      "source": "YAZIO",
+      "state": "green",
+      "total_missing_days": 0
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 2,
+      "first_date": "2025-05-27",
+      "gap_count": 12,
+      "gaps": [
+        {
+          "days": 5,
+          "end": "2025-06-20",
+          "start": "2025-06-16"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 19,
+          "end": "2026-02-21",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 10,
+          "end": "2026-03-05",
+          "start": "2026-02-24"
+        },
+        {
+          "days": 9,
+          "end": "2026-05-09",
+          "start": "2026-05-01"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "recovery",
+      "metric_label": "Recovery (readiness)",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": 102
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 1,
+      "first_date": "2025-05-27",
+      "gap_count": 12,
+      "gaps": [
+        {
+          "days": 5,
+          "end": "2025-06-20",
+          "start": "2025-06-16"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 19,
+          "end": "2026-02-21",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 10,
+          "end": "2026-03-05",
+          "start": "2026-02-24"
+        },
+        {
+          "days": 9,
+          "end": "2026-05-09",
+          "start": "2026-05-01"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "recovery",
+      "metric_label": "Recovery (readiness)",
+      "source": "GarminDB",
+      "state": "green",
+      "total_missing_days": 102
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 2,
+      "first_date": "2025-05-28",
+      "gap_count": 11,
+      "gaps": [
+        {
+          "days": 1,
+          "end": "2025-06-09",
+          "start": "2025-06-09"
+        },
+        {
+          "days": 7,
+          "end": "2025-06-21",
+          "start": "2025-06-15"
+        },
+        {
+          "days": 29,
+          "end": "2025-07-22",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 1,
+          "end": "2025-08-04",
+          "start": "2025-08-04"
+        },
+        {
+          "days": 12,
+          "end": "2025-11-03",
+          "start": "2025-10-23"
+        },
+        {
+          "days": 22,
+          "end": "2025-12-07",
+          "start": "2025-11-16"
+        },
+        {
+          "days": 5,
+          "end": "2025-12-15",
+          "start": "2025-12-11"
+        },
+        {
+          "days": 8,
+          "end": "2025-12-24",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 18,
+          "end": "2026-01-15",
+          "start": "2025-12-29"
+        },
+        {
+          "days": 32,
+          "end": "2026-03-06",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 10,
+          "end": "2026-05-10",
+          "start": "2026-05-01"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "sleep",
+      "metric_label": "Sleep",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": 145
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 2,
+      "first_date": "2025-05-28",
+      "gap_count": 6,
+      "gaps": [
+        {
+          "days": 20,
+          "end": "2025-07-22",
+          "start": "2025-07-03"
+        },
+        {
+          "days": 11,
+          "end": "2025-12-14",
+          "start": "2025-12-04"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-21",
+          "start": "2026-01-12"
+        },
+        {
+          "days": 6,
+          "end": "2026-03-06",
+          "start": "2026-03-01"
+        },
+        {
+          "days": 2,
+          "end": "2026-03-28",
+          "start": "2026-03-27"
+        },
+        {
+          "days": 1,
+          "end": "2026-03-31",
+          "start": "2026-03-31"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "training_load",
+      "metric_label": "Training load (ACWR)",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": 50
+    },
+    {
+      "cadence_days": 1,
+      "coverage_checked": true,
+      "days_stale": 1,
+      "dso_key": 2,
+      "first_date": "2025-05-27",
+      "gap_count": 16,
+      "gaps": [
+        {
+          "days": 5,
+          "end": "2025-06-20",
+          "start": "2025-06-16"
+        },
+        {
+          "days": 11,
+          "end": "2025-07-04",
+          "start": "2025-06-24"
+        },
+        {
+          "days": 15,
+          "end": "2025-07-21",
+          "start": "2025-07-07"
+        },
+        {
+          "days": 6,
+          "end": "2025-11-23",
+          "start": "2025-11-18"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-01",
+          "start": "2025-11-25"
+        },
+        {
+          "days": 1,
+          "end": "2025-12-03",
+          "start": "2025-12-03"
+        },
+        {
+          "days": 2,
+          "end": "2025-12-06",
+          "start": "2025-12-05"
+        },
+        {
+          "days": 7,
+          "end": "2025-12-23",
+          "start": "2025-12-17"
+        },
+        {
+          "days": 10,
+          "end": "2026-01-14",
+          "start": "2026-01-05"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-03",
+          "start": "2026-02-03"
+        },
+        {
+          "days": 3,
+          "end": "2026-02-08",
+          "start": "2026-02-06"
+        },
+        {
+          "days": 6,
+          "end": "2026-02-17",
+          "start": "2026-02-12"
+        },
+        {
+          "days": 1,
+          "end": "2026-02-21",
+          "start": "2026-02-21"
+        },
+        {
+          "days": 8,
+          "end": "2026-03-03",
+          "start": "2026-02-24"
+        },
+        {
+          "days": 6,
+          "end": "2026-05-06",
+          "start": "2026-05-01"
+        },
+        {
+          "days": 2,
+          "end": "2026-05-09",
+          "start": "2026-05-08"
+        }
+      ],
+      "last_date": "2026-09-11",
+      "metric": "vitals",
+      "metric_label": "Vitals (RHR / HRV / Body Battery)",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": 91
+    },
+    {
+      "cadence_days": 14,
+      "coverage_checked": false,
+      "days_stale": 9,
+      "dso_key": 2,
+      "first_date": "2022-08-22",
+      "gap_count": null,
+      "gaps": null,
+      "last_date": "2026-09-03",
+      "metric": "vo2max",
+      "metric_label": "VO2max",
+      "source": "GarminAPI",
+      "state": "green",
+      "total_missing_days": null
+    }
+  ],
+  "generated_at": "2026-09-12T14:47:58.748071+00:00"
+}
