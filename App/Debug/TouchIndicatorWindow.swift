@@ -5,9 +5,11 @@ import UIKit
 final class TouchIndicatorWindow: UIWindow {
     private var rings: [UITouch: UIView] = [:]
 
-    override func sendEvent(_ event: UIEvent) {
-        super.sendEvent(event)
-        guard event.type == .touches, let touches = event.allTouches else { return }
+    /// Fed by `TouchObserverRecognizer` on SwiftUI's key window. A window whose `hitTest` returns
+    /// nil never owns a touch, so `sendEvent` would never fire here; iOS 27 SwiftUI also ignores
+    /// `NSPrincipalClass` (`UIApplication.shared` is `SwiftUIApplication`), so a `UIApplication`
+    /// subclass is not an option either (Task 16 review).
+    func observe(_ touches: Set<UITouch>) {
         for touch in touches {
             switch touch.phase {
             case .began: add(touch)
@@ -35,7 +37,28 @@ final class TouchIndicatorWindow: UIWindow {
     }
 
     // Passthrough: returning nil means this window is never the hit-test target, so touches
-    // reach the app's own windows underneath, while `sendEvent` above still observes them.
+    // reach the app's own windows underneath; the recognizer below feeds `observe(_:)` instead.
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+}
+
+/// Never recognizes, never cancels: it only mirrors the key window's touches to the overlay.
+final class TouchObserverRecognizer: UIGestureRecognizer, UIGestureRecognizerDelegate {
+    private weak var overlay: TouchIndicatorWindow?
+
+    init(overlay: TouchIndicatorWindow) {
+        self.overlay = overlay
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+        delegate = self
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches) }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches) }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); state = .failed }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); state = .failed }
+
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 }
 #endif

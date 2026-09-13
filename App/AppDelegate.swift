@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             overlay.rootViewController = UIViewController()
             overlay.rootViewController?.view.backgroundColor = .clear
             self.window = overlay
+            // SwiftUI's own window owns every touch; mirror them to the overlay without interfering.
+            let host = scene.keyWindow ?? scene.windows.first { !($0 is TouchIndicatorWindow) }
+            host?.addGestureRecognizer(TouchObserverRecognizer(overlay: overlay))
         }
         return true
     }
