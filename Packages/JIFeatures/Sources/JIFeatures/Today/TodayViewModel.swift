@@ -30,6 +30,11 @@ public final class TodayViewModel {
     public private(set) var recovery: [RecoveryDay] = []
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
+    /// True once a live fetch has actually completed (success or non-cancellation failure with cache
+    /// fallback). Separate from `phase` — a warm cache can push `phase` to `.loaded` before any live
+    /// fetch has run, so `TodayView` must gate its auto-reload on this, not on `phase == .idle`
+    /// (CODE-1: a cancelled fetch over a warm cache must still re-fetch live on next appearance).
+    public private(set) var hasLiveResult = false
 
     private let provider: any HealthDataProvider
     private let cache: OfflineCache
@@ -39,20 +44,32 @@ public final class TodayViewModel {
 
     public var verdict: VerdictParts { verdictParts(morning?.verdict) }
 
-    /// Latest recovery day by date (the hub returns newest-first; sort to be safe).
-    private var latestRecovery: RecoveryDay? { recovery.max { $0.date < $1.date } }
-    public var readiness: Double? { latestRecovery?.readinessScore }
+    /// Newest row (by `date`, ascending sort) whose `value` isn't nil — mirrors RN VerdictHero.tsx's
+    /// "newest non-null value per metric" resolution, as opposed to picking a single newest ROW and
+    /// reading every field off it (a null field on the newest row would otherwise blank every metric).
+    private func newestNonNullValue<T>(_ rows: [T], date: (T) -> String, value: (T) -> Double?) -> Double? {
+        for row in rows.sorted(by: { date($0) > date($1) }) {
+            if let v = value(row) { return v }
+        }
+        return nil
+    }
+    public var readiness: Double? { newestNonNullValue(recovery, date: \.date, value: \.readinessScore) }
 
     public var chips: [TodayChip] {
         let caps = provider.capabilities
-        let chron = (morning?.hrvSeries ?? []).sorted { $0.date < $1.date }.suffix(7)
+        let hrvSeries = morning?.hrvSeries ?? []
+        let chron = hrvSeries.sorted { $0.date < $1.date }.suffix(7)
         let rec = recovery.sorted { $0.date < $1.date }.suffix(7)
-        let today = resolveTodayRow(gate?.daily ?? [])
+        let daily = gate?.daily ?? []
+        // PARITY-1: steps mirrors RN VerdictHero.tsx:312-323 — newest non-null `values["steps"]` over
+        // date-sorted `gate.daily`. `resolveTodayRow` stays reserved for the future W2 kcal/protein
+        // ring: it skips null-food rows on purpose, which lands on the wrong date for steps.
+        let steps = newestNonNullValue(daily, date: \.date, value: { $0.values["steps"] ?? nil })
         return [
-            TodayChip(id: "hrv", label: "HRV", value: latestRecovery?.hrvWeeklyAvg, unit: "ms", points: chron.map(\.hrvWeeklyAvg), sourceMissing: !caps.contains(.hrvRMSSD)),
-            TodayChip(id: "rhr", label: "RHR", value: latestRecovery?.rhrBpm, unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false),
-            TodayChip(id: "sleep", label: "Sleep", value: latestRecovery?.sleepScore, unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore)),
-            TodayChip(id: "steps", label: "Steps", value: today.row?.values["steps"] ?? nil, unit: nil, points: (gate?.daily ?? []).sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false),
+            TodayChip(id: "hrv", label: "HRV", value: newestNonNullValue(hrvSeries, date: \.date, value: \.hrvWeeklyAvg), unit: "ms", points: chron.map(\.hrvWeeklyAvg), sourceMissing: !caps.contains(.hrvRMSSD)),
+            TodayChip(id: "rhr", label: "RHR", value: newestNonNullValue(recovery, date: \.date, value: \.rhrBpm), unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false),
+            TodayChip(id: "sleep", label: "Sleep", value: newestNonNullValue(recovery, date: \.date, value: \.sleepScore), unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore)),
+            TodayChip(id: "steps", label: "Steps", value: steps, unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false),
         ]
     }
 
@@ -78,15 +95,30 @@ public final class TodayViewModel {
             async let r = provider.recovery(windowDays: 28)
             let (mm, gg, rr) = try await (m, g, r)
             morning = mm; gate = gg; recovery = rr
-            fetchedAt = Date(); hubReachable = true
+            fetchedAt = Date(); hubReachable = true; hasLiveResult = true
             try? cache.put(Self.keys.morning, mm); try? cache.put(Self.keys.gate, gg); try? cache.put(Self.keys.recovery, rr)
             phase = (mm.verdict == nil && rr.isEmpty) ? .empty : .loaded
         } catch {
             // A tab switch cancels the view's `.task`; that is not a hub outage. Return to `.idle`
             // so `TodayView.task` reloads on the next appearance instead of showing a false error.
+            // `hasLiveResult` stays false either way — CODE-1: a cancelled fetch over a WARM cache
+            // leaves `phase == .loaded` (from `restoreFromCache`), not `.idle`, so the view's reload
+            // trigger must key off `hasLiveResult`, not `phase`.
             if Task.isCancelled { if phase == .loading { phase = .idle }; return }
-            hubReachable = false
-            if morning == nil { phase = .error(Self.describe(error)) } else { phase = .loaded }
+            // PARITY-3: branch on the stored HubError — a 401 is a token problem, not a network outage,
+            // and must never be reported as "hub unreachable" (which would show cached data under a
+            // wrong diagnosis and a staleness banner instead of the token-rejected error card).
+            switch error as? HubError {
+            case .unauthorized:
+                hubReachable = true
+                phase = .error(Self.describe(error))
+            case .network:
+                hubReachable = false
+                phase = (morning == nil) ? .error(Self.describe(error)) : .loaded
+            default:
+                hubReachable = true
+                phase = (morning == nil) ? .error(Self.describe(error)) : .loaded
+            }
         }
     }
 

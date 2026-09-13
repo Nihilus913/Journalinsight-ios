@@ -24,7 +24,10 @@ public struct TodayView: View {
                     // support this metric" case awaits W2+'s additional providers.
                     VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false)
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(model.chips) { c in StatChip(label: c.label, value: c.value, unit: c.unit, points: c.points, sourceMissing: c.sourceMissing) }
+                        // DESIGN-1: a placeholder action (W2 KPI-detail stub) keeps the chip an enabled
+                        // Button — `.disabled(action == nil)` in StatChip would otherwise block the
+                        // press-in feel gate and read "dimmed" to VoiceOver.
+                        ForEach(model.chips) { c in StatChip(label: c.label, value: c.value, unit: c.unit, points: c.points, sourceMissing: c.sourceMissing, action: {}) }
                     }
                 }
             }
@@ -32,7 +35,10 @@ public struct TodayView: View {
         }
         .background(JIColor.bg)
         .refreshable { await model.refresh() }
-        .task { if model.phase == .idle { await model.load() } }
+        // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — a cancelled fetch over a warm cache
+        // leaves `phase == .loaded` (restored from cache), so keying off `.idle` alone would never
+        // re-fetch live data on the next appearance.
+        .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
     }
 

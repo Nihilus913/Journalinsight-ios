@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// PARITY-3: `hubReachable == false` must mean a genuine network outage (`HubError.network`) only —
+/// callers must not route a 401 (`HubError.unauthorized`) through this flag, since that is a token
+/// problem to be surfaced as an error card with a Connection action, not "stale data, hub unreachable".
 public struct StalenessBanner: View {
     let fetchedAt: Date?, hubReachable: Bool
     public init(fetchedAt: Date?, hubReachable: Bool) { self.fetchedAt = fetchedAt; self.hubReachable = hubReachable }

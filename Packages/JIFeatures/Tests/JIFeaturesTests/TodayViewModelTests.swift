@@ -111,4 +111,52 @@ nonisolated struct SlowProvider: HealthDataProvider {
     await t.value
     #expect(vm.phase == .idle)
     #expect(vm.hubReachable)
+    #expect(vm.hasLiveResult == false)
+}
+
+/// Every call parks (like `SlowProvider`) while `slow`, then resolves normally once flipped off — lets
+/// a test cancel an in-flight fetch and later re-drive the SAME view model through a successful one.
+actor SlowThenFastProvider: HealthDataProvider {
+    nonisolated let capabilities: DataCapability = .hubAll
+    private nonisolated let inner = MockDataProvider()
+    private var slow: Bool
+    init(slow: Bool) { self.slow = slow }
+    func setSlow(_ value: Bool) { slow = value }
+    private func maybePark() async throws {
+        if slow { try await Task.sleep(for: .seconds(30)); throw HubError.network("unreachable test path") }
+    }
+    func health() async throws -> HealthResponse { try await maybePark(); return try await inner.health() }
+    func gate(windowDays: Int) async throws -> GateResponse { try await maybePark(); return try await inner.gate(windowDays: windowDays) }
+    func morning() async throws -> MorningResponse { try await maybePark(); return try await inner.morning() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await maybePark(); return try await inner.morningVerdict(date: date) }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { try await maybePark(); return try await inner.recovery(windowDays: windowDays) }
+    func syncStatus() async throws -> SyncStatus { try await maybePark(); return try await inner.syncStatus() }
+}
+
+/// CODE-1 regression: with a WARM cache, a cancelled fetch leaves `phase == .loaded` (restored from
+/// cache), not `.idle` — so `TodayView`'s reload trigger must key off `hasLiveResult`, and a subsequent
+/// `load()` on the SAME view model must still perform a live fetch instead of being skipped as
+/// "already loaded" (the pre-existing `cancelledLoadReturnsToIdleNotError` test only covers an EMPTY
+/// cache, where `phase` does land back on `.idle`).
+@Test @MainActor func cancelledLoadOverWarmCacheStillReFetchesLiveOnNextLoad() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    await TodayViewModel(provider: FlakyProvider(failing: false), cache: cache).load()   // warm the cache
+
+    let provider = SlowThenFastProvider(slow: true)
+    let vm = TodayViewModel(provider: provider, cache: cache)
+    let t = Task { await vm.load() }
+    try await Task.sleep(for: .milliseconds(50))
+    t.cancel()
+    await t.value
+
+    // Warm cache restores `morning` synchronously, so phase reads `.loaded`, not `.idle` — a reload
+    // gate keyed on `phase == .idle` alone would stop here and never re-fetch.
+    #expect(vm.phase == .loaded)
+    #expect(vm.hasLiveResult == false)
+
+    await provider.setSlow(false)
+    await vm.load()
+
+    #expect(vm.hasLiveResult)
+    #expect(vm.phase == .loaded)
 }
