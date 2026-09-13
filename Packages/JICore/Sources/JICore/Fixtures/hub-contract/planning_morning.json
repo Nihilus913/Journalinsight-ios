@@ -1,0 +1,45 @@
+{
+  "carb_watch_floor": 120,
+  "carbs_3d_avg": 165.46666666666667,
+  "experiment": null,
+  "hrv_series": [
+    {
+      "date": "2026-09-05",
+      "hrv_weekly_avg": 31,
+      "rhr_bpm": 63
+    },
+    {
+      "date": "2026-09-06",
+      "hrv_weekly_avg": 31,
+      "rhr_bpm": 61
+    },
+    {
+      "date": "2026-09-07",
+      "hrv_weekly_avg": 30,
+      "rhr_bpm": 66
+    },
+    {
+      "date": "2026-09-08",
+      "hrv_weekly_avg": 30,
+      "rhr_bpm": 63
+    },
+    {
+      "date": "2026-09-09",
+      "hrv_weekly_avg": 29,
+      "rhr_bpm": 60
+    },
+    {
+      "date": "2026-09-10",
+      "hrv_weekly_avg": 29,
+      "rhr_bpm": 60
+    },
+    {
+      "date": "2026-09-11",
+      "hrv_weekly_avg": 28,
+      "rhr_bpm": 66
+    }
+  ],
+  "today_activities": [],
+  "verdict": "GO \u2014 Norwegian 4x4 intervals",
+  "verdict_date": "2026-09-12"
+}

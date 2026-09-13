@@ -1,0 +1,218 @@
+[
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 19,
+    "exercise_name": "Barbell Bench Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 20,
+    "exercise_name": "Barbell Row",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 21,
+    "exercise_name": "DB Shoulder Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "12",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 22,
+    "exercise_name": "DB Biceps Curl",
+    "progression_step_kg": 1.25,
+    "reps_target": "12",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 0.0,
+    "exercise_id": 23,
+    "exercise_name": "Diamond Push-Up",
+    "progression_step_kg": 0.0,
+    "reps_target": "max",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": null,
+    "exercise_id": 24,
+    "exercise_name": "Dead Bug",
+    "progression_step_kg": null,
+    "reps_target": "10/side",
+    "session_name": "Day 1 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 25,
+    "exercise_name": "Barbell Bench Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 26,
+    "exercise_name": "Barbell Row",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 27,
+    "exercise_name": "DB Shoulder Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "12",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 28,
+    "exercise_name": "DB Biceps Curl",
+    "progression_step_kg": 1.25,
+    "reps_target": "12",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 10.0,
+    "exercise_id": 29,
+    "exercise_name": "KB Overhead Triceps Extension",
+    "progression_step_kg": 0.0,
+    "reps_target": "12",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": null,
+    "exercise_id": 30,
+    "exercise_name": "Plank",
+    "progression_step_kg": null,
+    "reps_target": "45s",
+    "session_name": "Day 2 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 31,
+    "exercise_name": "Barbell Bench Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 32,
+    "exercise_name": "Barbell Row",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 33,
+    "exercise_name": "DB Shoulder Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "12",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 34,
+    "exercise_name": "DB Biceps Curl",
+    "progression_step_kg": 1.25,
+    "reps_target": "12",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 0.0,
+    "exercise_id": 35,
+    "exercise_name": "Diamond Push-Up",
+    "progression_step_kg": 0.0,
+    "reps_target": "max",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": null,
+    "exercise_id": 36,
+    "exercise_name": "Ab Roller",
+    "progression_step_kg": null,
+    "reps_target": "10",
+    "session_name": "Day 3 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 37,
+    "exercise_name": "Barbell Bench Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 50.0,
+    "exercise_id": 38,
+    "exercise_name": "Barbell Row",
+    "progression_step_kg": 2.5,
+    "reps_target": "6-12",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 39,
+    "exercise_name": "DB Shoulder Press",
+    "progression_step_kg": 2.5,
+    "reps_target": "12",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 12.0,
+    "exercise_id": 40,
+    "exercise_name": "DB Biceps Curl",
+    "progression_step_kg": 1.25,
+    "reps_target": "12",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": 10.0,
+    "exercise_id": 41,
+    "exercise_name": "KB Overhead Triceps Extension",
+    "progression_step_kg": 0.0,
+    "reps_target": "12",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  },
+  {
+    "current_weight_kg": null,
+    "exercise_id": 42,
+    "exercise_name": "Plank",
+    "progression_step_kg": null,
+    "reps_target": "45s",
+    "session_name": "Day 4 Full Upper",
+    "sets": 3
+  }
+]
