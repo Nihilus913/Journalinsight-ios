@@ -9,7 +9,7 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
-        .target(name: "JIPersistence", dependencies: ["JICore", .product(name: "GRDB", package: "GRDB.swift")], swiftSettings: [.swiftLanguageMode(.v6)]),
-        .testTarget(name: "JIPersistenceTests", dependencies: ["JIPersistence"]),
+        .target(name: "JIPersistence", dependencies: ["JICore", .product(name: "GRDB", package: "GRDB.swift")], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .testTarget(name: "JIPersistenceTests", dependencies: ["JIPersistence"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

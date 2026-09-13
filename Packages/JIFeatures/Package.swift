@@ -14,8 +14,8 @@ let package = Package(
         .target(
             name: "JIFeatures",
             dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign"],
-            swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self)]
+            swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]
         ),
-        .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"]),
+        .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

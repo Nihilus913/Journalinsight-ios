@@ -11,6 +11,7 @@ final class AppEnvironment {
     let prefs: PrefStore
     var providerStore: ProviderStore?
     var needsConnection = false
+    private var activeBaseURL: URL?
 
     init(secrets: any SecretStore = KeychainStore(), inMemory: Bool = false) throws {
         self.secrets = secrets
@@ -24,6 +25,10 @@ final class AppEnvironment {
 
     /// The hub is the only runtime provider. MockDataProvider is previews/tests only (spec §4.2).
     func apply(_ config: ConnectionConfig) {
+        if let previous = activeBaseURL, previous != config.baseURL {
+            try? cache.clear()
+        }
+        activeBaseURL = config.baseURL
         let provider = HubDataProvider(client: HubClient(config: config))
         if let store = providerStore { store.provider = provider } else { providerStore = ProviderStore(provider: provider) }
         needsConnection = false

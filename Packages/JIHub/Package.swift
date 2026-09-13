@@ -6,7 +6,7 @@ let package = Package(
     products: [.library(name: "JIHub", targets: ["JIHub"])],
     dependencies: [.package(path: "../JICore")],
     targets: [
-        .target(name: "JIHub", dependencies: ["JICore"], swiftSettings: [.swiftLanguageMode(.v6)]),
-        .testTarget(name: "JIHubTests", dependencies: ["JIHub"]),
+        .target(name: "JIHub", dependencies: ["JICore"], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .testTarget(name: "JIHubTests", dependencies: ["JIHub"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

@@ -4,7 +4,18 @@ import JICore
 public struct HubClient: Sendable {
     public let config: ConnectionConfig
     private let session: URLSession
-    public init(config: ConnectionConfig, session: URLSession = .shared) { self.config = config; self.session = session }
+    public init(config: ConnectionConfig, session: URLSession = HubClient.makeDefaultSession()) { self.config = config; self.session = session }
+
+    /// Ephemeral session: hub responses (sensitive health data) and the bearer auth header
+    /// must never be written to CFNetwork's on-disk Cache.db (SEC-1). Callers that pass an
+    /// explicit `session:` (e.g. tests) are unaffected.
+    ///
+    /// Public: referenced from `ConnectionTest.run`'s default argument value too (same SEC-1
+    /// requirement), and a default-argument expression must be at least as accessible as the
+    /// `public init` it belongs to.
+    public static func makeDefaultSession() -> URLSession {
+        URLSession(configuration: .ephemeral)
+    }
 
     public func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
         var comps = URLComponents(url: config.baseURL.appending(path: path), resolvingAgainstBaseURL: false)!

@@ -29,4 +29,13 @@ public struct OfflineCache: Sendable {
         guard let raw else { return nil }
         return try? Date(raw, strategy: .iso8601)
     }
+
+    /// Clears all cached entries. Call this when the active provider's identity changes
+    /// (e.g. hub base URL re-pointed) so stale data from the previous provider is never
+    /// served under a new identity (parity with RN, which clears its cache on this event).
+    public func clear() throws {
+        try db.pool.write { db in
+            try db.execute(sql: "DELETE FROM cache")
+        }
+    }
 }
