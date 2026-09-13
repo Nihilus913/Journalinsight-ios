@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
@@ -49,6 +51,7 @@
 				7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */,
 				35661ADAC7462A69261AC33E /* JIHub in Frameworks */,
 				A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */,
+				0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				FC17C93F596DA8A04D63D272 /* JICore */,
+				340EDFF564B45454426C654D /* JIDesign */,
 				96B3229A2D3C3EF99BBE5167 /* JIHub */,
 				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
 			);
@@ -132,6 +136,7 @@
 				B82481EAAF8B8DF915C28007 /* JICore */,
 				AE017C6763142EDA7FB1F5B2 /* JIHub */,
 				396CA8DF72C77D0D287B373C /* JIPersistence */,
+				6EA74DAEF679ECF071912E9E /* JIDesign */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -185,6 +190,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */,
+				91533581A208A2BB6022509D /* XCLocalSwiftPackageReference "Packages/JIDesign" */,
 				70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */,
 				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
 			);
@@ -476,6 +482,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIHub;
 		};
+		91533581A208A2BB6022509D /* XCLocalSwiftPackageReference "Packages/JIDesign" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JIDesign;
+		};
 		FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JICore;
@@ -486,6 +496,10 @@
 		396CA8DF72C77D0D287B373C /* JIPersistence */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIPersistence;
+		};
+		6EA74DAEF679ECF071912E9E /* JIDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIDesign;
 		};
 		AE017C6763142EDA7FB1F5B2 /* JIHub */ = {
 			isa = XCSwiftPackageProductDependency;
