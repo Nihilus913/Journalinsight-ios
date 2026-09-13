@@ -56,8 +56,15 @@ final class TouchObserverRecognizer: UIGestureRecognizer, UIGestureRecognizerDel
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches) }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches) }
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); state = .failed }
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); state = .failed }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); failIfIdle(event) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { overlay?.observe(touches); failIfIdle(event) }
+
+    /// Only fail once every finger is up — failing on the first lift would stop delivery for the
+    /// fingers still down and leave their rings stuck.
+    private func failIfIdle(_ event: UIEvent) {
+        let active = event.touches(for: self)?.filter { $0.phase != .ended && $0.phase != .cancelled } ?? []
+        if active.isEmpty { state = .failed }
+    }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 }
