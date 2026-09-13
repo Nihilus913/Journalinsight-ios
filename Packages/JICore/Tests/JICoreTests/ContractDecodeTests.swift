@@ -57,7 +57,8 @@ func fixture(_ name: String) throws -> Data {
     (nil as String?, "—", "No verdict yet", VerdictTone.muted),
     ("GO — strength A", "GO", "strength A", VerdictTone.go),
     // Deliberate deviation from mobile/src/lib/verdict.ts, whose startsWith("RED") also catches
-    // "REDUCED" — the design reserves amber for REDUCED (spec §4.6, 2026-09-13 ruling).
+    // "REDUCED" — the design reserves amber for REDUCED (mobile/src/theme/tokens.ts
+    // verdict.reduced + plan L24, 2026-09-13 ruling).
     ("REDUCED (sleep) — deload dose, not a day off", "REDUCED (sleep)", "deload dose, not a day off", VerdictTone.amber),
     ("RED — walk only", "RED", "walk only", VerdictTone.red),
 ])
