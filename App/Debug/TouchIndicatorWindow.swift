@@ -33,5 +33,9 @@ final class TouchIndicatorWindow: UIWindow {
         rings[touch]?.removeFromSuperview()
         rings[touch] = nil
     }
+
+    // Passthrough: returning nil means this window is never the hit-test target, so touches
+    // reach the app's own windows underneath, while `sendEvent` above still observes them.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 }
 #endif
