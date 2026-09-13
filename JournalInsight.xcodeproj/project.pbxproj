@@ -11,6 +11,7 @@
 		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +34,7 @@
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
+		FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchIndicatorWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +49,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		056638029CC232C84D208888 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */,
+			);
+			path = Debug;
+			sourceTree = "<group>";
+		};
 		0F1DA0A1D7D5D8969A37070C /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +89,7 @@
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
+				056638029CC232C84D208888 /* Debug */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -194,6 +205,7 @@
 			files = (
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
+				B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
