@@ -7,15 +7,15 @@ Native SwiftUI JournalInsight, iOS 27 + watchOS 27. Replaces the React Native ap
 
 ## Build / test
 - `xcodegen generate` after editing `project.yml` (the generated .xcodeproj is committed).
-- `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer xcodebuild -project JournalInsight.xcodeproj -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build|test` (Xcode 27 RC until Toby installs GA + runs xcode-select)
+- `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer xcodebuild -project JournalInsight.xcodeproj -scheme JournalInsight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build|test` (install Xcode 27 GA to /Applications first; until then use this `DEVELOPER_DIR`, which builds+tests fine)
 - New Swift files under App/ or AppTests/ are NOT in the target until you run `xcodegen generate` and commit the regenerated JournalInsight.xcodeproj/project.pbxproj — a build can "succeed" while silently excluding them (SwiftPM globs `Packages/*/Sources`, but run it anyway).
 - `App/Info.plist` is GENERATED from `project.yml` `info.properties` — never hand-edit it.
 - Read `CONTEXT-IOS-FOUNDATION.md` (frozen W1 APIs + rulings) before any W2+ code; renaming/changing a signature needs a note there in the same commit.
-- Package tests without Xcode: `swift test --package-path Packages/<Name>`.
+- Package tests without Xcode: `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer swift test --package-path Packages/<Name>`.
 - Fixtures: `Fixtures/{hub-contract,golden}` are COPIES synced by `HealthTraining/scripts/parity/sync_fixtures.py`; never edit here (FixtureManifestTests fails on drift).
 
 ## Rules
-1. Branch `swift-migration`; never commit to `main` directly.
+1. One branch per wave off `main`, PR into `main`, tag each close; never commit to `main` directly.
 2. Bundle id `toby913.JournalInsight`. Token only in the Keychain. `NSAllowsLocalNetworking` stays.
 3. Swift 6 language mode, strict concurrency. MainActor default isolation in JIDesign/JIFeatures/App; JICore/JIHub/JIPersistence stay nonisolated (CONTEXT §3). No `@unchecked Sendable` without a comment naming why.
 4. Named hub errors (`.unauthorized`, `.duplicate`, `.yazioAuthExpired`) are load-bearing UI contracts.

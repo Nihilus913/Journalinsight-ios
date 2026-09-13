@@ -13,4 +13,6 @@ build/
 
 # Swift migration (XcodeGen skeleton)
 Packages/*/.build/
+Packages/*/.swiftpm/
+.swiftpm/
 *.xcresult

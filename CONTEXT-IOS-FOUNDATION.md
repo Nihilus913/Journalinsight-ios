@@ -1,6 +1,6 @@
 # CONTEXT-IOS-FOUNDATION.md
 
-Frozen record of the W0/W1 native Swift JournalInsight foundation, verbatim from the code at commit `e745a89` (branch `swift-migration`). Read this before writing any W2+ code.
+Frozen record of the W0/W1 native Swift JournalInsight foundation, verbatim from the code at commit `2f80086` (tag `swift-w1-foundation`, since merged to `main`). Read this before writing any W2+ code.
 
 ## 1. Purpose + change rule
 
@@ -81,7 +81,7 @@ public enum VerdictTone: Sendable, Equatable { case go, amber, red, muted }
 public struct VerdictParts: Sendable, Equatable { public var word, session: String; public var tone: VerdictTone }
 public func verdictParts(_ v: String?) -> VerdictParts
 ```
-Port of `mobile/src/lib/verdict.ts`: splits on `"—"`; `word` keeps the parenthetical, tone strips it. Tone: `nil`/empty → `("—","No verdict yet",.muted)`; `GO*` → `.go`; **`REDUCED*` → `.amber`** (deliberate deviation — RN's `startsWith("RED")` also catches `"REDUCED"` and renders red; design wins, spec §4.6, 2026-09-13 ruling); other `RED*` → `.red`; else `.amber`.
+Port of `mobile/src/lib/verdict.ts`: splits on `"—"`; `word` keeps the parenthetical, tone strips it. Tone: `nil`/empty → `("—","No verdict yet",.muted)`; `GO*` → `.go`; **`REDUCED*` → `.amber`** (deliberate deviation — RN's `startsWith("RED")` also catches `"REDUCED"` and renders red; design wins, `mobile/src/theme/tokens.ts` `verdict.reduced` + plan L24, 2026-09-13 ruling); other `RED*` → `.red`; else `.amber`.
 
 `Recovery.swift`: `public struct RecoveryDay: Codable, Sendable, Equatable { public var date: String; public var sleepScore, sleepDurationSec, rhrBpm, bodyBatteryAvg, readinessScore, acwr, hrvWeeklyAvg: Double? }`; `public struct RecoveryReport: Codable, Sendable, Equatable { public var days: [RecoveryDay] }`.
 
@@ -303,17 +303,17 @@ Hub-only bootstrap: `apply` always constructs `HubDataProvider` — `MockDataPro
 - `xcodegen generate` after **any** new file under `App/`/`AppTests/`; commit the regenerated `project.pbxproj`. SwiftPM sources are globbed automatically, but run it anyway — a build can "succeed" while silently excluding a new file.
 - **`App/Info.plist` is GENERATED from `project.yml`'s `targets.JournalInsight.info.properties` — never hand-edit it.** `UIUserInterfaceStyle`, ATS local networking, URL schemes all live in `project.yml`.
 - `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer` prefix on every `xcodebuild`/`xcodegen` call until Xcode 27 GA is installed and selected.
-- Package tests: `swift test --package-path Packages/<Name>`.
+- Package tests: `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer swift test --package-path Packages/<Name>`.
 - App/simulator: `DEVELOPER_DIR=.../Xcode-beta.app/Contents/Developer xcodebuild -project JournalInsight.xcodeproj -scheme JournalInsight -destination 'platform=iOS Simulator, name=iPhone 17 Pro' build|test`.
 - Device: `xcodebuild ... -destination 'platform=iOS,name=<device>' -allowProvisioningUpdates build`, then `xcrun devicectl device install app --device <udid> <path>.app` + `devicectl device process launch` (or Xcode ▶ Run).
 - Xcode 16+ ships app code in a separate debug dylib — `strings`/`nm` on `JournalInsight.app` show nothing useful; code lives in `JournalInsight.debug.dylib`.
-- `JournalInsightTests` (`bundle.unit-test`) currently reports target platform ios17.0 in build output — a deferred minor (§13), not the app's real `27.0` deployment target.
+- `JournalInsightTests` (`bundle.unit-test`) currently reports target platform ios17.0 in build output — this is the Swift Testing library's own triple, not the app's/project's `27.0` deployment target, and needs no W2+ follow-up.
 
 ## 11. CLAUDE.md §Rules (verbatim)
 
-1. Branch `swift-migration`; never commit to `main` directly.
+1. One branch per wave off `main`, PR into `main`, tag each close; never commit to `main` directly.
 2. Bundle id `toby913.JournalInsight`. Token only in the Keychain. `NSAllowsLocalNetworking` stays.
-3. Swift 6 language mode, MainActor default isolation, strict concurrency — no `@unchecked Sendable` without a comment naming why.
+3. Swift 6 language mode, strict concurrency. MainActor default isolation in JIDesign/JIFeatures/App; JICore/JIHub/JIPersistence stay nonisolated (§3). No `@unchecked Sendable` without a comment naming why.
 4. Named hub errors (`.unauthorized`, `.duplicate`, `.yazioAuthExpired`) are load-bearing UI contracts.
 5. Never render a zero for missing data: skeleton / "No data yet" / neutral error + retry / staleness banner.
 6. Green (`#4ade80`) is reserved for verdict, band, 0–100 score, status. Selection + CTA = info blue `#38bdf8`.
@@ -327,7 +327,7 @@ Hub-only bootstrap: `apply` always constructs `HubDataProvider` — `MockDataPro
 
 Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 
-**Step 1 — one-time manual (agent cannot do these):** (1) `sudo xcode-select -s /Applications/Xcode.app` if not done in W0. (2) Xcode → Settings → Accounts: paid Apple ID signed in; set the Team in Signing & Capabilities (XcodeGen leaves `DEVELOPMENT_TEAM` empty — after choosing it once, copy the team id into `project.yml` so regeneration keeps it). (3) iPhone: Developer Mode on (Settings → Privacy & Security), connected by cable or Wi-Fi pairing. (4) Hub reachable on the LAN: `start_api.sh` binds `0.0.0.0` (plan of record R0); note the Mac's LAN IP via `ipconfig getifaddr en0`.
+**Step 1 — one-time manual (agent cannot do these):** (1) Install Xcode 27 GA to `/Applications` first (today `/Applications/Xcode.app` is still 26.6); until then use `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer`, which builds+tests fine. Once GA is installed, `sudo xcode-select -s /Applications/Xcode.app`. (2) Xcode → Settings → Accounts: paid Apple ID signed in; set the Team in Signing & Capabilities (XcodeGen leaves `DEVELOPMENT_TEAM` empty — after choosing it once, copy the team id into `project.yml` so regeneration keeps it). (3) iPhone: Developer Mode on (Settings → Privacy & Security), connected by cable or Wi-Fi pairing. (4) Hub reachable on the LAN: `start_api.sh` binds `0.0.0.0` (plan of record R0); note the Mac's LAN IP via `ipconfig getifaddr en0`.
 
 **Step 2 — install and connect:** build+run on device; on the phone: Connection sheet → `http://<mac-ip>:8000` + token → Test → "Connected. Last sync: …" → Save. Expected: Today renders the same numbers as the RN app on the Fold (verdict word, readiness, HRV/RHR/sleep/steps). Screenshot both phones side by side into `output/feel/ios/w1/`.
 
@@ -343,7 +343,6 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 - `AppDatabase.inMemory()`'s temp files are never cleaned up after a test run.
 - `readinessBand`/`gaugeAngle`/`readinessGoMin`/`readinessWarnMin` are bare top-level symbols in JIDesign, not namespaced.
 - `SkeletonBlock`'s pulse animation resets to `false` then `true` on every re-mount instead of preserving phase.
-- The `overshoot` bounce-0.4 ↔ RN dampingRatio-0.6 mapping (§7) is documented only here, not as an inline comment in `MotionTokens.swift`.
 - `Surface`'s level switch `default:` silently absorbs any invalid `level` int by falling back to `surface` — no assertion.
 - `JIFeatures` now genuinely uses its `JIHub`/`JIDesign` package deps (previously flagged as possibly unused).
 - `TodayViewModel.fetchLive()` has no generation/token guard against overlapping `load()`/`refresh()` calls racing each other.
