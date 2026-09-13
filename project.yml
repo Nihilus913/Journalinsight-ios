@@ -16,6 +16,8 @@ settings:
 packages:
   JICore:
     path: Packages/JICore
+  JIHub:
+    path: Packages/JIHub
 targets:
   JournalInsight:
     type: application
@@ -39,6 +41,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: "" # no AppIcon.appiconset yet; XcodeGen's application-target default (AppIcon) fails actool with no icon set present
     dependencies:
       - package: JICore
+      - package: JIHub
   JournalInsightTests:
     type: bundle.unit-test
     platform: iOS
