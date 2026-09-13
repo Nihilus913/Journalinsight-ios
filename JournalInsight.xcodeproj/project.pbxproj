@@ -16,6 +16,7 @@
 		A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 396CA8DF72C77D0D287B373C /* JIPersistence */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
+		EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +39,7 @@
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE1DEEDD9B02F9398A695569 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
 		FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchIndicatorWindow.swift; sourceTree = "<group>"; };
@@ -52,6 +54,7 @@
 				35661ADAC7462A69261AC33E /* JIHub in Frameworks */,
 				A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */,
 				0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */,
+				EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +74,7 @@
 			children = (
 				FC17C93F596DA8A04D63D272 /* JICore */,
 				340EDFF564B45454426C654D /* JIDesign */,
+				DE5440E17F3853B546397B6D /* JIFeatures */,
 				96B3229A2D3C3EF99BBE5167 /* JIHub */,
 				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
 			);
@@ -137,6 +141,7 @@
 				AE017C6763142EDA7FB1F5B2 /* JIHub */,
 				396CA8DF72C77D0D287B373C /* JIPersistence */,
 				6EA74DAEF679ECF071912E9E /* JIDesign */,
+				A090031B35A5F024DF8691CF /* JIFeatures */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -191,6 +196,7 @@
 			packageReferences = (
 				FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */,
 				91533581A208A2BB6022509D /* XCLocalSwiftPackageReference "Packages/JIDesign" */,
+				3E2EC5E2053AFC30200B78C6 /* XCLocalSwiftPackageReference "Packages/JIFeatures" */,
 				70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */,
 				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
 			);
@@ -474,6 +480,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		3E2EC5E2053AFC30200B78C6 /* XCLocalSwiftPackageReference "Packages/JIFeatures" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JIFeatures;
+		};
 		4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIPersistence;
@@ -500,6 +510,10 @@
 		6EA74DAEF679ECF071912E9E /* JIDesign */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIDesign;
+		};
+		A090031B35A5F024DF8691CF /* JIFeatures */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIFeatures;
 		};
 		AE017C6763142EDA7FB1F5B2 /* JIHub */ = {
 			isa = XCSwiftPackageProductDependency;
