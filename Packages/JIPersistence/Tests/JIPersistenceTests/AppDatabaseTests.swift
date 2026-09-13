@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import JIPersistence
 
@@ -11,4 +12,16 @@ import Testing
     try a.set("only.in.a", "yes")
     #expect(try a.get("only.in.a", as: String.self) == "yes")
     #expect(try b.get("only.in.a", as: String.self) == nil)
+}
+
+@Test func excludedFromBackupFlagIsSetOnTheFileAndItsWalSiblings() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("journalinsight-backup-\(UUID().uuidString).sqlite")
+    _ = try AppDatabase.open(at: url, excludedFromBackup: true)
+    for suffix in ["", "-wal", "-shm"] {
+        let sibling = URL(filePath: url.path + suffix)
+        guard FileManager.default.fileExists(atPath: sibling.path) else { continue }
+        #expect(try sibling.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true, "\(suffix)")
+    }
+    #expect(try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
 }

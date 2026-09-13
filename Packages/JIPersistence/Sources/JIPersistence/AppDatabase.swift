@@ -23,12 +23,32 @@ public final class AppDatabase: Sendable {
         return try AppDatabase(pool: DatabasePool(path: path))
     }
 
-    public static func onDisk(name: String = "journalinsight.sqlite") throws -> AppDatabase {
+    /// Opens (or creates) `name` under Application Support. Pass `excludedFromBackup: true`
+    /// for disposable stores so iCloud/iTunes backups skip the file and its WAL/SHM siblings.
+    public static func onDisk(name: String = "journalinsight.sqlite", excludedFromBackup: Bool = false) throws -> AppDatabase {
         let dir = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        var config = Configuration()
-        config.prepareDatabase { db in try db.execute(sql: "PRAGMA journal_mode = WAL") }
-        return try AppDatabase(pool: DatabasePool(path: dir.appending(path: name).path, configuration: config))
+        return try open(at: dir.appending(path: name), excludedFromBackup: excludedFromBackup)
     }
 
-    public static func cache() throws -> AppDatabase { try onDisk(name: "cache.sqlite") }
+    /// The disposable server cache — never backed up, mirroring RN's manifest split.
+    public static func cache() throws -> AppDatabase { try onDisk(name: "cache.sqlite", excludedFromBackup: true) }
+
+    /// Internal so tests can exercise the backup flag against a temp path instead of the
+    /// real Application Support directory.
+    static func open(at url: URL, excludedFromBackup: Bool) throws -> AppDatabase {
+        var config = Configuration()
+        config.prepareDatabase { db in try db.execute(sql: "PRAGMA journal_mode = WAL") }
+        let db = try AppDatabase(pool: DatabasePool(path: url.path, configuration: config))
+        if excludedFromBackup {
+            // The pool has opened the file (and WAL mode created -wal/-shm), so the flag sticks.
+            for suffix in ["", "-wal", "-shm"] {
+                var sibling = URL(filePath: url.path + suffix)
+                guard FileManager.default.fileExists(atPath: sibling.path) else { continue }
+                var values = URLResourceValues()
+                values.isExcludedFromBackup = true
+                try sibling.setResourceValues(values)
+            }
+        }
+        return db
+    }
 }
