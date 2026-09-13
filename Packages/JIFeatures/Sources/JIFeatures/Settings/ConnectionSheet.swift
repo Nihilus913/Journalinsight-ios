@@ -10,6 +10,7 @@ public final class ConnectionSheetModel {
     public var token: String
     public var status: ConnectionTestResult?
     public var testing = false
+    public var saveError: String?
     private let store: ConnectionConfigStore
 
     public init(store: ConnectionConfigStore) {
@@ -36,9 +37,21 @@ public final class ConnectionSheetModel {
         testing = true; defer { testing = false }
         status = await ConnectionTest.run(c)
     }
-    public func save() throws -> ConnectionConfig? {
-        guard let c = candidate else { return nil }
-        try store.save(c); return c
+    // CODE-3: Save must never be a silent no-op — an invalid candidate or a Keychain write failure
+    // is surfaced via `saveError` for the sheet to display, instead of quietly doing nothing.
+    public func save() -> ConnectionConfig? {
+        saveError = nil
+        guard let c = candidate else {
+            saveError = "Enter a valid http(s) URL and a token before saving."
+            return nil
+        }
+        do {
+            try store.save(c)
+            return c
+        } catch {
+            saveError = "Could not save to the keychain: \(error.localizedDescription)"
+            return nil
+        }
     }
 }
 
@@ -61,12 +74,13 @@ public struct ConnectionSheet: View {
                     Button { Task { await model.test() } } label: { HStack { Text("Test connection"); if model.testing { Spacer(); ProgressView() } } }
                         .disabled(model.testing)
                     if let s = model.status { Text(statusText(s)).font(.footnote).foregroundStyle(JIColor.muted) }
+                    if let e = model.saveError { Text(e).font(.footnote).foregroundStyle(.red) }
                 }
             }
             .navigationTitle("Connection")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { if let c = try? model.save() { onSaved(c); dismiss() } }.tint(JIColor.info)
+                    Button("Save") { if let c = model.save() { onSaved(c); dismiss() } }.tint(JIColor.info)
                 }
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }

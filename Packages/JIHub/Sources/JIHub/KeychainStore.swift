@@ -26,12 +26,16 @@ public struct KeychainStore: SecretStore {
         return out as? Data
     }
     public func write(_ key: String, _ data: Data) throws {
-        try delete(key)
+        // CODE-4: add-or-update, not delete-then-add — a failed add after the delete used to lose
+        // the previously stored token. On errSecDuplicateItem, update the existing item in place.
         var q = base(key)
         q[kSecValueData as String] = data
         q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let s = SecItemAdd(q as CFDictionary, nil)
-        guard s == errSecSuccess else { throw KeychainError(status: s) }
+        let addStatus = SecItemAdd(q as CFDictionary, nil)
+        if addStatus == errSecSuccess { return }
+        guard addStatus == errSecDuplicateItem else { throw KeychainError(status: addStatus) }
+        let updateStatus = SecItemUpdate(base(key) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        guard updateStatus == errSecSuccess else { throw KeychainError(status: updateStatus) }
     }
     public func delete(_ key: String) throws {
         let s = SecItemDelete(base(key) as CFDictionary)
