@@ -13,7 +13,7 @@ public struct StatChip: View {
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         Text(numeral).font(.system(size: 24, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
                             .contentTransition(.numericText())
-                        if let unit, value != nil, !sourceMissing { Text(unit).font(.caption).foregroundStyle(JIColor.muted) }
+                        if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(JIColor.muted) }
                     }
                     Sparkline(points: points).frame(height: 18)
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -21,8 +21,10 @@ public struct StatChip: View {
         }
         .buttonStyle(.pressableScale)
         .disabled(action == nil)
-        .accessibilityLabel("\(label) \(numeral) \(unit ?? "")")
+        .accessibilityLabel([label, numeral, showsUnit ? unit : nil].compactMap { $0 }.joined(separator: " "))
     }
+    /// Unit is shown (visually and to VoiceOver) only when there is a real value to attach it to.
+    private var showsUnit: Bool { value != nil && !sourceMissing }
     private var numeral: String {
         if sourceMissing { return "—" }
         guard let value else { return "—" }

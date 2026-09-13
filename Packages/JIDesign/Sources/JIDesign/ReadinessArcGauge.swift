@@ -54,7 +54,7 @@ public struct ReadinessArcGauge: View {
         }
         .frame(width: size, height: size / 2 + track)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(sourceMissing ? "Readiness not available on this source" : score.map { "Readiness \(Int($0))" } ?? "Readiness, no data yet")
+        .accessibilityLabel(sourceMissing ? "Readiness not available on this source" : score.map { "Readiness \($0.formatted(.number.precision(.fractionLength(0))))" } ?? "Readiness, no data yet")
     }
 
     private func needle(at value: Double) -> some View {
