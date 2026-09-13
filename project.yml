@@ -18,6 +18,8 @@ packages:
     path: Packages/JICore
   JIHub:
     path: Packages/JIHub
+  JIPersistence:
+    path: Packages/JIPersistence
 targets:
   JournalInsight:
     type: application
@@ -42,6 +44,7 @@ targets:
     dependencies:
       - package: JICore
       - package: JIHub
+      - package: JIPersistence
   JournalInsightTests:
     type: bundle.unit-test
     platform: iOS

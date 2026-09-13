@@ -12,6 +12,7 @@
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 396CA8DF72C77D0D287B373C /* JIPersistence */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 /* End PBXBuildFile section */
@@ -29,6 +30,7 @@
 /* Begin PBXFileReference section */
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
 		AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightApp.swift; sourceTree = "<group>"; };
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -46,6 +48,7 @@
 			files = (
 				7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */,
 				35661ADAC7462A69261AC33E /* JIHub in Frameworks */,
+				A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +68,7 @@
 			children = (
 				FC17C93F596DA8A04D63D272 /* JICore */,
 				96B3229A2D3C3EF99BBE5167 /* JIHub */,
+				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -127,6 +131,7 @@
 			packageProductDependencies = (
 				B82481EAAF8B8DF915C28007 /* JICore */,
 				AE017C6763142EDA7FB1F5B2 /* JIHub */,
+				396CA8DF72C77D0D287B373C /* JIPersistence */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -181,6 +186,7 @@
 			packageReferences = (
 				FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */,
 				70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */,
+				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7E21C80B99A2A95B8D6662A4 /* Products */;
@@ -462,6 +468,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JIPersistence;
+		};
 		70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIHub;
@@ -473,6 +483,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		396CA8DF72C77D0D287B373C /* JIPersistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIPersistence;
+		};
 		AE017C6763142EDA7FB1F5B2 /* JIHub */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIHub;
