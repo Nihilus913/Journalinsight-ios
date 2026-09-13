@@ -12,6 +12,13 @@ public nonisolated func gaugeAngle(for value: Double) -> Angle { .degrees(270 + 
 
 private func bandColor(_ b: ReadinessBand) -> Color { switch b { case .danger: JIColor.danger; case .warn: JIColor.reduced; case .go: JIColor.go } }
 
+/// DESIGN-6: source-missing announces the shared "not from current source" copy — never a
+/// bare dash. Pure + testable independent of SwiftUI's view lifecycle.
+public nonisolated func readinessAccessibilityLabel(score: Double?, sourceMissing: Bool) -> String {
+    if sourceMissing { return "Readiness \(sourceMissingCopy)" }
+    return score.map { "Readiness \($0.formatted(.number.precision(.fractionLength(0))))" } ?? "Readiness, no data yet"
+}
+
 private nonisolated struct ArcSegment: Shape {
     var from: Double, to: Double, lineWidth: CGFloat
     func path(in rect: CGRect) -> Path {
@@ -41,7 +48,7 @@ public struct ReadinessArcGauge: View {
             VStack(spacing: 2) {
                 if sourceMissing {
                     Text("—").font(.system(size: 44, weight: .bold, design: .rounded)).foregroundStyle(JIColor.muted)
-                    Text("Not available on this source").font(.caption).foregroundStyle(JIColor.muted)
+                    Text(sourceMissingCopy).font(.caption).foregroundStyle(JIColor.muted)
                 } else if let score {
                     Text(score, format: .number.precision(.fractionLength(0)))
                         .font(.system(size: 44, weight: .bold, design: .rounded))
@@ -55,7 +62,7 @@ public struct ReadinessArcGauge: View {
         }
         .frame(width: size, height: size / 2 + track)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(sourceMissing ? "Readiness not available on this source" : score.map { "Readiness \($0.formatted(.number.precision(.fractionLength(0))))" } ?? "Readiness, no data yet")
+        .accessibilityLabel(readinessAccessibilityLabel(score: score, sourceMissing: sourceMissing))
     }
 
     private func needle(at value: Double) -> some View {
