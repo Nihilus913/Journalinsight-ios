@@ -24,6 +24,8 @@ packages:
     path: Packages/JIDesign
   JIFeatures:
     path: Packages/JIFeatures
+  JISnapshot:
+    path: Packages/JISnapshot
 targets:
   JournalInsight:
     type: application
