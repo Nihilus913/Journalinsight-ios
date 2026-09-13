@@ -30,10 +30,9 @@ func fixture(_ name: String) throws -> Data {
 @Test(arguments: [
     (nil as String?, "—", "No verdict yet", VerdictTone.muted),
     ("GO — strength A", "GO", "strength A", VerdictTone.go),
-    // RN ground truth (mobile/src/lib/verdict.ts + mobile/__tests__/verdict.test.ts:6, gateWidgetBridge.test.ts:51-52):
-    // "REDUCED" starts with "RED" so word.startsWith("RED") is true — tone is .red, not .amber.
-    // The brief's Step 2 listed .amber for this row; corrected to match the byte-faithful RN port (ruling 4).
-    ("REDUCED (sleep) — deload dose, not a day off", "REDUCED (sleep)", "deload dose, not a day off", VerdictTone.red),
+    // Deliberate deviation from mobile/src/lib/verdict.ts, whose startsWith("RED") also catches
+    // "REDUCED" — the design reserves amber for REDUCED (spec §4.6, 2026-09-13 ruling).
+    ("REDUCED (sleep) — deload dose, not a day off", "REDUCED (sleep)", "deload dose, not a day off", VerdictTone.amber),
     ("RED — walk only", "RED", "walk only", VerdictTone.red),
 ])
 func verdictPartsMatchesRN(input: String?, word: String, session: String, tone: VerdictTone) {

@@ -36,6 +36,8 @@ public func verdictParts(_ v: String?) -> VerdictParts {
     let head = pieces.first ?? ""
     let session = pieces.count > 1 ? pieces[1] : ""
     let bare = head.replacing(/\(.*\)/, with: "").trimmingCharacters(in: .whitespaces)
-    let tone: VerdictTone = bare.hasPrefix("GO") ? .go : bare.hasPrefix("RED") ? .red : .amber
+    // Deliberate deviation from mobile/src/lib/verdict.ts, whose startsWith("RED") also catches
+    // "REDUCED" — the design reserves amber for REDUCED (spec §4.6, 2026-09-13 ruling).
+    let tone: VerdictTone = bare.hasPrefix("GO") ? .go : bare.hasPrefix("REDUCED") ? .amber : bare.hasPrefix("RED") ? .red : .amber
     return VerdictParts(word: head, session: session, tone: tone)
 }
