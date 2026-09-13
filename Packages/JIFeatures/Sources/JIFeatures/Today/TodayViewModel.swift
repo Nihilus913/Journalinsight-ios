@@ -82,6 +82,9 @@ public final class TodayViewModel {
             try? cache.put(Self.keys.morning, mm); try? cache.put(Self.keys.gate, gg); try? cache.put(Self.keys.recovery, rr)
             phase = (mm.verdict == nil && rr.isEmpty) ? .empty : .loaded
         } catch {
+            // A tab switch cancels the view's `.task`; that is not a hub outage. Return to `.idle`
+            // so `TodayView.task` reloads on the next appearance instead of showing a false error.
+            if Task.isCancelled { if phase == .loading { phase = .idle }; return }
             hubReachable = false
             if morning == nil { phase = .error(Self.describe(error)) } else { phase = .loaded }
         }

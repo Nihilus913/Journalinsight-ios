@@ -90,3 +90,25 @@ actor ToggleProvider: HealthDataProvider {
     #expect(resolved.row?.date == "2026-09-11")
     #expect(resolved.stale)
 }
+
+/// Every call parks until cancelled — models a fetch interrupted by a tab switch.
+nonisolated struct SlowProvider: HealthDataProvider {
+    let capabilities: DataCapability = .hubAll
+    private func park<T>() async throws -> T { try await Task.sleep(for: .seconds(30)); throw HubError.network("unreachable test path") }
+    func health() async throws -> HealthResponse { try await park() }
+    func gate(windowDays: Int) async throws -> GateResponse { try await park() }
+    func morning() async throws -> MorningResponse { try await park() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await park() }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { try await park() }
+    func syncStatus() async throws -> SyncStatus { try await park() }
+}
+
+@Test @MainActor func cancelledLoadReturnsToIdleNotError() async throws {
+    let vm = TodayViewModel(provider: SlowProvider(), cache: OfflineCache(db: try AppDatabase.inMemory()))
+    let t = Task { await vm.load() }
+    try await Task.sleep(for: .milliseconds(50))
+    t.cancel()
+    await t.value
+    #expect(vm.phase == .idle)
+    #expect(vm.hubReachable)
+}

@@ -1,3 +1,5 @@
+import Foundation
+
 public struct TodayActivity: Codable, Sendable, Equatable {
     public var name, type: String?
     public var durationSec, avgHr, maxHr: Int?
