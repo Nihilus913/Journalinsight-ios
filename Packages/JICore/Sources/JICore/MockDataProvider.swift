@@ -5,8 +5,15 @@ public struct MockDataProvider: HealthDataProvider {
     public let capabilities: DataCapability = .hubAll
     public init() {}
 
+    /// Locates one of the library's own hub-contract fixture copies (`Bundle.module`, kept in sync
+    /// with the fixtures of record by `HealthTraining/scripts/parity/sync_fixtures.py`). Exposed so
+    /// tests can verify these copies against `MANIFEST.sha256` without duplicating the lookup logic.
+    public static func fixtureURL(named name: String) -> URL? {
+        Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures/hub-contract")
+    }
+
     private func load<T: Decodable>(_ name: String, as: T.Type) throws -> T {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures/hub-contract")
+        guard let url = Self.fixtureURL(named: name)
         else { throw HubError.decoding("missing fixture \(name)") }
         return try JSON.decoder.decode(T.self, from: Data(contentsOf: url))
     }
