@@ -28,6 +28,7 @@ public struct ReadinessArcGauge: View {
     let score: Double?, sourceMissing: Bool, size: CGFloat
     public init(score: Double?, sourceMissing: Bool = false, size: CGFloat = 180) { self.score = score; self.sourceMissing = sourceMissing; self.size = size }
     private let track: CGFloat = 14
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public var body: some View {
         ZStack(alignment: .bottom) {
@@ -66,7 +67,7 @@ public struct ReadinessArcGauge: View {
                 .overlay(Circle().stroke(bandColor(readinessBand(for: value)), lineWidth: 3))
                 .frame(width: 16, height: 16)
                 .position(x: c.x + r * cos(a.radians), y: c.y + r * sin(a.radians))
-                .animation(JIMotion.reveal, value: value)
+                .animation(reduceMotion ? nil : JIMotion.reveal, value: value)
         }
     }
 }

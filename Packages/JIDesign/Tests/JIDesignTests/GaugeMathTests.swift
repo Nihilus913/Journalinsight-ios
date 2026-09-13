@@ -24,8 +24,12 @@ func gaugeAngleIsMonotonicNonDecreasing(value: Double) {
     #expect(gaugeAngle(for: next).degrees >= gaugeAngle(for: value).degrees)
 }
 
-// Accessibility must announce the same numeral the eye sees (RN rounds both; Int() truncated).
+// Accessibility must announce the same numeral the eye sees (RN rounds both; Int() truncates).
 @Test func accessibilityNumeralRoundsLikeTheVisibleOne() {
+    // Hand-computed from the RN clock formula (270 + value/100*180), independent of gaugeAngle(for:):
+    // 69.9 → 270 + 0.699 * 180 = 270 + 125.82 = 395.82°.
+    let handComputedDegrees = 395.82
+    #expect(abs(gaugeAngle(for: 69.9).degrees - handComputedDegrees) < 0.001)
     #expect(69.9.formatted(.number.precision(.fractionLength(0))) == "70")
-    #expect(Int(69.9) == 69)
+    #expect(Int(69.9) != 70) // truncation would misreport the visible numeral
 }

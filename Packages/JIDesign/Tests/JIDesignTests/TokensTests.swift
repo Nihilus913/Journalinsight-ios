@@ -18,7 +18,12 @@ struct TokensTests {
     }
 
     @Test func hexParsesExactly() {
-        #expect(Color(hex: 0x0b0f14) == JIColor.bg)
+        // Independently hand-computed from the RN token spec (mobile/src/theme/tokens.ts,
+        // CONTEXT-IOS-FOUNDATION.md L204): bg = 0x0b0f14 → r=11/255, g=15/255, b=20/255.
+        let resolved = JIColor.bg.resolve(in: EnvironmentValues())
+        #expect(abs(Double(resolved.red) - 11.0 / 255.0) < 0.001)
+        #expect(abs(Double(resolved.green) - 15.0 / 255.0) < 0.001)
+        #expect(abs(Double(resolved.blue) - 20.0 / 255.0) < 0.001)
     }
 
     @Test func motionDurationsMatchRNTokens() {
