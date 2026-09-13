@@ -22,9 +22,14 @@ public final class ConnectionSheetModel {
     // Rule 2 (CLAUDE.md): the token lives only here and in the SecureField below — never in
     // `status`, a log, or an accessibility label. `candidate` and `statusText` must stay that way.
     private var candidate: ConnectionConfig? {
-        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespaces)), let scheme = url.scheme, ["http", "https"].contains(scheme), url.host() != nil,
-              !token.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
-        return ConnectionConfig(baseURL: url, token: token.trimmingCharacters(in: .whitespaces))
+        // `.whitespacesAndNewlines`: a token pasted from a terminal carries a trailing "\n" that
+        // would otherwise land verbatim in the Bearer header. `host()` is "" (not nil) for
+        // "https://:8000", so emptiness is checked explicitly.
+        let cleanURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: cleanURL), let scheme = url.scheme, ["http", "https"].contains(scheme),
+              let host = url.host(), !host.isEmpty, !cleanToken.isEmpty else { return nil }
+        return ConnectionConfig(baseURL: url, token: cleanToken)
     }
     public func test() async {
         guard let c = candidate else { status = .other("Enter a valid http(s) URL and a token."); return }

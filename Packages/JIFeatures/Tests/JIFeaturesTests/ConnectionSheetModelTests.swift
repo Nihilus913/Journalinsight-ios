@@ -36,3 +36,13 @@ import JIHub
     #expect(m.baseURL == "http://10.0.0.5:8000")
     #expect(m.token == "secret-token")
 }
+
+@Test @MainActor func connectionModelRejectsEmptyHostAndStripsNewlines() throws {
+    let m = ConnectionSheetModel(store: ConnectionConfigStore(secrets: InMemorySecretStore()))
+    m.baseURL = "https://:8000"; m.token = "abc"
+    #expect(try m.save() == nil)
+    m.baseURL = "http://192.168.1.163:8000\n"; m.token = "abc123\n"
+    let saved = try #require(try m.save())
+    #expect(saved.token == "abc123")
+    #expect(saved.baseURL.host() == "192.168.1.163")
+}
