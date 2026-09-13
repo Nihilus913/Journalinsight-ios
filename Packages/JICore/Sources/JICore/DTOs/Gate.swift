@@ -23,17 +23,56 @@ public struct DailyKpiRow: Codable, Sendable, Equatable {
         let c = try decoder.container(keyedBy: Key.self)
         var d = ""; var v: [String: Double?] = [:]
         for k in c.allKeys {
-            if k.stringValue == "date" { d = try c.decode(String.self, forKey: k); continue }
-            if let n = try? c.decodeIfPresent(Double.self, forKey: k) { v[k.stringValue] = n }
-            else if let b = try? c.decodeIfPresent(Bool.self, forKey: k) { v[k.stringValue] = b ? 1 : 0 }
-            else { v[k.stringValue] = nil }
+            // `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase` at the decoder level —
+            // that strategy runs before this type ever sees a key, so `k.stringValue` for e.g.
+            // "kcal_consumed" arrives already turned into "kcalConsumed". There is no per-container
+            // opt-out, so restore the documented snake_case contract by reversing it here.
+            let rawKey = Self.snakeCased(k.stringValue)
+            if rawKey == "date" { d = try c.decode(String.self, forKey: k); continue }
+            // `v[key] = nil` on a `[String: Double?]` REMOVES the entry (Dictionary subscript-assign-nil
+            // semantics) — that would silently drop JSON `null` columns instead of keeping them
+            // present-with-nil. Use `updateValue(nil, forKey:)` for every branch that should record a
+            // key, and check `decodeNil` explicitly so a JSON `null` is distinguished from "not decodable
+            // as Double/Bool" (both currently land as nil, but via the explicit-null path when it applies).
+            if let isNull = try? c.decodeNil(forKey: k), isNull {
+                v.updateValue(nil, forKey: rawKey)
+            } else if let n = try? c.decode(Double.self, forKey: k) {
+                v.updateValue(n, forKey: rawKey)
+            } else if let b = try? c.decode(Bool.self, forKey: k) {
+                v.updateValue(b ? 1 : 0, forKey: rawKey)
+            } else {
+                v.updateValue(nil, forKey: rawKey)
+            }
         }
         date = d; values = v
+    }
+
+    /// Reverses Foundation's `.convertFromSnakeCase` (insert `_` before each uppercase letter, then
+    /// lowercase it) so dynamic keys land back in their original wire form. Exact for this row's known
+    /// column set (single-word segments, no adjacent capitals, e.g. "kcalConsumed" -> "kcal_consumed").
+    private static func snakeCased(_ s: String) -> String {
+        var result = ""
+        for ch in s {
+            if ch.isUppercase {
+                result.append("_")
+                result.append(contentsOf: ch.lowercased())
+            } else {
+                result.append(ch)
+            }
+        }
+        return result
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Key.self)
         try c.encode(date, forKey: Key(stringValue: "date"))
-        for (k, val) in values { try c.encode(val, forKey: Key(stringValue: k)) }
+        for (k, val) in values {
+            let key = Key(stringValue: k)
+            if let val {
+                try c.encode(val, forKey: key)
+            } else {
+                try c.encodeNil(forKey: key)
+            }
+        }
     }
 }
 
