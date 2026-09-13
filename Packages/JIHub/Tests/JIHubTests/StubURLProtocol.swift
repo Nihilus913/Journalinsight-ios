@@ -23,4 +23,10 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable { // @unchecked: s
         c.protocolClasses = [StubURLProtocol.self]
         return URLSession(configuration: c)
     }
+
+    /// Clears process-global state between tests (see HubClientTests' `.serialized` suite).
+    static func reset() {
+        responses = [:]
+        lastRequest = nil
+    }
 }
