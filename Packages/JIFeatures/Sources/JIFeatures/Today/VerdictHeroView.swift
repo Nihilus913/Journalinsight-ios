@@ -14,10 +14,10 @@ public struct VerdictHeroView: View {
                 Text(verdict.word)
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(JIColor.color(for: verdict.tone))
-                    .opacity(revealed ? 1 : 0).offset(y: revealed ? 0 : 12)
                     .accessibilityAddTraits(.isHeader)
+                    .jiReveal()
                 Text(verdict.session).font(.body).foregroundStyle(JIColor.text)
-                    .opacity(revealed ? 1 : 0)
+                    .jiReveal()
                 // Controller ruling 1: `readiness.map { revealed ? $0 : 0 }` — plain `revealed ? readiness : 0`
                 // would coerce a genuinely nil score to a literal 0 ("No data yet" would flash "0" pre-reveal).
                 // nil stays nil at every point in the reveal; only a real score counts up from 0.
