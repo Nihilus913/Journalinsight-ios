@@ -21,7 +21,7 @@ public struct StatChip: View {
         }
         .buttonStyle(.pressableScale)
         .disabled(action == nil)
-        .accessibilityLabel([label, numeral, showsUnit ? unit : nil].compactMap { $0 }.joined(separator: " "))
+        .accessibilityLabel(statChipAccessibilityLabel(label: label, numeral: numeral, unit: unit, showsUnit: showsUnit, sourceMissing: sourceMissing))
     }
     /// Unit is shown (visually and to VoiceOver) only when there is a real value to attach it to.
     private var showsUnit: Bool { value != nil && !sourceMissing }
@@ -30,6 +30,14 @@ public struct StatChip: View {
         guard let value else { return "—" }
         return value.formatted(.number.precision(.fractionLength(value.rounded() == value ? 0 : 1)))
     }
+}
+
+/// DESIGN-6: a source-missing chip announces the shared "not from current source" copy —
+/// never a bare "—" with a dangling unit. Pure + testable independent of SwiftUI's view
+/// lifecycle (mirrors the ReadinessArcGauge/EAGatedTile/DriverBars label builders).
+public nonisolated func statChipAccessibilityLabel(label: String, numeral: String, unit: String?, showsUnit: Bool, sourceMissing: Bool) -> String {
+    if sourceMissing { return [label, sourceMissingCopy].joined(separator: " ") }
+    return [label, numeral, showsUnit ? unit : nil].compactMap { $0 }.joined(separator: " ")
 }
 
 /// Neutral gray, always — sparklines never carry the reserved verdict green.

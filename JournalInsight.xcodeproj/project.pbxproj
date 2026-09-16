@@ -44,6 +44,7 @@
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE1DEEDD9B02F9398A695569 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
@@ -83,6 +84,7 @@
 				DE5440E17F3853B546397B6D /* JIFeatures */,
 				96B3229A2D3C3EF99BBE5167 /* JIHub */,
 				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
+				C71FF243F6A68258A948360E /* JISnapshot */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -208,6 +210,7 @@
 				3E2EC5E2053AFC30200B78C6 /* XCLocalSwiftPackageReference "Packages/JIFeatures" */,
 				70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */,
 				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
+				F96F5D7EB4B695ED81A85544 /* XCLocalSwiftPackageReference "Packages/JISnapshot" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7E21C80B99A2A95B8D6662A4 /* Products */;
@@ -507,6 +510,10 @@
 		91533581A208A2BB6022509D /* XCLocalSwiftPackageReference "Packages/JIDesign" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIDesign;
+		};
+		F96F5D7EB4B695ED81A85544 /* XCLocalSwiftPackageReference "Packages/JISnapshot" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JISnapshot;
 		};
 		FD04400DEB2C246A1D66A395 /* XCLocalSwiftPackageReference "Packages/JICore" */ = {
 			isa = XCLocalSwiftPackageReference;

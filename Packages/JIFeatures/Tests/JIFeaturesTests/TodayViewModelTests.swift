@@ -160,3 +160,81 @@ actor SlowThenFastProvider: HealthDataProvider {
     #expect(vm.hasLiveResult)
     #expect(vm.phase == .loaded)
 }
+
+/// `gate` always fails; `morning`/`recovery` always succeed — exercises PARITY-7's "one failing section
+/// does not blank the whole screen".
+nonisolated struct PartiallyFlakyProvider: HealthDataProvider {
+    let capabilities: DataCapability = .hubAll
+    let inner = MockDataProvider()
+    func health() async throws -> HealthResponse { try await inner.health() }
+    func gate(windowDays: Int) async throws -> GateResponse { throw HubError.network("gate down") }
+    func morning() async throws -> MorningResponse { try await inner.morning() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await inner.morningVerdict(date: date) }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { try await inner.recovery(windowDays: windowDays) }
+    func syncStatus() async throws -> SyncStatus { try await inner.syncStatus() }
+}
+
+@Test @MainActor func partialSectionFailureKeepsOtherSectionsLoaded() async throws {
+    let vm = TodayViewModel(provider: PartiallyFlakyProvider(), cache: OfflineCache(db: try AppDatabase.inMemory()))
+    await vm.load()
+    #expect(vm.phase == .loaded)
+    #expect(vm.hubReachable == false)
+    #expect(vm.morning != nil)
+    #expect(vm.recovery.isEmpty == false)
+    #expect(vm.gate == nil)
+    #expect(vm.gateFetchedAt == nil)
+    #expect(vm.morningFetchedAt != nil)
+    #expect(vm.recoveryFetchedAt != nil)
+}
+
+/// PARITY-7: each section's `fetchedAt` is tracked on its own key — pre-warm only `gate`'s cache entry
+/// so its fallback timestamp is provably independent of `morning`'s freshly-completed live fetch.
+@Test @MainActor func perSectionFetchedAtTracksIndependentlyOfSiblingSections() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    try cache.put("today.gate", try await MockDataProvider().gate(windowDays: 28))
+
+    let vm = TodayViewModel(provider: PartiallyFlakyProvider(), cache: cache)
+    await vm.load()
+
+    #expect(vm.gate != nil)               // fell back to the pre-warmed cache entry
+    let gateFetchedAt = try #require(vm.gateFetchedAt)
+    let morningFetchedAt = try #require(vm.morningFetchedAt)
+    #expect(gateFetchedAt != morningFetchedAt)
+}
+
+/// DESIGN-7: `gate` fails with the named YAZIO-token error — a UI contract (CLAUDE.md rule 4) that
+/// must surface via `screenState` even though `morning`/`recovery` succeeded and `phase` itself lands
+/// on `.loaded` (no dedicated `Phase` case for this error).
+nonisolated struct YazioExpiredGateProvider: HealthDataProvider {
+    let capabilities: DataCapability = .hubAll
+    let inner = MockDataProvider()
+    func health() async throws -> HealthResponse { try await inner.health() }
+    func gate(windowDays: Int) async throws -> GateResponse { throw HubError.yazioAuthExpired(detail: "token stale") }
+    func morning() async throws -> MorningResponse { try await inner.morning() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await inner.morningVerdict(date: date) }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { try await inner.recovery(windowDays: windowDays) }
+    func syncStatus() async throws -> SyncStatus { try await inner.syncStatus() }
+}
+
+@Test @MainActor func screenStateSurfacesYazioAuthExpiredFromASection() async throws {
+    let vm = TodayViewModel(provider: YazioExpiredGateProvider(), cache: OfflineCache(db: try AppDatabase.inMemory()))
+    await vm.load()
+    #expect(vm.screenState == .yazioAuthExpired(detail: "token stale"))
+    #expect(vm.morning != nil)   // gate failed, but morning/recovery still populated — not blanked
+}
+
+@Test @MainActor func screenStateFlagsStaleVerdictDateWhenNowIsALaterDayThanTheVerdict() async throws {
+    // Fixture `planning_morning.json` carries `verdict_date: "2026-09-12"`.
+    let later = try #require(ISO8601DateFormatter().date(from: "2026-09-13T08:00:00Z"))
+    let vm = TodayViewModel(provider: FlakyProvider(failing: false), cache: OfflineCache(db: try AppDatabase.inMemory()), now: { later })
+    await vm.load()
+    #expect(vm.phase == .loaded)
+    #expect(vm.screenState == .staleVerdictDate("2026-09-12"))
+}
+
+@Test @MainActor func screenStateStaysLoadedWhenNowMatchesTheVerdictDate() async throws {
+    let sameDay = try #require(ISO8601DateFormatter().date(from: "2026-09-12T08:00:00Z"))
+    let vm = TodayViewModel(provider: FlakyProvider(failing: false), cache: OfflineCache(db: try AppDatabase.inMemory()), now: { sameDay })
+    await vm.load()
+    #expect(vm.screenState == .loaded)
+}
