@@ -34,10 +34,10 @@ struct RootTabView: View {
                 TabTransition(selection: selectedTab, content: tabContent)
                 TabView(selection: $selectedTab) {
                     Tab("Today", systemImage: "sun.max", value: RootTab.today) {
-                        Color.clear.allowsHitTesting(false)
+                        transparentTabContent
                     }
                     Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
-                        Color.clear.allowsHitTesting(false)
+                        transparentTabContent
                     }
                 }
             }
@@ -62,6 +62,19 @@ struct RootTabView: View {
                 recoveryModel = nil
             }
         }
+    }
+
+    /// Per-tab placeholder for the chrome-only `TabView`. `Color.clear.allowsHitTesting(false)`
+    /// alone is NOT enough on iOS 27: the native `TabView` is a `UITabBarController` whose UIKit
+    /// views (a) paint an opaque `systemBackground`, which covered the whole `TabTransition` layer
+    /// with solid black, and (b) return themselves from `hitTest`, which swallowed every tap and
+    /// scroll before it could reach the content behind. Both were found in the W2b close-out
+    /// simulator smoke (empty screens, dead tiles). `TabHostPassThrough` fixes both from inside the
+    /// tab's UIKit hierarchy — see its doc comment.
+    private var transparentTabContent: some View {
+        Color.clear
+            .background(TabHostPassThrough())
+            .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -140,5 +153,84 @@ private struct KpiDetailStubView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(JIColor.bg)
+    }
+}
+
+// MARK: - Chrome-only TabView plumbing
+
+/// Zero-size, non-interactive marker view placed inside each tab's content. On attach it walks its
+/// UIKit ancestors up to the `UITabBarController`'s root view and:
+///   1. clears every `backgroundColor` on the way (the content behind must show through, and the
+///      glass tab bar must sample it);
+///   2. disables user interaction on the tab's content container (everything under the root view
+///      except the tab bar itself), so nothing there can claim a touch;
+///   3. installs `PassThroughHitTest` on the root view and on the SwiftUI platform host wrapping
+///      it, so a touch that does not land on an enabled subview (= the tab bar) falls through to
+///      the `TabTransition` layer behind instead of being absorbed by a plain `UIView`.
+/// UIKit class names in the chain are private and unstable; nothing here matches on them — only
+/// on "ancestor of the placeholder" and "the view whose next responder is the tab controller".
+private struct TabHostPassThrough: UIViewRepresentable {
+    func makeUIView(context: Context) -> MarkerView {
+        let view = MarkerView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: MarkerView, context: Context) {}
+
+    final class MarkerView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard window != nil else { return }
+            var child: UIView = self
+            var ancestor = superview
+            while let view = ancestor {
+                view.backgroundColor = .clear
+                if view.next is UITabBarController {
+                    child.isUserInteractionEnabled = false          // content container, not the bar
+                    PassThroughHitTest.install(on: view)             // tab controller root view
+                    if let host = view.superview { PassThroughHitTest.install(on: host) } // SwiftUI platform host
+                    break
+                }
+                child = view
+                ancestor = view.superview
+            }
+        }
+    }
+}
+
+/// Swaps a view's class for a runtime subclass whose `hitTest(_:with:)` only ever returns a hit
+/// from an enabled, visible subview — never the view itself. Idempotent per class; the subclass
+/// adds nothing else, so every other behaviour of the instance is unchanged.
+private enum PassThroughHitTest {
+    static func install(on view: UIView) {
+        let base: AnyClass = type(of: view)
+        let name = "JIPassThrough_" + NSStringFromClass(base)
+        if NSStringFromClass(base).hasPrefix("JIPassThrough_") { return }
+        let subclass: AnyClass
+        if let existing = NSClassFromString(name) {
+            subclass = existing
+        } else {
+            guard let created = objc_allocateClassPair(base, name, 0) else { return }
+            let selector = #selector(UIView.hitTest(_:with:))
+            let block: @convention(block) (UIView, CGPoint, UIEvent?) -> UIView? = { view, point, event in
+                MainActor.assumeIsolated {
+                    guard view.isUserInteractionEnabled, !view.isHidden, view.alpha > 0.01,
+                          view.point(inside: point, with: event) else { return nil }
+                    for subview in view.subviews.reversed() {
+                        let local = subview.convert(point, from: view)
+                        if let hit = subview.hitTest(local, with: event) { return hit }
+                    }
+                    return nil
+                }
+            }
+            let imp = imp_implementationWithBlock(block)
+            let types = method_getTypeEncoding(class_getInstanceMethod(base, selector)!)
+            class_addMethod(created, selector, imp, types)
+            objc_registerClassPair(created)
+            subclass = created
+        }
+        object_setClass(view, subclass)
     }
 }
