@@ -1,4 +1,5 @@
 # CONTEXT-IOS-FOUNDATION.md
+frozen-at: 7de66dd (W2a merge, tag swift-w2a-foundation) — refs_lint checks this is an ancestor of the wave branch
 
 Frozen record of the W0/W1 native Swift JournalInsight foundation, verbatim from the code at commit `2f80086` (tag `swift-w1-foundation`, since merged to `main`). Read this before writing any W2+ code.
 
@@ -302,24 +303,16 @@ Hub-only bootstrap: `apply` always constructs `HubDataProvider` — `MockDataPro
 
 - `xcodegen generate` after **any** new file under `App/`/`AppTests/`; commit the regenerated `project.pbxproj`. SwiftPM sources are globbed automatically, but run it anyway — a build can "succeed" while silently excluding a new file.
 - **`App/Info.plist` is GENERATED from `project.yml`'s `targets.JournalInsight.info.properties` — never hand-edit it.** `UIUserInterfaceStyle`, ATS local networking, URL schemes all live in `project.yml`.
-- `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer` prefix on every `xcodebuild`/`xcodegen` call until Xcode 27 GA is installed and selected.
-- Package tests: `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer swift test --package-path Packages/<Name>`.
-- App/simulator: `DEVELOPER_DIR=.../Xcode-beta.app/Contents/Developer xcodebuild -project JournalInsight.xcodeproj -scheme JournalInsight -destination 'platform=iOS Simulator, name=iPhone 17 Pro' build|test`.
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` prefix on every `xcodebuild`/`xcodegen` call until Xcode 27 GA is installed and selected.
+- Package tests: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path Packages/<Name>`.
+- App/simulator: `DEVELOPER_DIR=.../Xcode.app/Contents/Developer xcodebuild -project JournalInsight.xcodeproj -scheme JournalInsight -destination 'platform=iOS Simulator, name=iPhone 17 Pro' build|test`.
 - Device: `xcodebuild ... -destination 'platform=iOS,name=<device>' -allowProvisioningUpdates build`, then `xcrun devicectl device install app --device <udid> <path>.app` + `devicectl device process launch` (or Xcode ▶ Run).
 - Xcode 16+ ships app code in a separate debug dylib — `strings`/`nm` on `JournalInsight.app` show nothing useful; code lives in `JournalInsight.debug.dylib`.
 - `JournalInsightTests` (`bundle.unit-test`) currently reports target platform ios17.0 in build output — this is the Swift Testing library's own triple, not the app's/project's `27.0` deployment target, and needs no W2+ follow-up.
 
 ## 11. CLAUDE.md §Rules (verbatim)
 
-1. One branch per wave off `main`, PR into `main`, tag each close; never commit to `main` directly.
-2. Bundle id `toby913.JournalInsight`. Token only in the Keychain. `NSAllowsLocalNetworking` stays.
-3. Swift 6 language mode, strict concurrency. MainActor default isolation in JIDesign/JIFeatures/App; JICore/JIHub/JIPersistence stay nonisolated (§3). No `@unchecked Sendable` without a comment naming why.
-4. Named hub errors (`.unauthorized`, `.duplicate`, `.yazioAuthExpired`) are load-bearing UI contracts.
-5. Never render a zero for missing data: skeleton / "No data yet" / neutral error + retry / staleness banner.
-6. Green (`#4ade80`) is reserved for verdict, band, 0–100 score, status. Selection + CTA = info blue `#38bdf8`.
-7. Press-in scale 0.92 within 100 ms; every screen wave closes with `docs/DEVICE_RECORDING_PROTOCOL_IOS.md` recordings.
-8. `JICompute` (W6): no `Calendar.current`, `TimeZone.current`, `Date()`; Int128 is NOT enough for `PythonRound`.
-9. `legacy/` is a read-only donor (see legacy/README.md).
+Rules live only in `CLAUDE.md` at the repo root (injected in every worktree). Do not copy them here.
 
 ## 12. W1 gate results
 
@@ -327,7 +320,7 @@ Hub-only bootstrap: `apply` always constructs `HubDataProvider` — `MockDataPro
 
 Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 
-**Step 1 — one-time manual (agent cannot do these):** (1) Install Xcode 27 GA to `/Applications` first (today `/Applications/Xcode.app` is still 26.6); until then use `DEVELOPER_DIR=/Users/nihilus/Downloads/Xcode-beta.app/Contents/Developer`, which builds+tests fine. Once GA is installed, `sudo xcode-select -s /Applications/Xcode.app`. (2) Xcode → Settings → Accounts: paid Apple ID signed in; set the Team in Signing & Capabilities (XcodeGen leaves `DEVELOPMENT_TEAM` empty — after choosing it once, copy the team id into `project.yml` so regeneration keeps it). (3) iPhone: Developer Mode on (Settings → Privacy & Security), connected by cable or Wi-Fi pairing. (4) Hub reachable on the LAN: `start_api.sh` binds `0.0.0.0` (plan of record R0); note the Mac's LAN IP via `ipconfig getifaddr en0`.
+**Step 1 — one-time manual (agent cannot do these):** (1) Install Xcode 27 GA to `/Applications` first (today `/Applications/Xcode.app` is still 26.6); until then use `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, which builds+tests fine. Once GA is installed, `sudo xcode-select -s /Applications/Xcode.app`. (2) Xcode → Settings → Accounts: paid Apple ID signed in; set the Team in Signing & Capabilities (XcodeGen leaves `DEVELOPMENT_TEAM` empty — after choosing it once, copy the team id into `project.yml` so regeneration keeps it). (3) iPhone: Developer Mode on (Settings → Privacy & Security), connected by cable or Wi-Fi pairing. (4) Hub reachable on the LAN: `start_api.sh` binds `0.0.0.0` (plan of record R0); note the Mac's LAN IP via `ipconfig getifaddr en0`.
 
 **Step 2 — install and connect:** build+run on device; on the phone: Connection sheet → `http://<mac-ip>:8000` + token → Test → "Connected. Last sync: …" → Save. Expected: Today renders the same numbers as the RN app on the Fold (verdict word, readiness, HRV/RHR/sleep/steps). Screenshot both phones side by side into `output/feel/ios/w1/`.
 
