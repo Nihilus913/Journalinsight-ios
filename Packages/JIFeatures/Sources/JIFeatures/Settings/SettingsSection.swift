@@ -62,5 +62,6 @@ public enum SettingsRegistry {
         HealthSection(),
         PreferencesLinksSection(),
         DataLinksSection(),
+        AppearanceSection(),
     ]
 }
