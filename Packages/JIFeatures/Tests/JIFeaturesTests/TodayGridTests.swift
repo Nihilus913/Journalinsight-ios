@@ -60,3 +60,15 @@ import JIPersistence
 
     #expect(selected == ["hrv", "steps", "hrv"])
 }
+
+/// W4-L2 (P-mind): the Today Mind tile pushes `MindView` — exercised at the pure tap-seam level
+/// (mirrors `chipActionInvokesOnSelectKpiWithThatChipsId` above), since `TodayGrid`'s
+/// `.navigationDestination` itself needs a `NavigationStack`/rendering harness this test target
+/// doesn't have.
+@Test func mindTileActionInvokesOnOpenMind() {
+    var opened = 0
+    let action = mindTileTapAction(onOpenMind: { opened += 1 })
+    action()
+    action()
+    #expect(opened == 2)
+}

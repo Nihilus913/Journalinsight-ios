@@ -44,6 +44,12 @@ public nonisolated func chipTapAction(id: String, onSelectKpi: @escaping (String
     { onSelectKpi(id) }
 }
 
+/// W4-L2: wires the Mind tile's tap to opening the Mind screen. Same pure-seam pattern as
+/// `chipTapAction` above — testable without a SwiftUI test harness.
+public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> () -> Void {
+    { onOpenMind() }
+}
+
 /// Story 1: the full Today tile grid — the four `TodayViewModel.chips` (fixed default order
 /// hrv, rhr, sleep, steps) as `StatChip`s, plus the energy-availability `EAGatedTile` (not
 /// computable from the current source — rule 5's gated idiom, not a bare zero). B-7: no
@@ -57,18 +63,33 @@ public struct TodayGrid: View {
     let chips: [TodayChip]
     let prefs: PrefStore?
     let onSelectKpi: (String) -> Void
+    /// W4-L2 (P-mind): today's check-in, for the tile's summary line — data-only, no store
+    /// dependency, matching how `chips` is already passed in. Optional/defaulted so this stays
+    /// source-compatible with `TodayView.swift`'s existing call site (not owned by this lane).
+    let mindTodayCheckin: CheckIn?
+    /// W4-L2: builds the `MindViewModel` the tile pushes to. A factory (not a stored VM) since
+    /// `TodayGrid` itself doesn't own persistence wiring — the caller supplies one once it has a
+    /// `MindStore` trio to build with. `nil` (the default) renders the tile but wires no
+    /// navigation, which is what every current call site gets until integration supplies one.
+    let makeMindViewModel: (() -> MindViewModel)?
 
     @State private var order: [String] = []
     @State private var isReordering = false
     @State private var draggingID: String?
+    @State private var showMind = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    public init(chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void) {
+    public init(
+        chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void,
+        mindTodayCheckin: CheckIn? = nil, makeMindViewModel: (() -> MindViewModel)? = nil
+    ) {
         self.chips = chips
         self.prefs = prefs
         self.onSelectKpi = onSelectKpi
+        self.mindTodayCheckin = mindTodayCheckin
+        self.makeMindViewModel = makeMindViewModel
     }
 
     private var byID: [String: TodayChip] { Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) }) }
@@ -83,9 +104,39 @@ public struct TodayGrid: View {
                 }
             }
             EAGatedTile(label: "Energy availability")
+            mindTile
         }
         .onAppear { order = loadTileOrder(prefs: prefs, chipIDs: chips.map(\.id)) }
         .onChange(of: chips.map(\.id)) { _, ids in order = resolveTileOrder(chipIDs: ids, savedOrder: order.isEmpty ? nil : order) }
+        .navigationDestination(isPresented: $showMind) {
+            if let makeMindViewModel { MindView(model: makeMindViewModel()) }
+        }
+    }
+
+    /// E12-17 parity — the daily mind check-in promoted onto Today (oracle `MindTile.tsx`). Tap
+    /// opens the Mind screen (`.navigationDestination` above); RN's separate "chevron opens the
+    /// full screen without firing the check-in sheet" affordance collapses to one destination
+    /// here since this tile doesn't itself present the check-in sheet (that's `MindView`'s job).
+    private var mindTile: some View {
+        Button(action: mindTileTapAction(onOpenMind: { showMind = true })) {
+            Surface(level: 2, padding: 12) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("MIND").font(.caption.bold()).foregroundStyle(JIColor.mutedNested)
+                        if let checkin = mindTodayCheckin {
+                            Text("Checked in · stress \(checkin.stress)/5 · energy \(checkin.energy)/5")
+                                .font(.footnote).foregroundStyle(JIColor.text)
+                        } else {
+                            Text("How are you today?").font(.subheadline.bold()).foregroundStyle(JIColor.text)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(JIColor.mutedNested)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mindTodayCheckin != nil ? "Today's mind check-in — update" : "How are you today — daily check-in")
     }
 
     @ViewBuilder
