@@ -16,6 +16,9 @@ public protocol HealthStoreWriting: Sendable {
     /// `syncIdentifiers` — used to remove a v1 marker (generic `asleep` block, daily `steps`
     /// sample) a v2 write supersedes. A no-op for an empty set.
     func deleteObjects(sampleType: HKSampleType, syncIdentifiers: Set<String>) async throws
+    /// Associates already-built samples (active energy, distance) with a saved workout — what
+    /// makes Fitness credit the Move ring / Exercise minutes for a third-party workout.
+    func add(_ samples: [HKSample], to workout: HKWorkout) async throws
 }
 
 public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
@@ -51,6 +54,15 @@ public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
         guard !syncIdentifiers.isEmpty else { return }
         let predicate = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: Array(syncIdentifiers))
         _ = try await store.deleteObjects(of: sampleType, predicate: predicate)
+    }
+
+    public func add(_ samples: [HKSample], to workout: HKWorkout) async throws {
+        guard !samples.isEmpty else { return }
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            store.add(samples, to: workout) { _, error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
+            }
+        }
     }
 }
 #endif

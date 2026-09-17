@@ -55,22 +55,25 @@ import JIHub
         #expect(store.savedObjects.count == 3)
     }
 
-    @Test func resumesFromPersistedCursorAndSkipsCompletedRange() async throws {
+    @Test func resumesFromAMidRunCursorButACompletedRunWalksEverythingAgain() async throws {
         let store = FakeHealthStore()
         let defaults = testDefaults()
         let range = BackloadRange(from: day(2025, 5, 27), to: day(2025, 7, 17))
 
-        let first = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
-        _ = try await first.run(range) { _ in }
-        #expect(DynamicStubURLProtocol.requestedFroms.count == 6) // 3 chunks x (daily pass + dense pass)
+        // A killed run left the cursor at the end of June -> only July is fetched.
+        defaults.set("2025-06-30", forKey: "hk.backload.cursor")
+        defaults.set(HealthKitBackloader.writerVersion, forKey: "hk.backload.writerVersion") // not an upgrade
+        let resumed = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
+        _ = try await resumed.run(range) { _ in }
+        #expect(DynamicStubURLProtocol.requestedFroms.count == 2) // 1 chunk x (daily + dense)
+        #expect(defaults.string(forKey: "hk.backload.cursor") == nil)          // completed -> cleared
+        #expect(defaults.string(forKey: "hk.backload.lastCompletedDay") == "2025-07-17")
 
+        // Completed -> the next run walks all 3 chunks again (re-runs force-overwrite workouts).
         DynamicStubURLProtocol.reset()
         let second = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
-        let summary = try await second.run(range) { _ in }
-
-        #expect(DynamicStubURLProtocol.requestedFroms.isEmpty) // cursor already at range.to -> no chunks
-        #expect(summary.written == 0)
-        #expect(summary.skipped == 0)
+        _ = try await second.run(range) { _ in }
+        #expect(DynamicStubURLProtocol.requestedFroms.count == 6)
     }
 
     @Test func skipsSamplesTheFakeStoreAlreadyHolds() async throws {
@@ -231,6 +234,32 @@ import JIHub
             HKQuantityType(.respiratoryRate).identifier,
             HKQuantityType(.oxygenSaturation).identifier,
         ])
+    }
+
+    @Test func workoutsGetEnergyAndDistanceAttachedAndUpgradeDeletesTheOldObject() async throws {
+        let store = FakeHealthStore()
+        let defaults = testDefaults()
+        store.existing[HKWorkoutType.workoutType().identifier] = ["workout:1"] // written by writer v2
+        DynamicStubURLProtocol.customResponseJSON = """
+        {"from":"2026-06-01","to":"2026-06-30","source":"garmin_api","sleep":[],"rhr":[],"steps":[],"energy":[],"vo2max":[],
+         "workouts":[{"sync_id":"workout:1","start":"2026-06-02T07:00:00+02:00","end":"2026-06-02T07:30:00+02:00","kind":"running","name":"Base","kcal":300,"distance_m":5000,"avg_hr":150,"start_estimated":false}],
+         "heart_rate":[],"respiration":[],"spo2":[],"hrv":[],"step_buckets":[],"daily_resp":[],"daily_spo2":[]}
+        """
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
+        let range = BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 30))
+        let summary = try await loader.run(range) { _ in }
+        #expect(store.deletedSyncIds[HKWorkoutType.workoutType().identifier]?.contains("workout:1") == true)
+        let attached = store.associated["workout:1"] ?? []
+        #expect(attached.count == 2)
+        #expect(attached.contains { $0.sampleType == HKQuantityType(.activeEnergyBurned) })
+        #expect(attached.contains { $0.sampleType == HKQuantityType(.distanceWalkingRunning) })
+        #expect(summary.written == 3 && summary.failed.isEmpty)
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 3)
+        // second run: workouts are force-overwritten (deleted + re-saved), still exactly 2 attached
+        store.existing[HKWorkoutType.workoutType().identifier] = ["workout:1"]
+        let again = try await loader.run(range) { _ in }
+        #expect(again.written == 3 && (store.associated["workout:1"]?.count ?? 0) == 2)
+        #expect(store.savedObjects.filter { ($0.metadata?[HKMetadataKeySyncIdentifier] as? String) == "workout:1" }.count == 1)
     }
 }
 #endif

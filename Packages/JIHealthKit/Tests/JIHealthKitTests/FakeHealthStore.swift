@@ -8,6 +8,8 @@ final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
     var authorizationError: Error?
     private(set) var authorizationRequested = false
     private(set) var savedObjects: [HKObject] = []
+    /// workout sync id -> samples attached via `add(_:to:)`
+    private(set) var associated: [String: [HKSample]] = [:]
     /// Pre-seeded "already in HealthKit" sync ids, keyed by `HKSampleType.identifier`.
     var existing: [String: Set<String>] = [:]
     /// Sync ids `deleteObjects` was asked to remove, keyed by `HKSampleType.identifier`.
@@ -26,6 +28,11 @@ final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
         savedObjects.append(contentsOf: objects)
     }
 
+    func add(_ samples: [HKSample], to workout: HKWorkout) async throws {
+        let id = workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "?"
+        associated[id, default: []].append(contentsOf: samples)
+    }
+
     func deleteObjects(sampleType: HKSampleType, syncIdentifiers: Set<String>) async throws {
         guard !syncIdentifiers.isEmpty else { return }
         deletedSyncIds[sampleType.identifier, default: []].formUnion(syncIdentifiers)
@@ -33,6 +40,7 @@ final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
         // so a test asserting "written 0 second time" after a delete+rewrite stays meaningful.
         savedObjects.removeAll { ($0.metadata?[HKMetadataKeySyncIdentifier] as? String).map(syncIdentifiers.contains) == true }
         existing[sampleType.identifier]?.subtract(syncIdentifiers)
+        for id in syncIdentifiers { associated[id] = nil }
     }
 }
 #endif

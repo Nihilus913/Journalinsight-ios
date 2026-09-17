@@ -49,6 +49,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     }
 
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
+        // One-time upgrade: an older writer version walks the whole range again and rewrites
+        // the kinds that changed shape (v3: workouts). Everything else is skipped by sync id.
+        let storedVersion = cursorDefaults?.integer(forKey: Self.writerVersionKey) ?? 0
+        if storedVersion < Self.writerVersion { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
         let chunks = BackloadMonthChunker.chunks(for: range, resumeFrom: readCursor())
         var written = 0, skipped = 0
         var failed: [String] = []
@@ -98,11 +102,27 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             }
 
             var toSave: [HKObject] = []
+            var toAssociate: [(HKWorkout, [HKSample])] = []
             for entry in entries {
-                if existingByType[ObjectIdentifier(entry.type)]?.contains(entry.syncId) == true {
+                if let workout = entry.object as? HKWorkout {
+                    // Workouts are always force-overwritten (Toby 2026-09-17): delete the old
+                    // object + its associated samples by sync id, then re-save and re-attach —
+                    // never a duplicate, never a stale ring credit.
+                    try? await store.deleteObjects(sampleType: entry.type, syncIdentifiers: [entry.syncId])
+                    for sample in entry.associated {
+                        if let sid = sample.metadata?[HKMetadataKeySyncIdentifier] as? String {
+                            try? await store.deleteObjects(sampleType: sample.sampleType, syncIdentifiers: [sid])
+                        }
+                    }
+                    toSave.append(workout)
+                    if !entry.associated.isEmpty { toAssociate.append((workout, entry.associated)) }
+                } else if existingByType[ObjectIdentifier(entry.type)]?.contains(entry.syncId) == true {
                     skipped += 1
                 } else {
                     toSave.append(entry.object)
+                    if let workout = entry.object as? HKWorkout, !entry.associated.isEmpty {
+                        toAssociate.append((workout, entry.associated))
+                    }
                 }
             }
 
@@ -110,6 +130,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 do {
                     try await store.save(toSave)
                     written += toSave.count
+                    for (workout, samples) in toAssociate {
+                        do { try await store.add(samples, to: workout); written += samples.count }
+                        catch { failed.append((workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "workout") + ":associated") }
+                    }
                 } catch {
                     failed.append(contentsOf: toSave.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
                 }
@@ -119,6 +143,12 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             progress(BackloadProgress(monthIndex: index + 1, monthCount: chunks.count, written: written, skipped: skipped))
         }
 
+        cursorDefaults?.set(Self.writerVersion, forKey: Self.writerVersionKey)
+        // The cursor only resumes a killed run; a completed run clears it so the next tap walks the
+        // whole range again (workouts force-overwrite, other kinds skip by sync id). The UI shows
+        // `lastCompletedKey` instead.
+        if let done = cursorDefaults?.string(forKey: Self.cursorKey) { cursorDefaults?.set(done, forKey: Self.lastCompletedKey) }
+        cursorDefaults?.removeObject(forKey: Self.cursorKey)
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
     }
 
@@ -165,7 +195,17 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         let object: HKObject
         let type: HKSampleType
         let syncId: String
+        /// Samples to attach to `object` (an `HKWorkout`) after it is saved — see `HealthStoreWriting.add`.
+        var associated: [HKSample] = []
     }
+
+    /// Bumped when an already-written kind must be rewritten (HealthKit replaces objects whose
+    /// `HKMetadataKeySyncIdentifier` matches and whose `HKMetadataKeySyncVersion` is higher).
+    /// v3: workouts gain associated energy/distance samples so Fitness credits the rings.
+    static let writerVersion = 3
+    static let writerVersionKey = "hk.backload.writerVersion"
+    static let workoutSyncVersion = 3
+    static let lastCompletedKey = "hk.backload.lastCompletedDay"
 
     /// Custom metadata key for average heart rate on a workout — HealthKit has no standard
     /// per-workout average-HR metadata key (only per-sample `HKQuantitySample`s tied to a
@@ -224,7 +264,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
 
         case .workout(let w):
             let type = HKWorkoutType.workoutType()
-            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: syncVersion, HKMetadataKeyWorkoutBrandName: w.name]
+            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: workoutSyncVersion, HKMetadataKeyWorkoutBrandName: w.name]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
             if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
@@ -232,7 +272,20 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             let workout = HKWorkout(
                 activityType: activityType(w.kind), start: w.start, end: w.end,
                 workoutEvents: nil, totalEnergyBurned: energy, totalDistance: distance, metadata: metadata)
-            return [ObjectEntry(object: workout, type: type, syncId: w.syncId)]
+            // Associated samples: this is what Fitness sums into the Move ring (energy) and what
+            // the workout detail shows as distance. Sync ids derive from the workout's.
+            var associated: [HKSample] = []
+            if let energy {
+                associated.append(HKQuantitySample(
+                    type: HKQuantityType(.activeEnergyBurned), quantity: energy, start: w.start, end: w.end,
+                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):energy", HKMetadataKeySyncVersion: workoutSyncVersion]))
+            }
+            if let distance, let distanceType = distanceType(w.kind) {
+                associated.append(HKQuantitySample(
+                    type: distanceType, quantity: distance, start: w.start, end: w.end,
+                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: workoutSyncVersion]))
+            }
+            return [ObjectEntry(object: workout, type: type, syncId: w.syncId, associated: associated)]
 
         case .delete:
             return [] // handled in `run` before mapping to objects, never saved
@@ -296,8 +349,19 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         }
     }
 
+    /// Distance type a workout kind's distance is attached as; `nil` = no distance sample.
+    static func distanceType(_ kind: BackloadWorkoutKind) -> HKQuantityType? {
+        switch kind {
+        case .running, .walking, .hiking: return HKQuantityType(.distanceWalkingRunning)
+        case .cycling: return HKQuantityType(.distanceCycling)
+        case .swimming: return HKQuantityType(.distanceSwimming)
+        default: return nil
+        }
+    }
+
     static var allSampleTypes: Set<HKSampleType> {
         [
+            HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling), HKQuantityType(.distanceSwimming),
             HKQuantityType(.restingHeartRate), HKQuantityType(.stepCount),
             HKQuantityType(.activeEnergyBurned), HKQuantityType(.basalEnergyBurned),
             HKQuantityType(.vo2Max), HKCategoryType(.sleepAnalysis), HKWorkoutType.workoutType(),
