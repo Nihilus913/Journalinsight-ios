@@ -50,6 +50,15 @@ public final class HealthPermissionViewModel {
         permission = await requestPermission()
     }
 
+    /// Externally-driven update (B-13, `AppEnvironment.makeHealthPermissionModel`): a fresh
+    /// lookup of the real HealthKit status, run without prompting the user (unlike `connect()`,
+    /// which triggers the OS permission sheet). Lets the model start honestly at
+    /// `.notDetermined` and correct itself once the async HealthKit lookup returns, instead of
+    /// blocking construction on it.
+    public func adopt(_ permission: HKPermission) {
+        self.permission = permission
+    }
+
     /// True when `capability` is NOT in the Apple Watch T2 set — the tile should render as
     /// gated (`EAGatedTile`) rather than a value or a bare zero.
     public func isGated(_ capability: DataCapability) -> Bool {
@@ -57,11 +66,14 @@ public final class HealthPermissionViewModel {
     }
 
     /// Pure, testable copy for each permission state — denied is never described as "no data";
-    /// it names the exact Settings path (wave card exit criterion).
+    /// it names the exact Settings path (wave card exit criterion). HealthKit never confirms a
+    /// read denial (see `JIHealthKit.HKPermission` doc comment) — `.granted` copy says so
+    /// explicitly rather than promising an instant checkmark: the proof is data arriving after
+    /// the first sync, not a HealthKit-reported "yes".
     public static func statusCopy(for permission: HKPermission) -> String {
         switch permission {
         case .granted:
-            "Apple Health connected."
+            "Apple Health connected — Watch data appears after the first sync. If nothing arrives, check Health › Sharing › Apps."
         case .denied:
             "Health read access was declined; open Health › Sharing › Apps."
         case .notDetermined:

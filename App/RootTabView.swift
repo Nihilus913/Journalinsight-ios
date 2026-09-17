@@ -5,7 +5,7 @@ import JIFeatures
 import JIHub
 
 enum RootTab: Hashable {
-    case today, recovery
+    case today, recovery, energy, nutrition, training
 }
 
 struct RootTabView: View {
@@ -16,6 +16,12 @@ struct RootTabView: View {
     @State private var showConnection = false
     @State private var todayModel: TodayViewModel?
     @State private var recoveryModel: RecoveryViewModel?
+    // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
+    // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
+    // tab shell around them and never edits their owned files.
+    @State private var energyModel: EnergyViewModel?
+    @State private var nutritionModel: NutritionViewModel?
+    @State private var trainingModel: TrainingViewModel?
     @State private var selectedTab: RootTab = .today
     @State private var path: [RootRoute] = []
 
@@ -37,6 +43,15 @@ struct RootTabView: View {
                         transparentTabContent
                     }
                     Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
+                        transparentTabContent
+                    }
+                    Tab("Energy", systemImage: "flame", value: RootTab.energy) {
+                        transparentTabContent
+                    }
+                    Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
+                        transparentTabContent
+                    }
+                    Tab("Training", systemImage: "dumbbell", value: RootTab.training) {
                         transparentTabContent
                     }
                 }
@@ -95,6 +110,9 @@ struct RootTabView: View {
         switch tab {
         case .today: todayTab
         case .recovery: recoveryTab
+        case .energy: energyTab
+        case .nutrition: nutritionTab
+        case .training: trainingTab
         }
     }
 
@@ -133,6 +151,73 @@ struct RootTabView: View {
             }
         } else {
             connectionPrompt
+        }
+    }
+
+    // W3a L4 (B-13 card, tab shell): each new tab casts the hub provider to that screen's own
+    // `<Screen>Providing` protocol (JICore, owned by L1/L2/L3, frozen `HealthDataProvider` +
+    // siblings this wave). A cast failure — e.g. a `MockDataProvider` build that hasn't picked up
+    // a given lane's conformance yet — renders `ContentUnavailableView`, never a blank tab
+    // (CLAUDE.md rule 5: no silent empty state).
+    @ViewBuilder
+    private var energyTab: some View {
+        if let store = env.providerStore {
+            if let provider = store.provider as? any EnergyProviding {
+                if let energyModel {
+                    EnergyView(model: energyModel)
+                } else {
+                    ProgressView()
+                        .task { energyModel = EnergyViewModel(provider: provider, cache: env.cache, now: Date.init) }
+                }
+            } else {
+                screenUnavailable(title: "Energy unavailable", systemImage: "flame")
+            }
+        } else {
+            connectionPrompt
+        }
+    }
+
+    @ViewBuilder
+    private var nutritionTab: some View {
+        if let store = env.providerStore {
+            if let provider = store.provider as? any NutritionProviding {
+                if let nutritionModel {
+                    NutritionView(model: nutritionModel)
+                } else {
+                    ProgressView()
+                        .task { nutritionModel = NutritionViewModel(provider: provider, cache: env.cache, now: Date.init) }
+                }
+            } else {
+                screenUnavailable(title: "Nutrition unavailable", systemImage: "fork.knife")
+            }
+        } else {
+            connectionPrompt
+        }
+    }
+
+    @ViewBuilder
+    private var trainingTab: some View {
+        if let store = env.providerStore {
+            if let provider = store.provider as? any TrainingProviding {
+                if let trainingModel {
+                    TrainingView(model: trainingModel)
+                } else {
+                    ProgressView()
+                        .task { trainingModel = TrainingViewModel(provider: provider, healthProvider: store.provider, cache: env.cache, now: Date.init) }
+                }
+            } else {
+                screenUnavailable(title: "Training unavailable", systemImage: "dumbbell")
+            }
+        } else {
+            connectionPrompt
+        }
+    }
+
+    private func screenUnavailable(title: String, systemImage: String) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
+            Text("This hub connection doesn't support this screen yet.")
         }
     }
 
