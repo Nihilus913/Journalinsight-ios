@@ -3,9 +3,11 @@ import JICore
 import JIDesign
 import JIFeatures
 import JIHub
+import JIPersistence
+import JIVault
 
 enum RootTab: Hashable {
-    case today, recovery, energy, nutrition, training
+    case today, journal, recovery, energy, nutrition, training
 }
 
 struct RootTabView: View {
@@ -22,6 +24,14 @@ struct RootTabView: View {
     @State private var energyModel: EnergyViewModel?
     @State private var nutritionModel: NutritionViewModel?
     @State private var trainingModel: TrainingViewModel?
+    // W4-L1 (P-journal): on-device only, no hub. `journalDB`/`journalVault` are built once, lazily,
+    // the first time the Journal tab is opened (never blocks app launch on a Keychain hit); the DB
+    // opens the same backed-up `journalinsight.sqlite` file `env.prefs` already uses (AppDatabase.
+    // onDisk()'s default name) — GRDB's `DatabasePool` supports multiple pool instances against one
+    // file, same as `prefs`/`cache` already being separate pools today.
+    @State private var journalDB: AppDatabase?
+    @State private var journalVault: VaultManager?
+    @State private var journalModel: JournalViewModel?
     @State private var selectedTab: RootTab = .today
     @State private var path: [RootRoute] = []
 
@@ -40,6 +50,9 @@ struct RootTabView: View {
                 TabTransition(selection: selectedTab, content: tabContent)
                 TabView(selection: $selectedTab) {
                     Tab("Today", systemImage: "sun.max", value: RootTab.today) {
+                        transparentTabContent
+                    }
+                    Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
                         transparentTabContent
                     }
                     Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
@@ -114,6 +127,7 @@ struct RootTabView: View {
     private func tabContent(_ tab: RootTab) -> some View {
         switch tab {
         case .today: todayTab
+        case .journal: journalTab
         case .recovery: recoveryTab
         case .energy: energyTab
         case .nutrition: nutritionTab
@@ -139,6 +153,25 @@ struct RootTabView: View {
             }
         } else {
             connectionPrompt
+        }
+    }
+
+    // W4-L1 (P-journal): fully on-device, no `env.providerStore`/hub gate — the Journal tab is
+    // reachable even before a hub connection exists, unlike every W3a tab above.
+    @ViewBuilder
+    private var journalTab: some View {
+        NavigationStack {
+            if let journalModel {
+                JournalView(model: journalModel)
+            } else {
+                ProgressView()
+                    .task {
+                        let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+                        let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
+                        guard let db else { return }
+                        journalModel = JournalViewModel(db: db, vault: vault)
+                    }
+            }
         }
     }
 
