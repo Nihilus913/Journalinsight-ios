@@ -50,6 +50,39 @@ public enum HKSampleMapping {
         }
     }
 
+    /// One HAE point per LOCAL DAY: the arithmetic mean of that day's quantity samples, converted
+    /// to `unit` and dated at the day's local midnight. Used by the native-RMSSD metric (B-5),
+    /// whose hub column is a day average (`hae_bridge.py` averages `heart_rate_variability`
+    /// points the same way) — sending one point per sample would push per-reading noise over the
+    /// wire. Ordered by date so the envelope is deterministic. Non-quantity samples are skipped.
+    public static func dayAverage(unit: HKUnit, timeZone: @escaping @Sendable () -> TimeZone = { .current }) -> @Sendable ([HKSample]) -> [HAEDataPoint] {
+        { samples in
+            let zone = timeZone()
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = zone
+            var byDay: [Date: (sum: Double, count: Int, source: String?)] = [:]
+            for case let q as HKQuantitySample in samples {
+                let day = cal.startOfDay(for: q.startDate)
+                let value = q.quantity.doubleValue(for: unit)
+                let existing = byDay[day]
+                byDay[day] = (
+                    sum: (existing?.sum ?? 0) + value,
+                    count: (existing?.count ?? 0) + 1,
+                    source: existing?.source ?? q.sourceRevision.source.name
+                )
+            }
+            return byDay
+                .sorted { $0.key < $1.key }
+                .map { day, acc in
+                    HAEDataPoint(
+                        date: HAEDate.format(day, timeZone: zone),
+                        qty: acc.sum / Double(acc.count),
+                        source: acc.source
+                    )
+                }
+        }
+    }
+
     /// `sleep_analysis`: one point per night. Groups `inBed`/asleep-stage category samples by the
     /// calendar day of their END time (a night ending the morning of day D belongs to D, matching
     /// how the contract's per-night `sleepEnd` is read), sums each stage's duration in hours, and
@@ -88,6 +121,46 @@ public enum HKSampleMapping {
                 )
             }
         }
+    }
+}
+
+/// B-5 native-RMSSD wiring. The RMSSD `HKSampleType` is NEVER resolved here — it comes from
+/// `HKReadKind.hrvRMSSD` (`HKTypes.swift` is the only file in `Sources/JIHealthKit` allowed to
+/// name HK identifiers, and it resolves RMSSD by raw string to dodge the iOS 27.0 simulator dyld
+/// crash). On an OS without the type that lookup is `nil`, so the factory is `nil` too and the
+/// uploader's spec list — and therefore the outgoing envelope — is simply unchanged.
+extension HKMetricSpec {
+    /// The `heart_rate_variability_rmssd` metric spec, or `nil` when the RMSSD type is
+    /// unavailable on this OS. Day-average in milliseconds, matching the hub's column
+    /// (`core.daily_vitals.hrv_rmssd_ms`, dso_key 4) — the wire name is the frozen
+    /// `HAEMetricName.heartRateVariabilityRMSSD`.
+    public static func hrvRMSSDDayAverage(
+        sampleType: HKSampleType? = HKReadKind.hrvRMSSD.sampleType,
+        backgroundFrequency: HKUpdateFrequency = .hourly,
+        timeZone: @escaping @Sendable () -> TimeZone = { .current }
+    ) -> HKMetricSpec? {
+        guard let sampleType else { return nil }
+        return HKMetricSpec(
+            sampleType: sampleType,
+            metricName: HAEMetricName.heartRateVariabilityRMSSD,
+            units: "ms",
+            backgroundFrequency: backgroundFrequency,
+            mapSamples: HKSampleMapping.dayAverage(unit: .secondUnit(with: .milli), timeZone: timeZone)
+        )
+    }
+}
+
+extension Array where Element == HKMetricSpec {
+    /// Appends the native-RMSSD spec when this OS exposes the type, and returns `self` untouched
+    /// otherwise — the one call the app's spec list needs (`App/AppEnvironment.swift`, wired by a
+    /// later row; this lane owns only `JIHealthKit`).
+    public func appendingNativeRMSSD(
+        sampleType: HKSampleType? = HKReadKind.hrvRMSSD.sampleType,
+        backgroundFrequency: HKUpdateFrequency = .hourly,
+        timeZone: @escaping @Sendable () -> TimeZone = { .current }
+    ) -> [HKMetricSpec] {
+        guard let spec = HKMetricSpec.hrvRMSSDDayAverage(sampleType: sampleType, backgroundFrequency: backgroundFrequency, timeZone: timeZone) else { return self }
+        return self + [spec]
     }
 }
 
