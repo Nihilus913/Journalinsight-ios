@@ -42,6 +42,15 @@ struct RootTabView: View {
                 }
             }
             .background(JIColor.bg)
+            // W2i: the connection sheet used to be reachable only before a hub was configured or
+            // from the Today error card — once connected, Settings (incl. the Health backload)
+            // had no entry point. Keep it one tap away from every tab.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showConnection = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Settings")
+                }
+            }
             .navigationDestination(for: RootRoute.self) { route in
                 switch route {
                 case .kpiDetail(let metric): KpiDetailStubView(metric: metric)
