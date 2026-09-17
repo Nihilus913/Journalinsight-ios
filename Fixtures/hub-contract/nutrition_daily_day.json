@@ -1,0 +1,59 @@
+{
+  "activities": [],
+  "date": "2026-09-11",
+  "exercise_sets": [],
+  "meals": {
+    "breakdown": {
+      "breakfast": 385.6,
+      "dinner": null,
+      "lunch": 643.2,
+      "snack": null
+    },
+    "items": {
+      "breakfast": [
+        {
+          "amount_g": 90.0,
+          "carbs_g": 43.6,
+          "fat_g": 19.2,
+          "kcal": 381.6,
+          "name": "Crunchy roll",
+          "protein_g": 7.7
+        },
+        {
+          "amount_g": 200.0,
+          "carbs_g": 0.6,
+          "fat_g": null,
+          "kcal": 4.0,
+          "name": "Schwarzer Kaffee",
+          "protein_g": 0.4
+        }
+      ],
+      "lunch": [
+        {
+          "amount_g": 380.0,
+          "carbs_g": 53.2,
+          "fat_g": 34.2,
+          "kcal": 642.2,
+          "name": "Salmone al Limone",
+          "protein_g": 28.1
+        },
+        {
+          "amount_g": 500.0,
+          "carbs_g": null,
+          "fat_g": null,
+          "kcal": 1.0,
+          "name": "Coca Cola Zero",
+          "protein_g": null
+        }
+      ]
+    },
+    "total": {
+      "carbs_g": 97.4,
+      "fat_g": 53.4,
+      "kcal": 1028.8,
+      "kcal_goal": 1800.0,
+      "meals_logged": 2,
+      "protein_g": 36.3
+    }
+  }
+}

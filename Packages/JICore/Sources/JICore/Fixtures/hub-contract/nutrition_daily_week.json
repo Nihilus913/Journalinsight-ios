@@ -1,0 +1,11 @@
+{
+  "days": [
+    { "date": "2026-09-11", "kcal_consumed": 1028.8, "kcal_goal": 1800.0, "protein_g": 36.3, "carbs_g": 97.4, "fat_g": 53.4, "meals_logged": 2 },
+    { "date": "2026-09-10", "kcal_consumed": 1492.9, "kcal_goal": 1800.0, "protein_g": 121.2, "carbs_g": 142.8, "fat_g": 21.3, "meals_logged": 3 },
+    { "date": "2026-09-09", "kcal_consumed": 2840.5, "kcal_goal": 1800.0, "protein_g": 163.6, "carbs_g": 256.2, "fat_g": 124.9, "meals_logged": 3 },
+    { "date": "2026-09-08", "kcal_consumed": 1117.4, "kcal_goal": 1800.0, "protein_g": 124.3, "carbs_g": 83.3, "fat_g": 24.4, "meals_logged": 2 },
+    { "date": "2026-09-07", "kcal_consumed": 1587.8, "kcal_goal": 1800.0, "protein_g": 163.7, "carbs_g": 104.0, "fat_g": 54.5, "meals_logged": 2 },
+    { "date": "2026-09-06", "kcal_consumed": null, "kcal_goal": null, "protein_g": null, "carbs_g": null, "fat_g": null, "meals_logged": null },
+    { "date": "2026-09-05", "kcal_consumed": null, "kcal_goal": null, "protein_g": null, "carbs_g": null, "fat_g": null, "meals_logged": null }
+  ]
+}
