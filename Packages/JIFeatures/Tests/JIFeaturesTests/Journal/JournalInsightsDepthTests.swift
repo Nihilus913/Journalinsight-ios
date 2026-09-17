@@ -3,7 +3,7 @@ import Foundation
 import JIPersistence
 @testable import JIFeatures
 
-private func e(_ id: Int64, _ date: String, _ ts: String, _ dur: Int = 300, _ mood: Mood? = nil) -> Entry {
+private func e(_ id: Int64, _ date: String, _ ts: String, _ dur: Int = 300, _ mood: JIFeatures.Mood? = nil) -> Entry {
     Entry(id: id, date: date, ts: ts, text: "x", durationSec: dur, mood: mood?.rawValue, tags: [])
 }
 

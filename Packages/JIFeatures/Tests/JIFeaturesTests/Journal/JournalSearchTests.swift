@@ -2,7 +2,7 @@ import Testing
 import JIPersistence
 @testable import JIFeatures
 
-private func e(_ id: Int64, _ text: String, _ mood: Mood?, _ tags: [String]) -> Entry {
+private func e(_ id: Int64, _ text: String, _ mood: JIFeatures.Mood?, _ tags: [String]) -> Entry {
     Entry(id: id, date: "2026-08-0\(id)", ts: "2026-08-0\(id)T08:00:00.000Z", text: text, durationSec: 300, mood: mood?.rawValue, tags: tags)
 }
 

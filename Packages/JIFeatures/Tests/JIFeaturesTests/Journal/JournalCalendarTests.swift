@@ -82,7 +82,7 @@ private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
 }
 
 @Suite struct JournalCalendarInsightsTests {
-    private func e(_ id: Int64, _ date: String, _ mood: Mood?, _ dur: Int = 300) -> Entry {
+    private func e(_ id: Int64, _ date: String, _ mood: JIFeatures.Mood?, _ dur: Int = 300) -> Entry {
         Entry(id: id, date: date, ts: date + "T08:00:00", text: "x", durationSec: dur, mood: mood?.rawValue, tags: [])
     }
 

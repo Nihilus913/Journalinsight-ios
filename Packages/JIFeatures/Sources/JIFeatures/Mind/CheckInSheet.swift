@@ -14,7 +14,7 @@ public struct CheckInSheet: View {
     @Bindable var model: MindViewModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mood: Mood?
+    @State private var mood: JIPersistence.Mood?
     @State private var stress: Int?
     @State private var energy: Int?
     @State private var note: String = ""
@@ -33,9 +33,9 @@ public struct CheckInSheet: View {
             Form {
                 Section("How's your mood?") {
                     Picker("Mood", selection: $mood) {
-                        Text("—").tag(Mood?.none)
-                        ForEach(Mood.allCases, id: \.self) { m in
-                            Text("\(m.emoji) \(m.rawValue.capitalized)").tag(Mood?.some(m))
+                        Text("—").tag(JIPersistence.Mood?.none)
+                        ForEach(JIPersistence.Mood.allCases, id: \.self) { m in
+                            Text("\(m.emoji) \(m.rawValue.capitalized)").tag(JIPersistence.Mood?.some(m))
                         }
                     }
                 }
