@@ -59,12 +59,14 @@ final class AppEnvironment {
     ///
     /// `[weak self]` only — the closures are owned by the VMs, not by `self`, so there is no
     /// retain cycle to worry about the other way.
-    func bind(today: TodayViewModel, recovery: RecoveryViewModel) {
-        today.onSectionUpdate = { [weak self, weak today, weak recovery] in
+    func bind(today: TodayViewModel?, recovery: RecoveryViewModel?) {
+        // Either side may be nil: the tabs build their view models lazily, so this is called
+        // after each construction and re-binds whichever pair exists at that moment.
+        today?.onSectionUpdate = { [weak self, weak today, weak recovery] in
             guard let self, let today else { return }
             self.publishSnapshot(today: today, recovery: recovery)
         }
-        recovery.onSectionUpdate = { [weak self, weak today, weak recovery] in
+        recovery?.onSectionUpdate = { [weak self, weak today, weak recovery] in
             guard let self, let recovery else { return }
             self.publishSnapshot(today: today, recovery: recovery)
         }

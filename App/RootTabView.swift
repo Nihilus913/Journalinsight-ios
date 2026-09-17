@@ -96,7 +96,10 @@ struct RootTabView: View {
                 )
             } else {
                 ProgressView()
-                    .task { todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs) }
+                    .task {
+                        todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
+                        env.bind(today: todayModel, recovery: recoveryModel)
+                    }
             }
         } else {
             connectionPrompt
@@ -110,7 +113,10 @@ struct RootTabView: View {
                 RecoveryView(model: recoveryModel)
             } else {
                 ProgressView()
-                    .task { recoveryModel = RecoveryViewModel(provider: store.provider, cache: env.cache) }
+                    .task {
+                        recoveryModel = RecoveryViewModel(provider: store.provider, cache: env.cache)
+                        env.bind(today: todayModel, recovery: recoveryModel)
+                    }
             }
         } else {
             connectionPrompt
