@@ -64,17 +64,22 @@ public struct ConnectionSheet: View {
     /// Optional (W2d, L3): nil hides the section (previews / no HealthKit read path wired yet).
     /// `AppEnvironment` constructs the real one from L1/L2's uploader + permission request.
     private let healthPermissionModel: HealthPermissionViewModel?
+    /// Optional (W4, L4): nil hides the "Backup & restore" row (previews / vault not unlocked
+    /// yet). `AppEnvironment` constructs the real one from the vault's session cipher.
+    private let backupModel: BackupViewModel?
     @Environment(\.dismiss) private var dismiss
 
     public init(
         store: ConnectionConfigStore,
         backloadModel: HealthBackloadViewModel? = nil,
         healthPermissionModel: HealthPermissionViewModel? = nil,
+        backupModel: BackupViewModel? = nil,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
         _model = State(initialValue: ConnectionSheetModel(store: store))
         self.backloadModel = backloadModel
         self.healthPermissionModel = healthPermissionModel
+        self.backupModel = backupModel
         self.onSaved = onSaved
     }
     public var body: some View {
@@ -96,6 +101,11 @@ public struct ConnectionSheet: View {
                 if let healthPermissionModel {
                     Section("Apple Watch (read)") {
                         HealthPermissionView(model: healthPermissionModel)
+                    }
+                }
+                if let backupModel {
+                    Section {
+                        NavigationLink("Backup & restore") { BackupView(model: backupModel) }
                     }
                 }
             }

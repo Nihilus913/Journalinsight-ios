@@ -1,0 +1,246 @@
+{
+  "passphrase": "test-pass",
+  "rawKeyHex": "821117509d0750044fdb16f21c1eac114936d270eba5a410e1c56282ea1b631c",
+  "archive": {
+    "format": "healthtraining-mobile-backup",
+    "schemaVersion": 1,
+    "appVersion": "1.18.2",
+    "exportedAt": "2026-09-10T08:00:00.000Z",
+    "tables": [
+      {
+        "file": "journal",
+        "table": "entries",
+        "rowCount": 2,
+        "checksum": "26a58ee7",
+        "rows": [
+          {
+            "id": 1,
+            "date": "2026-09-08",
+            "ts": "2026-09-08T07:15:00.000Z",
+            "text": "htv1:224b2b55c97409c32c78a25232efe679:iGs3uKxX+SQR4y5PycFBIPwC0kAuKNfQ01HQHgYS+Fk=",
+            "duration_sec": 42,
+            "mood": "htv1:9d0cbcecd3d0947a1174385d3be3d9da:7IYhl6HtRQX1WTuAS8qriw==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "updated_at": "2026-09-10T08:00:00.000Z",
+            "synced": 0
+          },
+          {
+            "id": 2,
+            "date": "2026-09-09",
+            "ts": "2026-09-09T20:05:00.000Z",
+            "text": "htv1:3e33a16cc856b9b5f4826a092316c4c5:jypV9vrD6Nm+kFPUzoYEm2fTC88tyJItGhAwxq6KFLdGJ8VhOLbJwfcPbO3Gw7gM",
+            "duration_sec": 0,
+            "mood": "htv1:1c7dc022f41db777e03d1f1bad8f0765:W61R1iAv/KsbS8Bbnjmusg==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "updated_at": "2026-09-10T08:00:00.000Z",
+            "synced": 1
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "tags",
+        "rowCount": 2,
+        "checksum": "73f604dd",
+        "rows": [
+          {
+            "id": 1,
+            "name": "training"
+          },
+          {
+            "id": 2,
+            "name": "sleep"
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "entry_tags",
+        "rowCount": 2,
+        "checksum": "ffe950eb",
+        "rows": [
+          {
+            "entry_id": 1,
+            "tag_id": 2
+          },
+          {
+            "entry_id": 2,
+            "tag_id": 1
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "mind_checkin",
+        "rowCount": 2,
+        "checksum": "f07a0a54",
+        "rows": [
+          {
+            "date": "2026-09-08",
+            "mood": "htv1:e6720406e0a83d02ffbaf720071ed1fa:yU3qek1NyXoObBstDDU6ww==",
+            "stress": "htv1:f91cd1b18f364aeff34c56ba877e384f:4LDWhS5lskDpNhdj5eR8Gw==",
+            "energy": "htv1:56cdb1e60a6f981548a23d303769223d:kNC0wzY+VZOHQi1uEex3ow==",
+            "dosed": "htv1:94eabef54a5015c373bb9e9a4a4c6ec2:ajXrFB7DW3uX7FqjL1x6WQ==",
+            "irritability": "htv1:fdce73b15c96c8b2eae22e84c60ec0cb:v5f/JvDhd4x3Hkl8RUIVSQ==",
+            "restlessness": "htv1:5256a74d0ea84f7ceb6939fe2804430d:RttMB2RrJS+ihCqiBRwRig==",
+            "appetite": "htv1:5bb5187a023c30cc05e517cc26e5c2f1:j+MhkJu8NdicMcm1qKipqQ==",
+            "note": "htv1:5c628bb09b5761ad696793be223b4df8:saeOW6Qy78r6LBZDc8woyg==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "updated_at": "2026-09-10T08:00:00.000Z",
+            "synced": 0
+          },
+          {
+            "date": "2026-09-09",
+            "mood": "htv1:3f7d46b73191b7ea29e18381f81a915b:ptZtXQIK+QMxWj/kO4qceA==",
+            "stress": "htv1:f6f32bf20a065ba836a00b5af4e5fef4:7zpSkpZs3YkUfwc0B3W6Yw==",
+            "energy": "htv1:3658654b2dd36839239c7632d0e95e84:BkRcXz9jkwcRvDcRCv4LnA==",
+            "dosed": "htv1:5fd0abc860a81a0cc1546e9049bc1f9e:/H+6ACDzAsFYf7T+wJiO1A==",
+            "irritability": "htv1:18ffee80bdaad217dcc63ec8a0d09bcc:Yd67SP5Pt1o0E4QE+LSuwg==",
+            "restlessness": "htv1:a58e3bc12eb9bf95b22d2e72719c2ec6:bOMo2w/ACFm48ukQRoUh1A==",
+            "appetite": "htv1:cf170d4b3e50178e6cbe8001650fb650:KuP/IsPpOS/GbZcV+tXRDA==",
+            "note": "htv1:7660ed68c48e8aafea088a5d377f930a:hhfeo8lMydJ485Vb4Q+Eng==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "updated_at": "2026-09-10T08:00:00.000Z",
+            "synced": 1
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "mind_event",
+        "rowCount": 2,
+        "checksum": "6a1821e4",
+        "rows": [
+          {
+            "id": 1,
+            "date": "2026-09-08",
+            "time_local": "14:20",
+            "type": "htv1:a9d41ffbbdba3e79797d4387dc806ac4:3afQQCkB1ttB10TBsN6B2A==",
+            "severity": "htv1:2a74a731e4c2451c5a3e218d69c47c64:iwMXBZl0jf1uz5+iCgd3bg==",
+            "prodrome": "htv1:c5fdcc3442b74099151f4939269fa7c9:b3S71YoR6BGjH7zvIEVjwg==",
+            "triggers": "screen,noise",
+            "note": "htv1:e73a4a8820a81d5b5f680c5aad8ecd79:Ap8+Ctb2lq+1pOdkjOuvkA==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "synced": 0
+          },
+          {
+            "id": 2,
+            "date": "2026-09-09",
+            "time_local": "09:00",
+            "type": "htv1:c471e5b5437aee1e142efa604278c72a:7yuJ+w1fYSrFsiePPe3nfg==",
+            "severity": "htv1:ef8937608f073c5a18c8887cfc804fd5:JeJUvilnWdPK4wE8iFytHQ==",
+            "prodrome": "htv1:036f737aa20ab90086b26e002c84e0ff:iYIKXfuxC7gPKaFgiVX5Zw==",
+            "triggers": "",
+            "note": null,
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "synced": 1
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "mind_who5",
+        "rowCount": 2,
+        "checksum": "283e4717",
+        "rows": [
+          {
+            "id": 1,
+            "date": "2026-09-08",
+            "i1": "htv1:68e06190510cab6a32df1f7d205a329c:hjE41KN+gD8fH4pwqysodw==",
+            "i2": "htv1:e3c40afab9b8f0f4e4e30b59eb0b9c90:xbVRBywBvAAVmT4PcuxGbw==",
+            "i3": "htv1:17a80307b3055ffcb752cec50a4171b1:AH3g64MTH8TQEbq2eLEOBg==",
+            "i4": "htv1:5874812035c244ffbe1d54b88090957b:QO/eEJahIu5RWtD+mC3AIw==",
+            "i5": "htv1:86293b23a6ca0b0763cb7ee6308a292c:6gmbGV0LEbCxDbE5Fz4HVw==",
+            "raw": "htv1:f91d268812125d4a041716254229894a:GJknXAUY9m6OdGWyo715iw==",
+            "pct": "htv1:d4a52e8d8f7ae2842fe30cebda5b1d40:kO4qxH7qpjhBtkR4XrhOPg==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "synced": 0
+          },
+          {
+            "id": 2,
+            "date": "2026-09-01",
+            "i1": "htv1:e7ac9961975df6313ac5a379589c7998:hvaXZWODGW6UMPAnFY337w==",
+            "i2": "htv1:ee49ea98099a4a3b97158149b53e535e:vUoeGhvWb/F+Kz0aVxUJUQ==",
+            "i3": "htv1:24b89bc9a7361552aacf36b444fc4e99:6Nh+4dX0n5o0TUGYQXvXJA==",
+            "i4": "htv1:2389c4ae47ba606182cb6d4cbf08dbd4:gNWXdSpJ6M16y/jHPVymxA==",
+            "i5": "htv1:e496686852ea892ff2236fab362605b6:w76xEA8CMStAHUfzjoTa6g==",
+            "raw": "htv1:b08780f8820202a1633280f27a0b4400:2UizqciH2T6BoIeoNeUFDg==",
+            "pct": "htv1:8d1f96dbd3da24d842ba7ee346a27b9c:xQ7H1O2L30YyLTOBSIfWlg==",
+            "created_at": "2026-09-10T08:00:00.000Z",
+            "synced": 1
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "goals",
+        "rowCount": 2,
+        "checksum": "86cc354d",
+        "rows": [
+          {
+            "id": 1,
+            "title": "Hit 100kg deadlift",
+            "target_date": "2026-12-31",
+            "progress": 0.6,
+            "created_at": "2026-09-10T08:00:00.000Z"
+          },
+          {
+            "id": 2,
+            "title": "10k steps daily",
+            "target_date": null,
+            "progress": 0.8,
+            "created_at": "2026-09-10T08:00:00.000Z"
+          }
+        ]
+      },
+      {
+        "file": "journal",
+        "table": "goal_targets_mirror",
+        "rowCount": 1,
+        "checksum": "c7754394",
+        "rows": [
+          {
+            "id": 1,
+            "weight_base_kg": 82,
+            "weight_target_kg": 100,
+            "weight_target_date": "2026-12-31",
+            "strength_json": "{\"squat\":140}",
+            "steps_daily": 10000,
+            "kcal_goal": 2600,
+            "protein_g": 180,
+            "carbs_g": 280,
+            "fat_g": 80,
+            "synced_at": "2026-09-10T08:00:00.000Z"
+          }
+        ]
+      },
+      {
+        "file": "strength_state",
+        "table": "strength_state_local",
+        "rowCount": 1,
+        "checksum": "0dd402a0",
+        "rows": [
+          {
+            "exercise_id": 1,
+            "exercise_name": "Bench press",
+            "current_weight_kg": 80,
+            "progression_step_kg": 2.5,
+            "sets": 3,
+            "reps_target": 8,
+            "updated_at": "2026-09-10T08:00:00.000Z",
+            "synced": 1
+          }
+        ]
+      }
+    ],
+    "challengesCache": null,
+    "vaultKey": {
+      "version": 1,
+      "saltHex": "b3187132cf45fa3b264eb8fd36c40b17",
+      "ivHex": "89e80edb7b241afdea80904a3177c92c",
+      "iterations": 210000,
+      "ciphertextB64": "KDHBxuII4UCwhykWf9ECrL21YFNWLz3b0FqKfKub/LShVIO5W8Bi/20OG7WWft8C2ObHqk8+iJ0weh0jVIciwsWFk/ZvqW4kEGZWMB0CiJI=",
+      "macHex": "c1dd24a9031f5d16402c72e7d9f8d8da80adf35cc417aa00118d5a6f9d0c5cb9"
+    }
+  }
+}
