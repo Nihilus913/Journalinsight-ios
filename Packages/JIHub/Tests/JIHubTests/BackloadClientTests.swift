@@ -28,7 +28,7 @@ private let backloadFixtureJSON = """
 // why: two independent `.serialized` suites still raced on StubURLProtocol's process-global state).
 extension HubClientTests {
     @Test func backloadClientDecodesContractFixture() async throws {
-        StubURLProtocol.responses["/api/v1/health/backload"] = (200, Data(backloadFixtureJSON.utf8))
+        StubURLProtocol.responses["/api/v1/vitals/backload"] = (200, Data(backloadFixtureJSON.utf8))
         let client = BackloadClient(hub: HubClient(config: .init(baseURL: URL(string: "http://hub.test:8000")!, token: "t"), session: StubURLProtocol.session()))
 
         var zurich = Calendar(identifier: .gregorian)

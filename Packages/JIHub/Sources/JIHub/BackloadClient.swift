@@ -17,7 +17,7 @@ public struct BackloadClient: Sendable {
     }
 
     public func fetch(from: Date, to: Date) async throws -> BackloadResponseDTO {
-        try await hub.get("/api/v1/health/backload", query: [
+        try await hub.get("/api/v1/vitals/backload", query: [
             "from": Self.dayFormatter.string(from: from),
             "to": Self.dayFormatter.string(from: to),
         ])
