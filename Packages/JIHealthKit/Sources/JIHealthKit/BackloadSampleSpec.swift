@@ -10,6 +10,12 @@ public enum BackloadQuantityKind: Sendable, Equatable {
     case activeEnergyBurned // kcal
     case basalEnergyBurned  // kcal
     case vo2Max             // mL/(kg·min)
+    // v2 dense/daily-fallback kinds:
+    case heartRate          // count/min, `heartRate` HK type (distinct from `restingHeartRate`)
+    case respiratoryRate    // count/min (breaths/min)
+    case oxygenSaturation   // fraction 0–1
+    case hrvSDNN            // ms — `heartRateVariabilitySDNN`; Garmin RMSSD written under the
+                             // Apple SDNN type per the v2 contract, gated by `hk.backload.writeHRV`
 }
 
 public struct BackloadQuantitySampleSpec: Sendable, Equatable {
@@ -51,22 +57,62 @@ public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     public var kcal: Double?
     public var distanceM: Double?
     public var avgHr: Double?
-    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?) {
+    /// v2: true when `start` is the hub's 12:00 fallback rather than a real activity start.
+    public var startEstimated: Bool
+    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
-        self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr
+        self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
     }
+}
+
+public enum BackloadSleepStageKind: Sendable, Equatable {
+    case deep, light, rem, awake
+}
+
+public struct BackloadSleepStageSampleSpec: Sendable, Equatable {
+    public var syncId: String
+    public var stage: BackloadSleepStageKind
+    public var start: Date
+    public var end: Date
+    public init(syncId: String, stage: BackloadSleepStageKind, start: Date, end: Date) {
+        self.syncId = syncId; self.stage = stage; self.start = start; self.end = end
+    }
+}
+
+/// v2 staged sleep: `inBed` interval + per-stage intervals, emitted instead of `.sleep` when the
+/// hub returns non-empty `stages` for the night. The writer must delete the v1
+/// `<baseSyncId>:asleep` marker before saving these (see `BackloadWriteSpec.delete`) so a device
+/// that already ran v1 doesn't keep a stray generic-asleep block alongside the staged ones.
+public struct BackloadSleepStagedSampleSpec: Sendable, Equatable {
+    public var baseSyncId: String
+    public var inBedStart: Date
+    public var inBedEnd: Date
+    public var stages: [BackloadSleepStageSampleSpec]
+    public init(baseSyncId: String, inBedStart: Date, inBedEnd: Date, stages: [BackloadSleepStageSampleSpec]) {
+        self.baseSyncId = baseSyncId; self.inBedStart = inBedStart; self.inBedEnd = inBedEnd; self.stages = stages
+    }
+}
+
+/// A legacy object to delete before v2 writes proceed (see `HealthStoreWriting.deleteObjects`).
+public enum BackloadDeleteKind: Sendable, Equatable {
+    case sleepCategory  // legacy `<date>:asleep` marker, superseded by staged stage intervals
+    case stepQuantity   // legacy daily `steps:<date>` sample, superseded by 15-min buckets
 }
 
 public enum BackloadWriteSpec: Sendable, Equatable {
     case quantity(BackloadQuantitySampleSpec)
     case sleep(BackloadSleepSampleSpec)
+    case sleepStaged(BackloadSleepStagedSampleSpec)
     case workout(BackloadWorkoutSampleSpec)
+    case delete(kind: BackloadDeleteKind, syncId: String)
 
     public var syncId: String {
         switch self {
         case .quantity(let s): return s.syncId
         case .sleep(let s): return s.syncId
+        case .sleepStaged(let s): return s.baseSyncId
         case .workout(let s): return s.syncId
+        case .delete(_, let syncId): return syncId
         }
     }
 }

@@ -101,5 +101,97 @@ import JIHub
         }
         #expect(store.authorizationRequested)
     }
+
+    // MARK: - v2
+
+    private let stagedSleepJSON = """
+    {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api",
+     "sleep":[{"sync_id":"sleep:2026-06-01","start":"2026-06-01T22:00:00+02:00","end":"2026-06-02T06:00:00+02:00",
+       "asleep_sec":28000,"deep_sec":5000,"light_sec":15000,"rem_sec":4000,"awake_sec":800,
+       "stages":[{"stage":"light","start":"2026-06-01T22:00:00+02:00","end":"2026-06-01T23:00:00+02:00"}]}],
+     "rhr":[],"steps":[],"energy":[],"vo2max":[],"workouts":[]}
+    """
+
+    @Test func stagedSleepDeletesLegacyAsleepMarkerBeforeWritingStages() async throws {
+        let store = FakeHealthStore()
+        store.existing[HKCategoryType(.sleepAnalysis).identifier] = ["sleep:2026-06-01:asleep"]
+        DynamicStubURLProtocol.customResponseJSON = stagedSleepJSON
+        let backloader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await backloader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(store.deletedSyncIds[HKCategoryType(.sleepAnalysis).identifier] == ["sleep:2026-06-01:asleep"])
+        // inBed + 1 stage written; no generic `:asleep` object among them
+        let savedIds = store.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
+        #expect(Set(savedIds) == ["sleep:2026-06-01:inbed", "sleep:2026-06-01:st0"])
+        #expect(!savedIds.contains("sleep:2026-06-01:asleep"))
+        #expect(summary.written == 2)
+    }
+
+    private let stepBucketJSON = """
+    {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api",
+     "sleep":[],"rhr":[],
+     "steps":[{"sync_id":"steps:2026-06-01","date":"2026-06-01","count":9000}],
+     "energy":[],"vo2max":[],"workouts":[],
+     "step_buckets":[{"sync_id":"steps:2026-06-01:0000","start":"2026-06-01T00:00:00+02:00","end":"2026-06-01T00:15:00+02:00","count":40}]}
+    """
+
+    @Test func stepBucketsDeleteLegacyDailyStepsSample() async throws {
+        let store = FakeHealthStore()
+        store.existing[HKQuantityType(.stepCount).identifier] = ["steps:2026-06-01"]
+        DynamicStubURLProtocol.customResponseJSON = stepBucketJSON
+        let backloader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        _ = try await backloader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(store.deletedSyncIds[HKQuantityType(.stepCount).identifier] == ["steps:2026-06-01"])
+        let savedIds = store.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
+        #expect(savedIds == ["steps:2026-06-01:0000"])
+    }
+
+    private let hrvJSON = """
+    {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api",
+     "sleep":[],"rhr":[],"steps":[],"energy":[],"vo2max":[],"workouts":[],
+     "hrv":[{"sync_id":"hrv:2026-06-01","date":"2026-06-01","nightly_rmssd_ms":42.0,
+       "readings":[{"ts":"2026-06-01T23:00:00+02:00","rmssd_ms":40.0}]}]}
+    """
+
+    @Test func hrvIsSkippedByDefaultAndWrittenWhenPrefIsOn() async throws {
+        let storeOff = FakeHealthStore()
+        DynamicStubURLProtocol.customResponseJSON = hrvJSON
+        let off = HealthKitBackloader(hub: hubClient(), store: storeOff, defaults: testDefaults())
+        let summaryOff = try await off.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        #expect(summaryOff.written == 0)
+        #expect(storeOff.savedObjects.isEmpty)
+
+        DynamicStubURLProtocol.reset()
+        DynamicStubURLProtocol.customResponseJSON = hrvJSON
+        let storeOn = FakeHealthStore()
+        let defaultsOn = testDefaults()
+        defaultsOn.set(true, forKey: "hk.backload.writeHRV")
+        let on = HealthKitBackloader(hub: hubClient(), store: storeOn, defaults: defaultsOn)
+        let summaryOn = try await on.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        #expect(summaryOn.written == 1)
+        let savedIds = storeOn.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
+        #expect(savedIds == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00"])
+    }
+
+    @Test func heartRateRespirationSpo2WriteToTheirOwnQuantityTypes() async throws {
+        let store = FakeHealthStore()
+        DynamicStubURLProtocol.customResponseJSON = """
+        {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api",
+         "sleep":[],"rhr":[],"steps":[],"energy":[],"vo2max":[],"workouts":[],
+         "heart_rate":[{"ts":"2026-06-01T22:31:00+02:00","bpm":58}],
+         "respiration":[{"ts":"2026-06-01T22:31:00+02:00","brpm":14}],
+         "spo2":[{"ts":"2026-06-01T22:31:00+02:00","pct":96}]}
+        """
+        let backloader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await backloader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        #expect(summary.written == 3)
+        let types = Set(store.savedObjects.compactMap { ($0 as? HKSample)?.sampleType.identifier })
+        #expect(types == [
+            HKQuantityType(.heartRate).identifier,
+            HKQuantityType(.respiratoryRate).identifier,
+            HKQuantityType(.oxygenSaturation).identifier,
+        ])
+    }
 }
 #endif
