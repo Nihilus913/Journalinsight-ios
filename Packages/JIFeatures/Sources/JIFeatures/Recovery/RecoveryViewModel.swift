@@ -32,6 +32,10 @@ public final class RecoveryViewModel {
     private var everSynced = false
     private var neverSyncedObserved = false
 
+    /// W2c-L1 snapshot wiring seam — mirrors `TodayViewModel.onSectionUpdate` (see its doc comment
+    /// for why this stays a bare closure instead of a `JISnapshot` dependency here).
+    public var onSectionUpdate: (() -> Void)?
+
     public init(provider: any HealthDataProvider, cache: OfflineCache, now: @escaping () -> Date = Date.init) {
         self.provider = provider; self.cache = cache; self.now = now
     }
@@ -87,6 +91,7 @@ public final class RecoveryViewModel {
             days = hit.value; fetchedAt = hit.fetchedAt; everSynced = true
         }
         if !days.isEmpty { phase = .loaded }
+        if !days.isEmpty { onSectionUpdate?() }
     }
 
     private func fetchLive() async {
@@ -118,6 +123,7 @@ public final class RecoveryViewModel {
                 neverSyncedObserved = isEmpty && !hadEverSynced
                 phase = isEmpty ? .empty : .loaded
             }
+            onSectionUpdate?()
         } catch {
             // A tab switch cancels the view's `.task`; not a hub outage. Return to `.idle` so the
             // view reloads on next appearance instead of showing a false error — mirrors
@@ -126,6 +132,7 @@ public final class RecoveryViewModel {
             lastError = (error as? HubError) ?? .decoding("\(error)")
             hubReachable = true
             phase = days.isEmpty ? .error(Self.describe(error)) : .loaded
+            onSectionUpdate?()
         }
     }
 
