@@ -116,22 +116,6 @@ public final class TodayViewModel {
         ]
     }
 
-    /// Readiness driver bars (W2 spec §8) — always neutral (rule 6, enforced by `DriverBars`
-    /// itself, not here). Normalizes each chip's current value against its own recent sparkline
-    /// range rather than a hand-picked domain scale, since W1 has no calibrated per-metric bounds
-    /// yet; a chip with no data or a hub-missing source degrades to `sourceMissing`/nil, never 0.
-    public var driverBars: [DriverBar] {
-        chips.map { chip in
-            guard !chip.sourceMissing else { return DriverBar(id: chip.id, label: chip.label, value: nil, sourceMissing: true) }
-            guard let v = chip.value else { return DriverBar(id: chip.id, label: chip.label, value: nil, sourceMissing: false) }
-            let series = chip.points.compactMap { $0 } + [v]
-            guard let lo = series.min(), let hi = series.max(), hi > lo else {
-                return DriverBar(id: chip.id, label: chip.label, value: 0.5, sourceMissing: false)
-            }
-            return DriverBar(id: chip.id, label: chip.label, value: (v - lo) / (hi - lo), sourceMissing: false)
-        }
-    }
-
     public func load() async {
         phase = .loading
         restoreFromCache()
