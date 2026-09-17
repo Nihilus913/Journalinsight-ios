@@ -8,24 +8,42 @@
 
 /* Begin PBXBuildFile section */
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = D393B4A4FCB5E732570A00E9 /* JIDesign */; };
 		0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
+		139FDF707F9F987BB777F558 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 7210A91C3EFF41A4A0126EF5 /* JIDesign */; };
 		1C3FD9E1CD60B28574914D68 /* AppEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */; };
 		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
 		2D9F540F96AFCF16BD486B04 /* DeepLinkParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */; };
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
+		4822C96CEC645C6B0415E123 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 7F9D396F60F0D64237C7F209 /* JISnapshot */; };
 		4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CA09438245026D70FC72FF4 /* DeepLink.swift */; };
+		5416BD0C9797F95419C42333 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D3632CFA4AC9B6771D6C3075 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FC4B2065A6F827B696A084F /* AppEnvironment.swift */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
+		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
+		771CD79297124DB919FDF1FF /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3B95761227D23C685A4248 /* JICore */; };
+		793D20E8E61933D635505938 /* WatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
 		A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 396CA8DF72C77D0D287B373C /* JIPersistence */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
+		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 		DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */; };
+		E27D45B8AE065886C965D49D /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 459223C5C330D5E83A784DEF /* JISnapshot */; };
 		EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
+		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
 		FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		390A1F312F4BC56700B53642 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 31A8FEE0BE14DE32BED01344;
+			remoteInfo = WatchApp;
+		};
 		BABADAAD1782F1D86388AE75 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
@@ -33,18 +51,54 @@
 			remoteGlobalIDString = BC6F7ABA57B0B1A90E8A2220;
 			remoteInfo = JournalInsight;
 		};
+		E65931A7BFDB8D44B66C6281 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2386FC5B4492C9D335F7EB74;
+			remoteInfo = Widgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3EA6E200F4A192081931F88A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5416BD0C9797F95419C42333 /* Widgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C4E4AF4FE98E0572C830E89F /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				793D20E8E61933D635505938 /* WatchApp.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
+		2C2798E1055DC1C38E77A45D /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
 		2CA09438245026D70FC72FF4 /* DeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLink.swift; sourceTree = "<group>"; };
 		2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRouteMappingTests.swift; sourceTree = "<group>"; };
 		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsBundle.swift; sourceTree = "<group>"; };
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
+		72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = JournalInsight.entitlements; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightApp.swift; sourceTree = "<group>"; };
 		B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentTests.swift; sourceTree = "<group>"; };
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +106,7 @@
 		BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
@@ -59,6 +114,26 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		11B11C1D99565C1B0D0C6CFA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				771CD79297124DB919FDF1FF /* JICore in Frameworks */,
+				0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */,
+				4822C96CEC645C6B0415E123 /* JISnapshot in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		39091856AE68C2AEAE3A8BE6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */,
+				139FDF707F9F987BB777F558 /* JIDesign in Frameworks */,
+				73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E51330D71BCE8DD9E7DABBBA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -68,12 +143,21 @@
 				A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */,
 				0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */,
 				EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */,
+				E27D45B8AE065886C965D49D /* JISnapshot in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0386C0CD5B61076C8900F3F1 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
 		056638029CC232C84D208888 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
@@ -95,6 +179,14 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
+		163EEAD560585AD2B6437C70 /* WatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				6994BAB949C8EC9434874E14 /* Sources */,
+			);
+			path = WatchApp;
+			sourceTree = "<group>";
+		};
 		323BFC5FC4A1CC8F4B9CDEF1 /* Navigation */ = {
 			isa = PBXGroup;
 			children = (
@@ -114,11 +206,29 @@
 			path = AppTests;
 			sourceTree = "<group>";
 		};
+		42CE3EF5313D3364AA04F4F1 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				0386C0CD5B61076C8900F3F1 /* Sources */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		6994BAB949C8EC9434874E14 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2C2798E1055DC1C38E77A45D /* WatchApp.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
 		7E21C80B99A2A95B8D6662A4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */,
 				C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */,
+				A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */,
+				D3632CFA4AC9B6771D6C3075 /* Widgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -130,6 +240,7 @@
 				9FC4B2065A6F827B696A084F /* AppEnvironment.swift */,
 				50213A12F93450C6AD416BAD /* Assets.xcassets */,
 				4BC54E4B616D60F658404378 /* Info.plist */,
+				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
 				056638029CC232C84D208888 /* Debug */,
@@ -144,6 +255,8 @@
 				CEC801B7EB7C3D95D253F53F /* App */,
 				41EE3A0FCA253EF9D89E8C03 /* AppTests */,
 				0F1DA0A1D7D5D8969A37070C /* Packages */,
+				163EEAD560585AD2B6437C70 /* WatchApp */,
+				42CE3EF5313D3364AA04F4F1 /* Widgets */,
 				7E21C80B99A2A95B8D6662A4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -151,6 +264,48 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2386FC5B4492C9D335F7EB74 /* Widgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D22EE4021FE1BF99794C9437 /* Build configuration list for PBXNativeTarget "Widgets" */;
+			buildPhases = (
+				9BDA75570C018D4FF5B1154B /* Sources */,
+				11B11C1D99565C1B0D0C6CFA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Widgets;
+			packageProductDependencies = (
+				6D3B95761227D23C685A4248 /* JICore */,
+				D393B4A4FCB5E732570A00E9 /* JIDesign */,
+				7F9D396F60F0D64237C7F209 /* JISnapshot */,
+			);
+			productName = Widgets;
+			productReference = D3632CFA4AC9B6771D6C3075 /* Widgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		31A8FEE0BE14DE32BED01344 /* WatchApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F75C20DFDB908B2554509F9 /* Build configuration list for PBXNativeTarget "WatchApp" */;
+			buildPhases = (
+				3A84732AF434C88EC932BE43 /* Sources */,
+				39091856AE68C2AEAE3A8BE6 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WatchApp;
+			packageProductDependencies = (
+				40267DC04964D87EF6CB5446 /* JICore */,
+				7210A91C3EFF41A4A0126EF5 /* JIDesign */,
+				A7B6DE44371EB6609C09A2FD /* JISnapshot */,
+			);
+			productName = WatchApp;
+			productReference = A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */;
+			productType = "com.apple.product-type.application";
+		};
 		BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DDEEF76565D476A532BAC5DA /* Build configuration list for PBXNativeTarget "JournalInsight" */;
@@ -158,10 +313,14 @@
 				764C5C539785D8F6A67B9BA3 /* Sources */,
 				689A6C016E3B8B7837D372EC /* Resources */,
 				E51330D71BCE8DD9E7DABBBA /* Frameworks */,
+				3EA6E200F4A192081931F88A /* Embed Foundation Extensions */,
+				C4E4AF4FE98E0572C830E89F /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				00F7FDAF739061B0CC7BE0D5 /* PBXTargetDependency */,
+				04B65CAE1F2EF4E8DAD0E046 /* PBXTargetDependency */,
 			);
 			name = JournalInsight;
 			packageProductDependencies = (
@@ -170,6 +329,7 @@
 				396CA8DF72C77D0D287B373C /* JIPersistence */,
 				6EA74DAEF679ECF071912E9E /* JIDesign */,
 				A090031B35A5F024DF8691CF /* JIFeatures */,
+				459223C5C330D5E83A784DEF /* JISnapshot */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -202,6 +362,14 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					2386FC5B4492C9D335F7EB74 = {
+						DevelopmentTeam = BCBJFS59L9;
+						ProvisioningStyle = Automatic;
+					};
+					31A8FEE0BE14DE32BED01344 = {
+						DevelopmentTeam = BCBJFS59L9;
+						ProvisioningStyle = Automatic;
+					};
 					BC6F7ABA57B0B1A90E8A2220 = {
 						DevelopmentTeam = BCBJFS59L9;
 						ProvisioningStyle = Automatic;
@@ -236,6 +404,8 @@
 			targets = (
 				BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */,
 				D9A92894867253C7C97099F5 /* JournalInsightTests */,
+				31A8FEE0BE14DE32BED01344 /* WatchApp */,
+				2386FC5B4492C9D335F7EB74 /* Widgets */,
 			);
 		};
 /* End PBXProject section */
@@ -252,6 +422,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3A84732AF434C88EC932BE43 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		764C5C539785D8F6A67B9BA3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -262,6 +440,14 @@
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
 				B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9BDA75570C018D4FF5B1154B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -279,6 +465,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		00F7FDAF739061B0CC7BE0D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 31A8FEE0BE14DE32BED01344 /* WatchApp */;
+			targetProxy = 390A1F312F4BC56700B53642 /* PBXContainerItemProxy */;
+		};
+		04B65CAE1F2EF4E8DAD0E046 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2386FC5B4492C9D335F7EB74 /* Widgets */;
+			targetProxy = E65931A7BFDB8D44B66C6281 /* PBXContainerItemProxy */;
+		};
 		5CCE0D08C1F678FFCF7FC53A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */;
@@ -287,10 +483,27 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		476E96EC4B5A3BF0F4A72109 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.widgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		62631C6BF2ECD41A51796A65 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/JournalInsight.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -300,6 +513,32 @@
 				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		827FFA7E96F64238ACA14749 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/WatchApp.entitlements;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.watchapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
+		963C85B5225DB1D41BD3BCA6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/WatchApp.entitlements;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.watchapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
 			};
 			name = Debug;
 		};
@@ -354,13 +593,13 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
 				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Release;
 		};
@@ -368,6 +607,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/JournalInsight.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -455,13 +695,13 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
 				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Debug;
 		};
@@ -482,9 +722,34 @@
 			};
 			name = Debug;
 		};
+		E90D7675F23CA060FA7CA17E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.widgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4F75C20DFDB908B2554509F9 /* Build configuration list for PBXNativeTarget "WatchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				963C85B5225DB1D41BD3BCA6 /* Debug */,
+				827FFA7E96F64238ACA14749 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		8E7D766803A200235C577C1E /* Build configuration list for PBXNativeTarget "JournalInsightTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -499,6 +764,15 @@
 			buildConfigurations = (
 				C1F5E6A6F95EE46B756AA91B /* Debug */,
 				98C471587510175E39810206 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D22EE4021FE1BF99794C9437 /* Build configuration list for PBXNativeTarget "Widgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E90D7675F23CA060FA7CA17E /* Debug */,
+				476E96EC4B5A3BF0F4A72109 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -546,13 +820,37 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = JIPersistence;
 		};
+		40267DC04964D87EF6CB5446 /* JICore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JICore;
+		};
+		459223C5C330D5E83A784DEF /* JISnapshot */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JISnapshot;
+		};
+		6D3B95761227D23C685A4248 /* JICore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JICore;
+		};
 		6EA74DAEF679ECF071912E9E /* JIDesign */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIDesign;
 		};
+		7210A91C3EFF41A4A0126EF5 /* JIDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIDesign;
+		};
+		7F9D396F60F0D64237C7F209 /* JISnapshot */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JISnapshot;
+		};
 		A090031B35A5F024DF8691CF /* JIFeatures */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIFeatures;
+		};
+		A7B6DE44371EB6609C09A2FD /* JISnapshot */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JISnapshot;
 		};
 		AE017C6763142EDA7FB1F5B2 /* JIHub */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -561,6 +859,10 @@
 		B82481EAAF8B8DF915C28007 /* JICore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JICore;
+		};
+		D393B4A4FCB5E732570A00E9 /* JIDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIDesign;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: toby913
   deploymentTarget:
     iOS: "27.0"
+    watchOS: "27.0"
   xcodeVersion: "27.0"
   createIntermediateGroups: true
 settings:
@@ -42,17 +43,66 @@ targets:
         NSLocalNetworkUsageDescription: "JournalInsight talks to your HealthTraining hub on the local network."
         CFBundleURLTypes:
           - CFBundleURLSchemes: [ji, journalinsight]
+        NSSupportsLiveActivities: true
+        NSHealthShareUsageDescription: "PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs." # real copy owed before HealthKit read is wired (W2c+ row, not this lane)
+        NSHealthUpdateUsageDescription: "PLACEHOLDER — JournalInsight does not currently write health data." # placeholder only; remove if no write path is ever added
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon # App/Assets.xcassets/AppIcon.appiconset — oracle mobile/assets/icon.png (1024 universal)
+        CODE_SIGN_ENTITLEMENTS: App/JournalInsight.entitlements
     dependencies:
       - package: JICore
       - package: JIHub
       - package: JIPersistence
       - package: JIDesign
       - package: JIFeatures
+      - package: JISnapshot
+      - target: WatchApp
+        embed: true
+      - target: Widgets
+        embed: true
+  WatchApp:
+    type: application
+    platform: watchOS
+    sources: [WatchApp/Sources]
+    info:
+      path: WatchApp/Info.plist
+      properties:
+        CFBundleDisplayName: JournalInsight
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: toby913.JournalInsight
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight.watchapp
+        TARGETED_DEVICE_FAMILY: "4"
+        SDKROOT: watchos
+        CODE_SIGN_ENTITLEMENTS: WatchApp/WatchApp.entitlements
+    dependencies:
+      - package: JICore
+      - package: JIDesign
+      - package: JISnapshot
+  Widgets:
+    type: app-extension
+    platform: iOS
+    sources: [Widgets/Sources]
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Widgets
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: Widgets/Widgets.entitlements
+    dependencies:
+      - package: JICore
+      - package: JIDesign
+      - package: JISnapshot
   JournalInsightTests:
     type: bundle.unit-test
     platform: iOS
@@ -66,7 +116,7 @@ targets:
 schemes:
   JournalInsight:
     build:
-      targets: { JournalInsight: all, JournalInsightTests: [test] }
+      targets: { JournalInsight: all, WatchApp: all, Widgets: all, JournalInsightTests: [test] }
     run:
       config: Debug
     test:
