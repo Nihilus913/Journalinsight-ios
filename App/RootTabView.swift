@@ -62,13 +62,18 @@ struct RootTabView: View {
             // had no entry point. Keep it one tap away from every tab.
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { path.append(RootRoute.kpiList) } label: { Image(systemName: "list.bullet.rectangle") }
+                        .accessibilityLabel("My KPIs")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showConnection = true } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Settings")
                 }
             }
             .navigationDestination(for: RootRoute.self) { route in
                 switch route {
-                case .kpiDetail(let metric): KpiDetailStubView(metric: metric)
+                case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
+                case .kpiList: kpiListDestination
                 }
             }
         }
@@ -213,6 +218,35 @@ struct RootTabView: View {
         }
     }
 
+    // W3b-L2 (P-kpi): both destinations need the hub provider cast to the two screen-owned
+    // protocols (`NutritionProviding`, `KpiTargetsProviding`) it doesn't already carry as `any
+    // HealthDataProvider` — same cast-or-`screenUnavailable` discipline as the W3a tabs above.
+    @ViewBuilder
+    private func kpiDetailDestination(metric: String) -> some View {
+        if let store = env.providerStore, let metricId = KpiMetricId(rawValue: metric),
+           let nutrition = store.provider as? any NutritionProviding,
+           let targets = store.provider as? any KpiTargetsProviding {
+            KpiDetailView(model: KpiDetailViewModel(
+                metric: metricId, healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, cache: env.cache
+            ))
+        } else {
+            screenUnavailable(title: "KPI unavailable", systemImage: "chart.line.uptrend.xyaxis")
+        }
+    }
+
+    @ViewBuilder
+    private var kpiListDestination: some View {
+        if let store = env.providerStore,
+           let nutrition = store.provider as? any NutritionProviding,
+           let targets = store.provider as? any KpiTargetsProviding {
+            KpiListView(model: KpiListViewModel(
+                healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache
+            ))
+        } else {
+            screenUnavailable(title: "My KPIs unavailable", systemImage: "list.bullet.rectangle")
+        }
+    }
+
     private func screenUnavailable(title: String, systemImage: String) -> some View {
         ContentUnavailableView {
             Label(title, systemImage: systemImage)
@@ -241,22 +275,6 @@ struct RootTabView: View {
         selectedTab = .today
         guard let route = RootRoute.destination(for: link) else { return }
         if path.last != route { path.append(route) }
-    }
-}
-
-/// KPI-detail placeholder — the full screen is W3 scope. Reachable both from a `TodayGrid` chip
-/// tap (`onSelectKpi`) and from a `ji://kpi-detail?metric=` / `journalinsight://kpi-detail?metric=`
-/// deep link, via the shared `RootRoute.kpiDetail` push.
-private struct KpiDetailStubView: View {
-    let metric: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Text(metric.uppercased()).font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-            Text("KPI detail — coming in W3").font(.subheadline).foregroundStyle(JIColor.muted)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(JIColor.bg)
     }
 }
 

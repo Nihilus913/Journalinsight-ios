@@ -2,7 +2,7 @@ import JICore
 
 public struct HubDataProvider: HealthDataProvider {
     public let capabilities: DataCapability = .hubAll
-    private let client: HubClient
+    let client: HubClient
     public init(client: HubClient) { self.client = client }
 
     public func health() async throws -> HealthResponse { try await client.get("/health") }

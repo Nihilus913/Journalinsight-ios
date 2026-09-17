@@ -22,6 +22,19 @@ enum Migrations {
                 t.column("updated_at", .text).notNull()
             }
         }
+        // W3b-L4 (P-weigh-in): a durable write queue for offline-first writes. `outbox` is its
+        // own table (not reusing `cache`/`pref`) since rows here are mutated in place (`attempts`,
+        // `last_error`) rather than replaced wholesale. See `Outbox.swift`.
+        m.registerMigration("v2_outbox") { db in
+            try db.create(table: "outbox", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("kind", .text).notNull()
+                t.column("payload", .blob).notNull()
+                t.column("created_at", .text).notNull()
+                t.column("attempts", .integer).notNull().defaults(to: 0)
+                t.column("last_error", .text)
+            }
+        }
         return m
     }
 }

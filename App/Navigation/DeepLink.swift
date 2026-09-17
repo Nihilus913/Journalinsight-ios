@@ -35,6 +35,9 @@ enum DeepLink: Hashable, Sendable {
 /// `navigationDestination(for:)` value.
 enum RootRoute: Hashable, Sendable {
     case kpiDetail(metric: String)
+    /// W3b-L2 — the "My KPIs" list/picker. Reachable only from `RootTabView`'s toolbar (no deep
+    /// link maps to it; the oracle's `app/kpis.tsx` isn't itself deep-linkable either).
+    case kpiList
 
     static func destination(for link: DeepLink) -> RootRoute? {
         switch link {
