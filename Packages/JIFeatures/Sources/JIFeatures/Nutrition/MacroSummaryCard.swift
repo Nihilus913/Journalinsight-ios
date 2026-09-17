@@ -8,13 +8,38 @@ import JIDesign
 /// list, so only the kcal goal renders here this wave). Rule 5: a missing value renders "—", never 0.
 public struct MacroSummaryCard: View {
     let day: NutritionDayDetail?
+    /// W4-L3 — when set, an edit-goals button (mirrors RN's `EditGoalButton`, L117) pushes
+    /// `GoalsSetupView`. `nil` (the default) keeps every existing call site source-compatible and
+    /// hides the button, same optional-model pattern as `VerdictHeroView.challengesModel`.
+    let goalsSetupModel: GoalsSetupViewModel?
+    @State private var showGoalsSetup = false
 
-    public init(day: NutritionDayDetail?) { self.day = day }
+    public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil) {
+        self.day = day
+        self.goalsSetupModel = goalsSetupModel
+    }
 
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Macros today").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                HStack {
+                    Text("Macros today").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                    if let goalsSetupModel {
+                        Spacer()
+                        Button {
+                            showGoalsSetup = true
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .accessibilityLabel("Edit nutrition goals")
+                        // Attached locally, same rationale as VerdictHeroView.challengesModel's
+                        // isPresented push — no need for the enclosing NavigationStack's own
+                        // navigationDestination(for:), which lives outside this lane's file list.
+                        .navigationDestination(isPresented: $showGoalsSetup) {
+                            GoalsSetupView(model: goalsSetupModel)
+                        }
+                    }
+                }
                 if let day {
                     kcalRow(day.total)
                     Divider().overlay(JIColor.nested)
