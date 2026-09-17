@@ -17,13 +17,47 @@ public final class HealthBackloadViewModel {
 
     public private(set) var phase: Phase = .idle
 
+    /// W2i (B-11): "write HRV as SDNN" opt-in, App-Group `UserDefaults` key `hk.backload.writeHRV`
+    /// (wave card — same suite as `JISnapshot.SnapshotStore`). JIHealthKit (L3) reads this same
+    /// key when deciding whether to write `heartRateVariabilitySDNN`; this VM only writes it.
+    /// Default OFF (Garmin RMSSD ≠ Apple SDNN) — `UserDefaults.bool(forKey:)` already returns
+    /// `false` for an unset key, so no explicit default-registration is needed.
+    public private(set) var writeHRV: Bool
+
     private let runner: any BackloadRunning
     private let now: () -> Date
+    private let hrvPrefs: UserDefaults?
+    private static let hrvPrefKey = "hk.backload.writeHRV"
+    /// Last day the writer completed, `YYYY-MM-DD` (Zurich) — the same App-Group key
+    /// `HealthKitBackloader` persists its resume cursor under. `nil` = never run on this device.
+    public private(set) var lastSyncedDay: String?
+    private static let cursorKey = "hk.backload.cursor"          // mid-run resume point
+    private static let lastCompletedKey = "hk.backload.lastCompletedDay" // set when a run finishes
 
     /// Default range: hub has Garmin (dso_key = 2) since 2025-05-27 (wave card §Why/what) through today.
-    public init(runner: any BackloadRunning, now: @escaping () -> Date = Date.init) {
+    /// `hrvPrefs` defaults to the app's real App-Group suite; tests inject a scratch
+    /// `UserDefaults(suiteName:)` (or `nil`, standing in for an unavailable app group — the
+    /// toggle then reads/writes as always-off, never crashes, same contract as `SnapshotStore`).
+    public init(
+        runner: any BackloadRunning,
+        now: @escaping () -> Date = Date.init,
+        hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")
+    ) {
         self.runner = runner
         self.now = now
+        self.hrvPrefs = hrvPrefs
+        self.writeHRV = hrvPrefs?.bool(forKey: Self.hrvPrefKey) ?? false
+        self.lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey) ?? hrvPrefs?.string(forKey: Self.lastCompletedKey)
+    }
+
+    /// Re-reads the writer's cursor (called after every progress tick and at the end of a run).
+    public func refreshLastSyncedDay() {
+        lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey) ?? hrvPrefs?.string(forKey: Self.lastCompletedKey)
+    }
+
+    public func setWriteHRV(_ value: Bool) {
+        writeHRV = value
+        hrvPrefs?.set(value, forKey: Self.hrvPrefKey)
     }
 
     public var defaultRange: BackloadRange {
@@ -69,9 +103,11 @@ public final class HealthBackloadViewModel {
                         written: progress.written,
                         skipped: progress.skipped
                     )
+                    self.refreshLastSyncedDay()
                 }
             }
             phase = .done(summary)
+            refreshLastSyncedDay()
         } catch let error as BackloadError {
             phase = .failed(Self.describe(error))
         } catch {
