@@ -7,14 +7,20 @@ import JIDesign
 /// CONTRACT: 409/502 show the oracle's copy verbatim via `LogSheetViewModel.describe`.
 public struct LogSheet: View {
     @Bindable private var model: LogSheetViewModel
+    /// W3b-L4 (P-weigh-in) — the "weight" entry the RN `LogSheet.tsx` menu has alongside food
+    /// logging. `nil` when the caller hasn't wired a `WeighInViewModel` yet (e.g. an existing call
+    /// site not yet updated for this wave): the row is simply omitted rather than presenting a
+    /// half-configured sheet.
+    private let weighInModel: WeighInViewModel?
     let onLogged: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var showingWeighIn = false
 
     /// Mirrors the oracle's `BREAKFAST_TEMPLATE_ID` (`mobile/src/data/nutritionTemplates.ts`).
     public static let breakfastTemplateID = "breakfast_default"
 
-    public init(model: LogSheetViewModel, onLogged: @escaping () -> Void = {}) {
-        self.model = model; self.onLogged = onLogged
+    public init(model: LogSheetViewModel, weighInModel: WeighInViewModel? = nil, onLogged: @escaping () -> Void = {}) {
+        self.model = model; self.weighInModel = weighInModel; self.onLogged = onLogged
     }
 
     public var body: some View {
@@ -44,6 +50,20 @@ public struct LogSheet: View {
                 }
                 .buttonStyle(.pressableScale)
                 .disabled(model.state == .submitting)
+
+                if let weighInModel {
+                    Button {
+                        showingWeighIn = true
+                    } label: {
+                        Text("Log weight").frame(maxWidth: .infinity).padding()
+                            .background(JIColor.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .foregroundStyle(JIColor.text)
+                    }
+                    .buttonStyle(.pressableScale)
+                    .sheet(isPresented: $showingWeighIn) {
+                        WeighInSheet(model: weighInModel, onSaved: onLogged)
+                    }
+                }
 
                 Spacer()
             }
