@@ -14,5 +14,7 @@ build/
 # Swift migration (XcodeGen skeleton)
 Packages/*/.build/
 Packages/*/.swiftpm/
+Widgets/PolicyKit/.build/
+Widgets/PolicyKit/.swiftpm/
 .swiftpm/
 *.xcresult
