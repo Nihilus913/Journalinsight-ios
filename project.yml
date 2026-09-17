@@ -11,7 +11,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT: "YES"
-    DEVELOPMENT_TEAM: "" # Toby sets this once in Xcode > Signing; XcodeGen keeps it
+    DEVELOPMENT_TEAM: BCBJFS59L9 # Toby's team (set 2026-09-17); XcodeGen keeps it
     CODE_SIGN_STYLE: Automatic
 packages:
   JICore:
