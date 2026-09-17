@@ -5,8 +5,14 @@ import JICore
 /// collide on it) — this file only adds a new protocol conformance in its own file, per the wave
 /// card's Data seam.
 extension HubDataProvider: NutritionProviding {
+    /// `GET /api/v1/nutrition/daily?date=` doesn't exist — that endpoint (`app/nutrition/router.py`
+    /// `get_nutrition`) takes only `window_days` and ignores `date`, returning a `days[]` report
+    /// (`NutritionReportResponse`), never a `{date,total,breakdown,items}` object. The real
+    /// day-detail-with-meals endpoint is `GET /api/v1/training/day/{date}`
+    /// (`app/training/router.py` `DayDetailResponse.meals`) — see `NutritionDayEnvelope`.
     public func nutritionDay(date: String) async throws -> NutritionDayDetail? {
-        try await nutritionHubClient.get("/api/v1/nutrition/daily", query: ["date": date])
+        let envelope: NutritionDayEnvelope = try await nutritionHubClient.get("/api/v1/training/day/\(date)")
+        return envelope.detail
     }
 
     public func nutritionWeek(windowDays: Int = 7) async throws -> [NutritionDailyRow] {

@@ -39,6 +39,27 @@ public struct NutritionDayDetail: Codable, Sendable, Equatable {
     }
 }
 
+/// Wire envelope for `GET /api/v1/training/day/{date}` (`app/training/router.py`'s
+/// `DayDetailResponse`) — the real hub endpoint that carries meal-timeline data for one day.
+/// `GET /api/v1/nutrition/daily` takes only `window_days` and ignores `date` entirely (it always
+/// returns a `days[]` report, `NutritionReportResponse` below), so it can never produce a
+/// day-detail object — decoding this envelope from `training/day` is the fix. `meals` is `null`
+/// when the hub has no row for that date, in which case `detail` is `nil` (never a zeroed-out
+/// `NutritionDayDetail` — rule 5). `activities`/`exercise_sets` are dropped at decode.
+public struct NutritionDayEnvelope: Decodable, Sendable {
+    public let date: String
+    private let meals: MealsPayload?
+    public var detail: NutritionDayDetail? {
+        guard let meals else { return nil }
+        return NutritionDayDetail(date: date, total: meals.total, breakdown: meals.breakdown, items: meals.items)
+    }
+    private struct MealsPayload: Decodable, Sendable {
+        let total: NutritionDayTotal
+        let breakdown: NutritionDayBreakdown
+        let items: [String: [NutritionMealItem]]
+    }
+}
+
 /// One row of `GET /api/v1/nutrition/daily`'s `days[]` — trimmed to what the week strip + macro
 /// card need (mirrors `NutritionDailyRow` in the oracle).
 public struct NutritionDailyRow: Codable, Sendable, Equatable {

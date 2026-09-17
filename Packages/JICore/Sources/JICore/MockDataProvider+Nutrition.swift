@@ -13,8 +13,10 @@ extension MockDataProvider: NutritionProviding {
         return try JSON.decoder.decode(T.self, from: Data(contentsOf: url))
     }
 
+    /// Fixture is a real `GET /api/v1/training/day/{date}` capture (see `NutritionDayEnvelope`) —
+    /// not the flat `NutritionDayDetail` shape, which no real endpoint produces.
     public func nutritionDay(date: String) async throws -> NutritionDayDetail? {
-        try loadNutritionFixture("nutrition_daily_day", as: NutritionDayDetail.self)
+        try loadNutritionFixture("nutrition_daily_day", as: NutritionDayEnvelope.self).detail
     }
 
     public func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] {

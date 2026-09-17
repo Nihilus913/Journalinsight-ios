@@ -3,8 +3,11 @@ import Testing
 @testable import JICore
 
 @Test func nutritionDayDetailDecodesFromFixtureNeverZero() throws {
+    // Fixture is a real `GET /api/v1/training/day/{date}` capture (the endpoint that actually
+    // carries meal-timeline data) — decode the envelope, same path production code takes.
     let url = try #require(MockDataProvider.fixtureURL(named: "nutrition_daily_day"))
-    let day = try JSON.decoder.decode(NutritionDayDetail.self, from: Data(contentsOf: url))
+    let envelope = try JSON.decoder.decode(NutritionDayEnvelope.self, from: Data(contentsOf: url))
+    let day = try #require(envelope.detail)
     #expect(day.date == "2026-09-11")
     #expect(day.total.kcal == 1028.8)
     #expect(day.breakdown.dinner == nil, "missing dinner must decode nil, never 0 (rule 5)")
