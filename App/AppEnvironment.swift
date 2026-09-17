@@ -6,6 +6,17 @@ import JIPersistence
 import JIFeatures
 import JISnapshot
 
+/// W2h (B-9) placeholder: satisfies `BackloadRunning` so the App target compiles on this branch
+/// before JIHealthKit exists. The integrator swaps this default for `HealthKitBackloader`
+/// (`JIHealthKit`, L2's package) at the `AppEnvironment.init` call site — this type itself is
+/// never touched by that swap, only the default argument is.
+struct NoopBackloader: BackloadRunning {
+    func authorize() async throws { throw BackloadError.healthDataUnavailable }
+    func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
+        throw BackloadError.healthDataUnavailable
+    }
+}
+
 @Observable @MainActor
 final class AppEnvironment {
     let secrets: any SecretStore
@@ -23,17 +34,24 @@ final class AppEnvironment {
     private let snapshotStore: SnapshotStore
     private let now: () -> Date
 
+    /// W2h (B-9): the HealthKit backload runner, injected here so JIFeatures (which builds the
+    /// Settings UI against `BackloadRunning` only) never imports JIHealthKit. Defaults to
+    /// `NoopBackloader` until the integrator swaps in `HealthKitBackloader` (`JIHealthKit`).
+    let backload: any BackloadRunning
+
     init(
         secrets: any SecretStore = KeychainStore(),
         inMemory: Bool = false,
         snapshotStore: SnapshotStore = SnapshotStore(suiteName: "group.toby913.JournalInsight"),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        backload: any BackloadRunning = NoopBackloader()
     ) throws {
         self.secrets = secrets
         cache = OfflineCache(db: inMemory ? try .inMemory() : try .cache())
         prefs = PrefStore(db: inMemory ? try .inMemory() : try .onDisk())
         self.snapshotStore = snapshotStore
         self.now = now
+        self.backload = backload
     }
 
     func boot() throws {
