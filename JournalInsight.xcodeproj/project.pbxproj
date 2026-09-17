@@ -36,10 +36,12 @@
 		9826D623E6F79EC92B041772 /* MyKpisGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541113198F7B5C556696963 /* MyKpisGlance.swift */; };
 		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
 		9E09E0891933F8E02DA94473 /* SnapshotWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B4E55EDF3D96E26FC79F31 /* SnapshotWiringTests.swift */; };
+		9ED8BB696D53595115070811 /* WatchGlanceSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */; };
 		A6D191FD3F18478B1B9601DC /* JIHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9B30070C96629314F0623B13 /* JIHealthKit */; };
 		AAE4BC7486F3D87C27FE39E7 /* VerdictGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
+		D159A94FC5CE478EBBD98757 /* VerdictComplicationTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */; };
 		D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9592E400266E0385BE90930E /* LiveActivityController.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 		D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */; };
@@ -53,6 +55,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		2D0F59DC22DCE38149B1DC0B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 31A8FEE0BE14DE32BED01344;
+			remoteInfo = WatchApp;
+		};
 		390A1F312F4BC56700B53642 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 176761A01ACFDD70C3ECCAD3 /* Project object */;
@@ -105,6 +114,7 @@
 		099499E819ADFEE663B021CB /* WatchSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotStore.swift; sourceTree = "<group>"; };
 		116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		1296CF63AE100B901BCE1904 /* VerdictComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplication.swift; sourceTree = "<group>"; };
+		1B35552968E1A545F6D34B03 /* WatchAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WatchAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
 		2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloor.swift; sourceTree = "<group>"; };
 		2C2798E1055DC1C38E77A45D /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
@@ -127,6 +137,7 @@
 		9592E400266E0385BE90930E /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlanceSnapshotTests.swift; sourceTree = "<group>"; };
 		A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightApp.swift; sourceTree = "<group>"; };
 		B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictGlance.swift; sourceTree = "<group>"; };
@@ -140,6 +151,7 @@
 		D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloorTests.swift; sourceTree = "<group>"; };
 		D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiWidget.swift; sourceTree = "<group>"; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
+		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
 		FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchIndicatorWindow.swift; sourceTree = "<group>"; };
@@ -222,6 +234,7 @@
 			isa = PBXGroup;
 			children = (
 				6994BAB949C8EC9434874E14 /* Sources */,
+				CBC6464273913B5F6E6963F5 /* Tests */,
 			);
 			path = WatchApp;
 			sourceTree = "<group>";
@@ -284,9 +297,19 @@
 				BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */,
 				C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */,
 				A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */,
+				1B35552968E1A545F6D34B03 /* WatchAppTests.xctest */,
 				D3632CFA4AC9B6771D6C3075 /* Widgets.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CBC6464273913B5F6E6963F5 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */,
+				A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		CEC801B7EB7C3D95D253F53F /* App */ = {
@@ -321,6 +344,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		05611A4B9E865480DD2CEC98 /* WatchAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B8DF82433A483D38EF6A772D /* Build configuration list for PBXNativeTarget "WatchAppTests" */;
+			buildPhases = (
+				6B5F4BCC2191450D4F1D2816 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6309A69ECF401952DD5AB60E /* PBXTargetDependency */,
+			);
+			name = WatchAppTests;
+			packageProductDependencies = (
+			);
+			productName = WatchAppTests;
+			productReference = 1B35552968E1A545F6D34B03 /* WatchAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		2386FC5B4492C9D335F7EB74 /* Widgets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D22EE4021FE1BF99794C9437 /* Build configuration list for PBXNativeTarget "Widgets" */;
@@ -420,6 +461,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					05611A4B9E865480DD2CEC98 = {
+						DevelopmentTeam = BCBJFS59L9;
+						ProvisioningStyle = Automatic;
+					};
 					2386FC5B4492C9D335F7EB74 = {
 						DevelopmentTeam = BCBJFS59L9;
 						ProvisioningStyle = Automatic;
@@ -464,6 +509,7 @@
 				BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */,
 				D9A92894867253C7C97099F5 /* JournalInsightTests */,
 				31A8FEE0BE14DE32BED01344 /* WatchApp */,
+				05611A4B9E865480DD2CEC98 /* WatchAppTests */,
 				2386FC5B4492C9D335F7EB74 /* Widgets */,
 			);
 		};
@@ -491,6 +537,15 @@
 				AAE4BC7486F3D87C27FE39E7 /* VerdictGlance.swift in Sources */,
 				9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */,
 				53CB3854D2F79C54305EB1FE /* WatchSnapshotStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6B5F4BCC2191450D4F1D2816 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D159A94FC5CE478EBBD98757 /* VerdictComplicationTimelineTests.swift in Sources */,
+				9ED8BB696D53595115070811 /* WatchGlanceSnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -554,6 +609,11 @@
 			target = BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */;
 			targetProxy = BABADAAD1782F1D86388AE75 /* PBXContainerItemProxy */;
 		};
+		6309A69ECF401952DD5AB60E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 31A8FEE0BE14DE32BED01344 /* WatchApp */;
+			targetProxy = 2D0F59DC22DCE38149B1DC0B /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -570,6 +630,42 @@
 				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.widgets;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		4D5AAE9BF23C247973A0D166 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.watchapp.tests;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WatchApp.app/WatchApp";
+			};
+			name = Debug;
+		};
+		5B637A54749C0C8F013BE1B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight.watchapp.tests;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WatchApp.app/WatchApp";
 			};
 			name = Release;
 		};
@@ -838,6 +934,15 @@
 			buildConfigurations = (
 				C1F5E6A6F95EE46B756AA91B /* Debug */,
 				98C471587510175E39810206 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B8DF82433A483D38EF6A772D /* Build configuration list for PBXNativeTarget "WatchAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4D5AAE9BF23C247973A0D166 /* Debug */,
+				5B637A54749C0C8F013BE1B4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -61,15 +61,20 @@ public struct ConnectionSheet: View {
     /// Optional (B-9): nil hides the section entirely (e.g. previews that don't wire a runner).
     /// `AppEnvironment` passes the real `HealthKitBackloader` wrapped in the VM.
     private let backloadModel: HealthBackloadViewModel?
+    /// Optional (W2d, L3): nil hides the section (previews / no HealthKit read path wired yet).
+    /// `AppEnvironment` constructs the real one from L1/L2's uploader + permission request.
+    private let healthPermissionModel: HealthPermissionViewModel?
     @Environment(\.dismiss) private var dismiss
 
     public init(
         store: ConnectionConfigStore,
         backloadModel: HealthBackloadViewModel? = nil,
+        healthPermissionModel: HealthPermissionViewModel? = nil,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
         _model = State(initialValue: ConnectionSheetModel(store: store))
         self.backloadModel = backloadModel
+        self.healthPermissionModel = healthPermissionModel
         self.onSaved = onSaved
     }
     public var body: some View {
@@ -87,6 +92,11 @@ public struct ConnectionSheet: View {
                 }
                 if let backloadModel {
                     HealthBackloadSection(model: backloadModel)
+                }
+                if let healthPermissionModel {
+                    Section("Apple Watch (read)") {
+                        HealthPermissionView(model: healthPermissionModel)
+                    }
                 }
             }
             .navigationTitle("Connection")

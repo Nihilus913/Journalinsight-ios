@@ -33,4 +33,29 @@ public struct HubClient: Sendable {
         }
         do { return try JSON.decoder.decode(T.self, from: data) } catch { throw HubError.decoding("\(path): \(error)") }
     }
+
+    /// POSTs `body` as JSON and decodes the response, mirroring `get`'s status-mapping and error
+    /// handling. Encodes with a plain `JSONEncoder()` — deliberately NOT `JSON.encoder` — because
+    /// `.convertToSnakeCase` would corrupt a body whose wire contract mixes cases (e.g. W2d's
+    /// Health-Auto-Export envelope has camelCase `sleepEnd` alongside snake_case `qty`); callers
+    /// with a body type that wants snake-casing should encode it to that shape themselves.
+    /// Response decoding still uses `JSON.decoder` (`.convertFromSnakeCase`) like `get`, since
+    /// every hub response so far is genuinely snake_case on the wire.
+    public func post<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T {
+        var req = URLRequest(url: config.baseURL.appending(path: path))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 15
+        req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do { req.httpBody = try JSONEncoder().encode(body) } catch { throw HubError.decoding("\(path): encode \(error)") }
+        let (data, resp): (Data, URLResponse)
+        do { (data, resp) = try await session.data(for: req) } catch { throw HubError.network(error.localizedDescription) }
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            let detail = (try? JSON.decoder.decode([String: String].self, from: data))?["detail"]
+            throw HubError.from(status: status, detail: detail)
+        }
+        do { return try JSON.decoder.decode(T.self, from: data) } catch { throw HubError.decoding("\(path): \(error)") }
+    }
 }

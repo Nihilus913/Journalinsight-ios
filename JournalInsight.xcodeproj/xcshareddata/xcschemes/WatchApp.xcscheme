@@ -15,34 +15,6 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "BC6F7ABA57B0B1A90E8A2220"
-               BuildableName = "JournalInsight.app"
-               BlueprintName = "JournalInsight"
-               ReferencedContainer = "container:JournalInsight.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D9A92894867253C7C97099F5"
-               BuildableName = "JournalInsightTests.xctest"
-               BlueprintName = "JournalInsightTests"
-               ReferencedContainer = "container:JournalInsight.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "31A8FEE0BE14DE32BED01344"
                BuildableName = "WatchApp.app"
                BlueprintName = "WatchApp"
@@ -63,20 +35,6 @@
                ReferencedContainer = "container:JournalInsight.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "2386FC5B4492C9D335F7EB74"
-               BuildableName = "Widgets.appex"
-               BlueprintName = "Widgets"
-               ReferencedContainer = "container:JournalInsight.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -88,24 +46,13 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "BC6F7ABA57B0B1A90E8A2220"
-            BuildableName = "JournalInsight.app"
-            BlueprintName = "JournalInsight"
+            BlueprintIdentifier = "31A8FEE0BE14DE32BED01344"
+            BuildableName = "WatchApp.app"
+            BlueprintName = "WatchApp"
             ReferencedContainer = "container:JournalInsight.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D9A92894867253C7C97099F5"
-               BuildableName = "JournalInsightTests.xctest"
-               BlueprintName = "JournalInsightTests"
-               ReferencedContainer = "container:JournalInsight.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
          <TestableReference
             skipped = "NO"
             parallelizable = "NO">
@@ -135,9 +82,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "BC6F7ABA57B0B1A90E8A2220"
-            BuildableName = "JournalInsight.app"
-            BlueprintName = "JournalInsight"
+            BlueprintIdentifier = "31A8FEE0BE14DE32BED01344"
+            BuildableName = "WatchApp.app"
+            BlueprintName = "WatchApp"
             ReferencedContainer = "container:JournalInsight.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -154,9 +101,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "BC6F7ABA57B0B1A90E8A2220"
-            BuildableName = "JournalInsight.app"
-            BlueprintName = "JournalInsight"
+            BlueprintIdentifier = "31A8FEE0BE14DE32BED01344"
+            BuildableName = "WatchApp.app"
+            BlueprintName = "WatchApp"
             ReferencedContainer = "container:JournalInsight.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
