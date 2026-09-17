@@ -3,7 +3,6 @@ import Testing
 import GRDB
 import CryptoKit
 @testable import JIPersistence
-@testable import JIVault
 
 /// In-memory `KeychainService` double, local to this test target (JIVault's
 /// own `FakeKeychain` lives in `JIVaultTests`, not exported). Mirrors that
@@ -123,8 +122,7 @@ private struct FoldFixture: Decodable {
 }
 
 private func loadFoldFixture() throws -> FoldFixture {
-    let url = Bundle.module.url(forResource: "fold_archive_v1_redacted", withExtension: "json")!
-    let data = try Data(contentsOf: url)
+    let data = Data(FoldArchiveFixtureJSON.raw.utf8)
     return try JSONDecoder().decode(FoldFixture.self, from: data)
 }
 

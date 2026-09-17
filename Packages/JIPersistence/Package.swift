@@ -11,11 +11,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "JIPersistence", dependencies: ["JICore", "JIVault", .product(name: "GRDB", package: "GRDB.swift")], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
-        .testTarget(
-            name: "JIPersistenceTests",
-            dependencies: ["JIPersistence", "JIVault"],
-            resources: [.copy("Resources/fold_archive_v1_redacted.json")],
-            swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]
-        ),
+        .testTarget(name: "JIPersistenceTests", dependencies: ["JIPersistence"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

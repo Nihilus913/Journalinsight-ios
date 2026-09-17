@@ -1,3 +1,15 @@
+import Foundation
+
+/// Embedded copy of the RN Fold-archive fixture (was
+/// `Resources/fold_archive_v1_redacted.json`, loaded via `Bundle.module`).
+/// `JIPersistenceTests`' `Package.swift` entry is frozen (wave W4 card,
+/// after L0) with no `resources:` declaration, so the fixture is inlined as
+/// a Swift source string instead of an SPM resource bundle. Content is
+/// otherwise unchanged from the original JSON file. Uses a RAW string
+/// (`#"""` … `"""#`) so embedded `\"` escapes inside the JSON (e.g.
+/// `strength_json`) survive verbatim instead of Swift unescaping them.
+enum FoldArchiveFixtureJSON {
+    static let raw = #"""
 {
   "passphrase": "test-pass",
   "rawKeyHex": "821117509d0750044fdb16f21c1eac114936d270eba5a410e1c56282ea1b631c",
@@ -243,4 +255,7 @@
       "macHex": "c1dd24a9031f5d16402c72e7d9f8d8da80adf35cc417aa00118d5a6f9d0c5cb9"
     }
   }
+}
+
+"""#
 }
