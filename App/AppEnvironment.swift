@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import Observation
 import JICore
 import JIHub
@@ -45,6 +46,13 @@ final class AppEnvironment {
     /// until `apply(_:)` has a `ConnectionConfig` to build a real `HealthKitBackloader` from.
     private(set) var backload: any BackloadRunning
 
+    /// W2d (L2): the HealthKit read→hub uploader (dso 4, apple-health envelope). `nil` until
+    /// `apply(_:)` has a `ConnectionConfig` to build a `HubClient` from — same lifecycle as
+    /// `backload`. Retains the started `HKObserverQuery`s (`HKHealthStore` doesn't retain them
+    /// itself) so background delivery keeps firing for the app's lifetime.
+    private(set) var healthKitUploader: HealthKitUploader?
+    private var healthKitObservers: [HKObserverQuery] = []
+
     init(
         secrets: any SecretStore = KeychainStore(),
         inMemory: Bool = false,
@@ -76,7 +84,43 @@ final class AppEnvironment {
         let provider = HubDataProvider(client: hubClient)
         if let store = providerStore { store.provider = provider } else { providerStore = ProviderStore(provider: provider) }
         backload = HealthKitBackloader(hub: BackloadClient(hub: hubClient))
+        let uploader = HealthKitUploader(store: RealHealthStoreReader(), hub: hubClient, specs: Self.healthKitUploadSpecs)
+        healthKitUploader = uploader
         needsConnection = false
+        // Fire-and-forget: permission UI (L3, `HealthPermissionView`) is the surface that asks
+        // for read access explicitly; this best-effort call only starts delivery when access was
+        // already granted in an earlier session (`requestAuthorization` on an already-decided
+        // read type is a no-op per HealthKit, not a re-prompt).
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await uploader.requestAuthorization()
+                let observers = try await uploader.startBackgroundDelivery()
+                await MainActor.run { self.healthKitObservers = observers }
+            } catch {
+                // Denied/unavailable: L3's permission screen is the honest-copy surface for this;
+                // nothing to surface from here.
+            }
+        }
+    }
+
+    /// W2d (L2) read-path metric specs — maps each Apple Watch sample type this app reads to the
+    /// Health-Auto-Export metric name/units the hub's `hae_router.py` understands (frozen
+    /// contract, W2d card). Built HERE rather than in `JIHealthKit` so
+    /// `HKQuantityTypeIdentifier`/`HKCategoryTypeIdentifier` construction stays out of
+    /// `JIHealthKit/Sources`, matching L1's identifier-isolation rule for that package (this file
+    /// is outside that grep's scope). L1's `HKTypes`/`appleWatchCapabilities` may supersede this
+    /// list once merged — the fixer aligns at integration.
+    private static var healthKitUploadSpecs: [HKMetricSpec] {
+        [
+            HKMetricSpec(sampleType: HKQuantityType(.stepCount), metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count())),
+            HKMetricSpec(sampleType: HKQuantityType(.activeEnergyBurned), metricName: HAEMetricName.activeEnergy, units: "kcal", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .kilocalorie())),
+            HKMetricSpec(sampleType: HKQuantityType(.appleExerciseTime), metricName: HAEMetricName.exerciseTime, units: "min", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .minute())),
+            HKMetricSpec(sampleType: HKQuantityType(.restingHeartRate), metricName: HAEMetricName.restingHeartRate, units: "bpm", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
+            HKMetricSpec(sampleType: HKQuantityType(.heartRateVariabilitySDNN), metricName: HAEMetricName.heartRateVariability, units: "ms", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .secondUnit(with: .milli))),
+            HKMetricSpec(sampleType: HKCategoryType(.sleepAnalysis), metricName: HAEMetricName.sleepAnalysis, units: "hr", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.sleepAnalysis()),
+            HKMetricSpec(sampleType: HKQuantityType(.bodyMass), metricName: HAEMetricName.weightBodyMass, units: "kg", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
+        ]
     }
 
     /// P-snapshot-wiring (W2c-L1): wires both hub-backed view models' `onSectionUpdate` hooks
