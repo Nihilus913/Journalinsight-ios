@@ -25,7 +25,7 @@ public struct TodayView: View {
                     // readiness field (nil when the hub itself has no score yet); a real "source doesn't
                     // support this metric" case awaits W2+'s additional providers.
                     VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false)
-                    TodayGrid(chips: model.chips, drivers: model.driverBars, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+                    TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)

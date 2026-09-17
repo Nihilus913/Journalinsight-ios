@@ -45,15 +45,16 @@ public nonisolated func chipTapAction(id: String, onSelectKpi: @escaping (String
 }
 
 /// Story 1: the full Today tile grid — the four `TodayViewModel.chips` (fixed default order
-/// hrv, rhr, sleep, steps) as `StatChip`s, plus the readiness `DriverBars` (always neutral,
-/// rule 6) and the energy-availability `EAGatedTile` (not computable from the current source —
-/// rule 5's gated idiom, not a bare zero).
+/// hrv, rhr, sleep, steps) as `StatChip`s, plus the energy-availability `EAGatedTile` (not
+/// computable from the current source — rule 5's gated idiom, not a bare zero). B-7: no
+/// `DriverBars` here — the RN oracle (mobile/app/(tabs)/index.tsx) has no driver bars on Today,
+/// and repeating hrv/rhr/sleep/steps there duplicated the chips above. `DriverBars` (JIDesign)
+/// stays for Recovery.
 ///
 /// Story 2: long-press begins drag-reorder; the new order persists as `[String]` chip ids under
 /// `PrefStore` key `today.tileOrder` and is restored on the next load via `loadTileOrder`.
 public struct TodayGrid: View {
     let chips: [TodayChip]
-    let drivers: [DriverBar]
     let prefs: PrefStore?
     let onSelectKpi: (String) -> Void
 
@@ -64,9 +65,8 @@ public struct TodayGrid: View {
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    public init(chips: [TodayChip], drivers: [DriverBar] = [], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void) {
+    public init(chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void) {
         self.chips = chips
-        self.drivers = drivers
         self.prefs = prefs
         self.onSelectKpi = onSelectKpi
     }
@@ -82,7 +82,6 @@ public struct TodayGrid: View {
                     tile(for: chip)
                 }
             }
-            DriverBars(drivers: drivers)
             EAGatedTile(label: "Energy availability")
         }
         .onAppear { order = loadTileOrder(prefs: prefs, chipIDs: chips.map(\.id)) }
