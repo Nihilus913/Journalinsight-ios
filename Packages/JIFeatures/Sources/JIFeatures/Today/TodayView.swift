@@ -5,9 +5,11 @@ import JIDesign
 public struct TodayView: View {
     @Bindable private var model: TodayViewModel
     private let onOpenConnection: () -> Void
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private let onSelectKpi: (String) -> Void
 
-    public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void) { self.model = model; self.onOpenConnection = onOpenConnection }
+    public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in }) {
+        self.model = model; self.onOpenConnection = onOpenConnection; self.onSelectKpi = onSelectKpi
+    }
 
     public var body: some View {
         ScrollView {
@@ -23,12 +25,7 @@ public struct TodayView: View {
                     // readiness field (nil when the hub itself has no score yet); a real "source doesn't
                     // support this metric" case awaits W2+'s additional providers.
                     VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false)
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        // DESIGN-1: a placeholder action (W2 KPI-detail stub) keeps the chip an enabled
-                        // Button — `.disabled(action == nil)` in StatChip would otherwise block the
-                        // press-in feel gate and read "dimmed" to VoiceOver.
-                        ForEach(model.chips) { c in StatChip(label: c.label, value: c.value, unit: c.unit, points: c.points, sourceMissing: c.sourceMissing, action: {}) }
-                    }
+                    TodayGrid(chips: model.chips, drivers: model.driverBars, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)

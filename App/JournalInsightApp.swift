@@ -19,11 +19,22 @@ struct JournalInsightApp: App {
         } catch { fatalError("AppEnvironment init failed: \(error)") }
     }()
 
+    // Held by the App struct (not RootTabView's own @State) so a cold-start deep link — the
+    // Info.plist-registered `ji`/`journalinsight` URL types resolve to `.onOpenURL` before
+    // RootTabView has necessarily finished its first `.task` — has somewhere durable to land;
+    // RootTabView reads it via `.onChange` and clears it once handled so re-opening the app
+    // without a new URL doesn't replay a stale one.
+    @State private var pendingDeepLink: DeepLink?
+
     var body: some Scene {
         WindowGroup {
-            RootTabView(env: env)
+            RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
                 .preferredColorScheme(.dark)
                 .tint(JIColor.info)
+                .onOpenURL { url in
+                    guard let link = DeepLink.parse(url) else { return }
+                    pendingDeepLink = link
+                }
         }
     }
 }

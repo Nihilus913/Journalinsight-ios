@@ -11,7 +11,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT: "YES"
-    DEVELOPMENT_TEAM: "" # Toby sets this once in Xcode > Signing; XcodeGen keeps it
+    DEVELOPMENT_TEAM: BCBJFS59L9 # Toby's team (set 2026-09-17); XcodeGen keeps it
     CODE_SIGN_STYLE: Automatic
 packages:
   JICore:
@@ -46,7 +46,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight
         TARGETED_DEVICE_FAMILY: "1"
-        ASSETCATALOG_COMPILER_APPICON_NAME: "" # no AppIcon.appiconset yet; XcodeGen's application-target default (AppIcon) fails actool with no icon set present
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon # App/Assets.xcassets/AppIcon.appiconset — oracle mobile/assets/icon.png (1024 universal)
     dependencies:
       - package: JICore
       - package: JIHub

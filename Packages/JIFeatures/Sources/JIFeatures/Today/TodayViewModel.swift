@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import JICore
 import JIPersistence
+import JIDesign
 
 nonisolated public struct TodayChip: Identifiable, Equatable, Sendable {
     public let id: String, label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool
@@ -48,6 +49,9 @@ public final class TodayViewModel {
 
     private let provider: any HealthDataProvider
     private let cache: OfflineCache
+    /// Optional — nil at call sites that haven't wired tile-order persistence yet (e.g. pre-W2b
+    /// `RootTabView`). `TodayGrid` degrades gracefully to an unpersisted default order when nil.
+    private let prefs: PrefStore?
     private let now: () -> Date
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery")
     /// Whether ANY section has ever synced successfully — set once from a warm cache at `restoreFromCache`,
@@ -57,9 +61,13 @@ public final class TodayViewModel {
     private var everSynced = false
     private var neverSyncedObserved = false
 
-    public init(provider: any HealthDataProvider, cache: OfflineCache, now: @escaping () -> Date = Date.init) {
-        self.provider = provider; self.cache = cache; self.now = now
+    public init(provider: any HealthDataProvider, cache: OfflineCache, prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init) {
+        self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now
     }
+
+    /// The `PrefStore` `TodayGrid` persists its drag-reorder tile order to (`today.tileOrder`).
+    /// `nil` at call sites that haven't wired it yet — see `prefs`'s doc comment.
+    public var tileOrderStore: PrefStore? { prefs }
 
     /// DESIGN-7 screen state — a pure refinement of `phase` (see `ScreenState.resolve`); read this for
     /// never-synced / stale-verdict-date / yazioAuthExpired copy instead of re-deriving them from `phase`.
@@ -98,6 +106,22 @@ public final class TodayViewModel {
             TodayChip(id: "sleep", label: "Sleep", value: newestNonNullValue(recovery, date: \.date, value: \.sleepScore), unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore)),
             TodayChip(id: "steps", label: "Steps", value: steps, unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false),
         ]
+    }
+
+    /// Readiness driver bars (W2 spec §8) — always neutral (rule 6, enforced by `DriverBars`
+    /// itself, not here). Normalizes each chip's current value against its own recent sparkline
+    /// range rather than a hand-picked domain scale, since W1 has no calibrated per-metric bounds
+    /// yet; a chip with no data or a hub-missing source degrades to `sourceMissing`/nil, never 0.
+    public var driverBars: [DriverBar] {
+        chips.map { chip in
+            guard !chip.sourceMissing else { return DriverBar(id: chip.id, label: chip.label, value: nil, sourceMissing: true) }
+            guard let v = chip.value else { return DriverBar(id: chip.id, label: chip.label, value: nil, sourceMissing: false) }
+            let series = chip.points.compactMap { $0 } + [v]
+            guard let lo = series.min(), let hi = series.max(), hi > lo else {
+                return DriverBar(id: chip.id, label: chip.label, value: 0.5, sourceMissing: false)
+            }
+            return DriverBar(id: chip.id, label: chip.label, value: (v - lo) / (hi - lo), sourceMissing: false)
+        }
     }
 
     public func load() async {
