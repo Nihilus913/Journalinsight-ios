@@ -56,7 +56,13 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         for (index, chunk) in chunks.enumerated() {
             let dto: BackloadResponseDTO
             do {
-                dto = try await hub.fetch(from: chunk.from, to: chunk.to)
+                // Two passes per chunk (see `BackloadMonthChunker`'s doc comment): the hub
+                // defaults an omitted `kinds` to daily-only, so the dense series (stages,
+                // heart_rate, respiration, spo2, hrv_readings, step_buckets) must be requested
+                // explicitly or they never come back — every array would stay `[]` forever.
+                let dailyDTO = try await hub.fetch(from: chunk.from, to: chunk.to, kinds: BackloadMonthChunker.dailyPassKinds)
+                let denseDTO = try await hub.fetch(from: chunk.from, to: chunk.to, kinds: BackloadMonthChunker.densePassKinds)
+                dto = Self.merge(daily: dailyDTO, dense: denseDTO)
             } catch {
                 throw BackloadError.hub("\(error)")
             }
@@ -114,6 +120,28 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         }
 
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
+    }
+
+    // MARK: - Response merge
+
+    /// Combines one chunk's daily-pass and dense-pass responses into a single DTO before
+    /// `BackloadMapper.map` sees it. `sleep` (with stage intervals, when Garmin has them) and
+    /// every genuinely-dense series come from `dense`; everything else comes from `daily`. Both
+    /// responses cover the same `from`/`to` chunk, so metadata is taken from `daily`.
+    ///
+    /// This has to be a merge, not two separate `map` calls, because `BackloadMapper`'s
+    /// daily_resp/daily_spo2 fallback gating (only write the daily average when no dense sample
+    /// exists for that date) reads `dto.respiration`/`dto.spo2` to decide — those arrays are `[]`
+    /// on the daily-only response by construction, which would make the gate fire on every date
+    /// and double-write, so the dense series has to be present in the same dto being mapped.
+    static func merge(daily: BackloadResponseDTO, dense: BackloadResponseDTO) -> BackloadResponseDTO {
+        BackloadResponseDTO(
+            from: daily.from, to: daily.to, source: daily.source,
+            sleep: dense.sleep, rhr: daily.rhr, steps: daily.steps, energy: daily.energy,
+            vo2max: daily.vo2max, workouts: daily.workouts,
+            heartRate: dense.heartRate, respiration: dense.respiration, spo2: dense.spo2, hrv: dense.hrv,
+            stepBuckets: dense.stepBuckets, dailyResp: daily.dailyResp, dailySpo2: daily.dailySpo2
+        )
     }
 
     // MARK: - Cursor

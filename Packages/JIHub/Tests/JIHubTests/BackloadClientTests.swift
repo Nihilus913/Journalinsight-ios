@@ -81,6 +81,33 @@ extension HubClientTests {
         #expect(dto.dailySpo2.first?.sleepAvg == 95.0)
     }
 
+    @Test func fetchOmitsKindsParamWhenNoneGiven() async throws {
+        StubURLProtocol.responses["/api/v1/vitals/backload"] = (200, Data(backloadFixtureJSON.utf8))
+        let client = BackloadClient(hub: HubClient(config: .init(baseURL: URL(string: "http://hub.test:8000")!, token: "t"), session: StubURLProtocol.session()))
+        var zurich = Calendar(identifier: .gregorian)
+        zurich.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        let from = zurich.date(from: DateComponents(year: 2025, month: 6, day: 1))!
+        let to = zurich.date(from: DateComponents(year: 2025, month: 6, day: 30))!
+
+        _ = try await client.fetch(from: from, to: to)
+        #expect(StubURLProtocol.lastRequest?.url?.query?.contains("kinds=") == false)
+    }
+
+    /// The `kinds` CSV is what actually asks the hub for the v2 dense series — this is the
+    /// regression test for the fixer finding that `fetch` never sent it at all.
+    @Test func fetchSendsKindsAsSortedCSVWhenGiven() async throws {
+        StubURLProtocol.responses["/api/v1/vitals/backload"] = (200, Data(backloadFixtureJSON.utf8))
+        let client = BackloadClient(hub: HubClient(config: .init(baseURL: URL(string: "http://hub.test:8000")!, token: "t"), session: StubURLProtocol.session()))
+        var zurich = Calendar(identifier: .gregorian)
+        zurich.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        let from = zurich.date(from: DateComponents(year: 2025, month: 6, day: 1))!
+        let to = zurich.date(from: DateComponents(year: 2025, month: 6, day: 30))!
+
+        _ = try await client.fetch(from: from, to: to, kinds: ["stages", "heart_rate", "sleep"])
+        let query = try #require(StubURLProtocol.lastRequest?.url?.query)
+        #expect(query.contains("kinds=heart_rate,sleep,stages"))
+    }
+
     @Test func backloadResponseDecodesWithV2ArraysAbsent() throws {
         // A hub response scoped to daily-only kinds (no dense series requested) omits the v2
         // arrays entirely rather than sending them empty — decoding must still succeed.

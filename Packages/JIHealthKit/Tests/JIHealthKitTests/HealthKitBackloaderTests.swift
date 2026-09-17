@@ -41,7 +41,11 @@ import JIHub
         let summary = try await backloader.run(range) { collector.append($0) }
         let progresses = collector.events
 
-        #expect(DynamicStubURLProtocol.requestedFroms == ["2025-05-27", "2025-06-01", "2025-07-01"])
+        // Two hub requests per chunk now — a daily pass then a dense pass (see
+        // `BackloadMonthChunker`) — so each `from` appears twice, in order.
+        #expect(DynamicStubURLProtocol.requestedFroms == [
+            "2025-05-27", "2025-05-27", "2025-06-01", "2025-06-01", "2025-07-01", "2025-07-01",
+        ])
         #expect(progresses.map(\.monthIndex) == [1, 2, 3])
         #expect(progresses.allSatisfy { $0.monthCount == 3 })
         #expect(progresses.last?.written == 3)
@@ -58,7 +62,7 @@ import JIHub
 
         let first = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
         _ = try await first.run(range) { _ in }
-        #expect(DynamicStubURLProtocol.requestedFroms.count == 3)
+        #expect(DynamicStubURLProtocol.requestedFroms.count == 6) // 3 chunks x (daily pass + dense pass)
 
         DynamicStubURLProtocol.reset()
         let second = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
@@ -172,6 +176,41 @@ import JIHub
         #expect(summaryOn.written == 1)
         let savedIds = storeOn.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
         #expect(savedIds == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00"])
+    }
+
+    /// Regression for the W2i fixer finding: `run()` used to call `hub.fetch(from:to:)` with no
+    /// `kinds` at all, so the hub's default (`DAILY_KINDS`) meant stages/heart_rate/respiration/
+    /// spo2/hrv/step_buckets were never requested and always came back `[]`. Assert the two
+    /// fetches per chunk actually carry the daily-pass and dense-pass kind sets.
+    @Test func fetchesADailyPassThenADensePassEachCarryingKinds() async throws {
+        let store = FakeHealthStore()
+        let backloader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        _ = try await backloader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(DynamicStubURLProtocol.requestedKinds.count == 2)
+        let dailySent = Set((DynamicStubURLProtocol.requestedKinds[0] ?? "").split(separator: ",").map(String.init))
+        let denseSent = Set((DynamicStubURLProtocol.requestedKinds[1] ?? "").split(separator: ",").map(String.init))
+        #expect(dailySent == BackloadMonthChunker.dailyPassKinds)
+        #expect(denseSent == BackloadMonthChunker.densePassKinds)
+        // The dense pass is the one that can ever produce stage bars / dense HR / SpO2 / HRV /
+        // step buckets on device — it must include `stages` (and `sleep`, so stages land inside
+        // populated `sleep[]` entries) alongside every other dense series.
+        #expect(denseSent.isSuperset(of: ["stages", "sleep", "heart_rate", "respiration", "spo2", "hrv_readings", "step_buckets"]))
+    }
+
+    /// End-to-end reachability check: a hub response that only carries dense-series data under
+    /// `sleep[].stages` / `heart_rate` / `respiration` / `spo2` (nothing in the daily-only
+    /// fields) must still reach HealthKit. Before the fix this data was unreachable because the
+    /// hub was never asked for it in the first place.
+    @Test func denseSeriesFromTheDensePassReachesHealthKit() async throws {
+        let store = FakeHealthStore()
+        DynamicStubURLProtocol.customResponseJSON = stagedSleepJSON
+        let backloader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await backloader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        let savedIds = Set(store.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
+        #expect(savedIds.contains("sleep:2026-06-01:st0")) // the staged interval, not just inBed
+        #expect(summary.written == 2)
     }
 
     @Test func heartRateRespirationSpo2WriteToTheirOwnQuantityTypes() async throws {
