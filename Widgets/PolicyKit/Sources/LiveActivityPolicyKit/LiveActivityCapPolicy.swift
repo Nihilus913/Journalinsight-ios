@@ -1,0 +1,1 @@
+../../../Sources/LiveActivityCapPolicy.swift

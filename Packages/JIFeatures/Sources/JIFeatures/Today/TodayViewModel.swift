@@ -61,6 +61,14 @@ public final class TodayViewModel {
     private var everSynced = false
     private var neverSyncedObserved = false
 
+    /// W2c-L1 snapshot wiring seam: fired whenever `morning`/`recovery`/`chips` may have changed
+    /// (end of `restoreFromCache` and end of every `fetchLive`, success or cache-fallback alike —
+    /// never on the plain-cancellation early return, since nothing changed there). Kept as a bare
+    /// closure rather than a `JISnapshot` dependency here: JIFeatures has no reason to depend on
+    /// the widget-facing snapshot package, so the App target (which does) reads this VM's own
+    /// public `verdict`/`readiness`/`chips`/`fetchedAt` and builds the `HubSnapshot` itself.
+    public var onSectionUpdate: (() -> Void)?
+
     public init(provider: any HealthDataProvider, cache: OfflineCache, prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init) {
         self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now
     }
@@ -139,6 +147,7 @@ public final class TodayViewModel {
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = r.value; recoveryFetchedAt = r.fetchedAt }
         if morning != nil { phase = .loaded }
+        if morning != nil || gate != nil || !recovery.isEmpty { onSectionUpdate?() }
     }
 
     private func fetchLive() async {
@@ -192,6 +201,7 @@ public final class TodayViewModel {
                 neverSyncedObserved = isEmpty && !hadEverSynced
                 phase = isEmpty ? .empty : .loaded
             }
+            onSectionUpdate?()
         } catch {
             // A tab switch cancels the view's `.task`; that is not a hub outage. Return to `.idle`
             // so `TodayView.task` reloads on the next appearance instead of showing a false error.
@@ -204,6 +214,7 @@ public final class TodayViewModel {
             lastError = (error as? HubError) ?? .decoding("\(error)")
             hubReachable = true
             phase = (morning == nil) ? .error(Self.describe(error)) : .loaded
+            onSectionUpdate?()
         }
     }
 

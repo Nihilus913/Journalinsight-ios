@@ -35,8 +35,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PLACEHOLDER — JournalInsight does not currently write health data.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>JournalInsight talks to your HealthTraining hub on the local network.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIUserInterfaceStyle</key>
