@@ -9,30 +9,87 @@ import JIHub
 public enum BackloadMapper {
     public static func map(_ dto: BackloadResponseDTO) -> [BackloadWriteSpec] {
         var specs: [BackloadWriteSpec] = []
-        specs.append(contentsOf: dto.sleep.compactMap(mapSleep))
+        specs.append(contentsOf: dto.sleep.flatMap(mapSleep))
         specs.append(contentsOf: dto.rhr.compactMap(mapRHR))
-        specs.append(contentsOf: dto.steps.compactMap(mapSteps))
+        specs.append(contentsOf: mapSteps(dto.steps, stepBuckets: dto.stepBuckets))
         specs.append(contentsOf: dto.energy.flatMap(mapEnergy))
         specs.append(contentsOf: dto.vo2max.compactMap(mapVo2Max))
         specs.append(contentsOf: dto.workouts.compactMap(mapWorkout))
+        specs.append(contentsOf: dto.heartRate.compactMap(mapHeartRate))
+        specs.append(contentsOf: dto.respiration.compactMap(mapRespiration))
+        specs.append(contentsOf: dto.spo2.compactMap(mapSpo2))
+        specs.append(contentsOf: dto.hrv.flatMap(mapHrv))
+        specs.append(contentsOf: dto.stepBuckets.compactMap(mapStepBucket))
+
+        // daily_resp/daily_spo2 fallback: only for days with no dense samples of that kind, per
+        // the frozen contract note — placed at the night's sleep midpoint.
+        let midpoints = sleepMidpoints(dto.sleep)
+        let denseRespDates = Set(dto.respiration.compactMap { dateOnly($0.ts) })
+        let denseSpo2Dates = Set(dto.spo2.compactMap { dateOnly($0.ts) })
+        specs.append(contentsOf: dto.dailyResp.compactMap { mapDailyResp($0, denseDates: denseRespDates, midpoints: midpoints) })
+        specs.append(contentsOf: dto.dailySpo2.compactMap { mapDailySpo2($0, denseDates: denseSpo2Dates, midpoints: midpoints) })
         return specs
     }
 
-    static func mapSleep(_ e: BackloadSleepEntryDTO) -> BackloadWriteSpec? {
-        guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return nil }
-        let asleepEnd = end.addingTimeInterval(-e.awakeSec)
-        guard asleepEnd > start else { return nil }
-        return .sleep(BackloadSleepSampleSpec(syncId: e.syncId, inBedStart: start, inBedEnd: end, asleepStart: start, asleepEnd: asleepEnd))
+    // MARK: - Sleep (v1 generic-asleep + v2 staged)
+
+    static func mapSleep(_ e: BackloadSleepEntryDTO) -> [BackloadWriteSpec] {
+        guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return [] }
+
+        if e.stages.isEmpty {
+            let asleepEnd = end.addingTimeInterval(-e.awakeSec)
+            guard asleepEnd > start else { return [] }
+            return [.sleep(BackloadSleepSampleSpec(syncId: e.syncId, inBedStart: start, inBedEnd: end, asleepStart: start, asleepEnd: asleepEnd))]
+        }
+
+        let stageSpecs: [BackloadSleepStageSampleSpec] = e.stages.enumerated().compactMap { index, stage in
+            guard let stStart = BackloadDateParsing.timestamp(stage.start), let stEnd = BackloadDateParsing.timestamp(stage.end), stEnd > stStart else { return nil }
+            return BackloadSleepStageSampleSpec(syncId: "\(e.syncId):st\(index)", stage: mapStageKind(stage.stage), start: stStart, end: stEnd)
+        }
+        guard !stageSpecs.isEmpty else { return [] }
+        return [
+            .delete(kind: .sleepCategory, syncId: "\(e.syncId):asleep"),
+            .sleepStaged(BackloadSleepStagedSampleSpec(baseSyncId: e.syncId, inBedStart: start, inBedEnd: end, stages: stageSpecs)),
+        ]
     }
+
+    static func mapStageKind(_ kind: BackloadSleepStageKindDTO) -> BackloadSleepStageKind {
+        switch kind {
+        case .deep: return .deep
+        case .light: return .light
+        case .rem: return .rem
+        case .awake: return .awake
+        }
+    }
+
+    static func sleepMidpoints(_ entries: [BackloadSleepEntryDTO]) -> [String: Date] {
+        var out: [String: Date] = [:]
+        for e in entries {
+            guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { continue }
+            guard let date = dateOnly(e.start) else { continue }
+            out[date] = start.addingTimeInterval(end.timeIntervalSince(start) / 2)
+        }
+        return out
+    }
+
+    // MARK: - Simple daily kinds (unchanged since v1)
 
     static func mapRHR(_ e: BackloadRHREntryDTO) -> BackloadWriteSpec? {
         guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
         return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .restingHeartRate, start: start, end: end, value: e.bpm))
     }
 
-    static func mapSteps(_ e: BackloadStepsEntryDTO) -> BackloadWriteSpec? {
-        guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
-        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .stepCount, start: start, end: end, value: e.count))
+    /// v2: a date with 15-min step buckets gets the v1 daily `steps:<date>` sample deleted
+    /// (buckets replace it, per the frozen contract) instead of written.
+    static func mapSteps(_ entries: [BackloadStepsEntryDTO], stepBuckets: [BackloadStepBucketEntryDTO]) -> [BackloadWriteSpec] {
+        let bucketDates = Set(stepBuckets.compactMap { dateOnly($0.start) })
+        return entries.compactMap { e in
+            if bucketDates.contains(e.date) {
+                return .delete(kind: .stepQuantity, syncId: e.syncId)
+            }
+            guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
+            return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .stepCount, start: start, end: end, value: e.count))
+        }
     }
 
     /// One `energy` row yields two samples (active + basal) sharing the row's `sync_id` prefix,
@@ -53,6 +110,70 @@ public enum BackloadMapper {
     static func mapWorkout(_ e: BackloadWorkoutEntryDTO) -> BackloadWriteSpec? {
         guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return nil }
         let kind = BackloadWorkoutKind(rawValue: e.kind.rawValue) ?? .other
-        return .workout(BackloadWorkoutSampleSpec(syncId: e.syncId, start: start, end: end, kind: kind, name: e.name, kcal: e.kcal, distanceM: e.distanceM, avgHr: e.avgHr))
+        return .workout(BackloadWorkoutSampleSpec(syncId: e.syncId, start: start, end: end, kind: kind, name: e.name, kcal: e.kcal, distanceM: e.distanceM, avgHr: e.avgHr, startEstimated: e.startEstimated ?? false))
+    }
+
+    // MARK: - v2 dense series (no sync_id on the wire — derived from `ts`)
+
+    static func mapHeartRate(_ e: BackloadHeartRateEntryDTO) -> BackloadWriteSpec? {
+        guard let ts = BackloadDateParsing.timestamp(e.ts) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: "hr:\(e.ts)", kind: .heartRate, start: ts, end: ts, value: e.bpm))
+    }
+
+    static func mapRespiration(_ e: BackloadRespirationEntryDTO) -> BackloadWriteSpec? {
+        guard let ts = BackloadDateParsing.timestamp(e.ts) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: "resp:\(e.ts)", kind: .respiratoryRate, start: ts, end: ts, value: e.brpm))
+    }
+
+    static func mapSpo2(_ e: BackloadSpo2EntryDTO) -> BackloadWriteSpec? {
+        guard let ts = BackloadDateParsing.timestamp(e.ts) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: "spo2:\(e.ts)", kind: .oxygenSaturation, start: ts, end: ts, value: e.pct / 100.0))
+    }
+
+    static func mapStepBucket(_ e: BackloadStepBucketEntryDTO) -> BackloadWriteSpec? {
+        guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .stepCount, start: start, end: end, value: e.count))
+    }
+
+    /// HRV readings map 1:1 to samples when present; when `readings` is empty the entry falls
+    /// back to a single nightly-average sample at that night's sleep midpoint (or day-start + 12h
+    /// when there's no matching sleep entry — an approximation, not a claimed sleep time).
+    /// `HealthKitBackloader` drops all of these unless `hk.backload.writeHRV` is on.
+    static func mapHrv(_ e: BackloadHrvEntryDTO) -> [BackloadWriteSpec] {
+        if !e.readings.isEmpty {
+            return e.readings.compactMap { reading in
+                guard let ts = BackloadDateParsing.timestamp(reading.ts) else { return nil }
+                return .quantity(BackloadQuantitySampleSpec(syncId: "\(e.syncId):\(reading.ts)", kind: .hrvSDNN, start: ts, end: ts, value: reading.rmssdMs))
+            }
+        }
+        guard let avg = e.nightlyRmssdMs, let (dayStart, _) = BackloadDateParsing.dayBounds(e.date) else { return [] }
+        let at = dayStart.addingTimeInterval(12 * 3600)
+        return [.quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .hrvSDNN, start: at, end: at, value: avg))]
+    }
+
+    // MARK: - Daily fallback (only when no dense samples exist for that date)
+
+    static func mapDailyResp(_ e: BackloadDailyRespEntryDTO, denseDates: Set<String>, midpoints: [String: Date]) -> BackloadWriteSpec? {
+        guard !denseDates.contains(e.date) else { return nil }
+        guard let value = e.sleepAvg ?? e.wakingAvg else { return nil }
+        guard let at = midpoints[e.date] else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .respiratoryRate, start: at, end: at, value: value))
+    }
+
+    static func mapDailySpo2(_ e: BackloadDailySpo2EntryDTO, denseDates: Set<String>, midpoints: [String: Date]) -> BackloadWriteSpec? {
+        guard !denseDates.contains(e.date) else { return nil }
+        guard let value = e.sleepAvg else { return nil }
+        guard let at = midpoints[e.date] else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .oxygenSaturation, start: at, end: at, value: value / 100.0))
+    }
+
+    // MARK: - Helpers
+
+    /// The `YYYY-MM-DD` prefix of a full timestamp string, e.g. `"2026-06-01T22:31:00+02:00"` ->
+    /// `"2026-06-01"` — used only to correlate dense-series timestamps with daily/sleep dates
+    /// (all wire dates are already hub-local, per the contract note in `BackloadDateParsing`).
+    static func dateOnly(_ ts: String) -> String? {
+        guard ts.count >= 10 else { return nil }
+        return String(ts.prefix(10))
     }
 }

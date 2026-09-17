@@ -12,6 +12,10 @@ public protocol HealthStoreWriting: Sendable {
     /// `HKMetadataKeySyncIdentifier` — the idempotency check the runner filters new writes against.
     func existingSyncIds(sampleType: HKSampleType, start: Date, end: Date) async throws -> Set<String>
     func save(_ objects: [HKObject]) async throws
+    /// Deletes every `sampleType` object whose `HKMetadataKeySyncIdentifier` is in
+    /// `syncIdentifiers` — used to remove a v1 marker (generic `asleep` block, daily `steps`
+    /// sample) a v2 write supersedes. A no-op for an empty set.
+    func deleteObjects(sampleType: HKSampleType, syncIdentifiers: Set<String>) async throws
 }
 
 public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
@@ -41,6 +45,12 @@ public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
 
     public func save(_ objects: [HKObject]) async throws {
         try await store.save(objects)
+    }
+
+    public func deleteObjects(sampleType: HKSampleType, syncIdentifiers: Set<String>) async throws {
+        guard !syncIdentifiers.isEmpty else { return }
+        let predicate = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: Array(syncIdentifiers))
+        _ = try await store.deleteObjects(of: sampleType, predicate: predicate)
     }
 }
 #endif

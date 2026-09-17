@@ -18,6 +18,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     // this SDK — same reasoning as `JISnapshot.SnapshotStore`.
     private nonisolated(unsafe) let cursorDefaults: UserDefaults?
     private static let cursorKey = "hk.backload.cursor"
+    /// App-Group pref (written by JIFeatures' Settings toggle, L4): write Garmin RMSSD readings
+    /// under Apple's `heartRateVariabilitySDNN` type. Default OFF — Garmin RMSSD and Apple SDNN
+    /// are different metrics, per the v2 contract note.
+    static let writeHRVKey = "hk.backload.writeHRV"
     public static let appGroupSuite = "group.toby913.JournalInsight"
 
     public init(hub: BackloadClient, store: any HealthStoreWriting = RealHealthStore(), appGroupSuite: String = HealthKitBackloader.appGroupSuite) {
@@ -52,12 +56,39 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         for (index, chunk) in chunks.enumerated() {
             let dto: BackloadResponseDTO
             do {
-                dto = try await hub.fetch(from: chunk.from, to: chunk.to)
+                // Two passes per chunk (see `BackloadMonthChunker`'s doc comment): the hub
+                // defaults an omitted `kinds` to daily-only, so the dense series (stages,
+                // heart_rate, respiration, spo2, hrv_readings, step_buckets) must be requested
+                // explicitly or they never come back — every array would stay `[]` forever.
+                let dailyDTO = try await hub.fetch(from: chunk.from, to: chunk.to, kinds: BackloadMonthChunker.dailyPassKinds)
+                let denseDTO = try await hub.fetch(from: chunk.from, to: chunk.to, kinds: BackloadMonthChunker.densePassKinds)
+                dto = Self.merge(daily: dailyDTO, dense: denseDTO)
             } catch {
                 throw BackloadError.hub("\(error)")
             }
 
-            let entries = BackloadMapper.map(dto).flatMap(Self.objectEntries(for:))
+            let allSpecs = BackloadMapper.map(dto)
+            let writeHRV = cursorDefaults?.bool(forKey: Self.writeHRVKey) ?? false
+
+            // Deletions (v1 markers superseded by v2 writes) happen before the save pass so a
+            // fresh `existingSyncIds` read (below) never sees the object it's about to replace.
+            var deletionsByKind: [BackloadDeleteKind: Set<String>] = [:]
+            var writableSpecs: [BackloadWriteSpec] = []
+            for spec in allSpecs {
+                switch spec {
+                case .delete(let kind, let syncId):
+                    deletionsByKind[kind, default: []].insert(syncId)
+                case .quantity(let q) where q.kind == .hrvSDNN && !writeHRV:
+                    continue // HRV gated by the App-Group pref; drop silently, no delete either
+                default:
+                    writableSpecs.append(spec)
+                }
+            }
+            for (kind, syncIds) in deletionsByKind {
+                try? await store.deleteObjects(sampleType: Self.sampleType(for: kind), syncIdentifiers: syncIds)
+            }
+
+            let entries = writableSpecs.flatMap(Self.objectEntries(for:))
             let byType = Dictionary(grouping: entries, by: { ObjectIdentifier($0.type) })
             var existingByType: [ObjectIdentifier: Set<String>] = [:]
             let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
@@ -91,6 +122,28 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
     }
 
+    // MARK: - Response merge
+
+    /// Combines one chunk's daily-pass and dense-pass responses into a single DTO before
+    /// `BackloadMapper.map` sees it. `sleep` (with stage intervals, when Garmin has them) and
+    /// every genuinely-dense series come from `dense`; everything else comes from `daily`. Both
+    /// responses cover the same `from`/`to` chunk, so metadata is taken from `daily`.
+    ///
+    /// This has to be a merge, not two separate `map` calls, because `BackloadMapper`'s
+    /// daily_resp/daily_spo2 fallback gating (only write the daily average when no dense sample
+    /// exists for that date) reads `dto.respiration`/`dto.spo2` to decide — those arrays are `[]`
+    /// on the daily-only response by construction, which would make the gate fire on every date
+    /// and double-write, so the dense series has to be present in the same dto being mapped.
+    static func merge(daily: BackloadResponseDTO, dense: BackloadResponseDTO) -> BackloadResponseDTO {
+        BackloadResponseDTO(
+            from: daily.from, to: daily.to, source: daily.source,
+            sleep: dense.sleep, rhr: daily.rhr, steps: daily.steps, energy: daily.energy,
+            vo2max: daily.vo2max, workouts: daily.workouts,
+            heartRate: dense.heartRate, respiration: dense.respiration, spo2: dense.spo2, hrv: dense.hrv,
+            stepBuckets: dense.stepBuckets, dailyResp: daily.dailyResp, dailySpo2: daily.dailySpo2
+        )
+    }
+
     // MARK: - Cursor
 
     private func readCursor() -> Date? {
@@ -121,11 +174,17 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// `HealthStoreWriting`.
     static let averageHeartRateMetadataKey = "HTAverageHeartRateBPM"
 
+    /// v2: every write — new kinds and the v1 ones alike — carries `HKMetadataKeySyncVersion = 2`
+    /// per the frozen contract note ("everything keeps ... SyncVersion = 2"). Idempotency itself
+    /// only keys off the sync identifier, so this bump doesn't disturb existing v1 objects still
+    /// on a device that hasn't re-run since.
+    static let syncVersion = 2
+
     static func objectEntries(for spec: BackloadWriteSpec) -> [ObjectEntry] {
         switch spec {
         case .quantity(let q):
             guard let type = quantityType(q.kind) else { return [] }
-            let metadata: [String: Any] = [HKMetadataKeySyncIdentifier: q.syncId, HKMetadataKeySyncVersion: 1]
+            let metadata: [String: Any] = [HKMetadataKeySyncIdentifier: q.syncId, HKMetadataKeySyncVersion: syncVersion]
             let sample = HKQuantitySample(type: type, quantity: HKQuantity(unit: quantityUnit(q.kind), doubleValue: q.value), start: q.start, end: q.end, metadata: metadata)
             return [ObjectEntry(object: sample, type: type, syncId: q.syncId)]
 
@@ -136,28 +195,53 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             let inBed = HKCategorySample(
                 type: sleepType, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
                 start: s.inBedStart, end: s.inBedEnd,
-                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: 1])
+                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: syncVersion])
             let asleep = HKCategorySample(
                 type: sleepType, value: HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
                 start: s.asleepStart, end: s.asleepEnd,
-                metadata: [HKMetadataKeySyncIdentifier: asleepId, HKMetadataKeySyncVersion: 1])
+                metadata: [HKMetadataKeySyncIdentifier: asleepId, HKMetadataKeySyncVersion: syncVersion])
             return [
                 ObjectEntry(object: inBed, type: sleepType, syncId: inBedId),
                 ObjectEntry(object: asleep, type: sleepType, syncId: asleepId),
             ]
 
+        case .sleepStaged(let s):
+            let sleepType = HKCategoryType(.sleepAnalysis)
+            let inBedId = "\(s.baseSyncId):inbed"
+            let inBed = HKCategorySample(
+                type: sleepType, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
+                start: s.inBedStart, end: s.inBedEnd,
+                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: syncVersion])
+            var out = [ObjectEntry(object: inBed, type: sleepType, syncId: inBedId)]
+            for stage in s.stages {
+                let sample = HKCategorySample(
+                    type: sleepType, value: stageCategoryValue(stage.stage),
+                    start: stage.start, end: stage.end,
+                    metadata: [HKMetadataKeySyncIdentifier: stage.syncId, HKMetadataKeySyncVersion: syncVersion])
+                out.append(ObjectEntry(object: sample, type: sleepType, syncId: stage.syncId))
+            }
+            return out
+
         case .workout(let w):
             let type = HKWorkoutType.workoutType()
-            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: 1, HKMetadataKeyWorkoutBrandName: w.name]
+            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: syncVersion, HKMetadataKeyWorkoutBrandName: w.name]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
+            if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
             let distance = w.distanceM.map { HKQuantity(unit: .meter(), doubleValue: $0) }
             let workout = HKWorkout(
                 activityType: activityType(w.kind), start: w.start, end: w.end,
                 workoutEvents: nil, totalEnergyBurned: energy, totalDistance: distance, metadata: metadata)
             return [ObjectEntry(object: workout, type: type, syncId: w.syncId)]
+
+        case .delete:
+            return [] // handled in `run` before mapping to objects, never saved
         }
     }
+
+    /// Custom metadata key noting a workout's `start` is the hub's 12:00 fallback rather than a
+    /// real Garmin activity start (`start_time_utc` missing) — surfaced for debugging only.
+    static let startEstimatedMetadataKey = "HTStartEstimated"
 
     static func quantityType(_ kind: BackloadQuantityKind) -> HKQuantityType? {
         switch kind {
@@ -166,15 +250,37 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .activeEnergyBurned: return HKQuantityType(.activeEnergyBurned)
         case .basalEnergyBurned: return HKQuantityType(.basalEnergyBurned)
         case .vo2Max: return HKQuantityType(.vo2Max)
+        case .heartRate: return HKQuantityType(.heartRate)
+        case .respiratoryRate: return HKQuantityType(.respiratoryRate)
+        case .oxygenSaturation: return HKQuantityType(.oxygenSaturation)
+        case .hrvSDNN: return HKQuantityType(.heartRateVariabilitySDNN)
         }
     }
 
     static func quantityUnit(_ kind: BackloadQuantityKind) -> HKUnit {
         switch kind {
-        case .restingHeartRate: return HKUnit(from: "count/min")
+        case .restingHeartRate, .heartRate, .respiratoryRate: return HKUnit(from: "count/min")
         case .stepCount: return .count()
         case .activeEnergyBurned, .basalEnergyBurned: return .kilocalorie()
         case .vo2Max: return HKUnit(from: "ml/(kg*min)")
+        case .oxygenSaturation: return .percent() // written as a 0–1 fraction, per HK convention
+        case .hrvSDNN: return HKUnit.secondUnit(with: .milli)
+        }
+    }
+
+    static func stageCategoryValue(_ stage: BackloadSleepStageKind) -> Int {
+        switch stage {
+        case .deep: return HKCategoryValueSleepAnalysis.asleepDeep.rawValue
+        case .light: return HKCategoryValueSleepAnalysis.asleepCore.rawValue
+        case .rem: return HKCategoryValueSleepAnalysis.asleepREM.rawValue
+        case .awake: return HKCategoryValueSleepAnalysis.awake.rawValue
+        }
+    }
+
+    static func sampleType(for kind: BackloadDeleteKind) -> HKSampleType {
+        switch kind {
+        case .sleepCategory: return HKCategoryType(.sleepAnalysis)
+        case .stepQuantity: return HKQuantityType(.stepCount)
         }
     }
 
@@ -195,6 +301,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             HKQuantityType(.restingHeartRate), HKQuantityType(.stepCount),
             HKQuantityType(.activeEnergyBurned), HKQuantityType(.basalEnergyBurned),
             HKQuantityType(.vo2Max), HKCategoryType(.sleepAnalysis), HKWorkoutType.workoutType(),
+            HKQuantityType(.heartRate), HKQuantityType(.respiratoryRate), HKQuantityType(.oxygenSaturation),
+            HKQuantityType(.heartRateVariabilitySDNN),
         ]
     }
 }
