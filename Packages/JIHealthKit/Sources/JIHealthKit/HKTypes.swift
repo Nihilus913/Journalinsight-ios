@@ -35,12 +35,7 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         case .exerciseTime: return HKQuantityType(HKQuantityTypeIdentifier.appleExerciseTime)
         case .restingHeartRate: return HKQuantityType(HKQuantityTypeIdentifier.restingHeartRate)
         case .hrvSDNN: return HKQuantityType(HKQuantityTypeIdentifier.heartRateVariabilitySDNN)
-        case .hrvRMSSD:
-            guard Self.hrvRMSSDTypeAvailable else { return nil }
-            if #available(iOS 27, watchOS 27, macOS 27, *) {
-                return HKQuantityType(HKQuantityTypeIdentifier.heartRateVariabilityRMSSD)
-            }
-            return nil
+        case .hrvRMSSD: return Self.hrvRMSSDQuantityType
         case .sleepAnalysis: return HKCategoryType(HKCategoryTypeIdentifier.sleepAnalysis)
         case .bodyMass: return HKQuantityType(HKQuantityTypeIdentifier.bodyMass)
         case .bodyFatPercentage: return HKQuantityType(HKQuantityTypeIdentifier.bodyFatPercentage)
@@ -54,9 +49,16 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     /// (rather than inlining the `#available` check at every call site) because `Capabilities+HK`
     /// and the permission UI (L3) both need it without importing HealthKit availability logic
     /// themselves.
-    public static var hrvRMSSDTypeAvailable: Bool {
-        if #available(iOS 27, watchOS 27, macOS 27, *) { return true }
-        return false
+    public static var hrvRMSSDTypeAvailable: Bool { hrvRMSSDQuantityType != nil }
+
+    /// Resolved by raw-value string, NOT via the `HKQuantityTypeIdentifier.heartRateVariabilityRMSSD`
+    /// extern constant: the iOS 27.0 SDK declares that symbol `API_AVAILABLE(ios(27.0))`, but the
+    /// iOS 27.0 simulator runtime (24A5408d) does not export it, and with a 27.0 deployment target
+    /// the compiler strong-links it — the app then dies at dyld load ("Symbol not found:
+    /// _HKQuantityTypeIdentifierHeartRateVariabilityRMSSD", found in the W2d close-out).
+    /// `quantityType(forIdentifier:)` returns `nil` on a runtime that doesn't know the identifier.
+    static var hrvRMSSDQuantityType: HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: HKQuantityTypeIdentifier(rawValue: "HKQuantityTypeIdentifierHeartRateVariabilityRMSSD"))
     }
 
     /// `allCases` filtered to kinds whose `sampleType` resolves on this OS — i.e. everything

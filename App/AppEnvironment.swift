@@ -53,6 +53,11 @@ final class AppEnvironment {
     private(set) var healthKitUploader: HealthKitUploader?
     private var healthKitObservers: [HKObserverQuery] = []
 
+    /// W2d (L1): three-state read-permission model over the real `HKHealthStore`. Hub-independent,
+    /// so it lives from `init` — `ConnectionSheet`'s "Apple Watch (read)" section (L3) is driven
+    /// from it via `makeHealthPermissionModel()`.
+    let healthPermissions = HealthKitPermissions(authorizer: HKHealthStore())
+
     init(
         secrets: any SecretStore = KeychainStore(),
         inMemory: Bool = false,
@@ -101,6 +106,47 @@ final class AppEnvironment {
                 // Denied/unavailable: L3's permission screen is the honest-copy surface for this;
                 // nothing to surface from here.
             }
+        }
+    }
+
+    /// W2d close-out wiring (L1 ↔ L2 ↔ L3 seam): the view model `ConnectionSheet` shows. Its
+    /// request closure runs the real HealthKit sheet, then — on grant — starts L2's background
+    /// delivery and one immediate `syncAll()` so the first upload lands as dso 4 without waiting
+    /// for an observer to fire. JIFeatures has its own `HKPermission` (no JIHealthKit import), so
+    /// the two same-named enums are mapped explicitly here.
+    func makeHealthPermissionModel() -> HealthPermissionViewModel {
+        HealthPermissionViewModel(
+            permission: Self.featurePermission(aggregateReadPermission()),
+            appleWatchCapabilities: DataCapability.appleWatchCapabilities,
+            requestPermission: { [weak self] in
+                guard let self else { return .notDetermined }
+                try? await self.healthPermissions.requestAuthorization()
+                let status = await MainActor.run { self.aggregateReadPermission() }
+                if status == .granted, let uploader = await MainActor.run(body: { self.healthKitUploader }) {
+                    if let observers = try? await uploader.startBackgroundDelivery() {
+                        await MainActor.run { self.healthKitObservers = observers }
+                    }
+                    await uploader.syncAll()
+                }
+                return Self.featurePermission(status)
+            }
+        )
+    }
+
+    /// One verdict over every available read kind: any `.denied` wins, then `.granted` only when
+    /// all are granted, else `.notDetermined` (never asked, or asked and HealthKit hides the answer).
+    private func aggregateReadPermission() -> JIHealthKit.HKPermission {
+        let statuses = HKReadKind.availableCases.map { healthPermissions.status(for: $0) }
+        if statuses.contains(.denied) { return .denied }
+        if !statuses.isEmpty, statuses.allSatisfy({ $0 == .granted }) { return .granted }
+        return .notDetermined
+    }
+
+    private static func featurePermission(_ p: JIHealthKit.HKPermission) -> JIFeatures.HKPermission {
+        switch p {
+        case .granted: .granted
+        case .denied: .denied
+        case .notDetermined: .notDetermined
         }
     }
 
