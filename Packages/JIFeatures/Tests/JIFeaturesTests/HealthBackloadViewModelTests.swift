@@ -127,3 +127,14 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     await vm.start()
     #expect(vm.isRunning == false) // done() after completion
 }
+
+@Test @MainActor func backloadShowsTheWritersCursorAsLastSyncedDay() {
+    let suite = UserDefaults(suiteName: "ji.tests.backload.cursor.\(UUID().uuidString)")!
+    #expect(HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: suite).lastSyncedDay == nil)
+    suite.set("2026-06-30", forKey: "hk.backload.cursor")
+    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: suite)
+    #expect(vm.lastSyncedDay == "2026-06-30")
+    suite.set("2026-07-31", forKey: "hk.backload.cursor")
+    vm.refreshLastSyncedDay()
+    #expect(vm.lastSyncedDay == "2026-07-31")
+}

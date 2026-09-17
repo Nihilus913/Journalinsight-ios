@@ -16,6 +16,8 @@ public struct HealthBackloadSection: View {
             Text("Fill the gap where Garmin Connect didn't write to Apple Health.")
                 .font(.footnote)
                 .foregroundStyle(JIColor.muted)
+            LabeledContent("Last synced day", value: model.lastSyncedDay ?? "never")
+                .font(.footnote)
             Toggle(
                 "Write HRV as SDNN (Garmin RMSSD — not comparable to Apple Watch)",
                 isOn: Binding(get: { model.writeHRV }, set: { model.setWriteHRV($0) })

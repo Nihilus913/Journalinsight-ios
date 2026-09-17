@@ -28,6 +28,10 @@ public final class HealthBackloadViewModel {
     private let now: () -> Date
     private let hrvPrefs: UserDefaults?
     private static let hrvPrefKey = "hk.backload.writeHRV"
+    /// Last day the writer completed, `YYYY-MM-DD` (Zurich) — the same App-Group key
+    /// `HealthKitBackloader` persists its resume cursor under. `nil` = never run on this device.
+    public private(set) var lastSyncedDay: String?
+    private static let cursorKey = "hk.backload.cursor"
 
     /// Default range: hub has Garmin (dso_key = 2) since 2025-05-27 (wave card §Why/what) through today.
     /// `hrvPrefs` defaults to the app's real App-Group suite; tests inject a scratch
@@ -42,6 +46,12 @@ public final class HealthBackloadViewModel {
         self.now = now
         self.hrvPrefs = hrvPrefs
         self.writeHRV = hrvPrefs?.bool(forKey: Self.hrvPrefKey) ?? false
+        self.lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey)
+    }
+
+    /// Re-reads the writer's cursor (called after every progress tick and at the end of a run).
+    public func refreshLastSyncedDay() {
+        lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey)
     }
 
     public func setWriteHRV(_ value: Bool) {
@@ -92,9 +102,11 @@ public final class HealthBackloadViewModel {
                         written: progress.written,
                         skipped: progress.skipped
                     )
+                    self.refreshLastSyncedDay()
                 }
             }
             phase = .done(summary)
+            refreshLastSyncedDay()
         } catch let error as BackloadError {
             phase = .failed(Self.describe(error))
         } catch {
