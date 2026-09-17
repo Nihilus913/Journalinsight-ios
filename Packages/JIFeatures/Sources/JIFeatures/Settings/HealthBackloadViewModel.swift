@@ -17,13 +17,36 @@ public final class HealthBackloadViewModel {
 
     public private(set) var phase: Phase = .idle
 
+    /// W2i (B-11): "write HRV as SDNN" opt-in, App-Group `UserDefaults` key `hk.backload.writeHRV`
+    /// (wave card — same suite as `JISnapshot.SnapshotStore`). JIHealthKit (L3) reads this same
+    /// key when deciding whether to write `heartRateVariabilitySDNN`; this VM only writes it.
+    /// Default OFF (Garmin RMSSD ≠ Apple SDNN) — `UserDefaults.bool(forKey:)` already returns
+    /// `false` for an unset key, so no explicit default-registration is needed.
+    public private(set) var writeHRV: Bool
+
     private let runner: any BackloadRunning
     private let now: () -> Date
+    private let hrvPrefs: UserDefaults?
+    private static let hrvPrefKey = "hk.backload.writeHRV"
 
     /// Default range: hub has Garmin (dso_key = 2) since 2025-05-27 (wave card §Why/what) through today.
-    public init(runner: any BackloadRunning, now: @escaping () -> Date = Date.init) {
+    /// `hrvPrefs` defaults to the app's real App-Group suite; tests inject a scratch
+    /// `UserDefaults(suiteName:)` (or `nil`, standing in for an unavailable app group — the
+    /// toggle then reads/writes as always-off, never crashes, same contract as `SnapshotStore`).
+    public init(
+        runner: any BackloadRunning,
+        now: @escaping () -> Date = Date.init,
+        hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")
+    ) {
         self.runner = runner
         self.now = now
+        self.hrvPrefs = hrvPrefs
+        self.writeHRV = hrvPrefs?.bool(forKey: Self.hrvPrefKey) ?? false
+    }
+
+    public func setWriteHRV(_ value: Bool) {
+        writeHRV = value
+        hrvPrefs?.set(value, forKey: Self.hrvPrefKey)
     }
 
     public var defaultRange: BackloadRange {

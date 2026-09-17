@@ -16,6 +16,11 @@ public struct HealthBackloadSection: View {
             Text("Fill the gap where Garmin Connect didn't write to Apple Health.")
                 .font(.footnote)
                 .foregroundStyle(JIColor.muted)
+            Toggle(
+                "Write HRV as SDNN (Garmin RMSSD — not comparable to Apple Watch)",
+                isOn: Binding(get: { model.writeHRV }, set: { model.setWriteHRV($0) })
+            )
+            .font(.footnote)
             statusRow
             Button("Backload to Apple Health") { Task { await model.start() } }
                 .disabled(model.isRunning)

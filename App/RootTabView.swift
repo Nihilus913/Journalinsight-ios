@@ -58,7 +58,7 @@ struct RootTabView: View {
         .sheet(isPresented: $showConnection) {
             ConnectionSheet(
                 store: ConnectionConfigStore(secrets: env.secrets),
-                backloadModel: HealthBackloadViewModel(runner: env.backload)   // W2h: Garmin → Apple Health
+                backloadModel: HealthBackloadViewModel(runner: env.backload, hrvPrefs: env.hrvPrefs)   // W2h/W2i: Garmin → Apple Health
             ) { config in
                 env.apply(config)
                 todayModel = nil

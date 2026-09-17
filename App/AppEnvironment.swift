@@ -34,6 +34,12 @@ final class AppEnvironment {
     private let snapshotStore: SnapshotStore
     private let now: () -> Date
 
+    /// W2i (B-11): App-Group `UserDefaults` handed to `HealthBackloadViewModel` for the
+    /// `hk.backload.writeHRV` toggle — same suite `SnapshotStore` uses, so JIHealthKit (L3) reads
+    /// the same key this writes. Exposed (not just a VM-internal default) so `RootTabView` wires
+    /// it explicitly and tests can substitute a scratch suite via `init(hrvPrefs:)`.
+    let hrvPrefs: UserDefaults?
+
     /// W2h (B-9): the HealthKit backload runner, injected here so JIFeatures (which builds the
     /// Settings UI against `BackloadRunning` only) never imports JIHealthKit. `NoopBackloader`
     /// until `apply(_:)` has a `ConnectionConfig` to build a real `HealthKitBackloader` from.
@@ -43,6 +49,7 @@ final class AppEnvironment {
         secrets: any SecretStore = KeychainStore(),
         inMemory: Bool = false,
         snapshotStore: SnapshotStore = SnapshotStore(suiteName: "group.toby913.JournalInsight"),
+        hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
         now: @escaping () -> Date = Date.init,
         backload: any BackloadRunning = NoopBackloader()
     ) throws {
@@ -50,6 +57,7 @@ final class AppEnvironment {
         cache = OfflineCache(db: inMemory ? try .inMemory() : try .cache())
         prefs = PrefStore(db: inMemory ? try .inMemory() : try .onDisk())
         self.snapshotStore = snapshotStore
+        self.hrvPrefs = hrvPrefs
         self.now = now
         self.backload = backload
     }
