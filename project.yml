@@ -29,6 +29,8 @@ packages:
     path: Packages/JIFeatures
   JISnapshot:
     path: Packages/JISnapshot
+  JIVault:
+    path: Packages/JIVault
 targets:
   JournalInsight:
     type: application
@@ -62,6 +64,7 @@ targets:
       - package: JIDesign
       - package: JIFeatures
       - package: JISnapshot
+      - package: JIVault
       - target: WatchApp
         embed: true
       - target: Widgets
