@@ -36,7 +36,7 @@
 		<true/>
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs.</string>
+	<string>JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, energy and workouts to compute your daily readiness gate and KPIs, and sends them to your own hub.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing.</string>
 	<key>NSLocalNetworkUsageDescription</key>

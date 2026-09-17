@@ -46,7 +46,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLSchemes: [ji, journalinsight]
         NSSupportsLiveActivities: true
-        NSHealthShareUsageDescription: "PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs." # real copy owed before HealthKit read is wired (W2c+ row, not this lane)
+        NSHealthShareUsageDescription: "JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, energy and workouts to compute your daily readiness gate and KPIs, and sends them to your own hub."
         NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
     settings:
       base:
@@ -116,12 +116,36 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsightTests
         GENERATE_INFOPLIST_FILE: YES # no `info:` block for this target; without this, codesign fails with "target does not have an Info.plist file"
+  WatchAppTests:
+    type: bundle.unit-test
+    platform: watchOS
+    sources: [WatchApp/Tests]
+    dependencies:
+      - target: WatchApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight.watchapp.tests
+        GENERATE_INFOPLIST_FILE: YES # no `info:` block for this target; without this, codesign fails with "target does not have an Info.plist file"
 schemes:
   JournalInsight:
     build:
-      targets: { JournalInsight: all, WatchApp: all, Widgets: all, JournalInsightTests: [test] }
+      targets: { JournalInsight: all, WatchApp: all, Widgets: all, JournalInsightTests: [test], WatchAppTests: [test] }
     run:
       config: Debug
     test:
       config: Debug
-      targets: [JournalInsightTests]
+      targets: [JournalInsightTests, WatchAppTests]
+  # xcodebuild resolves a scheme's compatible test destinations from its Run/Launch action's
+  # buildable, which for the JournalInsight scheme is the iOS app — so a watchOS destination
+  # is reported incompatible for that scheme even though WatchAppTests is one of its testables.
+  # This scheme is the shareable, watchOS-only run/test entry point `xcodebuild test -scheme
+  # WatchApp -destination 'platform=watchOS Simulator,...'` needs to actually execute
+  # WatchAppTests (see W2d card L5 exit criterion).
+  WatchApp:
+    build:
+      targets: { WatchApp: all, WatchAppTests: [test] }
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [WatchAppTests]
