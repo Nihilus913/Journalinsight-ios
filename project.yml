@@ -19,6 +19,8 @@ packages:
     path: Packages/JICore
   JIHub:
     path: Packages/JIHub
+  JIHealthKit:
+    path: Packages/JIHealthKit
   JIPersistence:
     path: Packages/JIPersistence
   JIDesign:
@@ -45,7 +47,7 @@ targets:
           - CFBundleURLSchemes: [ji, journalinsight]
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: "PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs." # real copy owed before HealthKit read is wired (W2c+ row, not this lane)
-        NSHealthUpdateUsageDescription: "PLACEHOLDER — JournalInsight does not currently write health data." # placeholder only; remove if no write path is ever added
+        NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight
@@ -55,6 +57,7 @@ targets:
     dependencies:
       - package: JICore
       - package: JIHub
+      - package: JIHealthKit
       - package: JIPersistence
       - package: JIDesign
       - package: JIFeatures
