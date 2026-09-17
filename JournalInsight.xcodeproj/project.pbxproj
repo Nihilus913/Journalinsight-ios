@@ -10,11 +10,13 @@
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
 		0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = D393B4A4FCB5E732570A00E9 /* JIDesign */; };
 		0EBCCC8BE7458BBEFDBD186F /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
+		10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */; };
 		139FDF707F9F987BB777F558 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 7210A91C3EFF41A4A0126EF5 /* JIDesign */; };
 		1C3FD9E1CD60B28574914D68 /* AppEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */; };
 		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
 		2D9F540F96AFCF16BD486B04 /* DeepLinkParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */; };
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
+		459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */; };
 		4822C96CEC645C6B0415E123 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 7F9D396F60F0D64237C7F209 /* JISnapshot */; };
 		4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CA09438245026D70FC72FF4 /* DeepLink.swift */; };
 		5416BD0C9797F95419C42333 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D3632CFA4AC9B6771D6C3075 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -24,11 +26,13 @@
 		771CD79297124DB919FDF1FF /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3B95761227D23C685A4248 /* JICore */; };
 		793D20E8E61933D635505938 /* WatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */; };
 		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
 		A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 396CA8DF72C77D0D287B373C /* JIPersistence */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
+		D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */; };
 		DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */; };
 		E27D45B8AE065886C965D49D /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 459223C5C330D5E83A784DEF /* JISnapshot */; };
 		EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
@@ -86,7 +90,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
+		2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloor.swift; sourceTree = "<group>"; };
 		2C2798E1055DC1C38E77A45D /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
 		2CA09438245026D70FC72FF4 /* DeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLink.swift; sourceTree = "<group>"; };
 		2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRouteMappingTests.swift; sourceTree = "<group>"; };
@@ -96,6 +102,7 @@
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = JournalInsight.entitlements; sourceTree = "<group>"; };
+		7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandler.swift; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,6 +114,7 @@
 		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloorTests.swift; sourceTree = "<group>"; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
@@ -201,6 +209,8 @@
 				B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */,
 				EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */,
 				1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */,
+				D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */,
+				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */,
 			);
 			path = AppTests;
@@ -220,6 +230,15 @@
 				2C2798E1055DC1C38E77A45D /* WatchApp.swift */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		6E9E123931A2C465AE3A467C /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
+				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
+			);
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		7E21C80B99A2A95B8D6662A4 /* Products */ = {
@@ -245,6 +264,7 @@
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
 				056638029CC232C84D208888 /* Debug */,
 				323BFC5FC4A1CC8F4B9CDEF1 /* Navigation */,
+				6E9E123931A2C465AE3A467C /* Notifications */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -438,6 +458,8 @@
 				5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
+				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
+				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
 				B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */,
 			);
@@ -458,6 +480,8 @@
 				1C3FD9E1CD60B28574914D68 /* AppEnvironmentTests.swift in Sources */,
 				2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */,
 				2D9F540F96AFCF16BD486B04 /* DeepLinkParseTests.swift in Sources */,
+				D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */,
+				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
