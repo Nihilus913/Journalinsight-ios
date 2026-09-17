@@ -203,7 +203,7 @@ struct RootTabView: View {
                     TrainingView(model: trainingModel)
                 } else {
                     ProgressView()
-                        .task { trainingModel = TrainingViewModel(provider: provider, cache: env.cache, now: Date.init) }
+                        .task { trainingModel = TrainingViewModel(provider: provider, healthProvider: store.provider, cache: env.cache, now: Date.init) }
                 }
             } else {
                 screenUnavailable(title: "Training unavailable", systemImage: "dumbbell")
