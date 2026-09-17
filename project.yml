@@ -46,7 +46,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight
         TARGETED_DEVICE_FAMILY: "1"
-        ASSETCATALOG_COMPILER_APPICON_NAME: "" # no AppIcon.appiconset yet; XcodeGen's application-target default (AppIcon) fails actool with no icon set present
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon # App/Assets.xcassets/AppIcon.appiconset — oracle mobile/assets/icon.png (1024 universal)
     dependencies:
       - package: JICore
       - package: JIHub
