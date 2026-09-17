@@ -5,8 +5,11 @@ import JICore
 
 // MARK: - Status copy (three-state honesty, wave card exit criterion)
 
-@Test @MainActor func statusCopyGrantedSaysConnected() {
-    #expect(HealthPermissionViewModel.statusCopy(for: .granted) == "Apple Health connected.")
+@Test @MainActor func statusCopyGrantedSaysConnectedAndNamesTheFirstSyncProof() {
+    let copy = HealthPermissionViewModel.statusCopy(for: .granted)
+    #expect(copy.contains("Apple Health connected"))
+    #expect(copy.contains("first sync"))
+    #expect(copy.contains("Health › Sharing › Apps"))
 }
 
 @Test @MainActor func statusCopyDeniedNamesTheSettingsPathNotNoData() {
@@ -49,6 +52,19 @@ import JICore
     let vm = HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .denied })
     await vm.connect()
     #expect(vm.permission == .denied)
+}
+
+// MARK: - External adoption (B-13: async HealthKit lookup updates the model post-construction)
+
+@Test @MainActor func adoptUpdatesPermissionWithoutCallingRequestPermission() async {
+    var requested = false
+    let vm = HealthPermissionViewModel(permission: .notDetermined, requestPermission: {
+        requested = true
+        return .granted
+    })
+    vm.adopt(.granted)
+    #expect(vm.permission == .granted)
+    #expect(requested == false)
 }
 
 // MARK: - Gated tiles (T2 set: Apple Watch never supplies these four)

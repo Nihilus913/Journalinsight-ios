@@ -115,14 +115,21 @@ final class AppEnvironment {
     /// for an observer to fire. JIFeatures has its own `HKPermission` (no JIHealthKit import), so
     /// the two same-named enums are mapped explicitly here.
     func makeHealthPermissionModel() -> HealthPermissionViewModel {
-        HealthPermissionViewModel(
-            permission: Self.featurePermission(aggregateReadPermission()),
+        // `aggregateReadPermission()` is async (B-13 fix: it now calls HealthKit's
+        // `getRequestStatusForAuthorization`, which has no synchronous form), so the model starts
+        // at `.notDetermined` and `adopt(_:)`s the real status once the lookup returns — never a
+        // guessed `.denied` in the meantime (rule 5: no false-confident state).
+        let model = HealthPermissionViewModel(
+            permission: .notDetermined,
             appleWatchCapabilities: DataCapability.appleWatchCapabilities,
             requestPermission: { [weak self] in
                 guard let self else { return .notDetermined }
                 try? await self.healthPermissions.requestAuthorization()
-                let status = await MainActor.run { self.aggregateReadPermission() }
-                if status == .granted, let uploader = await MainActor.run(body: { self.healthKitUploader }) {
+                let status = await self.aggregateReadPermission()
+                // B-13 fix: start delivery/sync whenever the read isn't provably undetermined —
+                // HealthKit never confirms a read grant beyond `.unnecessary`, so waiting for a
+                // stricter signal than "not notDetermined" would never fire (root cause).
+                if status != .notDetermined, let uploader = await MainActor.run(body: { self.healthKitUploader }) {
                     if let observers = try? await uploader.startBackgroundDelivery() {
                         await MainActor.run { self.healthKitObservers = observers }
                     }
@@ -131,12 +138,25 @@ final class AppEnvironment {
                 return Self.featurePermission(status)
             }
         )
+        Task { [weak self, weak model] in
+            guard let self, let model else { return }
+            let status = await self.aggregateReadPermission()
+            model.adopt(Self.featurePermission(status))
+        }
+        return model
     }
 
     /// One verdict over every available read kind: any `.denied` wins, then `.granted` only when
-    /// all are granted, else `.notDetermined` (never asked, or asked and HealthKit hides the answer).
-    private func aggregateReadPermission() -> JIHealthKit.HKPermission {
-        let statuses = HKReadKind.availableCases.map { healthPermissions.status(for: $0) }
+    /// all are granted, else `.notDetermined` (never asked, or asked and HealthKit hides the
+    /// answer — see `JIHealthKit.HealthKitPermissions.status(for:)`, B-13). Sequential `await`s
+    /// (not a task group) — `HKReadKind.availableCases` is a handful of kinds and this keeps the
+    /// call off `self` from concurrent child tasks.
+    private func aggregateReadPermission() async -> JIHealthKit.HKPermission {
+        let permissions = healthPermissions
+        var statuses: [JIHealthKit.HKPermission] = []
+        for kind in HKReadKind.availableCases {
+            statuses.append(await permissions.status(for: kind))
+        }
         if statuses.contains(.denied) { return .denied }
         if !statuses.isEmpty, statuses.allSatisfy({ $0 == .granted }) { return .granted }
         return .notDetermined
