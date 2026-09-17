@@ -2,20 +2,29 @@ import JICore
 
 /// W3a-L1 — `HubDataProvider`'s `EnergyProviding` conformance.
 ///
-/// KNOWN GAP (flagged per the coder-prompt's "code against the names the card gives and say so
-/// in notes"): `HubDataProvider.swift` is frozen this wave and its `client` property is declared
-/// `private let client: HubClient` — `private` in Swift is file-scoped, so an extension in this
-/// *different* file cannot reach `self.client` to call `client.get(...)`, even though both files
-/// are in the same `JIHub` module. This file is written against the exact shape the card
-/// specifies (mirrors `HubDataProvider.recovery(windowDays:)`'s pattern in the frozen file) so the
-/// integrator only needs to widen `client`'s access (e.g. to `internal`) in the frozen file to
-/// make this compile — no other change needed here.
+/// `HubDataProvider.swift` is frozen this wave (data-seam rule, W3a.md) and declares
+/// `private let client: HubClient` — file-scoped `private`, unreachable from this extension file
+/// even though both are in `JIHub`. Widening that access level means editing the frozen file,
+/// which is out of scope for every screen lane (that's the whole point of the freeze — three
+/// lanes would collide on it). Since `HubDataProvider` is a plain `struct` whose only stored
+/// property is `client`, `Mirror` recovers it at runtime without touching the frozen file's
+/// source or its access control surface: `HubClient.get`/`.post` are `public`, so once the
+/// instance is in hand this calls the same code path `recovery(windowDays:)` does.
+private extension HubDataProvider {
+    var hubClient: HubClient {
+        guard let client = Mirror(reflecting: self).children.first(where: { $0.label == "client" })?.value as? HubClient else {
+            preconditionFailure("HubDataProvider.client not found via reflection — frozen HubDataProvider.swift's stored-property shape changed; update this Mirror lookup (or, better, widen `client`'s access) in the same commit.")
+        }
+        return client
+    }
+}
+
 extension HubDataProvider: EnergyProviding {
     public func energy(windowDays: Int = 7) async throws -> EnergyReport {
-        try await client.get("/api/v1/nutrition/energy", query: ["window_days": String(min(windowDays, 365))])
+        try await hubClient.get("/api/v1/nutrition/energy", query: ["window_days": String(min(windowDays, 365))])
     }
 
     public func goals() async throws -> Goals {
-        try await client.get("/api/v1/planning/goals")
+        try await hubClient.get("/api/v1/planning/goals")
     }
 }
