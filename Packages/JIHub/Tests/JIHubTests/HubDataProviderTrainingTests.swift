@@ -3,18 +3,15 @@ import Testing
 import JICore
 @testable import JIHub
 
-/// Exercises `HubDataProvider`'s `TrainingProviding` conformance (`HubDataProvider+Training.swift`)
-/// via its `trainingSecrets`/`trainingSession` test seams — see that file's doc comment for why
-/// `HubDataProvider.client` itself is out of reach here. Merged into `HubClientTests`' own
-/// `.serialized` suite convention (`StubURLProtocol`'s process-global state), so these run
-/// sequentially with every other `StubURLProtocol`-based test in the target.
+/// Exercises `HubDataProvider`'s `TrainingProviding` conformance (`HubDataProvider+Training.swift`).
+/// L0 (W3b, B-14) widened `HubDataProvider.client` to internal, so these tests build the provider
+/// directly with a `StubURLProtocol`-backed `HubClient` instead of the W3a `trainingSecrets`/
+/// `trainingSession` seams (removed). Merged into `HubClientTests`' own `.serialized` suite
+/// convention (`StubURLProtocol`'s process-global state), so these run sequentially with every
+/// other `StubURLProtocol`-based test in the target.
 extension HubClientTests {
     private func configuredProvider(baseURL: String = "http://hub.test:8000", token: String = "t0k") -> HubDataProvider {
-        let secrets = InMemorySecretStore()
         let config = ConnectionConfig(baseURL: URL(string: baseURL)!, token: token)
-        try! ConnectionConfigStore(secrets: secrets).save(config)
-        HubDataProvider.trainingSecrets = secrets
-        HubDataProvider.trainingSession = StubURLProtocol.session()
         return HubDataProvider(client: HubClient(config: config, session: StubURLProtocol.session()))
     }
 
@@ -46,7 +43,7 @@ extension HubClientTests {
         #expect(parseRepsTarget(rows[0].repsTarget) == nil) // "6-12" is not a clean integer
     }
 
-    @Test func updateExerciseSendsPatchWithBearerAndDecodesResult() async throws {
+    @Test func updateExerciseSendsPutWithBearerAndDecodesResult() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.responses["/api/v1/planning/exercises/19"] = (200, Data("""
         {"exercise_id":19,"updated":true}
@@ -56,7 +53,7 @@ extension HubClientTests {
 
         #expect(result.exerciseId == 19)
         #expect(result.updated)
-        #expect(StubURLProtocol.lastRequest?.httpMethod == "PATCH")
+        #expect(StubURLProtocol.lastRequest?.httpMethod == "PUT")
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/exercises/19")
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer t0k")
     }
