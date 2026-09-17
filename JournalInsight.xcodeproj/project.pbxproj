@@ -20,6 +20,7 @@
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
 		459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */; };
 		4822C96CEC645C6B0415E123 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 7F9D396F60F0D64237C7F209 /* JISnapshot */; };
+		4A8C198ECF8F30E2FBE584EB /* JournalTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84B36CD13034CA6AB211274 /* JournalTabTests.swift */; };
 		4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CA09438245026D70FC72FF4 /* DeepLink.swift */; };
 		53CB3854D2F79C54305EB1FE /* WatchSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 099499E819ADFEE663B021CB /* WatchSnapshotStore.swift */; };
 		5416BD0C9797F95419C42333 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D3632CFA4AC9B6771D6C3075 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -51,6 +52,7 @@
 		E27D45B8AE065886C965D49D /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
+		FBDC394485A35929AF056DA5 /* JIVault in Frameworks */ = {isa = PBXBuildFile; productRef = A230B1185D4D79616F44967A /* JIVault */; };
 		FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */; };
 		FCECBF89D30402A28DE67681 /* KpiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */; };
 /* End PBXBuildFile section */
@@ -131,6 +133,7 @@
 		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
 		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
+		69F166FFD02B0D810992532A /* JIVault */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIVault; path = Packages/JIVault; sourceTree = SOURCE_ROOT; };
 		6CE27E3B1FD48385106B96CE /* JIHealthKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHealthKit; path = Packages/JIHealthKit; sourceTree = SOURCE_ROOT; };
 		71079AE7F93BCD18F9739972 /* RootTabShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabShellTests.swift; sourceTree = "<group>"; };
 		72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = JournalInsight.entitlements; sourceTree = "<group>"; };
@@ -152,6 +155,7 @@
 		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloorTests.swift; sourceTree = "<group>"; };
 		D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiWidget.swift; sourceTree = "<group>"; };
+		D84B36CD13034CA6AB211274 /* JournalTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTabTests.swift; sourceTree = "<group>"; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
@@ -191,6 +195,7 @@
 				EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */,
 				E27D45B8AE065886C965D49D /* JIFeatures in Frameworks */,
 				2C75706B563FC3C1A526E874 /* JISnapshot in Frameworks */,
+				FBDC394485A35929AF056DA5 /* JIVault in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,6 +233,7 @@
 				96B3229A2D3C3EF99BBE5167 /* JIHub */,
 				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
 				C71FF243F6A68258A948360E /* JISnapshot */,
+				69F166FFD02B0D810992532A /* JIVault */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -255,6 +261,7 @@
 				B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */,
 				EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */,
 				1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */,
+				D84B36CD13034CA6AB211274 /* JournalTabTests.swift */,
 				D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */,
@@ -432,6 +439,7 @@
 				6EA74DAEF679ECF071912E9E /* JIDesign */,
 				A090031B35A5F024DF8691CF /* JIFeatures */,
 				459223C5C330D5E83A784DEF /* JISnapshot */,
+				A230B1185D4D79616F44967A /* JIVault */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -503,6 +511,7 @@
 				70EDFFF879598DF7C3C4F643 /* XCLocalSwiftPackageReference "Packages/JIHub" */,
 				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
 				F96F5D7EB4B695ED81A85544 /* XCLocalSwiftPackageReference "Packages/JISnapshot" */,
+				81F613AD04482C4914D04A06 /* XCLocalSwiftPackageReference "Packages/JIVault" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7E21C80B99A2A95B8D6662A4 /* Products */;
@@ -587,6 +596,7 @@
 				1C3FD9E1CD60B28574914D68 /* AppEnvironmentTests.swift in Sources */,
 				2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */,
 				2D9F540F96AFCF16BD486B04 /* DeepLinkParseTests.swift in Sources */,
+				4A8C198ECF8F30E2FBE584EB /* JournalTabTests.swift in Sources */,
 				D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */,
@@ -984,6 +994,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIHub;
 		};
+		81F613AD04482C4914D04A06 /* XCLocalSwiftPackageReference "Packages/JIVault" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JIVault;
+		};
 		91533581A208A2BB6022509D /* XCLocalSwiftPackageReference "Packages/JIDesign" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIDesign;
@@ -1038,6 +1052,10 @@
 		A090031B35A5F024DF8691CF /* JIFeatures */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JIFeatures;
+		};
+		A230B1185D4D79616F44967A /* JIVault */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIVault;
 		};
 		A7B6DE44371EB6609C09A2FD /* JISnapshot */ = {
 			isa = XCSwiftPackageProductDependency;

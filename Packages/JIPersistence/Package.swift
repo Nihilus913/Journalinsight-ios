@@ -6,10 +6,11 @@ let package = Package(
     products: [.library(name: "JIPersistence", targets: ["JIPersistence"])],
     dependencies: [
         .package(path: "../JICore"),
+        .package(path: "../JIVault"),
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
     ],
     targets: [
-        .target(name: "JIPersistence", dependencies: ["JICore", .product(name: "GRDB", package: "GRDB.swift")], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .target(name: "JIPersistence", dependencies: ["JICore", "JIVault", .product(name: "GRDB", package: "GRDB.swift")], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
         .testTarget(name: "JIPersistenceTests", dependencies: ["JIPersistence"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

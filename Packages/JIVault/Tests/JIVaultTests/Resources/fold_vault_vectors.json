@@ -1,0 +1,26 @@
+{
+  "passphrase": "test-pass",
+  "rawKeyHex": "f757c066406d7fd18f5aaf3984175a252291c15302ea8126d5fce4ed2908ca25",
+  "wrapped": {
+    "version": 1,
+    "saltHex": "d9c29ab0b384fd79331347fe9de0acd1",
+    "ivHex": "0918531704c8d827e1aa48f89a939bb8",
+    "iterations": 210000,
+    "ciphertextB64": "upKYjdWpmaIZMtknXLil3tIa/62sCWJ4B5C3Y7pJhzCPzxcm+n3mqlTVlBg7VmAipouqgNj59Lc+FPUN+ACG0g4LGyiGqoyTZLS4fVbq+II=",
+    "macHex": "9afd6bad0e7ff6b0f5c9e478684468134680f3fab29bc9c343e797d063e5e289"
+  },
+  "columns": [
+    {
+      "plaintext": "Ate breakfast, felt okay.",
+      "ciphertext": "htv1:dbf374eb830469a87de5cb54921f101d:nbtLBhwb57cVkPNX7raFHkhEqXZO5ziPRpZ18in9Myo="
+    },
+    {
+      "plaintext": "good",
+      "ciphertext": "htv1:636d6c4ca09d6a5b54ad78d355ad0e14:exY+kiC0lYMquDQ9Oym3vA=="
+    },
+    {
+      "plaintext": "3",
+      "ciphertext": "htv1:e4efcc788280211bce59a0a10c08fec8:bRBdJmxBtD5l6cIZIon5yg=="
+    }
+  ]
+}
