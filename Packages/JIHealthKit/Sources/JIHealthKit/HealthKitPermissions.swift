@@ -4,77 +4,71 @@ import HealthKit
 
 /// Read-authorization state for one `HKReadKind`.
 ///
-/// HealthKit deliberately never distinguishes, for a **read** type, "the user was asked and said
-/// no" from "the user was never asked" — `HKHealthStore.authorizationStatus(for:)` reports
-/// `.notDetermined` for both, by design, so a denial can't leak whether the app would otherwise
-/// have seen data. `.denied` below is therefore a HEURISTIC this type infers (via
-/// `requestedAtLeastOnce`, §`HealthKitPermissions`), never a value HealthKit hands back directly
-/// for a read type — callers must not treat it as more certain than that.
+/// HealthKit deliberately never confirms a **read** decline — `HKHealthStore
+/// .authorizationStatus(for:)` only ever reports the SHARE-side status for a type, which stays
+/// `.notDetermined` for a read-only request no matter what the user chose (B-13 root cause: the
+/// previous implementation misread that perpetual `.notDetermined` as "declined" the moment a
+/// request had been sent, so every grant rendered as `.denied` forever). `HKPermission.granted`
+/// is instead PROVEN by `HKAuthorizationRequestStatus.unnecessary` (HealthKit already knows the
+/// request would be a no-op, which only happens once the user has answered), and `.denied` is
+/// reserved for the one case HealthKit does confirm directly: `.sharingDenied` on the SHARE side.
 public enum HKPermission: Sendable, Equatable, Hashable {
     case granted
     case denied
     case notDetermined
 }
 
-/// Seam over `HKHealthStore`'s authorization surface so `HealthKitPermissions` (and L3's
+/// Seam over `HKHealthStore`'s authorization surface so `HealthKitPermissions` (and JIFeatures'
 /// `HealthPermissionViewModel`) can be tested without a real store.
 public protocol HealthKitAuthorizing: Sendable {
     func requestReadAuthorization(for types: Set<HKObjectType>) async throws
     func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus
+    /// Mirrors `HKHealthStore.getRequestStatusForAuthorization(toShare:read:)` for a read-only
+    /// request. `.shouldRequest` means HealthKit would still show a sheet (never asked, or asked
+    /// and the sheet was dismissed without a definitive answer it will report); `.unnecessary`
+    /// means the user has already answered — the only way `status(for:)` infers `.granted`.
+    func requestStatus(for types: Set<HKObjectType>) async throws -> HKAuthorizationRequestStatus
 }
 
 extension HKHealthStore: HealthKitAuthorizing {
     public func requestReadAuthorization(for types: Set<HKObjectType>) async throws {
         try await requestAuthorization(toShare: [], read: types)
     }
+
+    public func requestStatus(for types: Set<HKObjectType>) async throws -> HKAuthorizationRequestStatus {
+        try await statusForAuthorizationRequest(toShare: [], read: types)
+    }
 }
 
-/// Wraps `HealthKitAuthorizing` with the `HKReadKind` vocabulary and the notDetermined/denied
-/// disambiguation heuristic described on `HKPermission`.
+/// Wraps `HealthKitAuthorizing` with the `HKReadKind` vocabulary and the granted/denied/
+/// notDetermined resolution described on `HKPermission`.
 public final class HealthKitPermissions: Sendable {
     private let authorizer: any HealthKitAuthorizing
-    // UserDefaults is thread-safe by documented contract but predates Sendable annotation on
-    // this SDK — same reasoning as `HealthKitBackloader.cursorDefaults`.
-    private nonisolated(unsafe) let defaults: UserDefaults?
-    /// App-Group `UserDefaults` key (same suite as `HealthKitBackloader`'s cursor): set once a
-    /// read request has completed without throwing, regardless of what the user chose. This is
-    /// what lets `status(for:)` ever report `.denied` instead of `.notDetermined` forever.
-    public static let requestedKey = "hk.read.requestedAtLeastOnce"
 
-    public init(authorizer: any HealthKitAuthorizing, appGroupSuite: String = "group.toby913.JournalInsight") {
+    public init(authorizer: any HealthKitAuthorizing) {
         self.authorizer = authorizer
-        self.defaults = UserDefaults(suiteName: appGroupSuite)
     }
 
-    /// Test seam: inject a `UserDefaults` double directly (mirrors `HealthKitBackloader`'s own
-    /// `init(hub:store:defaults:)` seam and its rationale).
-    init(authorizer: any HealthKitAuthorizing, defaults: UserDefaults?) {
-        self.authorizer = authorizer
-        self.defaults = defaults
-    }
-
-    public var requestedAtLeastOnce: Bool { defaults?.bool(forKey: Self.requestedKey) ?? false }
-
-    /// Requests read access for `kinds` (default: every kind available on this OS) and marks
-    /// `requestedAtLeastOnce`. HealthKit's read-request call never reports per-type outcome —
-    /// only that the sheet was shown and dismissed — so this does not return a per-kind result;
-    /// call `status(for:)` afterward.
+    /// Requests read access for `kinds` (default: every kind available on this OS). HealthKit's
+    /// read-request call never reports per-type outcome — only that the sheet was shown and
+    /// dismissed — so this does not return a per-kind result; call `status(for:)` afterward.
     public func requestAuthorization(for kinds: [HKReadKind] = HKReadKind.availableCases) async throws {
         try await authorizer.requestReadAuthorization(for: Set(kinds.compactMap { $0.sampleType as HKObjectType? }))
-        defaults?.set(true, forKey: Self.requestedKey)
     }
 
-    /// See the type-level doc comment on `HKPermission`: a read type's HealthKit status is
-    /// `.notDetermined` both before the first request and after a decline. This resolves the
-    /// ambiguity with `requestedAtLeastOnce` — still a heuristic, not a HealthKit-confirmed
-    /// decline (the OS never confirms one for reads). A kind unavailable on this OS (pre-iOS-27
-    /// `.hrvRMSSD`) is always `.notDetermined`.
-    public func status(for kind: HKReadKind) -> HKPermission {
+    /// See the type-level doc comment on `HKPermission`. A kind unavailable on this OS
+    /// (pre-iOS-27 `.hrvRMSSD`) is always `.notDetermined`. `requestStatus` throwing (or an
+    /// unrecognized case) is treated as `.notDetermined`, never `.denied` — B-13's rule is that
+    /// there is NO path from an inconclusive read to `.denied`.
+    public func status(for kind: HKReadKind) async -> HKPermission {
         guard let type = kind.sampleType else { return .notDetermined }
-        switch authorizer.authorizationStatus(for: type) {
-        case .sharingAuthorized: return .granted
-        case .sharingDenied: return .denied // HealthKit reports this for SHARE types; kept for completeness
-        case .notDetermined: return requestedAtLeastOnce ? .denied : .notDetermined
+        // `.sharingDenied` is the one status HealthKit confirms directly; kept for completeness
+        // even though this app only ever requests reads (never share) for these types.
+        if authorizer.authorizationStatus(for: type) == .sharingDenied { return .denied }
+        guard let requestStatus = try? await authorizer.requestStatus(for: [type]) else { return .notDetermined }
+        switch requestStatus {
+        case .unnecessary: return .granted
+        case .shouldRequest, .unknown: return .notDetermined
         @unknown default: return .notDetermined
         }
     }
