@@ -7,6 +7,7 @@ import JIDesign
 /// `mobile/app/(tabs)/training.tsx`.
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
+    @State private var showSessionCoach = false
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
@@ -27,6 +28,15 @@ public struct TrainingView: View {
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
+        // W3b-L1 (P-session-coach): `TrainingView.init(model:)` is a frozen contract and
+        // `TrainingViewModel` (not this lane's file) has no accessor onto its private hub
+        // provider, so this pushes with `provider: nil` — which resolves to the same "not
+        // available" state a real `HubDataProvider` cast would produce today anyway (it
+        // deliberately never conforms to `LiveSessionProviding` — see JICore's doc comment).
+        // Wiring the real provider through is a follow-up once `TrainingViewModel` exposes one.
+        .navigationDestination(isPresented: $showSessionCoach) {
+            SessionCoachView(model: SessionCoachViewModel(provider: nil))
+        }
     }
 
     private var header: some View {
@@ -61,18 +71,21 @@ public struct TrainingView: View {
         }
     }
 
-    /// The oracle's `SessionCoachEntry` opens `app/session-coach.tsx` (W3b scope) — this wave
-    /// renders a disabled entry row labelled per the card, with no navigation.
+    /// The oracle's `SessionCoachEntry` opens `app/session-coach.tsx` — W3b-L1 wires the push.
     private var sessionCoachEntry: some View {
-        Surface {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("LIVE SESSION COACH").font(.caption2.weight(.semibold)).foregroundStyle(JIColor.muted)
-                    Text("Session coach — coming in W3b").font(.subheadline.weight(.bold)).foregroundStyle(JIColor.muted)
+        Button { showSessionCoach = true } label: {
+            Surface {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("LIVE SESSION COACH").font(.caption2.weight(.semibold)).foregroundStyle(JIColor.muted)
+                        Text("Session coach").font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(JIColor.muted)
                 }
-                Spacer()
             }
         }
-        .accessibilityLabel("Session coach — coming in W3b")
+        .buttonStyle(.pressableScale)
+        .accessibilityLabel("Session coach")
     }
 }
