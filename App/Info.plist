@@ -38,7 +38,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>PLACEHOLDER — JournalInsight reads health data to compute your daily gate and KPIs.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>PLACEHOLDER — JournalInsight does not currently write health data.</string>
+	<string>JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>JournalInsight talks to your HealthTraining hub on the local network.</string>
 	<key>NSSupportsLiveActivities</key>

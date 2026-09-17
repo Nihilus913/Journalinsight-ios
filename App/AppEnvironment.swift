@@ -2,9 +2,20 @@ import Foundation
 import Observation
 import JICore
 import JIHub
+import JIHealthKit
 import JIPersistence
 import JIFeatures
 import JISnapshot
+
+/// W2h (B-9) fallback: satisfies `BackloadRunning` until a hub connection exists (no `HubClient`
+/// to build a `BackloadClient`/`HealthKitBackloader` from yet). `apply(_:)` swaps this out for a
+/// real `HealthKitBackloader` (`JIHealthKit`, L2's package) once a `ConnectionConfig` is known.
+struct NoopBackloader: BackloadRunning {
+    func authorize() async throws { throw BackloadError.healthDataUnavailable }
+    func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
+        throw BackloadError.healthDataUnavailable
+    }
+}
 
 @Observable @MainActor
 final class AppEnvironment {
@@ -23,17 +34,24 @@ final class AppEnvironment {
     private let snapshotStore: SnapshotStore
     private let now: () -> Date
 
+    /// W2h (B-9): the HealthKit backload runner, injected here so JIFeatures (which builds the
+    /// Settings UI against `BackloadRunning` only) never imports JIHealthKit. `NoopBackloader`
+    /// until `apply(_:)` has a `ConnectionConfig` to build a real `HealthKitBackloader` from.
+    private(set) var backload: any BackloadRunning
+
     init(
         secrets: any SecretStore = KeychainStore(),
         inMemory: Bool = false,
         snapshotStore: SnapshotStore = SnapshotStore(suiteName: "group.toby913.JournalInsight"),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        backload: any BackloadRunning = NoopBackloader()
     ) throws {
         self.secrets = secrets
         cache = OfflineCache(db: inMemory ? try .inMemory() : try .cache())
         prefs = PrefStore(db: inMemory ? try .inMemory() : try .onDisk())
         self.snapshotStore = snapshotStore
         self.now = now
+        self.backload = backload
     }
 
     func boot() throws {
@@ -46,8 +64,10 @@ final class AppEnvironment {
             try? cache.clear()
         }
         activeBaseURL = config.baseURL
-        let provider = HubDataProvider(client: HubClient(config: config))
+        let hubClient = HubClient(config: config)
+        let provider = HubDataProvider(client: hubClient)
         if let store = providerStore { store.provider = provider } else { providerStore = ProviderStore(provider: provider) }
+        backload = HealthKitBackloader(hub: BackloadClient(hub: hubClient))
         needsConnection = false
     }
 

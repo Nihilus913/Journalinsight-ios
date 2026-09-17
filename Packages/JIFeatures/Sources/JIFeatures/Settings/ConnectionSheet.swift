@@ -58,10 +58,19 @@ public final class ConnectionSheetModel {
 public struct ConnectionSheet: View {
     @State private var model: ConnectionSheetModel
     private let onSaved: (ConnectionConfig) -> Void
+    /// Optional (B-9): nil hides the section entirely (e.g. previews that don't wire a runner).
+    /// `AppEnvironment` passes the real `HealthKitBackloader` wrapped in the VM.
+    private let backloadModel: HealthBackloadViewModel?
     @Environment(\.dismiss) private var dismiss
 
-    public init(store: ConnectionConfigStore, onSaved: @escaping (ConnectionConfig) -> Void) {
-        _model = State(initialValue: ConnectionSheetModel(store: store)); self.onSaved = onSaved
+    public init(
+        store: ConnectionConfigStore,
+        backloadModel: HealthBackloadViewModel? = nil,
+        onSaved: @escaping (ConnectionConfig) -> Void
+    ) {
+        _model = State(initialValue: ConnectionSheetModel(store: store))
+        self.backloadModel = backloadModel
+        self.onSaved = onSaved
     }
     public var body: some View {
         NavigationStack {
@@ -75,6 +84,9 @@ public struct ConnectionSheet: View {
                         .disabled(model.testing)
                     if let s = model.status { Text(statusText(s)).font(.footnote).foregroundStyle(JIColor.muted) }
                     if let e = model.saveError { Text(e).font(.footnote).foregroundStyle(.red) }
+                }
+                if let backloadModel {
+                    HealthBackloadSection(model: backloadModel)
                 }
             }
             .navigationTitle("Connection")

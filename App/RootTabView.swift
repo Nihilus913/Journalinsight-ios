@@ -56,7 +56,10 @@ struct RootTabView: View {
             pendingDeepLink = nil
         }
         .sheet(isPresented: $showConnection) {
-            ConnectionSheet(store: ConnectionConfigStore(secrets: env.secrets)) { config in
+            ConnectionSheet(
+                store: ConnectionConfigStore(secrets: env.secrets),
+                backloadModel: HealthBackloadViewModel(runner: env.backload)   // W2h: Garmin → Apple Health
+            ) { config in
                 env.apply(config)
                 todayModel = nil
                 recoveryModel = nil
