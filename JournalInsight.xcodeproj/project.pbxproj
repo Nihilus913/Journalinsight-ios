@@ -23,17 +23,22 @@
 		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
 		771CD79297124DB919FDF1FF /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3B95761227D23C685A4248 /* JICore */; };
 		793D20E8E61933D635505938 /* WatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7D0CB0315C8C8DB26373DDC3 /* VerdictLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */; };
 		7E7EB8B3DA017F89CE45AD76 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = B82481EAAF8B8DF915C28007 /* JICore */; };
+		8F77B9CD39A926D5F0BA1BC6 /* LiveActivityCapPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */; };
 		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
 		A6D191FD3F18478B1B9601DC /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 396CA8DF72C77D0D287B373C /* JIPersistence */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
+		D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9592E400266E0385BE90930E /* LiveActivityController.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 		DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */; };
+		E27245D5DB1D363CFA1D0144 /* GateWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */; };
 		E27D45B8AE065886C965D49D /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = 459223C5C330D5E83A784DEF /* JISnapshot */; };
 		EB53E69C209B798DDCC807D5 /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
 		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
 		FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */; };
+		FCECBF89D30402A28DE67681 /* KpiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,13 +94,17 @@
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
 		2C2798E1055DC1C38E77A45D /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
 		2CA09438245026D70FC72FF4 /* DeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLink.swift; sourceTree = "<group>"; };
+		2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityCapPolicy.swift; sourceTree = "<group>"; };
 		2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRouteMappingTests.swift; sourceTree = "<group>"; };
 		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsBundle.swift; sourceTree = "<group>"; };
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
+		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = JournalInsight.entitlements; sourceTree = "<group>"; };
+		9592E400266E0385BE90930E /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,6 +116,7 @@
 		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiWidget.swift; sourceTree = "<group>"; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
@@ -153,6 +163,11 @@
 		0386C0CD5B61076C8900F3F1 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */,
+				D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */,
+				2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */,
+				9592E400266E0385BE90930E /* LiveActivityController.swift */,
+				55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */,
 				4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */,
 			);
 			path = Sources;
@@ -447,6 +462,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E27245D5DB1D363CFA1D0144 /* GateWidget.swift in Sources */,
+				FCECBF89D30402A28DE67681 /* KpiWidget.swift in Sources */,
+				8F77B9CD39A926D5F0BA1BC6 /* LiveActivityCapPolicy.swift in Sources */,
+				D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */,
+				7D0CB0315C8C8DB26373DDC3 /* VerdictLiveActivity.swift in Sources */,
 				F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
