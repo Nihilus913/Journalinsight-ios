@@ -16,6 +16,13 @@ struct RootTabView: View {
     /// fire before this view exists — still has somewhere to land; consumed and cleared here.
     @Binding var pendingDeepLink: DeepLink?
     @State private var showConnection = false
+    // W5a-L0 (P-settings): the gear opens the real Settings screen (section registry, JIFeatures
+    // `SettingsView`); `showConnection`/`ConnectionSheet` stay as the pre-connection sheet the
+    // Today error card and `connectionPrompt` present. The model is built async (vault unlock
+    // for the Backup row) the moment the sheet opens and dropped on dismiss so a saved hub
+    // config or a changed KPI selection is re-read next time.
+    @State private var showSettings = false
+    @State private var settingsModel: SettingsViewModel?
     @State private var todayModel: TodayViewModel?
     @State private var recoveryModel: RecoveryViewModel?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
@@ -79,8 +86,9 @@ struct RootTabView: View {
                         .accessibilityLabel("My KPIs")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showConnection = true } label: { Image(systemName: "gearshape") }
+                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Settings")
+                        .accessibilityIdentifier("root.settings")
                 }
             }
             .navigationDestination(for: RootRoute.self) { route in
@@ -96,6 +104,13 @@ struct RootTabView: View {
             guard let link else { return }
             handle(link)
             pendingDeepLink = nil
+        }
+        .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil }) {
+            if let settingsModel {
+                SettingsView(model: settingsModel)
+            } else {
+                ProgressView().task { settingsModel = await makeSettingsModel() }
+            }
         }
         .sheet(isPresented: $showConnection) {
             ConnectionSheet(
@@ -291,6 +306,40 @@ struct RootTabView: View {
     private var connectionPrompt: some View {
         ContentUnavailableView { Label("Connect to your hub", systemImage: "server.rack") } description: { Text("Enter the HealthTraining hub URL and token.") } actions: {
             Button("Connection…") { showConnection = true }.buttonStyle(.pressableScale)
+        }
+    }
+
+    // W5a-L0: every optional row model `SettingsView` can link to. Hub-backed ones (goals, KPIs)
+    // need the provider cast the W3/W4 destinations already use; the Backup row needs the same
+    // on-disk DB + vault the Journal tab lazily builds (reused if it already did).
+    private func makeSettingsModel() async -> SettingsViewModel {
+        let provider = env.providerStore?.provider
+        let goals = (provider as? any GoalsSetupProviding).map { GoalsSetupViewModel(provider: $0) }
+        var kpis: KpiListViewModel?
+        if let provider, let nutrition = provider as? any NutritionProviding, let targets = provider as? any KpiTargetsProviding {
+            kpis = KpiListViewModel(healthProvider: provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache)
+        }
+        let db = journalDB ?? (try? AppDatabase.onDisk())
+        journalDB = db
+        let vault = journalVault ?? VaultManager(keychain: SecureKeychainService())
+        journalVault = vault
+        var backup: BackupViewModel?
+        if let db, let cipher = try? await vault.unlock() {
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+            backup = BackupViewModel(db: db, cipher: cipher, appVersion: version)
+        }
+        return SettingsViewModel(
+            store: ConnectionConfigStore(secrets: env.secrets),
+            prefs: env.prefs,
+            backloadModel: HealthBackloadViewModel(runner: env.backload, hrvPrefs: env.hrvPrefs),
+            healthPermissionModel: env.makeHealthPermissionModel(),
+            backupModel: backup,
+            goalsSetupModel: goals,
+            kpiListModel: kpis
+        ) { config in
+            env.apply(config)
+            todayModel = nil
+            recoveryModel = nil
         }
     }
 
