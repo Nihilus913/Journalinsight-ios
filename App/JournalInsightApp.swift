@@ -19,13 +19,7 @@ struct JournalInsightApp: App {
     // must not crash launch — treat it like "no token yet" and let RootTabView present the
     // Connection sheet (env.needsConnection) instead. Only a failure to construct the environment
     // itself (cache/prefs storage) is still fatal.
-    @State private var env: AppEnvironment = {
-        do {
-            let e = try AppEnvironment()
-            do { try e.boot() } catch { e.needsConnection = true }
-            return e
-        } catch { fatalError("AppEnvironment init failed: \(error)") }
-    }()
+    @State private var env: AppEnvironment
 
     // Held by the App struct (not RootTabView's own @State) so a cold-start deep link — the
     // Info.plist-registered `ji`/`journalinsight` URL types resolve to `.onOpenURL` before
@@ -49,11 +43,23 @@ struct JournalInsightApp: App {
     // `providerStore` even though the closure is built once in `init()`.
     @State private var outboxRetry: OutboxRetryScheduler
 
+    // CODE-2: a boot-time Keychain READ error (e.g. transient Secure Enclave/first-unlock failure)
+    // must not crash launch — treat it like "no token yet" and let RootTabView present the
+    // Connection sheet (env.needsConnection) instead. Only a failure to construct the environment
+    // itself (cache/prefs storage) is still fatal.
     init() {
-        let capturedEnv = env
+        let builtEnv: AppEnvironment = {
+            do {
+                let e = try AppEnvironment()
+                do { try e.boot() } catch { e.needsConnection = true }
+                return e
+            } catch { fatalError("AppEnvironment init failed: \(error)") }
+        }()
+        _env = State(initialValue: builtEnv)
+
         let scheduler = OutboxRetryScheduler(
             drainerSource: {
-                guard let provider = capturedEnv.providerStore?.provider,
+                guard let provider = builtEnv.providerStore?.provider,
                       let outbox = try? Outbox(db: .onDisk()) else { return nil }
                 return OutboxDrainer(outbox: outbox, hub: provider)
             },
