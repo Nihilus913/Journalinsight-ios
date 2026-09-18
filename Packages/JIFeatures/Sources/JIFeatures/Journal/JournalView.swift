@@ -53,7 +53,7 @@ public struct JournalView: View {
     private var loadedContent: some View {
         StreakHeader(stats: model.streak)
         PromptsCard()
-        BehaviorCardDeck()
+        BehaviorCardDeck(store: BehaviorCardDeck.onDiskStore)
         InsightsCard(entries: model.entries)
         CalendarView(
             scope: model.calendarScope, anchor: model.calendarAnchor, entryDates: model.entryDates,
