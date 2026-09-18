@@ -41,6 +41,13 @@ struct RootTabView: View {
     @State private var journalModel: JournalViewModel?
     @State private var selectedTab: RootTab = .today
     @State private var path: [RootRoute] = []
+    // W7-L3 (P-healthkit-t2-provider): every model above that was built from `store.provider`
+    // captured that provider at init, so flipping the debug data-source toggle (Settings → Data
+    // source) swapped `ProviderStore.provider` while Today/Recovery/Energy/Nutrition/Training
+    // kept querying the old source. `ProviderSwitch.revision` ticks once per effective provider
+    // change — the toggle AND a hub reconnect — and this is the single site that invalidates the
+    // cache; each tab's `.task` then rebuilds its model against the provider now in the store.
+    @State private var providerRevision = 0
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -110,6 +117,11 @@ struct RootTabView: View {
                 }
             }
         }
+        .onChange(of: ProviderSwitch.shared.revision) { _, revision in
+            guard revision != providerRevision else { return }
+            providerRevision = revision
+            invalidateProviderScopedModels()
+        }
         .onAppear { if env.needsConnection { showConnection = true } }
         .onAppear { if let link = pendingDeepLink { handle(link); pendingDeepLink = nil } }
         .onChange(of: pendingDeepLink) { _, link in
@@ -131,10 +143,20 @@ struct RootTabView: View {
                 healthPermissionModel: env.makeHealthPermissionModel()                                  // W2d: Apple Watch → hub (dso 4)
             ) { config in
                 env.apply(config)
-                todayModel = nil
-                recoveryModel = nil
+                invalidateProviderScopedModels()
             }
         }
+    }
+
+    /// Drops every view model that captured `ProviderStore.provider` at init. Deliberately does
+    /// NOT drop `settingsModel`: the data-source toggle lives inside that sheet, so rebuilding it
+    /// mid-flip would tear down the row the user just tapped.
+    private func invalidateProviderScopedModels() {
+        todayModel = nil
+        recoveryModel = nil
+        energyModel = nil
+        nutritionModel = nil
+        trainingModel = nil
     }
 
     /// Per-tab placeholder for the chrome-only `TabView`. `Color.clear.allowsHitTesting(false)`
@@ -351,8 +373,7 @@ struct RootTabView: View {
             kpiListModel: kpis
         ) { config in
             env.apply(config)
-            todayModel = nil
-            recoveryModel = nil
+            invalidateProviderScopedModels()
         }
     }
 
