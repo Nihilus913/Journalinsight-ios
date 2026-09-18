@@ -1,0 +1,16 @@
+{
+  "_comment": "W5b-L3 (P-gate-config). The ONE bundled fixture day the gate-config editor's live preview evaluates, ported verbatim from the RN oracle's GATE_PREVIEW_FIXTURE (mobile/src/compute/gateConfigPreview.ts). NOT live data and NOT a hub-contract capture: a fixed, hand-picked interval-day case chosen so an edited threshold visibly moves the verdict. today = 2026-08-25 (a Tuesday -> sessionByWeekday[1] = Norwegian 4x4 intervals) with sleep_duration_h 6.2. Under the default config (minSleepH 6.0) every interval-gate check passes -> 'GO — Norwegian 4x4 intervals'; raising minSleepH past 6.2 fails `dur >= config.minSleepH` inside evaluate() and flips the verdict to 'MODIFIED — swap intervals for easy Z2 30-40min'. Mirrored by the inline `GatePreviewFixture.bundled` constant in GateConfigPreview.swift; GateConfigPreviewTests asserts the two never drift.",
+  "today": "2026-08-25",
+  "vitals": {
+    "sleep": 75,
+    "sleep_duration_h": 6.2,
+    "hrv": 35,
+    "hrv_status": null,
+    "rhr": 58,
+    "rhr_date": "2026-08-24",
+    "steps_yesterday": 15500
+  },
+  "db": {},
+  "state": {},
+  "dosed_dates": []
+}
