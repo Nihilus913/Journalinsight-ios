@@ -53,7 +53,11 @@ final class NotificationRoutingDelegate: NSObject, UNUserNotificationCenterDeleg
     ) {
         let userInfo = response.notification.request.content.userInfo
         defer { completionHandler() }
-        guard let link = NtfyDeepLink.deepLink(fromUserInfo: userInfo) else { return }
+        // W7-L2: one resolver for every tap. `ApnsPayloadRouter.resolve` tries the APNs custom-data
+        // key (`deeplink`) first and falls back to `NtfyDeepLink.deepLink(fromUserInfo:)` — the call
+        // that used to be here verbatim — so `LocalVerdictFloor`'s local 05:10 reminder routes
+        // exactly as before, and a hub-pushed remote notification lands on the same destination.
+        guard let link = ApnsPayloadRouter.resolve(userInfo: userInfo) else { return }
         let handler = onDeepLink
         Task { @MainActor in
             handler?(link)

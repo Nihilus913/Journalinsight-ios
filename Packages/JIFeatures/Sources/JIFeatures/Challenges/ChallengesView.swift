@@ -24,6 +24,10 @@ public struct ChallengesView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // W7-L4: the hub being down must be visible on THIS screen too, not only Today.
+                // Renders only once a fetch has landed and only while unreachable (see the banner's
+                // own guard), so a first-ever load shows the spinner, not a scare.
+                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading:
                     ProgressView().frame(maxWidth: .infinity)

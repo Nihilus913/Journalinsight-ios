@@ -7,6 +7,10 @@ import JIPersistence
 /// write time on fallback — `nil` only when there is neither), and the typed hub error from the live
 /// attempt when one occurred (`nil` on a clean live success). `stale` marks a cache fallback so a
 /// caller can tell a fresh live value from a carried-over one without re-deriving it from `error`.
+///
+/// W7-L4: `stale` is now by AGE as well as by failure — a cache hit whose `fetchedAt` is older than
+/// `Staleness.hubQueryStaleTime` is stale even on a path that never threw, so a screen restored
+/// from a cold cache can't present hours-old numbers as current just because nothing errored.
 nonisolated public struct SectionResult<T: Sendable>: Sendable {
     public let value: T?
     public let fetchedAt: Date?
@@ -24,22 +28,48 @@ nonisolated public struct SectionResult<T: Sendable>: Sendable {
 /// sections together (e.g. via `async let`) still observes the cancellation and can return to `.idle`
 /// instead of reporting a false error — CODE-1's cancellation contract carries over unchanged.
 nonisolated public enum SectionLoader {
+    /// - Parameter now: injected clock, used only to age-check a cache value against
+    ///   `Staleness.hubQueryStaleTime`. A live success is stamped with the same clock, so it is
+    ///   never stale by age (age 0) — `stale` on a clean live fetch still means exactly `false`.
     public static func load<T: Codable & Sendable>(
         key: String,
         cache: OfflineCache,
+        now: () -> Date = Date.init,
         fetch: () async throws -> T
     ) async throws -> SectionResult<T> {
         do {
             let value = try await fetch()
             try? cache.put(key, value)
-            return SectionResult(value: value, fetchedAt: Date(), error: nil, stale: false)
+            return SectionResult(value: value, fetchedAt: now(), error: nil, stale: false)
         } catch {
             if Task.isCancelled { throw error }
             let hubError = (error as? HubError) ?? .decoding("\(error)")
             if let hit = try? cache.get(key, as: T.self) {
+                // Already stale by failure; the age check is what makes `restore` (below) honest too.
                 return SectionResult(value: hit.value, fetchedAt: hit.fetchedAt, error: hubError, stale: true)
             }
             return SectionResult(value: nil, fetchedAt: nil, error: hubError, stale: false)
         }
+    }
+
+    /// Reads `key` straight out of `cache` with no live attempt — the cold-start restore path — and
+    /// marks it `stale` purely by age (`Staleness.isStale`). No error is attached: nothing was
+    /// tried, so nothing failed. A miss returns an all-`nil` result with `stale == true`, because
+    /// "we have nothing" is never freshness.
+    public static func restore<T: Codable & Sendable>(
+        key: String,
+        cache: OfflineCache,
+        now: Date,
+        as type: T.Type = T.self
+    ) -> SectionResult<T> {
+        guard let hit = try? cache.get(key, as: T.self) else {
+            return SectionResult(value: nil, fetchedAt: nil, error: nil, stale: true)
+        }
+        return SectionResult(
+            value: hit.value,
+            fetchedAt: hit.fetchedAt,
+            error: nil,
+            stale: Staleness.isStale(fetchedAt: hit.fetchedAt, now: now)
+        )
     }
 }

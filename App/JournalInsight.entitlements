@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- W7-L2 (P-apns-push). `development` = the APNs sandbox host; Xcode's automatic signing
+	     substitutes `production` when archiving for distribution. `ApnsRegistration.apsEnvironmentValue`
+	     mirrors this value and is what the hub is told in the registration body's `environment`. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- W7-L2: lets the hub's 05:10 verdict push use `interruption-level: time-sensitive`
+	     (breaks through Focus), per the W7 card's APNs header contract. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<key>com.apple.security.application-groups</key>

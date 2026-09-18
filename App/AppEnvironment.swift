@@ -87,7 +87,12 @@ final class AppEnvironment {
         activeBaseURL = config.baseURL
         let hubClient = HubClient(config: config)
         let provider = HubDataProvider(client: hubClient)
-        if let store = providerStore { store.provider = provider } else { providerStore = ProviderStore(provider: provider) }
+        let store: ProviderStore
+        if let existing = providerStore { existing.provider = provider; store = existing } else { store = ProviderStore(provider: provider); providerStore = store }
+        // W7-L3 (P-healthkit-t2-provider): re-point the debug data-source switch at THIS
+        // connection's hub provider and re-apply the persisted choice. Release builds always
+        // land on the hub — see `JIFeatures.ProviderSwitch.install`.
+        ProviderSelection.install(store: store, hub: provider, prefs: prefs)
         backload = HealthKitBackloader(hub: BackloadClient(hub: hubClient))
         let uploader = HealthKitUploader(store: RealHealthStoreReader(), hub: hubClient, specs: Self.healthKitUploadSpecs)
         healthKitUploader = uploader
