@@ -70,5 +70,7 @@ public enum SettingsRegistry {
         DataQualitySection(),
         GateConfigSection(),
         LocalMirrorsSection(),
+        WeeklyPlanSection(),
+        ExportSection(),
     ]
 }
