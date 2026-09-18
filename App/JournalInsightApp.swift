@@ -57,6 +57,16 @@ struct JournalInsightApp: App {
                         // Authorization denied or scheduling failed — the floor reminder is a
                         // nudge, not a data path; the app must keep working without it.
                     }
+                    // W7-L2 (P-apns-push): re-register this device's APNs token on every cold
+                    // launch, reusing the single authorization request above rather than prompting
+                    // again. The provider is resolved lazily because `env.providerStore` doesn't
+                    // exist until a hub connection does (first run shows the Connection sheet).
+                    // Registration is additive to ntfy and never fatal — a Simulator launch simply
+                    // logs `.unavailable` (see `ApnsRegistration`).
+                    ApnsRegistration.shared.providerSource = { [weak env] in
+                        env?.providerStore?.provider as? any PushTokenProviding
+                    }
+                    await ApnsRegistration.shared.registerOnLaunch()
                 }
         }
     }

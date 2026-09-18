@@ -52,6 +52,14 @@ targets:
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: "JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, energy and workouts to compute your daily readiness gate and KPIs, and sends them to your own hub."
         NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
+    # W7-L2 (P-apns-push): the Push Notifications capability is carried by the `aps-environment`
+    # (+ `com.apple.developer.usernotifications.time-sensitive`) entitlement in
+    # App/JournalInsight.entitlements below — that file IS the capability as far as Xcode 27 and
+    # automatic signing are concerned. Deliberately NOT expressed as an `attributes:
+    # SystemCapabilities:` block here: XcodeGen 2.45.4 serialises a nested attribute dictionary as
+    # its Swift `description` string (`SystemCapabilities = "[\"com.apple.Push\": ...]"`), which
+    # is a malformed pbxproj value; `SystemCapabilities` is pre-Xcode-9 legacy that Xcode no longer
+    # reads for provisioning anyway.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight
