@@ -10,13 +10,16 @@ let package = Package(
         .package(path: "../JIPersistence"),
         .package(path: "../JIDesign"),
         .package(path: "../JIVault"),
+        // W5b-L3 (P-gate-config): the gate-config editor previews an override by running the REAL
+        // `JICompute.evaluate()` against one bundled fixture day — never a re-implementation.
+        .package(path: "../JICompute"),
     ],
     targets: [
         .target(
             name: "JIFeatures",
-            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault"],
+            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]
         ),
-        .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], resources: [.copy("GateConfigFixtures")], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

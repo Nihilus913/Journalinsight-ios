@@ -68,5 +68,6 @@ public enum SettingsRegistry {
         ProviderSection(),
         VersionSection(),
         DataQualitySection(),
+        GateConfigSection(),
     ]
 }
