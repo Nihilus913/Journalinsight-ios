@@ -5,6 +5,7 @@ import SwiftUI
 /// problem to be surfaced as an error card with a Connection action, not "stale data, hub unreachable".
 public struct StalenessBanner: View {
     let fetchedAt: Date?, hubReachable: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     public init(fetchedAt: Date?, hubReachable: Bool) { self.fetchedAt = fetchedAt; self.hubReachable = hubReachable }
     public var body: some View {
         if !hubReachable, let fetchedAt {
@@ -17,7 +18,7 @@ public struct StalenessBanner: View {
             .padding(10).frame(maxWidth: .infinity)
             .background(JIColor.surface3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .accessibilityIdentifier("staleness-banner")
-            .transition(.move(edge: .top).combined(with: .opacity))
+            .transition(reduceMotion ? AnyTransition.opacity : .move(edge: .top).combined(with: .opacity))
         }
     }
 }
