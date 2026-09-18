@@ -111,10 +111,17 @@ public struct BackloadWorkoutEntryDTO: Codable, Sendable, Equatable {
     /// when it's the real local activity start.
     public var startEstimated: Bool?
     public var version: Int?
-    public init(syncId: String, start: String, end: String, kind: BackloadWorkoutKindDTO, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool? = nil, version: Int? = nil) {
+    /// W9 (B-30 P3, contract v3 additive, HT e7720ff): true for Garmin's indoor types
+    /// (treadmill_running, indoor_cycling, …) -> `HKMetadataKeyIndoorWorkout`. Absent = nil.
+    public var indoor: Bool?
+    /// W9: the raw Garmin activity type (`core.activity.type`, e.g. `multi_sport`,
+    /// `treadmill_running`) so the writer can refine `kind` itself. Absent = nil.
+    public var rawType: String?
+    public init(syncId: String, start: String, end: String, kind: BackloadWorkoutKindDTO, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool? = nil, version: Int? = nil, indoor: Bool? = nil, rawType: String? = nil) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
         self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
         self.version = version
+        self.indoor = indoor; self.rawType = rawType
     }
 }
 

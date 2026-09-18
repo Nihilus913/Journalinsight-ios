@@ -291,7 +291,7 @@ import JIHub
         // the daily steps sample is re-saved, not deleted
         let savedIds = store.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
         #expect(savedIds.contains("steps:2026-06-01"))
-        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 4)
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == HealthKitBackloader.writerVersion)
     }
 
     @Test func theUpgradePassNeverRunsAgainOnceTheStoredWriterVersionIsFour() async throws {
@@ -394,7 +394,7 @@ import JIHub
         #expect(attached.contains { $0.sampleType == HKQuantityType(.activeEnergyBurned) })
         #expect(attached.contains { $0.sampleType == HKQuantityType(.distanceWalkingRunning) })
         #expect(summary.written == 3 && summary.failed.isEmpty)
-        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 4)
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == HealthKitBackloader.writerVersion)
         // second run: workouts are force-overwritten (deleted + re-saved), still exactly 2 attached
         store.existing[HKWorkoutType.workoutType().identifier] = ["workout:1"]
         let again = try await loader.run(range) { _ in }

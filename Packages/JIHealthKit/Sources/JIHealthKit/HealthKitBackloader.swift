@@ -49,10 +49,12 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
         // One-time upgrade: an older writer version walks the whole range again and rewrites
         // the kinds that changed shape (v3: workouts; v4: everything the hub re-versioned) and,
-        // per chunk, deletes what writer v3 mis-wrote (see `runV4Upgrade`).
+        // per chunk, deletes what writer v3 mis-wrote (`runV4Upgrade`) and sweeps what v5
+        // re-attaches (`runV5Upgrade`, one step per `V5Upgrade` case).
         let storedVersion = cursorDefaults?.integer(forKey: Self.writerVersionKey) ?? 0
-        let needsV4Upgrade = storedVersion < Self.writerVersion
-        if needsV4Upgrade { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
+        let needsV4Upgrade = storedVersion < 4
+        let needsV5Upgrade = storedVersion < Self.writerVersion
+        if needsV5Upgrade { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
         let chunks = BackloadMonthChunker.chunks(for: range, resumeFrom: readCursor())
         var written = 0, skipped = 0
         var failed: [String] = []
@@ -74,6 +76,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             let allSpecs = BackloadMapper.map(dto)
             let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
             if needsV4Upgrade { await runV4Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
+            if needsV5Upgrade { await runV5Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
 
             // Deletions (v1 markers superseded by v2 writes) happen before the save pass so a
             // fresh `existingSyncVersions` read (below) never sees the object it's about to replace.
@@ -190,6 +193,29 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         return String(parts[1])
     }
 
+    // MARK: - v5 upgrade pass
+
+    /// The one-time steps writer v5 runs per chunk while the stored writer version is below 5.
+    /// L1 owns `workoutHR`; other W9 lanes add a `case` (+ a `switch` arm in `runV5Upgrade`).
+    enum V5Upgrade: CaseIterable, Sendable {
+        /// Sweep every workout-attached HR sample (`workout:<id>:hr:*`) in the chunk so the
+        /// force-overwrite workout path below re-attaches the hub's current HR exactly once —
+        /// nothing lingers for a reading the hub no longer serves.
+        case workoutHR
+    }
+
+    private func runV5Upgrade(dto: BackloadResponseDTO, start: Date, end: Date) async {
+        for step in V5Upgrade.allCases {
+            switch step {
+            case .workoutHR:
+                _ = try? await store.deleteObjects(sampleType: HKQuantityType(.heartRate), start: start, end: end) { sample in
+                    guard let id = sample.metadata?[HKMetadataKeySyncIdentifier] as? String else { return false }
+                    return id.hasPrefix("workout:") && id.contains(":hr:")
+                }
+            }
+        }
+    }
+
     // MARK: - Response merge
 
     /// Combines one chunk's daily-pass and dense-pass responses into a single DTO before
@@ -245,7 +271,9 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// v3: workouts gain associated energy/distance samples so Fitness credits the rings.
     /// v4 (B-30): per-item hub versions, HRV under the native RMSSD type, and the one-time
     /// cleanup pass in `runV4Upgrade`.
-    static let writerVersion = 4
+    /// v5 (W9 B-30 P3/P5/P2.7): workouts carry their window's HR samples, indoor flag, brand +
+    /// title metadata; `runV5Upgrade` sweeps per `V5Upgrade` case.
+    static let writerVersion = 5
     static let writerVersionKey = "hk.backload.writerVersion"
     static let workoutSyncVersion = 3
     static let lastCompletedKey = "hk.backload.lastCompletedDay"
@@ -256,6 +284,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// the plain `save(_:)` seam rather than pulling the builder's async collection API into
     /// `HealthStoreWriting`.
     static let averageHeartRateMetadataKey = "HTAverageHeartRateBPM"
+
+    /// v5: the Garmin activity title ("Monday", "katzensee") — `HKMetadataKeyWorkoutBrandName`
+    /// now holds the device brand (audit D6), so the title moves to this custom key.
+    static let workoutTitleMetadataKey = "HTWorkoutTitle"
+    static let workoutBrandName = "Garmin fēnix 8"
 
     /// Fallback `HKMetadataKeySyncVersion` for an item the hub sent no `version` for (dense
     /// series, and any hub older than B-30): 2 for samples, 3 for workouts — exactly what writer
@@ -310,7 +343,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .workout(let w):
             let type = HKWorkoutType.workoutType()
             let version = w.version ?? workoutSyncVersion
-            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: version, HKMetadataKeyWorkoutBrandName: w.name]
+            var metadata: [String: Any] = [
+                HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: version,
+                HKMetadataKeyWorkoutBrandName: workoutBrandName, workoutTitleMetadataKey: w.name,
+                HKMetadataKeyIndoorWorkout: w.indoor,
+            ]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
             if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
@@ -319,7 +356,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 activityType: activityType(w.kind), start: w.start, end: w.end,
                 workoutEvents: nil, totalEnergyBurned: energy, totalDistance: distance, metadata: metadata)
             // Associated samples: this is what Fitness sums into the Move ring (energy) and what
-            // the workout detail shows as distance. Sync ids derive from the workout's.
+            // the workout detail shows as distance; v5 adds the window's HR readings, which is
+            // what draws the HR chart / zones. Sync ids derive from the workout's.
             var associated: [HKSample] = []
             if let energy {
                 associated.append(HKQuantitySample(
@@ -331,6 +369,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                     type: distanceType, quantity: distance, start: w.start, end: w.end,
                     metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: version]))
             }
+            associated.append(contentsOf: WorkoutHRAttacher.samples(for: w, version: version))
             return [ObjectEntry(object: workout, type: type, syncId: w.syncId, version: version, associated: associated)]
 
         case .delete:

@@ -60,6 +60,14 @@ public enum BackloadWorkoutKind: String, Sendable, Equatable {
     case strength, running, cycling, walking, hiking, swimming, other
 }
 
+/// W9 (B-30 P3): one dense heart-rate reading that falls inside a workout's window — the HK-free
+/// shape of the `(Date, Double)` pair `WorkoutHRAttacher` turns into an `HKQuantitySample`.
+public struct BackloadWorkoutHRSample: Sendable, Equatable {
+    public var ts: Date
+    public var bpm: Double
+    public init(ts: Date, bpm: Double) { self.ts = ts; self.bpm = bpm }
+}
+
 public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     public var syncId: String
     public var start: Date
@@ -72,10 +80,18 @@ public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     /// v2: true when `start` is the hub's 12:00 fallback rather than a real activity start.
     public var startEstimated: Bool
     public var version: Int?
-    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false, version: Int? = nil) {
+    /// v5 (W9 P3): the raw Garmin activity type from the hub (`nil` from a pre-v3 hub).
+    public var rawType: String?
+    /// v5: `HKMetadataKeyIndoorWorkout` — true iff the hub flagged the row indoor.
+    public var indoor: Bool
+    /// v5: the run's dense HR readings inside `[start, end]`, in time order; `[]` when Garmin has
+    /// none for the window (the workout is still written — just without an HR chart).
+    public var hrSamples: [BackloadWorkoutHRSample]
+    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false, version: Int? = nil, rawType: String? = nil, indoor: Bool = false, hrSamples: [BackloadWorkoutHRSample] = []) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
         self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
         self.version = version
+        self.rawType = rawType; self.indoor = indoor; self.hrSamples = hrSamples
     }
 }
 
