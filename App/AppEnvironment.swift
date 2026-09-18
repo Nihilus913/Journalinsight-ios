@@ -76,6 +76,10 @@ final class AppEnvironment {
     }
 
     func boot() throws {
+        // W8-L1 appWiring: warm the haptics prefs cache from disk at cold start, so
+        // `JIHapticDispatcher.shared.prefs` reflects the persisted enabled/intensity values
+        // immediately instead of the open default (enabled, 100) until Settings is visited.
+        HapticsPrefsStore.warm(from: prefs)
         if let config = try ConnectionConfigStore(secrets: secrets).load() { apply(config) } else { needsConnection = true }
     }
 
