@@ -42,6 +42,7 @@ public struct SleepCard: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("Sleep, \(durationText) duration, score \(scoreText)")
     }
 
     private var durationText: String {

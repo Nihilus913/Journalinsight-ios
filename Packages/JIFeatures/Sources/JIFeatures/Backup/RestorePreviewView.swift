@@ -30,6 +30,7 @@ public struct RestorePreviewView: View {
             Text("Backup from \(preview.exportedAt) · app \(preview.appVersion)")
                 .font(.footnote)
                 .foregroundStyle(JIColor.muted)
+                .accessibilityIdentifier("restore-preview-header")
 
             ForEach(preview.rows, id: \.table) { row in
                 HStack {
@@ -37,8 +38,10 @@ public struct RestorePreviewView: View {
                     Spacer()
                     if row.migratesInW5 {
                         Text("migrates in W5").font(.caption).foregroundStyle(JIColor.muted)
+                            .accessibilityLabel("\(row.table), migrates in W5")
                     } else {
                         Text("\(row.currentRowCount) → \(row.incomingRowCount)").font(.caption)
+                            .accessibilityLabel("\(row.table), \(row.currentRowCount) rows now, \(row.incomingRowCount) after restore")
                     }
                 }
             }
@@ -46,14 +49,19 @@ public struct RestorePreviewView: View {
             if preview.hasVaultKey {
                 SecureField("Backup passphrase", text: $passphrase)
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("restore-passphrase")
+                    .accessibilityLabel("Backup passphrase")
             }
 
             HStack {
                 Button("Cancel", role: .cancel) { onCancel() }
+                    .accessibilityIdentifier("restore-cancel")
                 Spacer()
                 Button("Restore") { onConfirm() }
                     .tint(JIColor.info)
                     .disabled(preview.hasVaultKey && passphrase.isEmpty)
+                    .accessibilityIdentifier("restore-confirm")
+                    .accessibilityHint("Replaces this device's data with the backup shown above.")
             }
         }
         .padding(.vertical, 4)

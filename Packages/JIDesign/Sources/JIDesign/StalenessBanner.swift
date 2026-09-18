@@ -10,11 +10,13 @@ public struct StalenessBanner: View {
         if !hubReachable, let fetchedAt {
             HStack(spacing: 8) {
                 Image(systemName: "wifi.exclamationmark")
+                    .accessibilityLabel("Hub unreachable")
                 Text("Showing data from \(fetchedAt.formatted(date: .omitted, time: .shortened)) — hub unreachable")
             }
             .font(.footnote).foregroundStyle(JIColor.text)
             .padding(10).frame(maxWidth: .infinity)
             .background(JIColor.surface3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .accessibilityIdentifier("staleness-banner")
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

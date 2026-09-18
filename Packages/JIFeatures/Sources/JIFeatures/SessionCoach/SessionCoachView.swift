@@ -55,12 +55,16 @@ public struct SessionCoachView: View {
                         .background(JIColor.color(for: SessionCoachViewModel.tone(for: model.capState)), in: Capsule())
                         .foregroundStyle(JIColor.bg)
                         .accessibilityIdentifier("session-coach-state-badge")
+                        .accessibilityLabel("Session state")
+                        .accessibilityValue(SessionCoachViewModel.label(for: model.capState))
                 }
                 Text(model.sample?.hrBpm.map(String.init) ?? "—")
                     .font(.system(size: 58, weight: .heavy, design: .rounded))
                     .foregroundStyle(JIColor.color(for: SessionCoachViewModel.tone(for: model.capState)))
                     .contentTransition(.numericText())
                     .accessibilityIdentifier("session-coach-hr")
+                    .accessibilityLabel("Heart rate")
+                    .accessibilityValue(model.sample?.hrBpm.map { "\($0) bpm" } ?? "No data yet")
                 Text("bpm · cap \(SessionCoachViewModel.hrSafetyCapBpm) · Z5 \(SessionCoachViewModel.hrForbiddenZoneLowBpm)-\(SessionCoachViewModel.hrForbiddenZoneHighBpm) forbidden")
                     .font(.footnote).foregroundStyle(JIColor.muted)
                 Text(SessionCoachViewModel.action(for: model.capState))
@@ -76,6 +80,7 @@ public struct SessionCoachView: View {
                     Text("⚠ Live feed lost — reading frozen, not live (\(error))")
                         .font(.caption.weight(.semibold)).foregroundStyle(JIColor.reduced)
                         .accessibilityIdentifier("session-coach-stale-banner")
+                        .accessibilityAddTraits(.isStaticText)
                 }
             }
         }
@@ -99,5 +104,8 @@ public struct SessionCoachView: View {
             }
             .frame(height: 10)
         }
+        .accessibilityIdentifier("session-coach-load")
+        .accessibilityLabel("Session load")
+        .accessibilityValue(model.sample.map { "\(Int($0.load.rounded())) of \(Int($0.targetLoad.rounded()))" } ?? "No data yet")
     }
 }
