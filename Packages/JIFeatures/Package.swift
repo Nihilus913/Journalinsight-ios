@@ -13,11 +13,14 @@ let package = Package(
         // W5b-L3 (P-gate-config): the gate-config editor previews an override by running the REAL
         // `JICompute.evaluate()` against one bundled fixture day — never a re-implementation.
         .package(path: "../JICompute"),
+        // W8-L4 (B-12): ONE `HKPermission` app-wide — JIFeatures now consumes JIHealthKit's instead of
+        // carrying a same-named duplicate that `AppEnvironment` had to map case by case.
+        .package(path: "../JIHealthKit"),
     ],
     targets: [
         .target(
             name: "JIFeatures",
-            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute"],
+            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute", "JIHealthKit"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]
         ),
         .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], resources: [.copy("GateConfigFixtures")], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),

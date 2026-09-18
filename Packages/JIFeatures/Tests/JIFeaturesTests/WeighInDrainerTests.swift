@@ -26,7 +26,7 @@ nonisolated final class WeighInFakeProvider: WeighInProviding, @unchecked Sendab
 
     let results = await drainer.drainOnce()
 
-    guard case .success(let result) = results[id] else { Issue.record("expected success"); return }
+    guard case .success(.weighIn(let result)) = results[id] else { Issue.record("expected weigh-in success"); return }
     #expect(result.weightKg == 82.5)
     #expect(try outbox.pending().isEmpty) // sent rows are retired
 }

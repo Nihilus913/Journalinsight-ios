@@ -52,6 +52,10 @@ targets:
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: "JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, energy and workouts to compute your daily readiness gate and KPIs, and sends them to your own hub."
         NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
+        # W8-L4 (P-hub-watchdog): `OutboxRetryScheduler.refreshTaskIdentifier` — the BGAppRefreshTask
+        # that retries pending outbox rows (weigh-in, gate respond, session feel) off-foreground.
+        BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh]
+        UIBackgroundModes: [fetch]
     # W7-L2 (P-apns-push): the Push Notifications capability is carried by the `aps-environment`
     # (+ `com.apple.developer.usernotifications.time-sensitive`) entitlement in
     # App/JournalInsight.entitlements below — that file IS the capability as far as Xcode 27 and

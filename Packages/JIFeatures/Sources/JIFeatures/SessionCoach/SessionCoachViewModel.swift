@@ -34,6 +34,19 @@ public final class SessionCoachViewModel {
     /// Set whenever a poll tick throws; `sample` deliberately keeps its last-good value so a poll
     /// failure never presents a frozen reading as if it were still live (the banner is the signal).
     public private(set) var error: String?
+    /// `true` once the first poll has answered (success or failure) — the difference between
+    /// "waiting for the first reading" (`.loading`) and a genuine gap.
+    public private(set) var hasPolled = false
+
+    /// W8-L4: DESIGN-7 `ScreenState`. `capable == false` → `.empty` (the "not available" wall — no
+    /// loading spinner for a provider that will never answer); a poll error → `.error` even while
+    /// `sample` keeps its last-good value (the banner is the honesty signal, see `error`).
+    public var screenState: ScreenState {
+        guard capable else { return .empty }
+        if let error { return .error(error) }
+        if sample != nil { return .loaded }
+        return hasPolled ? .empty : .loading
+    }
 
     private let liveProvider: (any LiveSessionProviding)?
     private let pollNs: UInt64
@@ -67,6 +80,7 @@ public final class SessionCoachViewModel {
     }
 
     private func tick(_ provider: any LiveSessionProviding) async {
+        defer { hasPolled = true }
         do {
             let next = try await provider.liveSession()
             sample = next
