@@ -27,9 +27,12 @@ public struct EventSheet: View {
                             Text(eventTypeLabel(t)).tag(t)
                         }
                     }
+                    .accessibilityLabel("Type")
                 }
                 Section("Time") {
                     TextField("HH:MM", text: $timeLocal).autocorrectionDisabled()
+                        .accessibilityLabel("Time")
+                        .accessibilityHint("Hours and minutes, 24-hour clock")
                 }
                 Section("Severity") {
                     Picker("Severity", selection: $severity) {
@@ -37,6 +40,8 @@ public struct EventSheet: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
+                    .accessibilityLabel("Severity")
+                    .accessibilityValue("\(severity)")
                 }
                 Section("What preceded it?") {
                     ForEach(PRODROME_OPTIONS, id: \.self) { opt in
@@ -46,20 +51,25 @@ public struct EventSheet: View {
                                 if checked { prodrome.insert(opt) } else { prodrome.remove(opt) }
                             }
                         ))
+                        .accessibilityLabel(opt)
                     }
                 }
                 Section("Triggers") {
                     TextField("e.g. bright light, skipped meal", text: $triggers)
+                        .accessibilityLabel("Triggers")
                 }
                 Section("Note (optional)") {
                     TextField("Anything else worth noting", text: $note, axis: .vertical).lineLimit(2...5)
+                        .accessibilityLabel("Note")
                 }
             }
+            .accessibilityIdentifier("event-sheet-panel")
             .navigationTitle("Log an event")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("event-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(saving ? "Saving…" : "Save") { Task { await save() } }.disabled(saving)
+                        .accessibilityIdentifier("event-save")
                 }
             }
         }

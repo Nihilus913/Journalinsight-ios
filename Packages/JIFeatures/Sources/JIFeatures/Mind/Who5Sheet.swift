@@ -35,6 +35,7 @@ public struct Who5Sheet: View {
                                 Text(r.label).tag(Int?.some(r.value))
                             }
                         }
+                        .accessibilityLabel(item)
                     }
                 }
                 Section {
@@ -42,18 +43,22 @@ public struct Who5Sheet: View {
                         Text("Score").foregroundStyle(JIColor.muted)
                         Spacer()
                         Text(pct.map { "\($0)/100" } ?? "—/100").font(.title3.bold())
+                            .accessibilityLabel("Score")
+                            .accessibilityValue(pct.map { "\($0) out of 100" } ?? "Not scored yet")
                     }
                     if let message {
                         Text(message).font(.footnote).foregroundStyle(JIColor.reduced)
                     }
                 }
             }
+            .accessibilityIdentifier("who5-sheet-panel")
             .navigationTitle("Weekly well-being check-in")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("who5-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(saving ? "Saving…" : "Save") { Task { await save() } }
                         .disabled(!allAnswered || saving)
+                        .accessibilityIdentifier("who5-save")
                 }
             }
         }

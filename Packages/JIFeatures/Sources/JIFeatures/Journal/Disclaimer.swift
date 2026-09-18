@@ -11,5 +11,6 @@ public struct Disclaimer: View {
             .foregroundStyle(JIColor.muted)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
+            .accessibilityLabel("Tracking, not diagnosis. In crisis? Call 143, Die Dargebotene Hand.")
     }
 }

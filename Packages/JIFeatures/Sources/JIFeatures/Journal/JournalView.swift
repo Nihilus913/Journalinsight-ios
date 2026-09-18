@@ -33,11 +33,13 @@ public struct JournalView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { model.beginNewEntry() } label: { Image(systemName: "square.and.pencil") }
                     .accessibilityLabel("New entry")
+                    .accessibilityIdentifier("journal-new-entry")
             }
             #else
             ToolbarItem {
                 Button { model.beginNewEntry() } label: { Image(systemName: "square.and.pencil") }
                     .accessibilityLabel("New entry")
+                    .accessibilityIdentifier("journal-new-entry")
             }
             #endif
         }
@@ -91,6 +93,8 @@ private struct EntryRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Entry \(entry.date)")
+        .accessibilityValue(snippet)
+        .accessibilityHint("Opens this entry for editing")
     }
 
     private var snippet: String {

@@ -13,6 +13,8 @@ public struct BehaviorCardDeck: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Behavior check-in").font(.system(size: 12, weight: .semibold)).foregroundStyle(JIColor.muted)
                 Text("Coming soon").font(.system(size: 13)).foregroundStyle(JIColor.mutedNested)
+                    // Identifier mirrors the oracle's `testID="behavior-card-deck"`.
+                    .accessibilityIdentifier("behavior-card-deck")
             }
         }
     }

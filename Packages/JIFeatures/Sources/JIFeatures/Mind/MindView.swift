@@ -49,9 +49,11 @@ public struct MindView: View {
                     Text("Checked in today · stress \(today.stress)/5 · energy \(today.energy)/5")
                         .foregroundStyle(JIColor.text)
                     Button("Update today's check-in") { checkInOpen = true }.buttonStyle(.pressableScale)
+                        .accessibilityIdentifier("mind-update-checkin")
                 } else {
                     Text("How are you today? Takes about 10 seconds.").foregroundStyle(JIColor.text)
                     Button("Daily check-in") { checkInOpen = true }.buttonStyle(.pressableScale)
+                        .accessibilityIdentifier("mind-daily-checkin")
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -65,8 +67,10 @@ public struct MindView: View {
                 if model.who5Due {
                     Text("Your weekly check-in is ready — about a minute.").font(.footnote).foregroundStyle(JIColor.muted)
                     Button("Take the weekly check-in") { who5Open = true }.buttonStyle(.pressableScale)
+                        .accessibilityIdentifier("mind-who5")
                 } else {
                     Button("Take it again") { who5Open = true }.buttonStyle(.pressableScale)
+                        .accessibilityIdentifier("mind-who5-again")
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -75,6 +79,7 @@ public struct MindView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("EVENTS").font(.caption.bold()).foregroundStyle(JIColor.muted)
                 Button("+ Log an event") { eventOpen = true }.buttonStyle(.pressableScale)
+                    .accessibilityIdentifier("mind-log-event")
                 if model.events.isEmpty {
                     Text("No events logged.").font(.footnote).foregroundStyle(JIColor.muted)
                 } else {
@@ -82,6 +87,8 @@ public struct MindView: View {
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(eventTypeLabel(e.type)) · sev \(e.severity)/5").font(.subheadline.bold()).foregroundStyle(JIColor.text)
+                                    .accessibilityLabel(eventTypeLabel(e.type))
+                                    .accessibilityValue("Severity \(e.severity) of 5")
                                 Text(eventSubtitle(e)).font(.footnote).foregroundStyle(JIColor.muted)
                             }
                             Spacer()
