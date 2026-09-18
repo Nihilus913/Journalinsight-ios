@@ -38,6 +38,7 @@
 		8F77B9CD39A926D5F0BA1BC6 /* LiveActivityCapPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */; };
 		9826D623E6F79EC92B041772 /* MyKpisGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541113198F7B5C556696963 /* MyKpisGlance.swift */; };
 		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
+		9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA32214326886B2F6938D0AC /* ProviderSelection.swift */; };
 		9E09E0891933F8E02DA94473 /* SnapshotWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B4E55EDF3D96E26FC79F31 /* SnapshotWiringTests.swift */; };
 		9ED8BB696D53595115070811 /* WatchGlanceSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */; };
 		A6D191FD3F18478B1B9601DC /* JIHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9B30070C96629314F0623B13 /* JIHealthKit */; };
@@ -147,6 +148,7 @@
 		A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlanceSnapshotTests.swift; sourceTree = "<group>"; };
 		A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightApp.swift; sourceTree = "<group>"; };
+		AA32214326886B2F6938D0AC /* ProviderSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSelection.swift; sourceTree = "<group>"; };
 		B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictGlance.swift; sourceTree = "<group>"; };
 		B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentTests.swift; sourceTree = "<group>"; };
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -338,6 +340,7 @@
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
+				AA32214326886B2F6938D0AC /* ProviderSelection.swift */,
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
 				056638029CC232C84D208888 /* Debug */,
 				323BFC5FC4A1CC8F4B9CDEF1 /* Navigation */,
@@ -580,6 +583,7 @@
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
+				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
 				B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */,
 			);
