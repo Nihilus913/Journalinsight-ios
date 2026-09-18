@@ -12,9 +12,9 @@ public struct InsightsCard: View {
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Insights").font(.system(size: 12, weight: .semibold)).foregroundStyle(JIColor.muted)
+                Text("Insights").jiFont(.label, weight: .semibold).foregroundStyle(JIColor.muted)
                 if entries.isEmpty {
-                    Text("No entries yet").font(.system(size: 13)).foregroundStyle(JIColor.muted)
+                    Text("No entries yet").jiFont(.footnote).foregroundStyle(JIColor.muted)
                 } else {
                     HStack {
                         stat("Entries", "\(JournalInsights.entryCount(entries))")
@@ -24,7 +24,7 @@ public struct InsightsCard: View {
                         stat("Longest", "\(JournalInsights.longestSessionSec(entries) / 60) min")
                     }
                     if let preferred = JournalInsights.preferredTimeOfDay(entries) {
-                        Text("Usually written: \(preferred.rawValue)").font(.system(size: 12)).foregroundStyle(JIColor.mutedNested)
+                        Text("Usually written: \(preferred.rawValue)").jiFont(.label).foregroundStyle(JIColor.mutedNested)
                     }
                 }
             }
@@ -33,10 +33,10 @@ public struct InsightsCard: View {
 
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.system(size: 15, weight: .semibold)).foregroundStyle(JIColor.text)
+            Text(value).jiFont(.subheadline, weight: .semibold).foregroundStyle(JIColor.text)
                 .accessibilityLabel(label)
                 .accessibilityValue(value)
-            Text(label).font(.system(size: 11)).foregroundStyle(JIColor.muted)
+            Text(label).jiFont(.caption).foregroundStyle(JIColor.muted)
         }
     }
 }

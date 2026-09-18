@@ -53,7 +53,7 @@ public struct JournalView: View {
     private var loadedContent: some View {
         StreakHeader(stats: model.streak)
         PromptsCard()
-        BehaviorCardDeck()
+        BehaviorCardDeck(store: BehaviorCardDeck.onDiskStore)
         InsightsCard(entries: model.entries)
         CalendarView(
             scope: model.calendarScope, anchor: model.calendarAnchor, entryDates: model.entryDates,
@@ -63,7 +63,7 @@ public struct JournalView: View {
 
         if model.filteredEntries.isEmpty {
             Text(JournalSearch.hasActiveFilters(model.filters) ? "No entries match your filters" : "No entries yet")
-                .font(.system(size: 13)).foregroundStyle(JIColor.muted)
+                .jiFont(.footnote).foregroundStyle(JIColor.muted)
         } else {
             VStack(spacing: 0) {
                 ForEach(model.filteredEntries.prefix(10)) { entry in
@@ -82,10 +82,10 @@ private struct EntryRow: View {
     var body: some View {
         Button(action: onOpen) {
             HStack(alignment: .top, spacing: 10) {
-                Text(entry.mood.flatMap(Mood.init(rawValue:)).map(moodEmoji) ?? "—").font(.system(size: 20))
+                Text(entry.mood.flatMap(Mood.init(rawValue:)).map(moodEmoji) ?? "—").jiFont(.emoji)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.date).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(JIColor.text)
-                    Text(snippet).font(.system(size: 12.5)).foregroundStyle(JIColor.muted).lineLimit(2)
+                    Text(entry.date).jiFont(.bodySmall, weight: .semibold).foregroundStyle(JIColor.text)
+                    Text(snippet).jiFont(.bodySmall).foregroundStyle(JIColor.muted).lineLimit(2)
                 }
                 Spacer()
             }

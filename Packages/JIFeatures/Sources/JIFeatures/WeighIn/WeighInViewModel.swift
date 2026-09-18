@@ -49,7 +49,8 @@ public final class WeighInViewModel {
         }
         let results = await drainer.drainOnce()
         switch results[id] {
-        case .success(let result):
+        case .success(let delivery):
+            guard let result = delivery.weighInResult else { state = .queued; return true }
             state = .success(result)
             return true
         case .failure(let error):

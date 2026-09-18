@@ -30,7 +30,7 @@ public struct CalendarView: View {
                         .accessibilityLabel("Previous \(JournalCalendar.scopeLabel(scope))")
                     Spacer()
                     Text(JournalCalendar.rangeLabel(scope, anchor: anchor))
-                        .font(.system(size: 13, weight: .semibold)).foregroundStyle(JIColor.text)
+                        .jiFont(.footnote, weight: .semibold).foregroundStyle(JIColor.text)
                     Spacer()
                     Button { onShift(1) } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.pressableScale)
@@ -42,7 +42,7 @@ public struct CalendarView: View {
                             let hasEntry = entryDates.contains(day)
                             Button { onSelectDay(day) } label: {
                                 Text(day.suffix(2))
-                                    .font(.system(size: 12))
+                                    .jiFont(.label)
                                     .frame(maxWidth: .infinity, minHeight: 28)
                                     .background(
                                         Circle().fill(hasEntry ? JIColor.go.opacity(0.3) : Color.clear)

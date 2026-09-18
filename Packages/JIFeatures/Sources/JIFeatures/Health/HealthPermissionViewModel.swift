@@ -1,27 +1,16 @@
 import Foundation
 import Observation
 import JICore
+import JIHealthKit
 
-/// Three-state HealthKit read-permission model (W2d, P-healthkit-permission-ui). Mirrors the
-/// shape JIHealthKit's `HKTypes.HKPermission` (L1, parallel lane) is expected to define —
-/// JIFeatures never imports JIHealthKit (see `HealthBackloadSection`, and JIFeatures'
-/// `Package.swift`, which lists no such dependency), so this is a local value type built
-/// against the NAME the wave card gives. If L1 lands a distinct representation, the integrator
-/// reconciles the two at merge (wave card: "code against the names the card gives").
-///
-/// HealthKit can't distinguish "denied" from "never asked" for READ access (Apple's privacy
-/// design deliberately hides this) — `notDetermined` covers both, and the UI must never collapse
-/// that into "no data" (CLAUDE.md rule 5: never render a zero / false-confident empty state for
-/// missing data).
-public enum HKPermission: Equatable, Sendable {
-    case granted
-    case denied
-    case notDetermined
-}
+// `HKPermission` is JIHealthKit's (`HealthKitPermissions.swift`) — W8-L4 (B-12) deleted the
+// same-named duplicate that used to live here (W2d built it against the card's NAME because the
+// two lanes ran in parallel), so there is exactly one three-state read-permission type app-wide
+// and `AppEnvironment` no longer maps between two enums case by case.
 
 /// Drives the "Connect Apple Health" permission flow and which T2 (Apple Watch) tiles are gated
-/// (W2d, L3). Built against `HKPermission` above and the plain `DataCapability` bitmap (JICore,
-/// already a JIFeatures dependency) — no HealthKit import, no JIHealthKit dependency.
+/// (W2d, L3). Built against JIHealthKit's `HKPermission` and the plain `DataCapability` bitmap
+/// (JICore).
 @Observable @MainActor
 public final class HealthPermissionViewModel {
     public private(set) var permission: HKPermission

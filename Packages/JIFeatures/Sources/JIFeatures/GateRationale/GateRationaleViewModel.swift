@@ -59,6 +59,23 @@ public final class GateRationaleViewModel {
     public private(set) var verdictForDate: MorningVerdict?
     public private(set) var lastError: HubError?
 
+    /// W8-L4: DESIGN-7 `ScreenState`, resolved from `phase`/`lastError`. `.noVerdictForDate`
+    /// (the hub answered; that day simply has no run) maps to `.empty` — an honest blank, not an
+    /// error and not "never synced"; the view keeps reading `phase` for the per-date copy.
+    public var screenState: ScreenState {
+        ScreenState.resolve(phase: mappedPhase, neverSynced: false, verdictDate: nil, todayDateString: "", lastError: lastError)
+    }
+
+    private var mappedPhase: TodayViewModel.Phase {
+        switch phase {
+        case .idle: .idle
+        case .loading: .loading
+        case .loaded: .loaded
+        case .noVerdictForDate: .empty
+        case .error(let message): .error(message)
+        }
+    }
+
     private let provider: any HealthDataProvider
     /// `nil` = the live "today" rationale; non-nil = the deep-link per-date branch.
     public let date: String?

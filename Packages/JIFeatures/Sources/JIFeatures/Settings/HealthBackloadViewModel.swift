@@ -17,6 +17,22 @@ public final class HealthBackloadViewModel {
 
     public private(set) var phase: Phase = .idle
 
+    /// W8-L4: DESIGN-7 `ScreenState` over the run `phase` — `authorizing`/`running` are the
+    /// loading spell, `done` is loaded, `failed` carries the writer's message. Not hub-backed
+    /// (no `HubError`), so `lastError` is always nil here.
+    public var screenState: ScreenState {
+        ScreenState.resolve(phase: mappedPhase, neverSynced: false, verdictDate: nil, todayDateString: "", lastError: nil)
+    }
+
+    private var mappedPhase: TodayViewModel.Phase {
+        switch phase {
+        case .idle: .idle
+        case .authorizing, .running: .loading
+        case .done: .loaded
+        case .failed(let message): .error(message)
+        }
+    }
+
     private let runner: any BackloadRunning
     private let now: () -> Date
     private let hrvPrefs: UserDefaults?

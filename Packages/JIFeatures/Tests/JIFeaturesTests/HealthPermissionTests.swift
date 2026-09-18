@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JIHealthKit
 @testable import JIFeatures
 
 // MARK: - Status copy (three-state honesty, wave card exit criterion)

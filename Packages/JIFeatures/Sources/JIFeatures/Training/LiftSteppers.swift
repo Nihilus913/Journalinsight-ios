@@ -83,10 +83,10 @@ public struct LiftSteppers: View {
                         .accessibilityValue(weight != nil ? "\(weight!.formatted()) kg" : "no data")
                     Spacer()
                     if canStepWeight {
-                        stepButton(symbol: "−", requireConfirm: true, armKey: "weight:\(canonical.exerciseId)", disabled: pending) {
+                        stepButton(symbol: "−", label: liftStepperLabel(exerciseName: canonical.exerciseName, sessionName: nil, quantity: .weight, direction: .decrease), requireConfirm: true, armKey: "weight:\(canonical.exerciseId)", disabled: pending) {
                             for row in rows { onUpdate(row, ExerciseUpdate(currentWeightKg: max(0, weight! - step!), progressionStepKg: step!, sets: row.sets, repsTarget: parseRepsTarget(row.repsTarget))) }
                         }
-                        stepButton(symbol: "+", requireConfirm: false, armKey: "weight+:\(canonical.exerciseId)", disabled: pending) {
+                        stepButton(symbol: "+", label: liftStepperLabel(exerciseName: canonical.exerciseName, sessionName: nil, quantity: .weight, direction: .increase), requireConfirm: false, armKey: "weight+:\(canonical.exerciseId)", disabled: pending) {
                             for row in rows { onUpdate(row, ExerciseUpdate(currentWeightKg: weight! + step!, progressionStepKg: step!, sets: row.sets, repsTarget: parseRepsTarget(row.repsTarget))) }
                         }
                     }
@@ -107,17 +107,19 @@ public struct LiftSteppers: View {
                 .accessibilityLabel("\(exercise.sessionName) \(exercise.exerciseName)")
                 .accessibilityValue(formatSetsReps(sets: exercise.sets, reps: reps))
             if let reps {
-                stepButton(symbol: "−", requireConfirm: true, armKey: "reps:\(exercise.exerciseId)", disabled: pendingIds.contains(exercise.exerciseId)) {
+                stepButton(symbol: "−", label: liftStepperLabel(exerciseName: exercise.exerciseName, sessionName: showSession ? exercise.sessionName : nil, quantity: .reps, direction: .decrease), requireConfirm: true, armKey: "reps:\(exercise.exerciseId)", disabled: pendingIds.contains(exercise.exerciseId)) {
                     onUpdate(exercise, ExerciseUpdate(currentWeightKg: exercise.currentWeightKg ?? 0, progressionStepKg: exercise.progressionStepKg ?? 0, sets: exercise.sets, repsTarget: max(1, reps - 1)))
                 }
-                stepButton(symbol: "+", requireConfirm: false, armKey: "reps+:\(exercise.exerciseId)", disabled: pendingIds.contains(exercise.exerciseId)) {
+                stepButton(symbol: "+", label: liftStepperLabel(exerciseName: exercise.exerciseName, sessionName: showSession ? exercise.sessionName : nil, quantity: .reps, direction: .increase), requireConfirm: false, armKey: "reps+:\(exercise.exerciseId)", disabled: pendingIds.contains(exercise.exerciseId)) {
                     onUpdate(exercise, ExerciseUpdate(currentWeightKg: exercise.currentWeightKg ?? 0, progressionStepKg: exercise.progressionStepKg ?? 0, sets: exercise.sets, repsTarget: reps + 1))
                 }
             }
         }
     }
 
-    private func stepButton(symbol: String, requireConfirm: Bool, armKey: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+    /// B-28 (W8-L3): `label` is RN's per-exercise a11y string from `liftStepperLabel` — the
+    /// armed state appends " — tap again to confirm" exactly like `StepButton` in `LiftSteppers.tsx`.
+    private func stepButton(symbol: String, label: String, requireConfirm: Bool, armKey: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         let armed = armedDecrease.contains(armKey)
         return Button {
             if requireConfirm && !armed { armedDecrease.insert(armKey); return }
@@ -131,8 +133,29 @@ public struct LiftSteppers: View {
         }
         .buttonStyle(.pressableScale)
         .disabled(disabled)
-        .accessibilityLabel(armed ? "tap again to confirm" : symbol == "−" ? "decrease" : "increase")
+        .accessibilityLabel(liftStepperLabel(label, armed: armed))
+        .accessibilityIdentifier("lift-step-\(armKey)")
     }
+}
+
+// MARK: - Per-exercise stepper a11y strings (port of `LiftSteppers.tsx` `StepButton` / `SessionRepsRow` / `LiftCard`)
+
+/// Which number a stepper moves.
+public nonisolated enum LiftStepperQuantity: String, Sendable { case weight, reps }
+/// Which way it moves.
+public nonisolated enum LiftStepperDirection: String, Sendable { case increase, decrease }
+
+/// RN: `${labelPrefix}${exercise.exercise_name} reps increase` / `${canonical.exercise_name} weight decrease`.
+/// `sessionName` is the `labelPrefix` — passed only for reps rows of a multi-session lift
+/// (`showSessionInLabel = rows.length > 1`); weight steppers never carry it.
+nonisolated public func liftStepperLabel(exerciseName: String, sessionName: String?, quantity: LiftStepperQuantity, direction: LiftStepperDirection) -> String {
+    let prefix = sessionName.map { "\($0) " } ?? ""
+    return "\(prefix)\(exerciseName) \(quantity.rawValue) \(direction.rawValue)"
+}
+
+/// RN: `armed ? `${accessibilityLabel} — tap again to confirm` : accessibilityLabel`.
+nonisolated public func liftStepperLabel(_ label: String, armed: Bool) -> String {
+    armed ? "\(label) — tap again to confirm" : label
 }
 
 /// Port of `mobile/src/lib/liftFormat.ts`'s `formatSetsReps` — "3×10 reps" / "3 sets" / "10 reps" / "—".

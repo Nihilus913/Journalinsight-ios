@@ -72,5 +72,6 @@ public enum SettingsRegistry {
         LocalMirrorsSection(),
         WeeklyPlanSection(),
         ExportSection(),
+        HapticsSection(),
     ]
 }

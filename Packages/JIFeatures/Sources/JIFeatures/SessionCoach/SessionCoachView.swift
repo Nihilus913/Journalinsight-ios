@@ -59,7 +59,7 @@ public struct SessionCoachView: View {
                         .accessibilityValue(SessionCoachViewModel.label(for: model.capState))
                 }
                 Text(model.sample?.hrBpm.map(String.init) ?? "—")
-                    .font(.system(size: 58, weight: .heavy, design: .rounded))
+                    .jiNumeral(.numeralDisplay, weight: .heavy)
                     .foregroundStyle(JIColor.color(for: SessionCoachViewModel.tone(for: model.capState)))
                     .contentTransition(.numericText())
                     .accessibilityIdentifier("session-coach-hr")

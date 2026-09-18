@@ -68,7 +68,7 @@ public struct GateRationaleView: View {
             VStack(alignment: .leading, spacing: 4) {
                 sectionLabel("Readiness verdict")
                 Text(model.verdict.word)
-                    .font(.system(size: 40, weight: .heavy, design: .rounded))
+                    .jiNumeral(.numeralLarge, weight: .heavy)
                     .foregroundStyle(JIColor.color(for: model.verdict.tone))
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
@@ -175,7 +175,7 @@ public struct GateRationaleView: View {
                         VStack(spacing: 4) {
                             Circle().fill(JIColor.color(for: day.tone)).frame(width: 12, height: 12)
                             Text(Self.weekdayLabel(day.date)).font(.caption2.weight(.bold)).foregroundStyle(JIColor.text)
-                            Text(day.metricsLine()).font(.system(size: 10.5)).foregroundStyle(JIColor.muted)
+                            Text(day.metricsLine()).jiFont(.micro).foregroundStyle(JIColor.muted)
                                 .multilineTextAlignment(.center).lineLimit(2)
                         }
                         .frame(maxWidth: .infinity)
