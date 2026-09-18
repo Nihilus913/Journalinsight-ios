@@ -64,5 +64,6 @@ public enum SettingsRegistry {
         DataLinksSection(),
         AppearanceSection(),
         RemindersSection(),
+        EditTodaySection(),
     ]
 }
