@@ -232,7 +232,7 @@ public struct GateConfigView: View {
     private func stepButton(glyph: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: glyph)
-                .font(.system(size: 13, weight: .bold))
+                .jiFont(.footnote, weight: .bold)
                 .foregroundStyle(JIColor.text)
                 .frame(width: 30, height: 30)
                 .background(JIColor.surface2, in: Circle())

@@ -59,7 +59,7 @@ public struct MacroSummaryCard: View {
     private func kcalRow(_ total: NutritionDayTotal) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(total.kcal.map { "\(Int($0))" } ?? "—")
-                .font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
+                .jiNumeral(.numeralMedium).foregroundStyle(JIColor.text)
                 // Oracle `MacroSummaryCard.tsx` L170 names this row "Calories".
                 .accessibilityLabel("Calories")
                 .accessibilityValue(total.kcal.map { "\(Int($0)) kcal" } ?? "no data")

@@ -18,7 +18,7 @@ public struct VerdictHeroView: View {
         Surface(level: 1, radius: JIRadius.hero, padding: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(verdict.word)
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .jiNumeral(.numeralHero)
                     .foregroundStyle(JIColor.color(for: verdict.tone))
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("today.verdict.word")

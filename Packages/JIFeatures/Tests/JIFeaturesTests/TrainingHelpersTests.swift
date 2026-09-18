@@ -44,3 +44,29 @@ private func ex(_ id: Int, _ session: String, _ name: String) -> Exercise {
 @Test func formatSetsRepsOnlySets() { #expect(formatSetsReps(sets: 3, reps: nil) == "3 sets") }
 @Test func formatSetsRepsOnlyReps() { #expect(formatSetsReps(sets: nil, reps: 10) == "10 reps") }
 @Test func formatSetsRepsNeitherKnown() { #expect(formatSetsReps(sets: nil, reps: nil) == "—") }
+
+// MARK: - liftStepperLabel (LiftSteppers.swift) — B-28 port of the RN a11y strings asserted in
+// mobile/__tests__/training/trainingScreen.render.test.tsx L47–50 and liftSteppers.celebration.test.tsx
+
+@Test func liftStepperWeightLabelsMatchRN() {
+    #expect(liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: nil, quantity: .weight, direction: .increase) == "Barbell Bench Press weight increase")
+    #expect(liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: nil, quantity: .weight, direction: .decrease) == "Barbell Bench Press weight decrease")
+}
+
+@Test func liftStepperRepsLabelsMatchRNSingleSessionFixture() {
+    // trainingScreen.render.test.tsx: the single-row mock fixture stays exercise_name-only.
+    #expect(liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: nil, quantity: .reps, direction: .increase) == "Barbell Bench Press reps increase")
+    #expect(liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: nil, quantity: .reps, direction: .decrease) == "Barbell Bench Press reps decrease")
+}
+
+@Test func liftStepperRepsLabelsCarrySessionPrefixForMultiSessionLifts() {
+    // LiftSteppers.tsx L127: labelPrefix = showSessionInLabel ? `${session_name} ` : "".
+    #expect(liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: "Day 1", quantity: .reps, direction: .increase) == "Day 1 Barbell Bench Press reps increase")
+}
+
+@Test func liftStepperArmedLabelAppendsTapAgainToConfirm() {
+    // liftSteppers.celebration.test.tsx L168/L293: the plain label is replaced, not supplemented.
+    let plain = liftStepperLabel(exerciseName: "Barbell Bench Press", sessionName: nil, quantity: .weight, direction: .decrease)
+    #expect(liftStepperLabel(plain, armed: true) == "Barbell Bench Press weight decrease — tap again to confirm")
+    #expect(liftStepperLabel(plain, armed: false) == plain)
+}
