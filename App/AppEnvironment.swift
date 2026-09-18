@@ -93,6 +93,9 @@ final class AppEnvironment {
         // connection's hub provider and re-apply the persisted choice. Release builds always
         // land on the hub — see `JIFeatures.ProviderSwitch.install`.
         ProviderSelection.install(store: store, hub: provider, prefs: prefs)
+        // W5b-L1 (P-data-quality) close-out wiring: the Data Quality screen (Settings row + the
+        // Today freshness-badge tap) reads its provider from this seam; nil = honest "not wired".
+        DataQualityAccess.shared.install(provider)
         backload = HealthKitBackloader(hub: BackloadClient(hub: hubClient))
         let uploader = HealthKitUploader(store: RealHealthStoreReader(), hub: hubClient, specs: Self.healthKitUploadSpecs)
         healthKitUploader = uploader

@@ -141,6 +141,27 @@ enum Migrations {
                 t.column("synced_at", .text).notNull()
             }
         }
+        // W5b-L4 (P-gate-respond + P-local-mirrors): `decision_log_mirror`, the local-first record
+        // of every gate answer. Column names verbatim from the RN oracle
+        // (mobile/src/decisions/DecisionLogStore.ts), which in turn mirrors the server table
+        // plan.decision_log (app/db/migrations/002_plan_schema.sql: logged_at, window_days,
+        // recommendation, user_choice, override_reason) — so a Fold-archive row imports without
+        // renaming. Unlike goal_targets_mirror/KPI/challenges this is NOT a refresh-mirror: the
+        // hub has no GET that reads decision_log back (only POST /planning/gate/respond writes
+        // one), so rows are written locally first and `remote_log_id`/`synced` are filled in once
+        // that POST confirms. Nothing is vaulted here (no Art.9 content).
+        m.registerMigration("v4_decision_log") { db in
+            try db.create(table: "decision_log_mirror", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("remote_log_id", .integer)
+                t.column("logged_at", .text).notNull()
+                t.column("window_days", .integer).notNull()
+                t.column("recommendation", .text).notNull()
+                t.column("user_choice", .text).notNull()
+                t.column("override_reason", .text)
+                t.column("synced", .integer).notNull().defaults(to: 0)
+            }
+        }
         return m
     }
 }

@@ -5,12 +5,13 @@ import JIDesign
 public struct VerdictHeroView: View {
     let verdict: VerdictParts, readiness: Double?, readinessMissing: Bool
     let challengesModel: ChallengesViewModel?
+    let gateRespondModel: GateRespondViewModel?   // W5b-L4: nil = no respond controls (same optional idiom as `challengesModel`)
     @State private var revealed = false
     @State private var showChallenges = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    public init(verdict: VerdictParts, readiness: Double?, readinessMissing: Bool, challengesModel: ChallengesViewModel? = nil) {
+    public init(verdict: VerdictParts, readiness: Double?, readinessMissing: Bool, challengesModel: ChallengesViewModel? = nil, gateRespondModel: GateRespondViewModel? = nil) {
         self.verdict = verdict; self.readiness = readiness; self.readinessMissing = readinessMissing
-        self.challengesModel = challengesModel
+        self.challengesModel = challengesModel; self.gateRespondModel = gateRespondModel
     }
 
     public var body: some View {
@@ -58,9 +59,11 @@ public struct VerdictHeroView: View {
                         ChallengesView(model: challengesModel)
                     }
                 }
+                if let gateRespondModel { GateRespondCard(model: gateRespondModel) }   // W5b-L4 (P-gate-respond) card mount — oracle VerdictHero.tsx mounts GateRespondCard + SessionFeelInput here
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .gateRationaleDestination()   // W5b-L2 — oracle VerdictHero.tsx:404 (whole card → gate-rationale)
         .onAppear { withAnimation(reduceMotion ? nil : JIMotion.reveal) { revealed = true } }
         .onDisappear { revealed = false }   // reveal fires on EVERY open/return (feel diagnosis 2026-09-03)
     }

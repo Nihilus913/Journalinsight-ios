@@ -67,5 +67,10 @@ public enum SettingsRegistry {
         EditTodaySection(),
         ProviderSection(),
         VersionSection(),
+        DataQualitySection(),
+        GateConfigSection(),
+        LocalMirrorsSection(),
+        WeeklyPlanSection(),
+        ExportSection(),
     ]
 }
