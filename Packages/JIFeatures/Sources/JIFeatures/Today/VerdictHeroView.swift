@@ -20,13 +20,19 @@ public struct VerdictHeroView: View {
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(JIColor.color(for: verdict.tone))
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("today.verdict.word")
                     .jiReveal()
                 Text(verdict.session).font(.body).foregroundStyle(JIColor.text)
+                    .accessibilityIdentifier("today.verdict.session")
                     .jiReveal()
                 // Controller ruling 1: `readiness.map { revealed ? $0 : 0 }` — plain `revealed ? readiness : 0`
                 // would coerce a genuinely nil score to a literal 0 ("No data yet" would flash "0" pre-reveal).
                 // nil stays nil at every point in the reveal; only a real score counts up from 0.
+                // Label mirrors the RN oracle's ReadinessArcGauge (`Readiness ${rounded} — open
+                // detail` / `Readiness — open detail`); nil score keeps the no-score wording.
                 HStack { Spacer(); ReadinessArcGauge(score: readiness.map { revealed ? $0 : 0 }, sourceMissing: readinessMissing); Spacer() }
+                    .accessibilityLabel(readiness.map { "Readiness \(Int($0.rounded())) — open detail" } ?? "Readiness — open detail")
+                    .accessibilityIdentifier("today.readinessGauge")
                 // W3b-L3 — oracle `VerdictHero.tsx`'s challenges link (its own row opens
                 // `app/challenges.tsx`). Only the link lives here; the gate-challenge summary/
                 // mark-complete prompt it also renders is out of this lane's scope (this row's
@@ -43,6 +49,7 @@ public struct VerdictHeroView: View {
                     }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Gate challenge progress — open challenges")
+                    .accessibilityIdentifier("today.gateChallenge")
                     // Attached locally so this row never needs the enclosing `NavigationStack`'s
                     // own `navigationDestination(for:)` (owned by App/RootTabView.swift, out of
                     // this lane's file list) — a plain isPresented push still lands on the same
