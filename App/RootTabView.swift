@@ -24,6 +24,9 @@ struct RootTabView: View {
     @State private var showSettings = false
     @State private var settingsModel: SettingsViewModel?
     @State private var todayModel: TodayViewModel?
+    // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
+    // and routed through the environment (`GateRationaleView` reads `\.gateRationaleModel`; nil = inert).
+    @State private var gateRationaleModel: GateRationaleViewModel?
     @State private var recoveryModel: RecoveryViewModel?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
     // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
@@ -191,18 +194,32 @@ struct RootTabView: View {
                 TodayView(
                     model: todayModel,
                     onOpenConnection: { showConnection = true },
-                    onSelectKpi: { metric in pushKpiDetail(metric) }
+                    onSelectKpi: { metric in pushKpiDetail(metric) },
+                    makeGateRespondModel: { recommendation in makeGateRespondModel(recommendation, provider: store.provider) }
                 )
+                .environment(\.gateRationaleModel, gateRationaleModel)
             } else {
                 ProgressView()
                     .task {
                         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
                         env.bind(today: todayModel, recovery: recoveryModel)
+                        gateRationaleModel = GateRationaleViewModel(provider: store.provider)
                     }
             }
         } else {
             connectionPrompt
         }
+    }
+
+    // W5b-L4 (P-gate-respond) close-out wiring: the gate answer card's model, built by `TodayView`
+    // whenever the loaded gate's recommendation changes. Outbox-first over the same on-disk
+    // `AppDatabase` the Journal tab uses (v4_decision_log lives there); nil when the hub provider
+    // cannot answer gates or the database cannot open — the card then simply does not mount.
+    private func makeGateRespondModel(_ recommendation: GateRecommendation, provider: any HealthDataProvider) -> GateRespondViewModel? {
+        guard let respondProvider = provider as? any GateRespondProviding else { return nil }
+        let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+        guard let db else { return nil }
+        return GateRespondViewModel(recommendation: recommendation, provider: respondProvider, outbox: Outbox(db: db), decisionLog: DecisionLogStore(db: db))
     }
 
     // W4-L1 (P-journal): fully on-device, no `env.providerStore`/hub gate — the Journal tab is

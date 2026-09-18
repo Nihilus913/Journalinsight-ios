@@ -6,9 +6,15 @@ public struct TodayView: View {
     @Bindable private var model: TodayViewModel
     private let onOpenConnection: () -> Void
     private let onSelectKpi: (String) -> Void
+    /// W5b-L4 (P-gate-respond) close-out wiring: builds the gate answer card's model for the loaded
+    /// gate's recommendation (the App supplies outbox + decision log); `nil` = no card, as before.
+    private let makeGateRespondModel: (GateRecommendation) -> GateRespondViewModel?
+    @State private var gateRespondModel: GateRespondViewModel?
 
-    public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in }) {
+    public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in },
+                makeGateRespondModel: @escaping (GateRecommendation) -> GateRespondViewModel? = { _ in nil }) {
         self.model = model; self.onOpenConnection = onOpenConnection; self.onSelectKpi = onSelectKpi
+        self.makeGateRespondModel = makeGateRespondModel
     }
 
     public var body: some View {
@@ -25,7 +31,7 @@ public struct TodayView: View {
                     // readinessMissing: false — W1 has only the hub provider, which always carries a
                     // readiness field (nil when the hub itself has no score yet); a real "source doesn't
                     // support this metric" case awaits W2+'s additional providers.
-                    VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false)
+                    VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false, gateRespondModel: gateRespondModel)
                     TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
                 }
             }
@@ -37,6 +43,11 @@ public struct TodayView: View {
         // leaves `phase == .loaded` (restored from cache), so keying off `.idle` alone would never
         // re-fetch live data on the next appearance.
         .task { if !model.hasLiveResult { await model.load() } }
+        // One respond model per recommendation: rebuilt only when the loaded gate's answer changes,
+        // never per body evaluation (the model carries in-flight/pending state).
+        .onChange(of: model.gate?.recommendation, initial: true) { _, recommendation in
+            gateRespondModel = recommendation.flatMap(makeGateRespondModel)
+        }
         .animation(JIMotion.standard, value: model.phase)
     }
 
