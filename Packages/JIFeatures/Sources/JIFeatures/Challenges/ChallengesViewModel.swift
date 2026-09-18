@@ -14,11 +14,24 @@ public final class ChallengesViewModel {
     public private(set) var phase: Phase = .idle
     public private(set) var challenges: [GateChallenge] = []
     public private(set) var lastError: HubError?
+    /// W7-L4 (P-hub-watchdog): the `TodayViewModel.hubReachable` idiom, replicated here rather than
+    /// centralised — Challenges was the one screen VM without it, so a hub outage blanked the list
+    /// with a bare "Couldn't load challenges." instead of the last known challenges plus an honest
+    /// banner. `false` means a genuine `HubError.network` ONLY; a 401 is a token problem and stays
+    /// `true` (see `StalenessBanner`'s doc comment — routing `.unauthorized` through this flag is
+    /// the PARITY-3 bug it warns about).
+    public private(set) var hubReachable = true
+    /// When `challenges` was last fetched successfully — `nil` until one fetch has landed. Feeds
+    /// `StalenessBanner`, which shows nothing without it (never a banner claiming staleness for
+    /// data that was never there).
+    public private(set) var fetchedAt: Date?
 
     private let provider: any ChallengesProviding
+    private let now: () -> Date
 
-    public init(provider: any ChallengesProviding) {
+    public init(provider: any ChallengesProviding, now: @escaping () -> Date = Date.init) {
         self.provider = provider
+        self.now = now
     }
 
     /// Oracle `app/challenges.tsx`'s `active`/`past` split.
@@ -35,10 +48,23 @@ public final class ChallengesViewModel {
             let rows = try await provider.challenges()
             challenges = rows
             lastError = nil
+            hubReachable = true
+            fetchedAt = now()
             phase = rows.isEmpty ? .empty : .loaded
         } catch {
-            lastError = asHubError(error)
-            phase = .error(Self.describe(error))
+            let hubError = asHubError(error)
+            lastError = hubError
+            // Same branching as `TodayViewModel.fetchLive`: only `.network` clears `hubReachable`,
+            // and a screen that already has rows keeps showing them (`.loaded` + banner) rather
+            // than collapsing to an error card — blank is not honest when we hold real data.
+            switch hubError {
+            case .network:
+                hubReachable = false
+                phase = challenges.isEmpty ? .error(Self.describe(error)) : .loaded
+            default:
+                hubReachable = true
+                phase = challenges.isEmpty ? .error(Self.describe(error)) : .loaded
+            }
         }
     }
 
