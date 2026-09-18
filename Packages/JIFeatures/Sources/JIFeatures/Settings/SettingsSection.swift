@@ -67,5 +67,6 @@ public enum SettingsRegistry {
         EditTodaySection(),
         ProviderSection(),
         VersionSection(),
+        DataQualitySection(),
     ]
 }
