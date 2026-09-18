@@ -1,8 +1,8 @@
 # JournalInsight (Swift) — CLAUDE.md
 
 Native SwiftUI JournalInsight, iOS 27 + watchOS 27. Replaces the React Native app (`HealthTraining/mobile/`, frozen at v1.18.2 as the behavioral oracle). Spec + wave plans live in the HealthTraining repo:
-- `/Users/nihilus/Documents/HealthTraining/docs/superpowers/specs/2026-09-12-ji-swift-native-migration-design.md`
-- `/Users/nihilus/Documents/HealthTraining/docs/superpowers/plans/2026-09-12-swift-w0-w1-foundation.md`
+- `/Users/toby/Documents/HealthTraining/docs/superpowers/specs/2026-09-12-ji-swift-native-migration-design.md`
+- `/Users/toby/Documents/HealthTraining/docs/superpowers/plans/2026-09-12-swift-w0-w1-foundation.md`
 - HealthTraining `CLAUDE.md`, `REFS.md`, and its memory dir do NOT auto-load here — read them first for any decision; this repo's own memory dir is separate.
 
 ## Build / test
