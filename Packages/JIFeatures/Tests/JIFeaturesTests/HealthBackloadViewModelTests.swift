@@ -111,3 +111,21 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     vm.refreshLastSyncedDay()
     #expect(vm.lastSyncedDay == "2026-07-31")
 }
+
+/// W9-L3 (B-32): the W8-L4 `screenState` mapping survived the writer-v4 merge (2c0f10e hand-resolved
+/// this file). Cold Settings screen = `.idle` with the run button enabled (`isRunning == false`);
+/// a denied grant surfaces as `.error(message)`; a finished run as `.loaded`.
+@Test @MainActor func backloadScreenStateMapsPhaseAfterTheV4Merge() async {
+    let runner = FakeBackloadRunner()
+    let model = HealthBackloadViewModel(runner: runner, hrvPrefs: nil)
+    #expect(model.screenState == .idle)
+    #expect(model.isRunning == false)
+
+    runner.authorizeError = .authorizationDenied
+    await model.start()
+    #expect(model.screenState == .error("Health access was denied. Enable it in Settings > Health > Data Access."))
+
+    runner.authorizeError = nil
+    await model.start()
+    #expect(model.screenState == .loaded)
+}
