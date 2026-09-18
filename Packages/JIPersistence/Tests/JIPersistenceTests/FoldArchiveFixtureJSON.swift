@@ -23,7 +23,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "entries",
         "rowCount": 2,
-        "checksum": "26a58ee7",
+        "checksum": "eef50959",
         "rows": [
           {
             "id": 1,
@@ -85,7 +85,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "mind_checkin",
         "rowCount": 2,
-        "checksum": "f07a0a54",
+        "checksum": "4719e7fc",
         "rows": [
           {
             "date": "2026-09-08",
@@ -121,7 +121,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "mind_event",
         "rowCount": 2,
-        "checksum": "6a1821e4",
+        "checksum": "61cc2d10",
         "rows": [
           {
             "id": 1,
@@ -153,7 +153,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "mind_who5",
         "rowCount": 2,
-        "checksum": "283e4717",
+        "checksum": "e280ecf3",
         "rows": [
           {
             "id": 1,
@@ -187,7 +187,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "goals",
         "rowCount": 2,
-        "checksum": "86cc354d",
+        "checksum": "dccdf0a5",
         "rows": [
           {
             "id": 1,
@@ -209,7 +209,7 @@ enum FoldArchiveFixtureJSON {
         "file": "journal",
         "table": "goal_targets_mirror",
         "rowCount": 1,
-        "checksum": "c7754394",
+        "checksum": "c0e7dd20",
         "rows": [
           {
             "id": 1,
@@ -230,7 +230,7 @@ enum FoldArchiveFixtureJSON {
         "file": "strength_state",
         "table": "strength_state_local",
         "rowCount": 1,
-        "checksum": "0dd402a0",
+        "checksum": "d584bd9a",
         "rows": [
           {
             "exercise_id": 1,

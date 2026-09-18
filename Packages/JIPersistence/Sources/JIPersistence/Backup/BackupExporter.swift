@@ -37,18 +37,21 @@ public enum BackupExporter {
     }
 
     /// Serializes the archive the same way `parse(_:)`/`BackupImporter` reads
-    /// it back — plain JSON, sorted keys for a stable byte layout (a
-    /// diffable, reproducible export; RN's own `JSON.stringify(archive, null,
-    /// 2)` is pretty-printed for the same "human can diff two exports"
-    /// reason, format bytes themselves are never compared cross-language).
+    /// it back — pretty-printed JSON like RN's `JSON.stringify(archive,
+    /// null, 2)` (a human can diff two exports). Goes through
+    /// `FoldArchive.encodeOrdered`, never `JSONEncoder` (with or without
+    /// `.sortedKeys` it does not write a row's keys in `BackupRow` order):
+    /// each row's keys must land in the file in the order they were hashed
+    /// (GRDB column order), because a re-import re-hashes them in document
+    /// order and would otherwise reject the app's own export as corrupted.
     public static func serialize(_ archive: FoldArchive) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
-        return try encoder.encode(archive)
+        archive.encodeOrdered()
     }
 
+    /// Column order = `SELECT *` order = the order RN's expo-sqlite built
+    /// its row object in, so the checksum hashes the same key sequence.
     static func backupRow(from row: Row) -> BackupRow {
-        var out: BackupRow = [:]
+        var out = BackupRow()
         for columnName in row.columnNames {
             let dbValue: DatabaseValue = row[columnName]
             out[columnName] = BackupValue(dbValue)

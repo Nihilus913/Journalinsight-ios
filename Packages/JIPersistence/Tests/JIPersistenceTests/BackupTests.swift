@@ -115,20 +115,44 @@ private func insertSampleEntry(_ db: AppDatabase, cipher: any FieldCipher, id: I
 
 // MARK: - Fold-archive fixture (RN oracle format)
 
-private struct FoldFixture: Decodable {
+private struct FoldFixture {
     let passphrase: String
     let rawKeyHex: String
     let archive: FoldArchive
 }
 
+/// Loaded through the ordered scanner, never `JSONDecoder`: the fixture's
+/// per-table checksums are RN's (`fnv1aHex(JSON.stringify(rows))`, keys in
+/// column order), so the rows must keep their document order to verify.
 private func loadFoldFixture() throws -> FoldFixture {
-    let data = Data(FoldArchiveFixtureJSON.raw.utf8)
-    return try JSONDecoder().decode(FoldFixture.self, from: data)
+    let root = try OrderedJSON.parse(Data(FoldArchiveFixtureJSON.raw.utf8))
+    return FoldFixture(
+        passphrase: try root.requiredString("passphrase"),
+        rawKeyHex: try root.requiredString("rawKeyHex"),
+        archive: try FoldArchive(orderedJSON: try #require(root["archive"]))
+    )
+}
+
+@Test func foldFixtureChecksumsAreRNComputedAndVerify() throws {
+    // The raw fixture bytes, straight through the importer's own parse path:
+    // every table's RN checksum must verify against its document-order rows.
+    let fixture = try loadFoldFixture()
+    for t in fixture.archive.tables {
+        #expect(BackupChecksum.checksumFor(t.rows) == t.checksum, "table \(t.table)")
+    }
+    // And the raw fixture's archive bytes through the importer's own parse
+    // path (`decodeOrdered` -> RN checksum verify), then a re-serialize.
+    let root = try OrderedJSON.parse(Data(FoldArchiveFixtureJSON.raw.utf8))
+    let rawArchive = Data(try #require(root["archive"]).serialized(indent: 2).utf8)
+    #expect(try BackupImporter.parse(rawArchive).get() == fixture.archive)
+    let reserialized = try BackupExporter.serialize(fixture.archive)
+    let parsed = try #require(BackupImporter.parse(reserialized).get() as FoldArchive?)
+    #expect(parsed == fixture.archive)
 }
 
 @Test func foldFixtureParsesAndListsUnmigratedTable() throws {
     let fixture = try loadFoldFixture()
-    let archive = try #require(BackupImporter.parse(try JSONEncoder().encode(fixture.archive)).get() as FoldArchive?)
+    let archive = try #require(BackupImporter.parse(try BackupExporter.serialize(fixture.archive)).get() as FoldArchive?)
     #expect(archive.vaultKey != nil)
 
     let db = try AppDatabase.inMemory()
