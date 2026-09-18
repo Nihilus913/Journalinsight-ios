@@ -65,5 +65,6 @@ public enum SettingsRegistry {
         AppearanceSection(),
         RemindersSection(),
         EditTodaySection(),
+        VersionSection(),
     ]
 }
