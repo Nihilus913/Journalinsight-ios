@@ -43,6 +43,20 @@ public final class OutboxDrainer {
         return results
     }
 
+    /// W7-L4 (P-hub-watchdog): the "later retry pass" `drainOnce`'s doc comment deferred, scoped to
+    /// exactly ONE trigger — `HubWatchdog`'s false → true transition, which the app hooks via
+    /// `onReachableAgain`. That moment (hub answered `/health` again, typically right after a
+    /// foreground) is when a weigh-in queued while the Mac was asleep should finally go out.
+    ///
+    /// Deliberately not a periodic retry and not a background task: a timer that hammers an
+    /// unreachable hub buys nothing the watchdog's own probe doesn't already tell us, and periodic
+    /// retry is its own BACKLOG row. One transition, one pass — a row that fails again simply stays
+    /// pending with its `attempts` bumped, exactly as `drainOnce` already records it.
+    @discardableResult
+    public func drainOnForeground() async -> [Int64: Result<WeighinResult, Error>] {
+        await drainOnce()
+    }
+
     public nonisolated static let weighInKind = "weighin"
 
     /// The hub's own `detail` verbatim for a named `HubError` that carries one (502 decodes as
