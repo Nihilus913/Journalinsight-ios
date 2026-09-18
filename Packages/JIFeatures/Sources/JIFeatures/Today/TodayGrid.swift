@@ -104,6 +104,8 @@ public struct TodayGrid: View {
                 }
             }
             EAGatedTile(label: "Energy availability")
+                .accessibilityLabel("Energy availability")
+                .accessibilityIdentifier("today.tile.energyAvailability")
             mindTile
         }
         .onAppear { order = loadTileOrder(prefs: prefs, chipIDs: chips.map(\.id)) }
@@ -137,11 +139,17 @@ public struct TodayGrid: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(mindTodayCheckin != nil ? "Today's mind check-in — update" : "How are you today — daily check-in")
+        .accessibilityIdentifier("today.tile.mind")
+        .accessibilityHint("Opens the Mind screen")
     }
 
     @ViewBuilder
     private func tile(for chip: TodayChip) -> some View {
         StatChip(label: chip.label, value: chip.value, unit: chip.unit, points: chip.points, sourceMissing: chip.sourceMissing, action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
+            // Label is the RN oracle's StatChip default (`${label} — open detail`), verbatim.
+            .accessibilityLabel("\(chip.label) — open detail")
+            .accessibilityIdentifier("today.chip.\(chip.id)")
+            .accessibilityHint("Long-press to reorder the tiles")
             .rotationEffect(.degrees(jiggling ? (chip.id.hashValue % 2 == 0 ? 1.5 : -1.5) : 0))
             .animation(jiggling ? JIMotion.standard.repeatForever(autoreverses: true) : JIMotion.standard, value: jiggling)
             .jiHaptic(.toggleOn, trigger: isReordering)

@@ -21,6 +21,7 @@ public struct NutritionView: View {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                        .accessibilityIdentifier("nutrition-empty")
                 case .loaded: loaded
                 }
                 logButton
@@ -41,7 +42,9 @@ public struct NutritionView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Nutrition").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
+                .accessibilityAddTraits(.isHeader)
             Text(model.selectedDate).font(.subheadline).foregroundStyle(JIColor.muted)
+                .accessibilityLabel(model.selectedDate)
         }
     }
 
@@ -55,7 +58,10 @@ public struct NutritionView: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
+                    .accessibilityIdentifier("nutrition-error")
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("nutrition-retry")
             }
         }
     }
@@ -78,5 +84,6 @@ public struct NutritionView: View {
         }
         .buttonStyle(.pressableScale)
         .accessibilityLabel("Add an entry")
+        .accessibilityIdentifier("nutrition-log-button")
     }
 }

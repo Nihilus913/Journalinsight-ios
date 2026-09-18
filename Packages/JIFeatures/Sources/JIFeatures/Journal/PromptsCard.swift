@@ -12,6 +12,7 @@ public struct PromptsCard: View {
                 Text("Today's prompts").font(.system(size: 12, weight: .semibold)).foregroundStyle(JIColor.muted)
                 ForEach(prompts, id: \.self) { prompt in
                     Text("· \(prompt)").font(.system(size: 13)).foregroundStyle(JIColor.text)
+                        .accessibilityLabel(prompt)
                 }
             }
         }

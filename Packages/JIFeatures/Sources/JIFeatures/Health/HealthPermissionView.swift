@@ -27,6 +27,8 @@ public struct HealthPermissionView: View {
             statusText
             Button("Connect Apple Health") { Task { await model.connect() } }
                 .disabled(model.permission == .granted)
+                .accessibilityIdentifier("health-connect")
+                .accessibilityHint("Asks iOS for permission to read Apple Health data.")
 
             ForEach(Self.sourceGatedCapabilities, id: \.capability.rawValue) { entry in
                 if model.isGated(entry.capability) {
@@ -40,5 +42,6 @@ public struct HealthPermissionView: View {
         Text(HealthPermissionViewModel.statusCopy(for: model.permission))
             .font(.footnote)
             .foregroundStyle(model.permission == .granted ? JIColor.go : JIColor.muted)
+            .accessibilityIdentifier("health-permission-status")
     }
 }

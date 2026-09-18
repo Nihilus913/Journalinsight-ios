@@ -42,6 +42,7 @@ public struct MoodPicker: View {
                 .buttonStyle(.pressableScale)
                 .jiHaptic(.pressIn, trigger: selection == mood)
                 .accessibilityLabel(mood.rawValue)
+                .accessibilityIdentifier("mood-\(mood.rawValue)")
                 .accessibilityAddTraits(selection == mood ? .isSelected : [])
             }
         }

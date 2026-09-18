@@ -44,8 +44,11 @@ public struct GoalsSetupView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             sectionTitle("Weight")
                             Stepper("Target weight: \(weightTarget, specifier: "%.1f") kg", value: $weightTarget, in: 30...400, step: 0.5)
+                                .accessibilityIdentifier("goals-setup-weight-target")
                             Text("Target date (optional)").font(.caption).foregroundStyle(JIColor.muted)
                             TextField("YYYY-MM-DD", text: $weightDate)
+                                .accessibilityLabel("Target date (optional)")
+                                .accessibilityIdentifier("goals-setup-weight-date")
                                 #if os(iOS)
                                 .textInputAutocapitalization(.never)
                                 #endif
@@ -60,7 +63,9 @@ public struct GoalsSetupView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             sectionTitle("Strength")
                             Stepper("Bench press: \(benchTarget, specifier: "%.1f") kg", value: $benchTarget, in: 0...500, step: 2.5)
+                                .accessibilityIdentifier("goals-setup-bench-target")
                             Stepper("Bent-over row: \(rowTarget, specifier: "%.1f") kg", value: $rowTarget, in: 0...500, step: 2.5)
+                                .accessibilityIdentifier("goals-setup-row-target")
                         }
                     }
 
@@ -68,6 +73,7 @@ public struct GoalsSetupView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             sectionTitle("Activity")
                             Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
+                                .accessibilityIdentifier("goals-setup-steps-daily")
                         }
                     }
 
@@ -75,9 +81,13 @@ public struct GoalsSetupView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             sectionTitle("Nutrition")
                             Stepper("Calories: \(Int(kcalGoal)) kcal", value: $kcalGoal, in: 1000...6000, step: 50)
+                                .accessibilityIdentifier("goals-setup-kcal")
                             Stepper("Protein: \(Int(proteinG)) g", value: $proteinG, in: 0...400, step: 5)
+                                .accessibilityIdentifier("goals-setup-protein")
                             Stepper("Carbs: \(Int(carbsG)) g", value: $carbsG, in: 0...600, step: 5)
+                                .accessibilityIdentifier("goals-setup-carbs")
                             Stepper("Fat: \(Int(fatG)) g", value: $fatG, in: 0...300, step: 5)
+                                .accessibilityIdentifier("goals-setup-fat")
                         }
                     }
 
@@ -88,6 +98,8 @@ public struct GoalsSetupView: View {
                     }
                     .disabled(!canSave)
                     .buttonStyle(.borderedProminent)
+                    .accessibilityLabel("Save goals")
+                    .accessibilityIdentifier("goals-setup-save")
 
                     if case .error = model.phase {
                         Text("Couldn't save — try again.").font(.caption).foregroundStyle(JIColor.danger)

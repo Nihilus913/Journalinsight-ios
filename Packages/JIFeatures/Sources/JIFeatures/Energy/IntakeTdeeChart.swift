@@ -17,6 +17,7 @@ public struct IntakeTdeeChart: View {
         let sorted = days.sorted { $0.date < $1.date }
         if sorted.isEmpty {
             Text("No data yet").font(.caption).foregroundStyle(JIColor.muted)
+                .accessibilityLabel("No data yet")
         } else {
             Chart {
                 ForEach(sorted, id: \.date) { day in
@@ -34,6 +35,8 @@ public struct IntakeTdeeChart: View {
             }
             .chartXAxis(.hidden)
             .frame(height: 132)
+            .accessibilityLabel("Intake versus TDEE, daily")
+            .accessibilityIdentifier("energy.chart.intakeTdee")
             legend
         }
     }
@@ -51,5 +54,6 @@ public struct IntakeTdeeChart: View {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
             Text(label).font(.system(size: 10.5)).foregroundStyle(JIColor.muted)
         }
+        .accessibilityLabel(label)
     }
 }

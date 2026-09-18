@@ -34,6 +34,8 @@ public struct InsightsCard: View {
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
             Text(value).font(.system(size: 15, weight: .semibold)).foregroundStyle(JIColor.text)
+                .accessibilityLabel(label)
+                .accessibilityValue(value)
             Text(label).font(.system(size: 11)).foregroundStyle(JIColor.muted)
         }
     }

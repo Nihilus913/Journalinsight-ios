@@ -16,7 +16,8 @@ public struct EntrySearchBar: View {
         VStack(alignment: .leading, spacing: 8) {
             TextField("Search entries", text: $filters.query)
                 .textFieldStyle(.roundedBorder)
-                .accessibilityLabel("Search entries")
+                .accessibilityLabel("Search journal entries")
+                .accessibilityIdentifier("journal-search-field")
 
             if !availableTags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -34,6 +35,8 @@ public struct EntrySearchBar: View {
                                     .foregroundStyle(JIColor.text)
                             }
                             .buttonStyle(.pressableScale)
+                            .accessibilityLabel("Filter by tag \(tag)")
+                            .accessibilityAddTraits(filters.tag == tag ? .isSelected : [])
                         }
                     }
                 }
@@ -43,6 +46,7 @@ public struct EntrySearchBar: View {
                 Button("Clear filters") { filters = .empty }
                     .font(.system(size: 12))
                     .buttonStyle(.pressableScale)
+                    .accessibilityLabel("Clear filters")
             }
         }
     }

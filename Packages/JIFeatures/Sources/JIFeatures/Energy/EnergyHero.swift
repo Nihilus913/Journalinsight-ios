@@ -50,12 +50,15 @@ public struct EnergyHero: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("ENERGY BALANCE · LAST 7 DAYS").font(.caption.bold()).foregroundStyle(JIColor.muted)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text("\(report.trackingDays)/7 tracked").font(.caption2.bold()).foregroundStyle(JIColor.muted)
+                        .accessibilityLabel("\(report.trackingDays) of 7 days tracked")
                 }
                 if report.trackingDays < minTrackingDays {
                     Text("\(minTrackingDays - report.trackingDays) more day\(minTrackingDays - report.trackingDays == 1 ? "" : "s") needed for reliable averages")
                         .font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityIdentifier("energy.hero.minDataGate")
                 } else {
                     numeralAndBar
                     HStack(spacing: 8) {
@@ -66,6 +69,8 @@ public struct EnergyHero: View {
                 }
                 if let warning = report.complianceWarning {
                     Text("⚠ \(warning)").font(.footnote).foregroundStyle(JIColor.reduced)
+                        .accessibilityLabel("Warning: \(warning)")
+                        .accessibilityIdentifier("energy.hero.complianceWarning")
                 }
             }
         }
@@ -83,6 +88,9 @@ public struct EnergyHero: View {
             Text("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal/d")
                 .font(.system(size: 40, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
                 .contentTransition(.numericText())
+                .accessibilityLabel("Adjusted energy balance")
+                .accessibilityValue("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal per day")
+                .accessibilityIdentifier("energy.hero.balance")
             Text(report.avgDeficitCorrected7d == nil ? "—" : (isSurplus ? "surplus" : "deficit"))
                 .font(.footnote).foregroundStyle(JIColor.muted)
             bar
@@ -102,6 +110,8 @@ public struct EnergyHero: View {
                 Rectangle().fill(JIColor.nested).frame(width: 2, height: 10).offset(x: g.size.width * markerFrac)
             }
         }.frame(height: 10)
+        .accessibilityLabel("Deficit against the sustainable zone")
+        .accessibilityValue(pctText)
     }
 
     private func chip(label: String, value: String) -> some View {
@@ -110,6 +120,8 @@ public struct EnergyHero: View {
                 Text(label).font(.caption2.bold()).foregroundStyle(JIColor.muted).lineLimit(1)
                 Text(value).font(.footnote.bold()).foregroundStyle(JIColor.text).lineLimit(1)
             }.frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(label)
+            .accessibilityValue(value)
         }
     }
 }

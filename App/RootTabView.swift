@@ -59,21 +59,33 @@ struct RootTabView: View {
                     Tab("Today", systemImage: "sun.max", value: RootTab.today) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.today")
+                    .accessibilityLabel("Today")
                     Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.journal")
+                    .accessibilityLabel("Journal")
                     Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.recovery")
+                    .accessibilityLabel("Recovery")
                     Tab("Energy", systemImage: "flame", value: RootTab.energy) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.energy")
+                    .accessibilityLabel("Energy")
                     Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.nutrition")
+                    .accessibilityLabel("Nutrition")
                     Tab("Training", systemImage: "dumbbell", value: RootTab.training) {
                         transparentTabContent
                     }
+                    .accessibilityIdentifier("tab.training")
+                    .accessibilityLabel("Training")
                 }
             }
             .background(JIColor.bg)
@@ -306,6 +318,7 @@ struct RootTabView: View {
     private var connectionPrompt: some View {
         ContentUnavailableView { Label("Connect to your hub", systemImage: "server.rack") } description: { Text("Enter the HealthTraining hub URL and token.") } actions: {
             Button("Connection…") { showConnection = true }.buttonStyle(.pressableScale)
+                .accessibilityIdentifier("root.connection")
         }
     }
 
