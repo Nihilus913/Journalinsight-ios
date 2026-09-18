@@ -47,11 +47,14 @@ public enum BackupImporter {
     /// checksum+rowCount against its own row payload — mirrors RN's
     /// `parseBackupArchive`. Order matters the same way: JSON/format failures
     /// are reported before a version check, which is reported before any
-    /// per-table integrity check.
+    /// per-table integrity check. Decodes through `FoldArchive.decodeOrdered`
+    /// so each row's keys keep their document order — the order RN hashed;
+    /// a `JSONDecoder` decode would scramble them and every real Fold
+    /// archive would read as `.corrupted`.
     public static func parse(_ raw: Data) -> Result<FoldArchive, BackupImportError> {
         let archive: FoldArchive
         do {
-            archive = try JSONDecoder().decode(FoldArchive.self, from: raw)
+            archive = try FoldArchive.decodeOrdered(raw)
         } catch {
             return .failure(.invalidJSON)
         }
@@ -141,7 +144,7 @@ public enum BackupImporter {
                 for row in t.rows {
                     let resealed = try Self.resealVaultedColumns(row, spec: spec, rawKeyHex: rawKeyHex, targetCipher: targetCipher)
                     guard !resealed.isEmpty else { continue }
-                    let columns = resealed.keys.sorted()
+                    let columns = resealed.keys
                     let placeholders = columns.map { _ in "?" }.joined(separator: ", ")
                     let arguments = StatementArguments(columns.map { resealed[$0]!.databaseValue })
                     try conn.execute(
