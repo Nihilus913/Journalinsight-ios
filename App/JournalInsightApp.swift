@@ -15,10 +15,8 @@ struct JournalInsightApp: App {
     // so it outlives the `.task` below and stays alive for `UNUserNotificationCenter.current().delegate`,
     // which holds it weakly.
     @State private var notificationDelegate = NotificationRoutingDelegate()
-    // CODE-2: a boot-time Keychain READ error (e.g. transient Secure Enclave/first-unlock failure)
-    // must not crash launch — treat it like "no token yet" and let RootTabView present the
-    // Connection sheet (env.needsConnection) instead. Only a failure to construct the environment
-    // itself (cache/prefs storage) is still fatal.
+    // Built in `init()` (see its doc comment) — needs to happen there now alongside
+    // `outboxRetry`'s construction so both respect struct definite-initialization order.
     @State private var env: AppEnvironment
 
     // Held by the App struct (not RootTabView's own @State) so a cold-start deep link — the
