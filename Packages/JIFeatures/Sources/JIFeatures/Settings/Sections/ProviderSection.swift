@@ -34,6 +34,17 @@ public final class ProviderSwitch {
     public private(set) var kind: ProviderKind = .hub
     /// False until the app reports that a T2 provider can actually be built on this device.
     public private(set) var isAppleWatchAvailable = false
+    /// Bumped once per *effective* provider change — every time `apply` actually runs, i.e. on
+    /// `install` (boot and every hub reconnection) and on an accepted `select`, never on a no-op
+    /// or a refused one.
+    ///
+    /// The screens cache their view models (`RootTabView`'s `todayModel`/`recoveryModel`/…), and
+    /// each of those captures `store.provider` at init. Swapping `ProviderStore.provider` alone
+    /// therefore changed nothing on screen: Today and Recovery kept reading the previous source
+    /// until an unrelated reconnect happened to rebuild them. `revision` is the value those caches
+    /// key on, so one `.onChange` site drops them and the next render rebuilds against the
+    /// provider that is actually active.
+    public private(set) var revision = 0
 
     private var prefs: PrefStore?
     private var apply: ((ProviderKind) -> Void)?
@@ -60,6 +71,7 @@ public final class ProviderSwitch {
         #else
         kind = .hub
         #endif
+        revision += 1
         apply(kind)
         return kind
     }
@@ -71,6 +83,7 @@ public final class ProviderSwitch {
         guard new == .hub || isAppleWatchAvailable else { return }
         kind = new
         try? prefs?.set(Self.prefKey, new)
+        revision += 1
         apply?(new)
     }
 }

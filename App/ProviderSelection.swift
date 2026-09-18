@@ -21,9 +21,16 @@ enum ProviderSelection {
     /// Called once per `AppEnvironment.apply(_:)`, i.e. on every hub (re)connection, with that
     /// connection's fresh `HubDataProvider` as the T1 half. Re-installing replaces the closure,
     /// so a later toggle always swaps between the CURRENT hub provider and the T2 one.
-    static func install(store: ProviderStore, hub: any HealthDataProvider, prefs: PrefStore) {
+    /// `using:` is the app-wide `ProviderSwitch.shared` in production and exists so a test can
+    /// drive the same wiring against an isolated instance.
+    static func install(
+        store: ProviderStore,
+        hub: any HealthDataProvider,
+        prefs: PrefStore,
+        using providerSwitch: ProviderSwitch = .shared
+    ) {
         let appleWatch = makeAppleWatchProvider()
-        ProviderSwitch.shared.install(prefs: prefs, isAppleWatchAvailable: appleWatch != nil) { kind in
+        providerSwitch.install(prefs: prefs, isAppleWatchAvailable: appleWatch != nil) { kind in
             store.provider = provider(for: kind, hub: hub, appleWatch: appleWatch)
         }
     }
