@@ -38,15 +38,18 @@ public struct CheckInSheet: View {
                             Text("\(m.emoji) \(m.rawValue.capitalized)").tag(JIPersistence.Mood?.some(m))
                         }
                     }
+                    .accessibilityLabel("Mood")
                 }
                 scoreSection("Stress", value: $stress)
                 scoreSection("Energy", value: $energy)
                 Section("Note (optional)") {
                     TextField("Anything you want to remember about today", text: $note, axis: .vertical)
                         .lineLimit(3...6)
+                        .accessibilityLabel("Note")
                 }
                 Section {
                     Toggle("On my meds today?", isOn: $dosed)
+                        .accessibilityLabel("On my meds today?")
                 }
                 if dosed {
                     scoreSection("Irritability", value: $irritability)
@@ -54,12 +57,14 @@ public struct CheckInSheet: View {
                     scoreSection("Appetite", value: $appetite)
                 }
             }
+            .accessibilityIdentifier("checkin-sheet-panel")
             .navigationTitle("Daily check-in")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("checkin-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(saving ? "Saving…" : "Save") { Task { await save() } }
                         .disabled(!canSave || saving)
+                        .accessibilityIdentifier("checkin-save")
                 }
             }
             .onAppear(perform: prefill)
@@ -74,6 +79,10 @@ public struct CheckInSheet: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            // Oracle `CheckInSheet.tsx` labels each segment `"<label> <n>"`; SwiftUI's segmented
+            // picker is one element, so the axis name is the label and the pick is the value.
+            .accessibilityLabel(label)
+            .accessibilityValue(value.wrappedValue.map { "\($0)" } ?? "Not set")
         }
     }
 

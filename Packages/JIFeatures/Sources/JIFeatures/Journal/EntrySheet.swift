@@ -31,12 +31,15 @@ public struct EntrySheet: View {
                             Text(tag)
                             Spacer()
                             Button("Remove") { model.removeTag(tag) }
+                                .accessibilityLabel("Remove tag \(tag)")
                         }
                     }
                     HStack {
                         TextField("Add tag", text: $model.tagDraft)
                             .onSubmit { model.addTagFromDraft() }
+                            .accessibilityLabel("Add tag")
                         Button("Add") { model.addTagFromDraft() }
+                            .accessibilityLabel("Add")
                     }
                 }
                 if let error = model.errorMessage {
@@ -47,10 +50,12 @@ public struct EntrySheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
+                        .accessibilityIdentifier("entry-cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: onSave)
                         .disabled(!model.canSave || model.isSaving)
+                        .accessibilityIdentifier("entry-save")
                 }
             }
         }

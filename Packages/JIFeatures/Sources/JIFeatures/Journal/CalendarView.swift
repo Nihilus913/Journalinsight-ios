@@ -27,12 +27,14 @@ public struct CalendarView: View {
                 HStack {
                     Button { onShift(-1) } label: { Image(systemName: "chevron.left") }
                         .buttonStyle(.pressableScale)
+                        .accessibilityLabel("Previous \(JournalCalendar.scopeLabel(scope))")
                     Spacer()
                     Text(JournalCalendar.rangeLabel(scope, anchor: anchor))
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(JIColor.text)
                     Spacer()
                     Button { onShift(1) } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.pressableScale)
+                        .accessibilityLabel("Next \(JournalCalendar.scopeLabel(scope))")
                 }
                 LazyVGrid(columns: columns, spacing: 4) {
                     ForEach(Array(JournalCalendar.scopeDays(scope, anchor: anchor).enumerated()), id: \.offset) { _, day in
@@ -48,6 +50,10 @@ public struct CalendarView: View {
                                     .foregroundStyle(JIColor.text)
                             }
                             .buttonStyle(.plain)
+                            // Oracle `CalendarView.tsx` labels a day cell with its date + entry
+                            // count; only presence is known here, so the count becomes a value.
+                            .accessibilityLabel(day)
+                            .accessibilityValue(hasEntry ? "Has entries" : "No entries")
                         } else {
                             Color.clear.frame(minHeight: 28)
                         }
