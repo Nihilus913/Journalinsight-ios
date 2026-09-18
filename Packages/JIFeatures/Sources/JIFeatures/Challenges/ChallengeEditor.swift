@@ -19,18 +19,26 @@ public struct ChallengeEditor: View {
             Form {
                 Section("Title") {
                     TextField("e.g. Textbook intervals", text: $model.title)
+                        .accessibilityLabel("Title")
+                        .accessibilityIdentifier("challenge-editor-title")
                 }
                 Section("Hypothesis") {
                     TextField("What are you testing, and against what?", text: $model.hypothesis, axis: .vertical)
                         .lineLimit(3...6)
+                        .accessibilityLabel("Hypothesis")
+                        .accessibilityIdentifier("challenge-editor-hypothesis")
                 }
                 if model.canEditLockedFields {
                     Section("Target sessions") {
                         Stepper("\(model.targetSessions)", value: $model.targetSessions, in: 1...99)
+                            .accessibilityLabel("Target sessions")
+                            .accessibilityIdentifier("challenge-editor-target-sessions")
                     }
                     Section("Start date") {
                         TextField("YYYY-MM-DD", text: $model.startDate)
                             .autocorrectionDisabled()
+                            .accessibilityLabel("Start date")
+                            .accessibilityIdentifier("challenge-editor-start-date")
                     }
                 } else {
                     Text("Target sessions and start date are locked — archive it and create a new challenge instead to change those.")
@@ -40,6 +48,8 @@ public struct ChallengeEditor: View {
                     Section("Result note") {
                         TextField("Optional", text: $model.resultNote, axis: .vertical)
                             .lineLimit(2...4)
+                            .accessibilityLabel("Result note")
+                            .accessibilityIdentifier("challenge-editor-result-note")
                     }
                 }
                 // FROZEN CONTRACT — HR<=175 is a non-negotiable safety floor, not a challenge-
@@ -55,7 +65,7 @@ public struct ChallengeEditor: View {
             }
             .navigationTitle(model.isEditing ? "Edit challenge" : "New challenge")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("challenge-editor-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(model.isSubmitting ? "Saving…" : "Save") {
                         Task {
@@ -66,6 +76,8 @@ public struct ChallengeEditor: View {
                         }
                     }
                     .disabled(!model.canSubmit)
+                    .accessibilityLabel(model.isEditing ? "Save changes to \(model.title)" : "Save")
+                    .accessibilityIdentifier("challenge-editor-save")
                 }
             }
         }

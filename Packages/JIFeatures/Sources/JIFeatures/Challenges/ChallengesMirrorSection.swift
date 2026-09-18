@@ -73,6 +73,7 @@ struct ChallengeCard: View {
                     Button { menuOpen.toggle() } label: { Image(systemName: "ellipsis.circle") }
                         .buttonStyle(.pressableScale)
                         .accessibilityLabel("\(challenge.title) actions")
+                        .accessibilityIdentifier("challenge-card-actions")
                 }
                 Text(challenge.hypothesis).font(.footnote).foregroundStyle(JIColor.muted).lineLimit(3)
                 Text("Started \(challenge.startDate) · \(challenge.sessionFilter) sessions")
@@ -88,13 +89,21 @@ struct ChallengeCard: View {
                 if menuOpen {
                     VStack(alignment: .leading, spacing: 2) {
                         Button("Edit") { menuOpen = false; onEdit() }.buttonStyle(.pressableScale)
+                            .accessibilityLabel("Edit \(challenge.title)")
+                            .accessibilityIdentifier("challenge-card-edit")
                         if challenge.status == .active {
                             Button("Mark complete") { menuOpen = false; completeNote = challenge.resultNote ?? ""; dialog = .complete }
                                 .buttonStyle(.pressableScale)
+                                .accessibilityLabel("Mark \(challenge.title) complete")
+                                .accessibilityIdentifier("challenge-card-complete")
                             Button("Archive") { menuOpen = false; dialog = .archive }.buttonStyle(.pressableScale)
+                                .accessibilityLabel("Archive \(challenge.title)")
+                                .accessibilityIdentifier("challenge-card-archive")
                         }
                         if challenge.canDelete {
                             Button("Delete", role: .destructive) { menuOpen = false; dialog = .delete }.buttonStyle(.pressableScale)
+                                .accessibilityLabel("Delete \(challenge.title)")
+                                .accessibilityIdentifier("challenge-card-delete")
                         }
                     }
                     .font(.footnote.weight(.semibold))
@@ -163,6 +172,8 @@ struct ChallengeCard: View {
                 .foregroundStyle(JIColor.text)
                 .opacity(challenge.status == .archived ? 0.55 : 1)
             Text(sentence).font(.caption).foregroundStyle(JIColor.muted)
+                .accessibilityLabel(sentence)
+                .accessibilityIdentifier("challenge-card-score")
         }
     }
 
@@ -184,5 +195,8 @@ struct ChallengeCard: View {
             }
         }
         .frame(height: 6)
+        .accessibilityLabel("\(challenge.title) progress")
+        .accessibilityValue("\(challenge.progress.count) of \(challenge.progress.target) sessions")
+        .accessibilityIdentifier("challenge-card-progress")
     }
 }

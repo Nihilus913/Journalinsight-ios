@@ -47,6 +47,9 @@ public struct KpiDetailView: View {
             let unit = model.def.unit
             Text(formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"))
                 .font(.title2.bold()).foregroundStyle(JIColor.text)
+                .accessibilityLabel(model.def.label)
+                .accessibilityValue(formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"))
+                .accessibilityIdentifier("kpi-detail-value")
         }
     }
 
@@ -61,6 +64,8 @@ public struct KpiDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("kpi-detail-retry")
             }
         }
     }
@@ -91,6 +96,8 @@ public struct KpiDetailView: View {
                     }
                     .chartXAxis(.hidden)
                     .frame(height: 160)
+                    .accessibilityLabel("\(model.def.label) trend")
+                    .accessibilityIdentifier("kpi-detail-chart")
                 }
             }
         }
@@ -110,12 +117,16 @@ public struct KpiDetailView: View {
                         .keyboardType(.decimalPad)
                         #endif
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Threshold")
+                        .accessibilityIdentifier("kpi-detail-threshold-field")
                     Button("Save") {
                         guard let value = Double(thresholdText) else { return }
                         Task { await model.saveThreshold(value) }
                     }
                     .buttonStyle(.pressableScale)
                     .disabled(model.saving || Double(thresholdText) == nil)
+                    .accessibilityLabel("Save target threshold")
+                    .accessibilityIdentifier("kpi-detail-threshold-save")
                 }
                 if let saveError = model.saveError {
                     Text(saveError).font(.footnote).foregroundStyle(JIColor.reduced)

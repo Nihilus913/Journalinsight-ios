@@ -30,10 +30,13 @@ public struct GoalDatePicker: View {
             DatePicker("Target date", selection: selection, displayedComponents: .date)
                 .labelsHidden()
                 .accessibilityLabel(value.map { "Target date, \($0)" } ?? "Target date, not set")
+                .accessibilityIdentifier("goal-target-date")
             if value != nil {
                 Button("Clear date") { value = nil }
                     .font(.caption.bold())
                     .foregroundStyle(JIColor.danger)
+                    .accessibilityLabel("Clear target date")
+                    .accessibilityIdentifier("goal-clear-target-date")
             }
         }
     }
