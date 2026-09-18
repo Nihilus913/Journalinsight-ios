@@ -17,12 +17,17 @@ public struct BackupView: View {
         Form {
             Section("Export") {
                 Button("Export backup") { model.export() }
+                    .accessibilityIdentifier("backup-export")
+                    .accessibilityHint("Opens the system save sheet for the backup file.")
                 if let error = model.exportError {
                     Text(error).font(.footnote).foregroundStyle(.red)
+                        .accessibilityIdentifier("backup-export-error")
                 }
             }
             Section("Restore") {
                 Button("Choose backup file…") { showImporter = true }
+                    .accessibilityIdentifier("backup-choose-file")
+                    .accessibilityHint("Opens the system file picker to choose a backup to restore.")
                 importStageView
             }
         }
@@ -51,10 +56,13 @@ public struct BackupView: View {
             )
         case .restoring:
             HStack { Text("Restoring…"); Spacer(); ProgressView() }
+                .accessibilityIdentifier("backup-restoring")
         case .restored(let count):
             Text("Restored \(count) tables.").foregroundStyle(JIColor.info)
+                .accessibilityIdentifier("backup-restored")
         case .failure(let message):
             Text(message).font(.footnote).foregroundStyle(.red)
+                .accessibilityIdentifier("backup-restore-error")
         }
     }
 }
