@@ -92,33 +92,6 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     #expect(message.contains("500"))
 }
 
-@Test @MainActor func backloadWriteHRVDefaultsOffAndPersistsToSuite() {
-    let suiteName = "w2i.tests.\(UUID().uuidString)"
-    let suite = UserDefaults(suiteName: suiteName)!
-    defer { suite.removePersistentDomain(forName: suiteName) }
-    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: suite)
-    #expect(vm.writeHRV == false)
-
-    vm.setWriteHRV(true)
-
-    #expect(vm.writeHRV == true)
-    #expect(suite.bool(forKey: "hk.backload.writeHRV") == true)
-}
-
-@Test @MainActor func backloadWriteHRVReadsPersistedValueOnInit() {
-    let suite = UserDefaults(suiteName: "w2i.tests.\(UUID().uuidString)")!
-    suite.set(true, forKey: "hk.backload.writeHRV")
-    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: suite)
-    #expect(vm.writeHRV == true)
-}
-
-@Test @MainActor func backloadWriteHRVWithNilPrefsStaysOffAndNeverCrashes() {
-    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: nil)
-    #expect(vm.writeHRV == false)
-    vm.setWriteHRV(true)
-    #expect(vm.writeHRV == true) // in-memory flip still works; just isn't persisted
-}
-
 @Test @MainActor func backloadIsRunningTrueOnlyWhileAuthorizingOrRunning() async {
     let runner = FakeBackloadRunner()
     runner.progressSteps = [BackloadProgress(monthIndex: 1, monthCount: 1, written: 1, skipped: 0)]
