@@ -25,9 +25,12 @@ import Testing
     #expect(JITypography.size(.subheadline) == 15)
     #expect(JITypography.size(.statValue) == 18)
     #expect(JITypography.size(.emoji) == 20)
+    #expect(JITypography.size(.numeralSmall) == 22)
+    #expect(JITypography.size(.numeralCompact) == 24)
     #expect(JITypography.size(.title) == 26)
     #expect(JITypography.size(.numeralMedium) == 28)
     #expect(JITypography.size(.numeralLarge) == 40)
+    #expect(JITypography.size(.numeralGauge) == 44)
     #expect(JITypography.size(.numeralHero) == 52)
     #expect(JITypography.size(.numeralDisplay) == 58)
 }
@@ -57,9 +60,9 @@ import Testing
     }
 }
 
-@Test func numeralTokensAreExactlyTheFourNumerals() {
+@Test func numeralTokensAreExactlyTheSevenNumerals() {
     let numerals = JITypography.Token.allCases.filter(\.isNumeral)
-    #expect(numerals == [.numeralMedium, .numeralLarge, .numeralHero, .numeralDisplay])
+    #expect(numerals == [.numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay])
     for t in numerals { #expect(JITypography.defaultWeight(t) == .bold) }
     for t in JITypography.Token.allCases where !t.isNumeral { #expect(JITypography.defaultWeight(t) == .regular) }
 }

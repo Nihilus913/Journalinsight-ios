@@ -3,7 +3,7 @@ import SwiftUI
 /// W8-L3 — the type scale. RN (`mobile/src/theme/tokens.ts`) has NO numeric scale: sizes come
 /// from tailwind `text-*` classes (`text-xs`=12 … `text-base`=16) and per-site `text-[11px]`
 /// style props; `tokens.ts` contributes only the numeral typeface and `numeralLineHeight`. The
-/// tokens below are the clusters of the 29 fixed `.font(.system(size:))` sites the W8-L3
+/// tokens below are the clusters of the 36 fixed `.font(.system(size:))` sites the W8-L3
 /// retrofit replaced (Journal/ carried 18 of them), each anchored `relativeTo:` the closest
 /// Apple `Font.TextStyle` so Dynamic Type (up to `.accessibility5`) scales the whole app from
 /// one file. `Font.system(size:)` itself never scales — only `Font.custom(_:size:relativeTo:)`
@@ -33,12 +33,18 @@ public nonisolated enum JITypography {
         case statValue
         /// 20 pt — entry-row mood emoji (`text-xl`).
         case emoji
+        /// 22 pt — SleepCard duration / score numerals.
+        case numeralSmall
+        /// 24 pt — StatChip value numeral (Today stat row).
+        case numeralCompact
         /// 26 pt — mood picker emoji, MIND headline (`text-[26px]`).
         case title
         /// 28 pt — kcal numeral (MacroSummaryCard).
         case numeralMedium
         /// 40 pt — energy balance / gate-rationale verdict word.
         case numeralLarge
+        /// 44 pt — ReadinessArcGauge score numeral.
+        case numeralGauge
         /// 52 pt — Today verdict word (VerdictHero).
         case numeralHero
         /// 58 pt — live HR (SessionCoach).
@@ -47,7 +53,7 @@ public nonisolated enum JITypography {
         /// Numeral tokens render rounded + tabular and carry the RN line-height floor.
         public var isNumeral: Bool {
             switch self {
-            case .numeralMedium, .numeralLarge, .numeralHero, .numeralDisplay: true
+            case .numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: true
             default: false
             }
         }
@@ -65,9 +71,12 @@ public nonisolated enum JITypography {
         case .subheadline: 15
         case .statValue: 18
         case .emoji: 20
+        case .numeralSmall: 22
+        case .numeralCompact: 24
         case .title: 26
         case .numeralMedium: 28
         case .numeralLarge: 40
+        case .numeralGauge: 44
         case .numeralHero: 52
         case .numeralDisplay: 58
         }
@@ -82,8 +91,8 @@ public nonisolated enum JITypography {
         case .body, .subheadline: .subheadline
         case .statValue: .headline
         case .emoji: .title3
-        case .title, .numeralMedium: .title
-        case .numeralLarge, .numeralHero, .numeralDisplay: .largeTitle
+        case .numeralSmall, .numeralCompact, .title, .numeralMedium: .title
+        case .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: .largeTitle
         }
     }
 

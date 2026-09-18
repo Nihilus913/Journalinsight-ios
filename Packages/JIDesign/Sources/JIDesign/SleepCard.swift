@@ -28,13 +28,13 @@ public struct SleepCard: View {
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(durationText).font(.system(size: 22, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
+                        Text(durationText).jiNumeral(.numeralSmall).foregroundStyle(JIColor.text)
                         Text("duration").font(.caption2).foregroundStyle(JIColor.muted)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(scoreText)
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .jiNumeral(.numeralSmall)
                             .foregroundStyle(scoreColor)
                         Text("score").font(.caption2).foregroundStyle(JIColor.muted)
                     }
