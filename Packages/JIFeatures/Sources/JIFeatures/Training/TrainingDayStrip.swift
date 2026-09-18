@@ -49,6 +49,7 @@ public struct TrainingDayStrip: View {
                 }
             }
         }
+        .jiHapticCue(.selection, on: selectedDate)   // W8-L1 (P-haptics) — oracle DayStrip.tsx:126 `if (!selected) hapticSelection()`: a re-tap of the selected day is no edge
     }
 
     private func dayCell(_ row: DailyKpiRow) -> some View {
