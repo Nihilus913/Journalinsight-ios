@@ -25,6 +25,22 @@ public final class KpiDetailViewModel {
     public private(set) var hubReachable = true
     public private(set) var hasLiveResult = false
     public private(set) var lastError: HubError?
+
+    /// W8-L4: DESIGN-7 `ScreenState`, resolved from `phase`/`lastError` (never a second state
+    /// machine). This screen's `Phase` has no `.empty` and no verdict date, so only
+    /// idle/loading/loaded/error/yazioAuthExpired can arise.
+    public var screenState: ScreenState {
+        ScreenState.resolve(phase: mappedPhase, neverSynced: false, verdictDate: nil, todayDateString: "", lastError: lastError)
+    }
+
+    private var mappedPhase: TodayViewModel.Phase {
+        switch phase {
+        case .idle: .idle
+        case .loading: .loading
+        case .loaded: .loaded
+        case .error(let message): .error(message)
+        }
+    }
     public private(set) var saving = false
     public private(set) var saveError: String?
 

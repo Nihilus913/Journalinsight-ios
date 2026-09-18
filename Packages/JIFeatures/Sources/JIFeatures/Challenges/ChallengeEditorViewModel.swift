@@ -19,6 +19,13 @@ public final class ChallengeEditorViewModel {
     public private(set) var isSubmitting = false
     public private(set) var errorMessage: String?
 
+    /// W8-L4: DESIGN-7 `ScreenState` for the form — `.loading` while the PUT/POST is in flight,
+    /// `.error` with the mutation's message, `.idle` otherwise (a form has no "loaded" payload).
+    public var screenState: ScreenState {
+        if let errorMessage { return .error(errorMessage) }
+        return isSubmitting ? .loading : .idle
+    }
+
     private let challenges: ChallengesViewModel
     private let existing: GateChallenge?
     private let now: () -> Date

@@ -69,7 +69,7 @@ actor WatchdogToggleProvider: HealthDataProvider {
 
     let results = await drainer.drainOnForeground()
 
-    guard case .success(let r) = results[id] else { Issue.record("expected success"); return }
+    guard case .success(.weighIn(let r)) = results[id] else { Issue.record("expected weigh-in success"); return }
     #expect(r.weightKg == 80.0)
     #expect(try outbox.pending().isEmpty)
 }
