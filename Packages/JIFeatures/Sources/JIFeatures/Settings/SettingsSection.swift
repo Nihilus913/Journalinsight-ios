@@ -69,5 +69,6 @@ public enum SettingsRegistry {
         VersionSection(),
         DataQualitySection(),
         GateConfigSection(),
+        LocalMirrorsSection(),
     ]
 }
