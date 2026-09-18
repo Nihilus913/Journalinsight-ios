@@ -16,7 +16,7 @@ public struct MindSnapshotCard: View {
         Surface(level: 1, padding: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("MIND · TODAY").font(.caption.bold()).foregroundStyle(JIColor.muted)
-                Text(snap.headline).font(.system(size: 26, weight: .heavy)).foregroundStyle(JIColor.text)
+                Text(snap.headline).jiFont(.title, weight: .heavy).foregroundStyle(JIColor.text)
                 Text(snap.description).font(.subheadline).foregroundStyle(JIColor.muted)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }

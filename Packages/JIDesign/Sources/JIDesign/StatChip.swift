@@ -11,7 +11,7 @@ public struct StatChip: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label).font(.caption).foregroundStyle(JIColor.muted).lineLimit(1)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(numeral).font(.system(size: 24, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
+                        Text(numeral).jiNumeral(.numeralCompact).foregroundStyle(JIColor.text)
                             .contentTransition(.numericText())
                         if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(JIColor.muted) }
                     }

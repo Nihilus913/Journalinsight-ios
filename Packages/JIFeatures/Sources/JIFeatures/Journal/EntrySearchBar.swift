@@ -27,7 +27,7 @@ public struct EntrySearchBar: View {
                                 filters.tag = (filters.tag == tag) ? nil : tag
                             } label: {
                                 Text(tag)
-                                    .font(.system(size: 12))
+                                    .jiFont(.label)
                                     .padding(.horizontal, 10).padding(.vertical, 5)
                                     .background(
                                         Capsule().fill(filters.tag == tag ? JIColor.info.opacity(0.3) : JIColor.surface2)
@@ -44,7 +44,7 @@ public struct EntrySearchBar: View {
 
             if JournalSearch.hasActiveFilters(filters) {
                 Button("Clear filters") { filters = .empty }
-                    .font(.system(size: 12))
+                    .jiFont(.label)
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Clear filters")
             }

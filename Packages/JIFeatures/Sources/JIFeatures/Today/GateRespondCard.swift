@@ -238,6 +238,7 @@ public struct GateRespondCard: View {
             .padding(.top, 14)
             // Oracle: `hapticSaveSuccess()` once the response actually saved (false → true edge).
             .jiHaptic(.success, trigger: model.responded)
+            .jiHapticCue(.selection, trigger: undoArmed)   // W8-L1 (P-haptics) — oracle GateRespondCard.tsx:95 armUndo() → hapticSelection()
         }
     }
 

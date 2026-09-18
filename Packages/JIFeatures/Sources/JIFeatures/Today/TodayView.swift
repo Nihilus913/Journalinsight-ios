@@ -38,7 +38,7 @@ public struct TodayView: View {
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
         }
         .background(JIColor.bg)
-        .refreshable { await model.refresh() }
+        .refreshable { JIHaptic.fire(.selection); await model.refresh() }   // W8-L1 (P-haptics) — oracle SyncButton.tsx:136 hapticSelection() the instant the sync is kicked off (Swift sync control = pull-to-refresh)
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — a cancelled fetch over a warm cache
         // leaves `phase == .loaded` (restored from cache), so keying off `.idle` alone would never
         // re-fetch live data on the next appearance.

@@ -86,7 +86,7 @@ public struct EnergyHero: View {
     private var numeralAndBar: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal/d")
-                .font(.system(size: 40, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
+                .jiNumeral(.numeralLarge).foregroundStyle(JIColor.text)
                 .contentTransition(.numericText())
                 .accessibilityLabel("Adjusted energy balance")
                 .accessibilityValue("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal per day")

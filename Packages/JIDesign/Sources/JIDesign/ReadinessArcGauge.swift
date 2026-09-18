@@ -47,11 +47,11 @@ public struct ReadinessArcGauge: View {
             }
             VStack(spacing: 2) {
                 if sourceMissing {
-                    Text("—").font(.system(size: 44, weight: .bold, design: .rounded)).foregroundStyle(JIColor.muted)
+                    Text("—").jiNumeral(.numeralGauge).foregroundStyle(JIColor.muted)
                     Text(sourceMissingCopy).font(.caption).foregroundStyle(JIColor.muted)
                 } else if let score {
                     Text(score, format: .number.precision(.fractionLength(0)))
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .jiNumeral(.numeralGauge)
                         .foregroundStyle(bandColor(readinessBand(for: score)))
                         .contentTransition(.numericText())
                     Text("readiness").font(.caption).foregroundStyle(JIColor.muted)

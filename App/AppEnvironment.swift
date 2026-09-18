@@ -76,6 +76,10 @@ final class AppEnvironment {
     }
 
     func boot() throws {
+        // W8-L1 appWiring: warm the haptics prefs cache from disk at cold start, so
+        // `JIHapticDispatcher.shared.prefs` reflects the persisted enabled/intensity values
+        // immediately instead of the open default (enabled, 100) until Settings is visited.
+        HapticsPrefsStore.warm(from: prefs)
         if let config = try ConnectionConfigStore(secrets: secrets).load() { apply(config) } else { needsConnection = true }
     }
 
@@ -120,8 +124,7 @@ final class AppEnvironment {
     /// W2d close-out wiring (L1 ↔ L2 ↔ L3 seam): the view model `ConnectionSheet` shows. Its
     /// request closure runs the real HealthKit sheet, then — on grant — starts L2's background
     /// delivery and one immediate `syncAll()` so the first upload lands as dso 4 without waiting
-    /// for an observer to fire. JIFeatures has its own `HKPermission` (no JIHealthKit import), so
-    /// the two same-named enums are mapped explicitly here.
+    /// for an observer to fire. `HKPermission` is JIHealthKit's on both sides since W8-L4 (B-12).
     func makeHealthPermissionModel() -> HealthPermissionViewModel {
         // `aggregateReadPermission()` is async (B-13 fix: it now calls HealthKit's
         // `getRequestStatusForAuthorization`, which has no synchronous form), so the model starts
@@ -143,13 +146,13 @@ final class AppEnvironment {
                     }
                     await uploader.syncAll()
                 }
-                return Self.featurePermission(status)
+                return status
             }
         )
         Task { [weak self, weak model] in
             guard let self, let model else { return }
             let status = await self.aggregateReadPermission()
-            model.adopt(Self.featurePermission(status))
+            model.adopt(status)
         }
         return model
     }
@@ -159,9 +162,9 @@ final class AppEnvironment {
     /// answer — see `JIHealthKit.HealthKitPermissions.status(for:)`, B-13). Sequential `await`s
     /// (not a task group) — `HKReadKind.availableCases` is a handful of kinds and this keeps the
     /// call off `self` from concurrent child tasks.
-    private func aggregateReadPermission() async -> JIHealthKit.HKPermission {
+    private func aggregateReadPermission() async -> HKPermission {
         let permissions = healthPermissions
-        var statuses: [JIHealthKit.HKPermission] = []
+        var statuses: [HKPermission] = []
         for kind in HKReadKind.availableCases {
             statuses.append(await permissions.status(for: kind))
         }
@@ -170,31 +173,27 @@ final class AppEnvironment {
         return .notDetermined
     }
 
-    private static func featurePermission(_ p: JIHealthKit.HKPermission) -> JIFeatures.HKPermission {
-        switch p {
-        case .granted: .granted
-        case .denied: .denied
-        case .notDetermined: .notDetermined
-        }
-    }
-
     /// W2d (L2) read-path metric specs — maps each Apple Watch sample type this app reads to the
     /// Health-Auto-Export metric name/units the hub's `hae_router.py` understands (frozen
-    /// contract, W2d card). Built HERE rather than in `JIHealthKit` so
-    /// `HKQuantityTypeIdentifier`/`HKCategoryTypeIdentifier` construction stays out of
-    /// `JIHealthKit/Sources`, matching L1's identifier-isolation rule for that package (this file
-    /// is outside that grep's scope). L1's `HKTypes`/`appleWatchCapabilities` may supersede this
-    /// list once merged — the fixer aligns at integration.
+    /// contract, W2d card). W8-L4 (B-12): keyed by `HKReadKind` (JIHealthKit's single read
+    /// vocabulary) instead of constructing `HKQuantityTypeIdentifier`s here a second time, so the
+    /// upload set can never drift from the permission set. A kind whose type doesn't resolve on
+    /// this OS (`sampleType == nil`) is skipped rather than crashed on. Still the W2d upload
+    /// subset — no RMSSD/body-comp/workout upload, the hub has no HAE metric for those.
     private static var healthKitUploadSpecs: [HKMetricSpec] {
-        [
-            HKMetricSpec(sampleType: HKQuantityType(.stepCount), metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count())),
-            HKMetricSpec(sampleType: HKQuantityType(.activeEnergyBurned), metricName: HAEMetricName.activeEnergy, units: "kcal", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .kilocalorie())),
-            HKMetricSpec(sampleType: HKQuantityType(.appleExerciseTime), metricName: HAEMetricName.exerciseTime, units: "min", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .minute())),
-            HKMetricSpec(sampleType: HKQuantityType(.restingHeartRate), metricName: HAEMetricName.restingHeartRate, units: "bpm", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
-            HKMetricSpec(sampleType: HKQuantityType(.heartRateVariabilitySDNN), metricName: HAEMetricName.heartRateVariability, units: "ms", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .secondUnit(with: .milli))),
-            HKMetricSpec(sampleType: HKCategoryType(.sleepAnalysis), metricName: HAEMetricName.sleepAnalysis, units: "hr", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.sleepAnalysis()),
-            HKMetricSpec(sampleType: HKQuantityType(.bodyMass), metricName: HAEMetricName.weightBodyMass, units: "kg", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
+        let specs: [(HKReadKind, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
+            (.stepCount, HAEMetricName.stepCount, "count", HKSampleMapping.perSample(unit: .count())),
+            (.activeEnergy, HAEMetricName.activeEnergy, "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
+            (.exerciseTime, HAEMetricName.exerciseTime, "min", HKSampleMapping.perSample(unit: .minute())),
+            (.restingHeartRate, HAEMetricName.restingHeartRate, "bpm", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
+            (.hrvSDNN, HAEMetricName.heartRateVariability, "ms", HKSampleMapping.perSample(unit: .secondUnit(with: .milli))),
+            (.sleepAnalysis, HAEMetricName.sleepAnalysis, "hr", HKSampleMapping.sleepAnalysis()),
+            (.bodyMass, HAEMetricName.weightBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
         ]
+        return specs.compactMap { kind, metricName, units, mapSamples in
+            guard let sampleType = kind.sampleType else { return nil }
+            return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, mapSamples: mapSamples)
+        }
     }
 
     /// P-snapshot-wiring (W2c-L1): wires both hub-backed view models' `onSectionUpdate` hooks

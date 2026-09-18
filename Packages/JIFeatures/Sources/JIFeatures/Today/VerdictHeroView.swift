@@ -18,7 +18,7 @@ public struct VerdictHeroView: View {
         Surface(level: 1, radius: JIRadius.hero, padding: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(verdict.word)
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .jiNumeral(.numeralHero)
                     .foregroundStyle(JIColor.color(for: verdict.tone))
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("today.verdict.word")
@@ -64,6 +64,7 @@ public struct VerdictHeroView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .gateRationaleDestination()   // W5b-L2 — oracle VerdictHero.tsx:404 (whole card → gate-rationale)
+        .jiHapticVerdictReveal(verdict.tone, key: "\(verdict.word)|\(verdict.session)", trigger: revealed)   // W8-L1 (P-haptics) — oracle VerdictHero.tsx:184 hapticVerdictReveal(tone), once per verdict (verdictRevealed), never per tab return
         .onAppear { withAnimation(reduceMotion ? nil : JIMotion.reveal) { revealed = true } }
         .onDisappear { revealed = false }   // reveal fires on EVERY open/return (feel diagnosis 2026-09-03)
     }

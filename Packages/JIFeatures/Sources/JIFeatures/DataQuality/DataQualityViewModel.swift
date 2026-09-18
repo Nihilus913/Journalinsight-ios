@@ -141,6 +141,26 @@ public final class DataQualityViewModel {
     public private(set) var hasLiveResult = false
     public private(set) var lastError: HubError?
 
+    /// W8-L4: DESIGN-7 `ScreenState` over the same signals `phase` already tracks — resolved,
+    /// never a second state machine. No verdict date on this screen, so `.staleVerdictDate` can't
+    /// arise; `.neverSynced` = a first-ever load that came back empty with no cache to show.
+    public var screenState: ScreenState {
+        ScreenState.resolve(
+            phase: mappedPhase, neverSynced: report == nil && fetchedAt == nil,
+            verdictDate: nil, todayDateString: "", lastError: lastError
+        )
+    }
+
+    private var mappedPhase: TodayViewModel.Phase {
+        switch phase {
+        case .idle: .idle
+        case .loading: .loading
+        case .loaded: .loaded
+        case .empty: .empty
+        case .error(let message): .error(message)
+        }
+    }
+
     private let provider: any DataQualityProviding
     /// Optional: the Settings row and the Today badge can both build this model without one, and
     /// the oracle's `withOfflineCache("dataQuality")` fallback is simply skipped when absent.

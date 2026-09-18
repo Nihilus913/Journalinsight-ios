@@ -123,6 +123,8 @@ public struct TodayGrid: View {
                     tile(for: chip)
                 }
             }
+            .jiHapticCue(.selection, on: order, when: { _ in draggingID != nil })   // W8-L1 (P-haptics) — oracle DraggableTodayTiles.tsx:179 hapticSelection() on each live swap mid-drag
+            .jiHapticCue(.dragDrop, on: draggingID, when: { $0 == nil })         // W8-L1 (P-haptics) — oracle DraggableTodayTiles.tsx:193 hapticDragDrop() when the finger lifts and commits
             EAGatedTile(label: "Energy availability")
                 .accessibilityLabel("Energy availability")
                 .accessibilityIdentifier("today.tile.energyAvailability")
