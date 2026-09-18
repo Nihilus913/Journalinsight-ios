@@ -19,6 +19,9 @@ public enum BackloadQuantityKind: Sendable, Equatable {
                             // went into `heartRateVariabilitySDNN` behind a Settings toggle;
                             // RMSSD and SDNN are different statistics, and Apple's own Vitals
                             // daytime HRV is RMSSD, so the two series finally line up.
+    // W9 (B-30 P5) daily kinds from `import.garmin_api_daily`:
+    case flightsClimbed         // count — Garmin `floors_ascended`
+    case distanceWalkingRunning // m — daily distance NET of workout distance (hub-side; never re-subtracted)
 }
 
 /// v4 (B-30): the hub row's `updated_at` as epoch seconds, carried onto every spec a DAILY item

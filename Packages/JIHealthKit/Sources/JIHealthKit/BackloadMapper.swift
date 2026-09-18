@@ -20,6 +20,8 @@ public enum BackloadMapper {
         specs.append(contentsOf: dto.spo2.compactMap(mapSpo2))
         specs.append(contentsOf: dto.hrv.flatMap(mapHrv))
         specs.append(contentsOf: dto.stepBuckets.compactMap(mapStepBucket))
+        specs.append(contentsOf: dto.floors.compactMap(mapFloors))
+        specs.append(contentsOf: dto.distance.compactMap(mapDistance))
 
         // daily_resp/daily_spo2 fallback: only for days with no dense samples of that kind, per
         // the frozen contract note — placed at the night's sleep midpoint.
@@ -105,6 +107,20 @@ public enum BackloadMapper {
     static func mapVo2Max(_ e: BackloadVo2MaxEntryDTO) -> BackloadWriteSpec? {
         guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
         return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .vo2Max, start: start, end: end, value: e.value, version: e.version))
+    }
+
+    // MARK: - W9 daily kinds (B-30 P5)
+
+    static func mapFloors(_ e: BackloadFloorsEntryDTO) -> BackloadWriteSpec? {
+        guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .flightsClimbed, start: start, end: end, value: e.count, version: e.version))
+    }
+
+    /// `meters` is already net of that day's workout distance on the hub (`DistanceItem`); the
+    /// workout's own distance sample is attached separately, so the two never double-count.
+    static func mapDistance(_ e: BackloadDistanceEntryDTO) -> BackloadWriteSpec? {
+        guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .distanceWalkingRunning, start: start, end: end, value: e.meters, version: e.version))
     }
 
     static func mapWorkout(_ e: BackloadWorkoutEntryDTO) -> BackloadWriteSpec? {
