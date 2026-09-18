@@ -82,7 +82,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 switch spec {
                 case .delete(let kind, let syncId):
                     deletionsByKind[kind, default: []].insert(syncId)
-                case .quantity(let q) where q.kind == .hrvSDNN && !writeHRV:
+                case .quantity(let q) where q.kind == .hrvRMSSD && !writeHRV:
                     continue // HRV gated by the App-Group pref; drop silently, no delete either
                 default:
                     writableSpecs.append(spec)
@@ -306,7 +306,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .heartRate: return HKQuantityType(.heartRate)
         case .respiratoryRate: return HKQuantityType(.respiratoryRate)
         case .oxygenSaturation: return HKQuantityType(.oxygenSaturation)
-        case .hrvSDNN: return HKQuantityType(.heartRateVariabilitySDNN)
+        case .hrvRMSSD: return HKQuantityType(.heartRateVariabilitySDNN)
         }
     }
 
@@ -317,7 +317,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .activeEnergyBurned, .basalEnergyBurned: return .kilocalorie()
         case .vo2Max: return HKUnit(from: "ml/(kg*min)")
         case .oxygenSaturation: return .percent() // written as a 0–1 fraction, per HK convention
-        case .hrvSDNN: return HKUnit.secondUnit(with: .milli)
+        case .hrvRMSSD: return HKUnit.secondUnit(with: .milli)
         }
     }
 

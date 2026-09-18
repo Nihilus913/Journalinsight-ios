@@ -14,9 +14,17 @@ public enum BackloadQuantityKind: Sendable, Equatable {
     case heartRate          // count/min, `heartRate` HK type (distinct from `restingHeartRate`)
     case respiratoryRate    // count/min (breaths/min)
     case oxygenSaturation   // fraction 0–1
-    case hrvSDNN            // ms — `heartRateVariabilitySDNN`; Garmin RMSSD written under the
-                             // Apple SDNN type per the v2 contract, gated by `hk.backload.writeHRV`
+    case hrvRMSSD           // ms — Garmin RMSSD, written under Apple's native iOS-27
+                            // `heartRateVariabilityRMSSD` type (v4, audit D7). Before v4 these
+                            // went into `heartRateVariabilitySDNN` behind a Settings toggle;
+                            // RMSSD and SDNN are different statistics, and Apple's own Vitals
+                            // daytime HRV is RMSSD, so the two series finally line up.
 }
+
+/// v4 (B-30): the hub row's `updated_at` as epoch seconds, carried onto every spec a DAILY item
+/// produces and written as `HKMetadataKeySyncVersion`. HealthKit replaces a same-sync-id object
+/// whose stored version is lower, so a corrected hub value overwrites a partial-day first write
+/// (audit D4). `nil` on dense samples and sleep stages — those have no hub version.
 
 public struct BackloadQuantitySampleSpec: Sendable, Equatable {
     public var syncId: String
@@ -24,8 +32,10 @@ public struct BackloadQuantitySampleSpec: Sendable, Equatable {
     public var start: Date
     public var end: Date
     public var value: Double
-    public init(syncId: String, kind: BackloadQuantityKind, start: Date, end: Date, value: Double) {
+    public var version: Int?
+    public init(syncId: String, kind: BackloadQuantityKind, start: Date, end: Date, value: Double, version: Int? = nil) {
         self.syncId = syncId; self.kind = kind; self.start = start; self.end = end; self.value = value
+        self.version = version
     }
 }
 
@@ -38,9 +48,11 @@ public struct BackloadSleepSampleSpec: Sendable, Equatable {
     public var inBedEnd: Date
     public var asleepStart: Date
     public var asleepEnd: Date
-    public init(syncId: String, inBedStart: Date, inBedEnd: Date, asleepStart: Date, asleepEnd: Date) {
+    public var version: Int?
+    public init(syncId: String, inBedStart: Date, inBedEnd: Date, asleepStart: Date, asleepEnd: Date, version: Int? = nil) {
         self.syncId = syncId; self.inBedStart = inBedStart; self.inBedEnd = inBedEnd
         self.asleepStart = asleepStart; self.asleepEnd = asleepEnd
+        self.version = version
     }
 }
 
@@ -59,9 +71,11 @@ public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     public var avgHr: Double?
     /// v2: true when `start` is the hub's 12:00 fallback rather than a real activity start.
     public var startEstimated: Bool
-    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false) {
+    public var version: Int?
+    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false, version: Int? = nil) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
         self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
+        self.version = version
     }
 }
 
@@ -88,8 +102,10 @@ public struct BackloadSleepStagedSampleSpec: Sendable, Equatable {
     public var inBedStart: Date
     public var inBedEnd: Date
     public var stages: [BackloadSleepStageSampleSpec]
-    public init(baseSyncId: String, inBedStart: Date, inBedEnd: Date, stages: [BackloadSleepStageSampleSpec]) {
+    public var version: Int?
+    public init(baseSyncId: String, inBedStart: Date, inBedEnd: Date, stages: [BackloadSleepStageSampleSpec], version: Int? = nil) {
         self.baseSyncId = baseSyncId; self.inBedStart = inBedStart; self.inBedEnd = inBedEnd; self.stages = stages
+        self.version = version
     }
 }
 
