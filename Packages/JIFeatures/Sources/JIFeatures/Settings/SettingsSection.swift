@@ -67,5 +67,7 @@ public enum SettingsRegistry {
         EditTodaySection(),
         ProviderSection(),
         VersionSection(),
+        WeeklyPlanSection(),
+        ExportSection(),
     ]
 }

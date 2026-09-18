@@ -73,6 +73,7 @@ public struct NutritionView: View {
             }
             MacroSummaryCard(day: model.day)
             MealTimeline(day: model.day)
+            WeeklyPlanNutritionRow(provider: model.provider) // W5b-L5: RN nutrition.tsx:292 "Weekly kcal / macro plan" row
         }
     }
 

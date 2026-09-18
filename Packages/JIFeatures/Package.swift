@@ -10,11 +10,12 @@ let package = Package(
         .package(path: "../JIPersistence"),
         .package(path: "../JIDesign"),
         .package(path: "../JIVault"),
+        .package(path: "../JICompute"),
     ],
     targets: [
         .target(
             name: "JIFeatures",
-            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault"],
+            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]
         ),
         .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
