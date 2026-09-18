@@ -50,6 +50,12 @@ public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> (
     { onOpenMind() }
 }
 
+/// W5b-L1 (P-data-quality): wires the freshness badge's tap to opening the Data Quality screen
+/// (oracle `DataFreshnessBadge.tsx:33`, `router.push("/data-quality")`). Same pure-seam pattern.
+public nonisolated func dataFreshnessBadgeTapAction(onOpenDataQuality: @escaping () -> Void) -> () -> Void {
+    { onOpenDataQuality() }
+}
+
 /// Story 1: the full Today tile grid — the four `TodayViewModel.chips` (fixed default order
 /// hrv, rhr, sleep, steps) as `StatChip`s, plus the energy-availability `EAGatedTile` (not
 /// computable from the current source — rule 5's gated idiom, not a bare zero). B-7: no
@@ -72,24 +78,37 @@ public struct TodayGrid: View {
     /// `MindStore` trio to build with. `nil` (the default) renders the tile but wires no
     /// navigation, which is what every current call site gets until integration supplies one.
     let makeMindViewModel: (() -> MindViewModel)?
+    /// W5b-L1 (P-data-quality): what the freshness badge line knows (sync time, tracked/total
+    /// days). Optional/defaulted like `mindTodayCheckin` so `TodayView.swift`'s call site stays
+    /// source-compatible; nil renders the neutral "Data quality" label.
+    let freshness: DataFreshnessInfo?
+    /// W5b-L1: builds the `DataQualityViewModel` the badge pushes to. Defaults to the
+    /// `DataQualityAccess` seam (the app installs the live provider there at boot), so the tap
+    /// works without a `TodayView` change; a nil result renders the badge without a tap target.
+    let makeDataQualityViewModel: () -> DataQualityViewModel?
 
     @State private var order: [String] = []
     @State private var isReordering = false
     @State private var draggingID: String?
     @State private var showMind = false
+    @State private var showDataQuality = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     public init(
         chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void,
-        mindTodayCheckin: CheckIn? = nil, makeMindViewModel: (() -> MindViewModel)? = nil
+        mindTodayCheckin: CheckIn? = nil, makeMindViewModel: (() -> MindViewModel)? = nil,
+        freshness: DataFreshnessInfo? = nil,
+        makeDataQualityViewModel: @escaping () -> DataQualityViewModel? = { DataQualityAccess.shared.makeViewModel() }
     ) {
         self.chips = chips
         self.prefs = prefs
         self.onSelectKpi = onSelectKpi
         self.mindTodayCheckin = mindTodayCheckin
         self.makeMindViewModel = makeMindViewModel
+        self.freshness = freshness
+        self.makeDataQualityViewModel = makeDataQualityViewModel
     }
 
     private var byID: [String: TodayChip] { Dictionary(uniqueKeysWithValues: chips.map { ($0.id, $0) }) }
@@ -98,6 +117,7 @@ public struct TodayGrid: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            DataFreshnessBadge(info: freshness, onTap: dataFreshnessBadgeTapAction(onOpenDataQuality: { showDataQuality = true }))
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(orderedChips) { chip in
                     tile(for: chip)
@@ -112,6 +132,9 @@ public struct TodayGrid: View {
         .onChange(of: chips.map(\.id)) { _, ids in order = resolveTileOrder(chipIDs: ids, savedOrder: order.isEmpty ? nil : order) }
         .navigationDestination(isPresented: $showMind) {
             if let makeMindViewModel { MindView(model: makeMindViewModel()) }
+        }
+        .navigationDestination(isPresented: $showDataQuality) {
+            if let model = makeDataQualityViewModel() { DataQualityView(model: model) } else { DataQualityUnavailableView() }
         }
     }
 
