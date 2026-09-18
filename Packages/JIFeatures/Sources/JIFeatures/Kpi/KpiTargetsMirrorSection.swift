@@ -24,6 +24,9 @@ public struct KpiTargetsMirrorSection: View {
                                 Text(target.metric).font(.footnote.bold()).foregroundStyle(JIColor.text)
                                 Spacer()
                                 Text(rule(for: target)).font(.footnote).foregroundStyle(JIColor.muted)
+                                    .accessibilityLabel("\(target.metric) target")
+                                    .accessibilityValue(rule(for: target))
+                                    .accessibilityIdentifier("kpi-target-\(target.metric)")
                             }
                         }
                     }

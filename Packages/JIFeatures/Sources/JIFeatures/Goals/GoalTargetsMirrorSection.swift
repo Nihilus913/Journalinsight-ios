@@ -14,6 +14,7 @@ public struct GoalTargetsMirrorSection: View {
         Surface(level: 2) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current targets").font(.caption.bold()).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                    .accessibilityIdentifier("goal-targets-mirror-heading")
                 row("Weight", String(format: "%.1f kg", goals.weight.targetKg))
                 row("Bench", goals.strength.first { $0.exercise == "bench" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
                 row("Row", goals.strength.first { $0.exercise == "row" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
@@ -28,6 +29,8 @@ public struct GoalTargetsMirrorSection: View {
             Text(label).font(.footnote).foregroundStyle(JIColor.text)
             Spacer()
             Text(value).font(.footnote.weight(.semibold)).foregroundStyle(JIColor.text)
+                .accessibilityLabel("\(label), \(value)")
+                .accessibilityIdentifier("goal-target-\(label)")
         }
     }
 }

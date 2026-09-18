@@ -25,6 +25,7 @@ public struct KpiListView: View {
                 Button("Reset to defaults") { model.resetSelection() }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Reset My KPIs to defaults")
+                    .accessibilityIdentifier("kpi-reset-selection")
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
         }
@@ -54,6 +55,8 @@ public struct KpiListView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("kpi-list-retry")
             }
         }
     }
@@ -81,6 +84,8 @@ public struct KpiListView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(def.label).font(.subheadline.bold()).foregroundStyle(JIColor.text)
                 Text(valueText).font(.caption).foregroundStyle(JIColor.muted)
+                    .accessibilityLabel("\(def.label), \(valueText)")
+                    .accessibilityIdentifier("kpi-row-value-\(id.rawValue)")
                 if let targetText { Text("Target \(targetText)").font(.caption2).foregroundStyle(JIColor.mutedNested) }
             }
             Spacer()
@@ -89,15 +94,18 @@ public struct KpiListView: View {
                     Button { model.move(id, direction: -1) } label: { Image(systemName: "chevron.up") }
                         .disabled(visibleIndex <= 0)
                         .accessibilityLabel("Move \(def.label) up in My KPIs")
+                        .accessibilityIdentifier("kpi-move-up-\(id.rawValue)")
                     Button { model.move(id, direction: 1) } label: { Image(systemName: "chevron.down") }
                         .disabled(visibleIndex >= visible.count - 1)
                         .accessibilityLabel("Move \(def.label) down in My KPIs")
+                        .accessibilityIdentifier("kpi-move-down-\(id.rawValue)")
                 }
                 .buttonStyle(.pressableScale)
             }
             Toggle(isOn: Binding(get: { selected }, set: { model.toggle(id, selected: $0) })) { EmptyView() }
                 .labelsHidden()
                 .accessibilityLabel(selected ? "Remove \(def.label) from My KPIs" : "Add \(def.label) to My KPIs")
+                .accessibilityIdentifier("kpi-toggle-\(id.rawValue)")
         }
         .opacity(selected ? 1 : 0.45)
         .padding(.vertical, 6)

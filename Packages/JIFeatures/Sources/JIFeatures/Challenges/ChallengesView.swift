@@ -32,6 +32,8 @@ public struct ChallengesView: View {
                         VStack(spacing: 10) {
                             Text("Couldn't load challenges.").font(.footnote).foregroundStyle(JIColor.muted)
                             Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale)
+                                .accessibilityLabel("Retry")
+                                .accessibilityIdentifier("challenges-retry")
                         }
                     }
                 case .empty, .loaded:
@@ -63,5 +65,7 @@ public struct ChallengesView: View {
                 .foregroundStyle(JIColor.text)
         }
         .buttonStyle(.pressableScale)
+        .accessibilityLabel("+ New challenge")
+        .accessibilityIdentifier("challenges-new")
     }
 }

@@ -27,6 +27,8 @@ public struct GoalsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("New goal").font(.caption.bold()).foregroundStyle(JIColor.muted).textCase(.uppercase)
                         TextField("Goal title", text: $title)
+                            .accessibilityLabel("Goal title")
+                            .accessibilityIdentifier("goals-new-title")
                         GoalDatePicker(value: $targetDate)
                         Button("Add goal") {
                             model.addGoal(title: title, targetDate: targetDate)
@@ -34,6 +36,8 @@ public struct GoalsView: View {
                         }
                         .disabled(!canAdd)
                         .buttonStyle(.borderedProminent)
+                        .accessibilityLabel("Add goal")
+                        .accessibilityIdentifier("goals-add")
                     }
                 }
 

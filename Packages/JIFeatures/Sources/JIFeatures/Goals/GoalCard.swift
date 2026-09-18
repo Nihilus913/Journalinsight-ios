@@ -48,6 +48,7 @@ public struct GoalCard: View {
                             if let badge {
                                 Text(badge.0).font(.caption2.bold()).foregroundStyle(badge.1)
                                     .accessibilityLabel("\(goal.title) status: \(badge.0)")
+                                    .accessibilityIdentifier("goal-card-status")
                             }
                         }
                     }
@@ -56,6 +57,7 @@ public struct GoalCard: View {
                         Image(systemName: "xmark").foregroundStyle(JIColor.danger)
                     }
                     .accessibilityLabel("Delete \(goal.title)")
+                    .accessibilityIdentifier("goal-card-delete")
                 }
 
                 GeometryReader { geo in
@@ -67,14 +69,18 @@ public struct GoalCard: View {
                     }
                 }
                 .frame(height: 4)
+                .accessibilityLabel("Progress")
+                .accessibilityValue(formatPercent(goal.progress))
 
                 HStack {
                     Text(formatPercent(goal.progress)).font(.caption.bold()).foregroundStyle(JIColor.text)
                     Spacer()
                     Button { onStep(-Self.step) } label: { Image(systemName: "minus") }
                         .accessibilityLabel("Decrease progress")
+                        .accessibilityIdentifier("goal-card-decrease")
                     Button { onStep(Self.step) } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Increase progress")
+                        .accessibilityIdentifier("goal-card-increase")
                 }
             }
         }
