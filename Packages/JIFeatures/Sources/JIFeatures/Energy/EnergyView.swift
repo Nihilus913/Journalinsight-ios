@@ -21,6 +21,7 @@ public struct EnergyView: View {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                    .accessibilityLabel("No data yet — run a sync on the hub.")
                 case .loaded: loaded
                 }
             }
@@ -34,6 +35,7 @@ public struct EnergyView: View {
 
     private var header: some View {
         Text("Energy").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private var loading: some View {
@@ -46,7 +48,10 @@ public struct EnergyView: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
+                    .accessibilityLabel(msg)
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("energy.retry")
             }
         }
     }
@@ -56,6 +61,7 @@ public struct EnergyView: View {
             if let staleDate = staleDateBanner {
                 Surface(level: 2) {
                     Text("Showing energy from \(staleDate) — no newer sync yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityLabel("Showing energy from \(staleDate) — no newer sync yet.")
                 }
             }
             if let report = model.report {
@@ -63,14 +69,18 @@ public struct EnergyView: View {
                 Surface(level: 2, padding: 18) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("DAILY · INTAKE VS TDEE").font(.caption2.bold()).foregroundStyle(JIColor.muted)
+                            .accessibilityAddTraits(.isHeader)
                         IntakeTdeeChart(days: report.days)
+                            .accessibilityIdentifier("energy.intakeTdeeChart")
                     }
                 }
             }
             Surface(level: 2, padding: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("DAILY LOG").font(.caption2.bold()).foregroundStyle(JIColor.muted)
+                        .accessibilityAddTraits(.isHeader)
                     DeficitDayList(days: model.days)
+                        .accessibilityIdentifier("energy.dailyLog")
                 }
             }
         }

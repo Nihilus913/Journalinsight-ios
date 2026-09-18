@@ -20,6 +20,7 @@ public struct TodayView: View {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                    .accessibilityLabel("No data yet — run a sync on the hub.")
                 case .loaded:
                     // readinessMissing: false — W1 has only the hub provider, which always carries a
                     // readiness field (nil when the hub itself has no score yet); a real "source doesn't
@@ -42,6 +43,7 @@ public struct TodayView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Today").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
+                .accessibilityAddTraits(.isHeader)
             Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide))).font(.subheadline).foregroundStyle(JIColor.muted)
         }
     }
@@ -54,9 +56,14 @@ public struct TodayView: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
+                    .accessibilityLabel(msg)
                 HStack {
                     Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                        .accessibilityLabel("Retry")
+                        .accessibilityIdentifier("today.retry")
                     Button("Connection…", action: onOpenConnection).buttonStyle(.pressableScale).tint(JIColor.info)
+                        .accessibilityLabel("Connection…")
+                        .accessibilityIdentifier("today.connection")
                 }
             }
         }

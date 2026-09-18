@@ -36,6 +36,11 @@ public struct DeficitDayList: View {
                 .font(.subheadline.bold())
                 .foregroundStyle(EnergyFormat.deficitColor(day.deficitCorrected, class: day.deficitClass))
         }
+        // Display-only rows (RN's `View ${d.date} in Nutrition` tap-through has no Swift
+        // counterpart yet), so the label is the row's visible text.
+        .accessibilityLabel("\(day.date), intake \(fmt(day.kcalConsumed)), TDEE \(fmt(day.tdeeCorrected)), \(day.deficitClass ?? "unknown")")
+        .accessibilityValue("\(EnergyFormat.balanceText(day.deficitCorrected)) kcal")
+        .accessibilityIdentifier("energy.day.\(day.date)")
         .padding(.vertical, 10)
     }
 

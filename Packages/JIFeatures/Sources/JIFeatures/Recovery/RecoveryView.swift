@@ -22,6 +22,7 @@ public struct RecoveryView: View {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                    .accessibilityLabel("No data yet — run a sync on the hub.")
                 case .loaded: loaded
                 }
             }
@@ -37,6 +38,7 @@ public struct RecoveryView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Recovery").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
+                .accessibilityAddTraits(.isHeader)
             Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide))).font(.subheadline).foregroundStyle(JIColor.muted)
         }
     }
@@ -51,7 +53,10 @@ public struct RecoveryView: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
+                    .accessibilityLabel(msg)
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("recovery.retry")
             }
         }
     }
@@ -61,29 +66,41 @@ public struct RecoveryView: View {
             if let staleDate = staleVerdictBanner {
                 Surface(level: 2) {
                     Text("Showing recovery from \(staleDate) — no newer sync yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityLabel("Showing recovery from \(staleDate) — no newer sync yet.")
                 }
             }
             HStack {
                 Spacer()
+                // RN oracle `ReadinessArcGauge.tsx`: `Readiness ${rounded} — open detail`, else
+                // `Readiness — open detail` when there is no score.
                 ReadinessArcGauge(score: model.latestReadiness)
+                    .accessibilityLabel(model.latestReadiness.map { "Readiness \(Int($0.rounded())) — open detail" } ?? "Readiness — open detail")
+                    .accessibilityIdentifier("recovery.readinessGauge")
                 Spacer()
             }
             SleepCard(durationSec: model.latestSleepDurationSec, score: model.latestSleepScore)
+                .accessibilityLabel("Sleep — open detail")
+                .accessibilityIdentifier("recovery.sleepCard")
             Surface(level: 2) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Sleep components").font(.caption).foregroundStyle(JIColor.muted)
+                        .accessibilityAddTraits(.isHeader)
                     SleepScoreComponents(components: sleepComponents)
+                        .accessibilityIdentifier("recovery.sleepComponents")
                 }
             }
             Surface(level: 2) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Readiness drivers").font(.caption).foregroundStyle(JIColor.muted)
+                        .accessibilityAddTraits(.isHeader)
                     ContributorBreakdown(contributors: contributors)
+                        .accessibilityIdentifier("recovery.readinessDrivers")
                 }
             }
             Surface(level: 2) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Trend").font(.caption).foregroundStyle(JIColor.muted)
+                        .accessibilityAddTraits(.isHeader)
                     trendChart
                 }
             }
@@ -119,6 +136,7 @@ public struct RecoveryView: View {
         let points = model.days.sorted { $0.date < $1.date }
         if points.isEmpty {
             Text("No data yet").font(.caption).foregroundStyle(JIColor.muted)
+                .accessibilityLabel("No data yet")
         } else {
             Chart {
                 ForEach(points, id: \.date) { day in
@@ -136,6 +154,8 @@ public struct RecoveryView: View {
             }
             .chartXAxis(.hidden)
             .frame(height: 140)
+            .accessibilityLabel("Readiness and sleep trend")
+            .accessibilityIdentifier("recovery.trendChart")
         }
     }
 }
