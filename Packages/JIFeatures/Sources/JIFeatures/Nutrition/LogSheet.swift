@@ -30,9 +30,11 @@ public struct LogSheet: View {
                 case .failure(let message):
                     Surface {
                         Text(message).font(.footnote).foregroundStyle(JIColor.danger)
+                            .accessibilityIdentifier("logsheet-error")
                     }
                 case .submitting:
                     Surface { HStack { ProgressView(); Text("Logging…").foregroundStyle(JIColor.muted) } }
+                        .accessibilityIdentifier("logsheet-submitting")
                 default:
                     EmptyView()
                 }
@@ -50,6 +52,8 @@ public struct LogSheet: View {
                 }
                 .buttonStyle(.pressableScale)
                 .disabled(model.state == .submitting)
+                .accessibilityLabel("Log Standard breakfast")
+                .accessibilityIdentifier("logsheet-log-breakfast")
 
                 if let weighInModel {
                     Button {
@@ -60,6 +64,10 @@ public struct LogSheet: View {
                             .foregroundStyle(JIColor.text)
                     }
                     .buttonStyle(.pressableScale)
+                    // Oracle `LogSheet.tsx` MenuRow: title "Log weight", sub "Push a weigh-in to Garmin".
+                    .accessibilityLabel("Log weight")
+                    .accessibilityHint("Push a weigh-in to Garmin")
+                    .accessibilityIdentifier("logsheet-log-weight")
                     .sheet(isPresented: $showingWeighIn) {
                         WeighInSheet(model: weighInModel, onSaved: onLogged)
                     }
@@ -70,7 +78,7 @@ public struct LogSheet: View {
             .padding(20)
             .background(JIColor.bg)
             .navigationTitle("Log food")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("logsheet-cancel") } }
         }
     }
 }

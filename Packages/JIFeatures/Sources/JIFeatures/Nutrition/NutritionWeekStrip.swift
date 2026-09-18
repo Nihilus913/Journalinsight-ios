@@ -20,6 +20,9 @@ public struct NutritionWeekStrip: View {
                     Button { onSelect(day.date) } label: { chip(for: day) }
                         .buttonStyle(.pressableScale)
                         .accessibilityLabel(accessibilityLabel(for: day))
+                        // Oracle passes accessibilityState={{ selected }} on the day chip.
+                        .accessibilityAddTraits(day.date == selectedDate ? [.isSelected] : [])
+                        .accessibilityIdentifier("nutrition-week-day-\(day.date)")
                 }
             }
             .padding(.horizontal, 2)

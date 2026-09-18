@@ -25,6 +25,8 @@ public struct GateDetailCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Readiness verdict details")
+        .accessibilityValue("\(verdictParts(morning?.verdict).word), gate recommendation \(gateRecommendationLabel)")
+        .accessibilityIdentifier("gate-detail-card")
     }
 
     private var gateRecommendationLabel: String {

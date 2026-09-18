@@ -16,12 +16,14 @@ public struct MealTimeline: View {
         Surface {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Meals").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                    .accessibilityAddTraits(.isHeader)
                 if let day, !day.items.isEmpty {
                     ForEach(mealsInOrder(day), id: \.slot) { meal in
                         mealSection(slot: meal.slot, items: meal.items)
                     }
                 } else {
                     Text("No meals logged yet for this day.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityIdentifier("meal-timeline-empty")
                 }
             }
         }
@@ -43,11 +45,15 @@ public struct MealTimeline: View {
     private func mealSection(slot: String, items: [NutritionMealItem]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Self.labels[slot] ?? slot.capitalized).font(.footnote.weight(.bold)).foregroundStyle(JIColor.text)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("meal-row-\(slot)")
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack {
                     Text(item.name).font(.footnote).foregroundStyle(JIColor.text).lineLimit(1)
+                        .accessibilityLabel(item.name)
                     Spacer()
                     Text(item.kcal.map { "\(Int($0)) kcal" } ?? "—").font(.caption).foregroundStyle(JIColor.muted)
+                        .accessibilityLabel(item.kcal.map { "\(Int($0)) kcal" } ?? "no calorie data")
                 }
             }
         }

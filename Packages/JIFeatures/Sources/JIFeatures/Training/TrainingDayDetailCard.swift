@@ -30,14 +30,18 @@ public struct TrainingDayDetailCard: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 Text(formattedDate).font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("training-day-detail-date")
                 if isEmpty {
                     Text("No training logged for this day yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityIdentifier("training-day-detail-empty")
                 } else {
                     ForEach(activities, id: \.activityId) { activity in
                         HStack {
                             Text(activity.name ?? activity.type).font(.subheadline.weight(.semibold)).foregroundStyle(JIColor.text)
+                                .accessibilityLabel(activity.name ?? activity.type)
                             Spacer()
-                            if let duration = activity.durationSec { Text("\(Int(duration / 60)) min").font(.footnote).foregroundStyle(JIColor.muted) }
+                            if let duration = activity.durationSec { Text("\(Int(duration / 60)) min").font(.footnote).foregroundStyle(JIColor.muted).accessibilityLabel("\(Int(duration / 60)) minutes") }
                         }
                     }
                     ForEach(groups) { group in
@@ -49,6 +53,8 @@ public struct TrainingDayDetailCard: View {
                                     Text("Set \(set.setNumber ?? idx + 1)").font(.caption).foregroundStyle(JIColor.muted)
                                     Spacer()
                                     Text(setSummary(set)).font(.caption.weight(.semibold)).foregroundStyle(JIColor.text)
+                                        .accessibilityLabel("Set \(set.setNumber ?? idx + 1)")
+                                        .accessibilityValue(setSummary(set))
                                 }
                             }
                         }

@@ -67,6 +67,9 @@ public struct TrainingDayStrip: View {
         }
         .buttonStyle(.pressableScale)
         .accessibilityLabel("\(row.date)\(row.date == today ? ", today" : "")")
+        .accessibilityValue(status == .good ? "trained" : status == .miss ? "not trained" : status == .future ? "upcoming" : "no data")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .accessibilityIdentifier("training-day-\(row.date)")
     }
 
     private func dotColor(_ status: TrainingDayStatus) -> Color {
