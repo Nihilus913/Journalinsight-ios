@@ -161,24 +161,164 @@ import JIHub
        "readings":[{"ts":"2026-06-01T23:00:00+02:00","rmssd_ms":40.0}]}]}
     """
 
-    @Test func hrvIsSkippedByDefaultAndWrittenWhenPrefIsOn() async throws {
-        let storeOff = FakeHealthStore()
+    /// v4 (B-30, audit D7): Garmin's readings ARE RMSSD, so they go under Apple's native iOS-27
+    /// `heartRateVariabilityRMSSD` type unconditionally — no `hk.backload.writeHRV` toggle any
+    /// more. On an OS without the RMSSD type the specs are dropped rather than mis-filed as SDNN.
+    @Test func hrvIsAlwaysWrittenUnderTheRMSSDTypeWithNoToggle() async throws {
+        let store = FakeHealthStore()
         DynamicStubURLProtocol.customResponseJSON = hrvJSON
-        let off = HealthKitBackloader(hub: hubClient(), store: storeOff, defaults: testDefaults())
-        let summaryOff = try await off.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
-        #expect(summaryOff.written == 0)
-        #expect(storeOff.savedObjects.isEmpty)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        guard let rmssd = HKReadKind.hrvRMSSDQuantityType else {
+            #expect(summary.written == 0)
+            #expect(store.savedObjects.isEmpty)
+            return
+        }
+        #expect(summary.written == 1)
+        let saved = store.savedObjects.compactMap { $0 as? HKQuantitySample }
+        #expect(saved.map(\.sampleType.identifier) == [rmssd.identifier])
+        #expect(!saved.contains { $0.sampleType == HKQuantityType(.heartRateVariabilitySDNN) })
+        #expect(saved.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
+                == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00"])
+    }
+
+    // MARK: - v4: version-keyed saves (audit D4)
+
+    private func stepsJSON(version: Int?) -> String {
+        let v = version.map { "\"version\":\($0)," } ?? ""
+        return """
+        {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api",
+         "sleep":[],"rhr":[],
+         "steps":[{"sync_id":"steps:2026-06-01",\(v)"date":"2026-06-01","count":9000}],
+         "energy":[],"vo2max":[],"workouts":[]}
+        """
+    }
+
+    @Test func aHigherHubVersionReplacesTheSampleAlreadyInHealth() async throws {
+        let store = FakeHealthStore()
+        store.existingVersions[HKQuantityType(.stepCount).identifier] = ["steps:2026-06-01": 1_789_729_100]
+        DynamicStubURLProtocol.customResponseJSON = stepsJSON(version: 1_789_729_180)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(summary.written == 1)
+        #expect(summary.skipped == 0)
+        let saved = try #require(store.savedObjects.first as? HKQuantitySample)
+        #expect(saved.metadata?[HKMetadataKeySyncVersion] as? Int == 1_789_729_180)
+    }
+
+    @Test func anEqualOrLowerHubVersionIsSkipped() async throws {
+        for hubVersion in [1_789_729_180, 1_789_729_000] {
+            DynamicStubURLProtocol.reset()
+            let store = FakeHealthStore()
+            store.existingVersions[HKQuantityType(.stepCount).identifier] = ["steps:2026-06-01": 1_789_729_180]
+            DynamicStubURLProtocol.customResponseJSON = stepsJSON(version: hubVersion)
+            let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+            let summary = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+            #expect(summary.written == 0, "hub version \(hubVersion)")
+            #expect(summary.skipped == 1, "hub version \(hubVersion)")
+            #expect(store.savedObjects.isEmpty)
+        }
+    }
+
+    @Test func aVersionlessEntryFallsBackToSyncVersionTwoAndStillSkipsAnExistingSample() async throws {
+        let store = FakeHealthStore()
+        store.existingVersions[HKQuantityType(.stepCount).identifier] = ["steps:2026-06-01": 2]
+        DynamicStubURLProtocol.customResponseJSON = stepsJSON(version: nil)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        let summary = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        #expect(summary.written == 0 && summary.skipped == 1)
+    }
+
+    @Test func workoutsCarryTheHubVersionAndFallBackToThree() async throws {
+        let withVersion = """
+        {"from":"2026-06-01","to":"2026-06-01","source":"garmin_api","sleep":[],"rhr":[],"steps":[],"energy":[],"vo2max":[],
+         "workouts":[{"sync_id":"workout:1","version":1789729180,"start":"2026-06-01T07:00:00+02:00","end":"2026-06-01T07:30:00+02:00","kind":"running","name":"Base","kcal":300,"distance_m":5000,"avg_hr":150}]}
+        """
+        let store = FakeHealthStore()
+        DynamicStubURLProtocol.customResponseJSON = withVersion
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
+        _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        let workout = try #require(store.savedObjects.compactMap { $0 as? HKWorkout }.first)
+        #expect(workout.metadata?[HKMetadataKeySyncVersion] as? Int == 1_789_729_180)
+        let attached = store.associated["workout:1"] ?? []
+        #expect(attached.allSatisfy { $0.metadata?[HKMetadataKeySyncVersion] as? Int == 1_789_729_180 })
 
         DynamicStubURLProtocol.reset()
-        DynamicStubURLProtocol.customResponseJSON = hrvJSON
-        let storeOn = FakeHealthStore()
-        let defaultsOn = testDefaults()
-        defaultsOn.set(true, forKey: "hk.backload.writeHRV")
-        let on = HealthKitBackloader(hub: hubClient(), store: storeOn, defaults: defaultsOn)
-        let summaryOn = try await on.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
-        #expect(summaryOn.written == 1)
-        let savedIds = storeOn.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
-        #expect(savedIds == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00"])
+        DynamicStubURLProtocol.customResponseJSON = withVersion.replacingOccurrences(of: "\"version\":1789729180,", with: "")
+        let plain = FakeHealthStore()
+        let loader2 = HealthKitBackloader(hub: hubClient(), store: plain, defaults: testDefaults())
+        _ = try await loader2.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+        let w2 = try #require(plain.savedObjects.compactMap { $0 as? HKWorkout }.first)
+        #expect(w2.metadata?[HKMetadataKeySyncVersion] as? Int == 3)
+    }
+
+    // MARK: - v4: one-time upgrade pass (audit D1, D3, D7)
+
+    /// Seeds the three kinds of junk writer v3 left in Health: 96-per-day zero step buckets for a
+    /// day the hub no longer serves buckets for, negative respiratory-rate sentinels, and Garmin
+    /// RMSSD readings filed under the SDNN type.
+    private func seedV3Junk(_ store: FakeHealthStore) {
+        let t = day(2026, 6, 1).addingTimeInterval(3600)
+        store.preexisting = [
+            HKQuantitySample(type: HKQuantityType(.stepCount), quantity: HKQuantity(unit: .count(), doubleValue: 0),
+                             start: t, end: t.addingTimeInterval(900),
+                             metadata: [HKMetadataKeySyncIdentifier: "steps:2026-06-01:0100", HKMetadataKeySyncVersion: 2]),
+            HKQuantitySample(type: HKQuantityType(.respiratoryRate), quantity: HKQuantity(unit: HKUnit(from: "count/min"), doubleValue: -2),
+                             start: t, end: t, metadata: [HKMetadataKeySyncIdentifier: "resp:2026-06-01T01:00:00+02:00", HKMetadataKeySyncVersion: 2]),
+            HKQuantitySample(type: HKQuantityType(.respiratoryRate), quantity: HKQuantity(unit: HKUnit(from: "count/min"), doubleValue: 14),
+                             start: t, end: t, metadata: [HKMetadataKeySyncIdentifier: "resp:2026-06-01T01:05:00+02:00", HKMetadataKeySyncVersion: 2]),
+            HKQuantitySample(type: HKQuantityType(.heartRateVariabilitySDNN), quantity: HKQuantity(unit: .secondUnit(with: .milli), doubleValue: 40),
+                             start: t, end: t, metadata: [HKMetadataKeySyncIdentifier: "hrv:2026-06-01", HKMetadataKeySyncVersion: 2]),
+        ]
+    }
+
+    @Test func upgradingFromWriterV3DeletesZeroBucketsNegativeRespAndSDNNSamples() async throws {
+        let store = FakeHealthStore()
+        seedV3Junk(store)
+        let defaults = testDefaults()
+        defaults.set(3, forKey: "hk.backload.writerVersion")
+        // No `step_buckets` for 2026-06-01 -> the hub says that day has none, so the v3
+        // `steps:<date>:HHMM` buckets must go and the daily `steps:<date>` sample stands.
+        DynamicStubURLProtocol.customResponseJSON = stepsJSON(version: 1_789_729_180)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
+        _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(store.deletedSyncIds[HKQuantityType(.stepCount).identifier]?.contains("steps:2026-06-01:0100") == true)
+        #expect(store.deletedSyncIds[HKQuantityType(.respiratoryRate).identifier] == ["resp:2026-06-01T01:00:00+02:00"])
+        #expect(store.deletedSyncIds[HKQuantityType(.heartRateVariabilitySDNN).identifier] == ["hrv:2026-06-01"])
+        // the daily steps sample is re-saved, not deleted
+        let savedIds = store.savedObjects.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
+        #expect(savedIds.contains("steps:2026-06-01"))
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 4)
+    }
+
+    @Test func theUpgradePassNeverRunsAgainOnceTheStoredWriterVersionIsFour() async throws {
+        let store = FakeHealthStore()
+        seedV3Junk(store)
+        let defaults = testDefaults()
+        defaults.set(HealthKitBackloader.writerVersion, forKey: "hk.backload.writerVersion")
+        DynamicStubURLProtocol.customResponseJSON = stepsJSON(version: 1_789_729_180)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
+        _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        #expect(store.whereDeleteCalls == 0)
+        #expect(store.deletedSyncIds.isEmpty)
+    }
+
+    @Test func daysThatStillHaveBucketsKeepTheirBucketSamples() async throws {
+        let store = FakeHealthStore()
+        seedV3Junk(store)
+        let defaults = testDefaults()
+        defaults.set(3, forKey: "hk.backload.writerVersion")
+        DynamicStubURLProtocol.customResponseJSON = stepBucketJSON
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: defaults)
+        _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
+
+        // 2026-06-01 has buckets in this chunk's dense response, so its `steps:<date>:HHMM`
+        // samples are left alone (only the legacy daily `steps:<date>` is deleted, as in v2/v3).
+        #expect(store.deletedSyncIds[HKQuantityType(.stepCount).identifier]?.contains("steps:2026-06-01:0100") != true)
     }
 
     /// Regression for the W2i fixer finding: `run()` used to call `hub.fetch(from:to:)` with no
@@ -254,7 +394,7 @@ import JIHub
         #expect(attached.contains { $0.sampleType == HKQuantityType(.activeEnergyBurned) })
         #expect(attached.contains { $0.sampleType == HKQuantityType(.distanceWalkingRunning) })
         #expect(summary.written == 3 && summary.failed.isEmpty)
-        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 3)
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 4)
         // second run: workouts are force-overwritten (deleted + re-saved), still exactly 2 attached
         store.existing[HKWorkoutType.workoutType().identifier] = ["workout:1"]
         let again = try await loader.run(range) { _ in }

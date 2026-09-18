@@ -18,11 +18,6 @@ public struct HealthBackloadSection: View {
                 .foregroundStyle(JIColor.muted)
             LabeledContent("Last synced day", value: model.lastSyncedDay ?? "never")
                 .font(.footnote)
-            Toggle(
-                "Write HRV as SDNN (Garmin RMSSD — not comparable to Apple Watch)",
-                isOn: Binding(get: { model.writeHRV }, set: { model.setWriteHRV($0) })
-            )
-            .font(.footnote)
             statusRow
             Button("Backload to Apple Health") { Task { await model.start() } }
                 .disabled(model.isRunning)

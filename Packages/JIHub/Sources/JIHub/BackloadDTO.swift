@@ -31,15 +31,19 @@ public struct BackloadSleepEntryDTO: Codable, Sendable, Equatable {
     public var awakeSec: Double
     /// v2: fine-grained stage intervals (empty when Garmin has none — pre-≈2026-04-15 days).
     public var stages: [BackloadSleepStageDTO]
-    public init(syncId: String, start: String, end: String, asleepSec: Double, deepSec: Double, lightSec: Double, remSec: Double, awakeSec: Double, stages: [BackloadSleepStageDTO] = []) {
+    /// v4 (B-30): the hub row's `updated_at` as epoch seconds, written as `HKMetadataKeySyncVersion`
+    /// so a corrected hub value replaces the sample already in Health. Absent on the wire = nil.
+    public var version: Int?
+    public init(syncId: String, start: String, end: String, asleepSec: Double, deepSec: Double, lightSec: Double, remSec: Double, awakeSec: Double, stages: [BackloadSleepStageDTO] = [], version: Int? = nil) {
         self.syncId = syncId; self.start = start; self.end = end
         self.asleepSec = asleepSec; self.deepSec = deepSec; self.lightSec = lightSec; self.remSec = remSec; self.awakeSec = awakeSec
         self.stages = stages
+        self.version = version
     }
 
     // Custom decode: `stages` defaults to `[]` when the key is absent, so a pre-v2 fixture (or a
     // hub response for a day outside the dense-series window) still decodes cleanly.
-    enum CodingKeys: String, CodingKey { case syncId, start, end, asleepSec, deepSec, lightSec, remSec, awakeSec, stages }
+    enum CodingKeys: String, CodingKey { case syncId, start, end, asleepSec, deepSec, lightSec, remSec, awakeSec, stages, version }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         syncId = try c.decode(String.self, forKey: .syncId)
@@ -51,6 +55,7 @@ public struct BackloadSleepEntryDTO: Codable, Sendable, Equatable {
         remSec = try c.decode(Double.self, forKey: .remSec)
         awakeSec = try c.decode(Double.self, forKey: .awakeSec)
         stages = try c.decodeIfPresent([BackloadSleepStageDTO].self, forKey: .stages) ?? []
+        version = try c.decodeIfPresent(Int.self, forKey: .version)
     }
 }
 
@@ -58,14 +63,16 @@ public struct BackloadRHREntryDTO: Codable, Sendable, Equatable {
     public var syncId: String
     public var date: String
     public var bpm: Double
-    public init(syncId: String, date: String, bpm: Double) { self.syncId = syncId; self.date = date; self.bpm = bpm }
+    public var version: Int?
+    public init(syncId: String, date: String, bpm: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.bpm = bpm; self.version = version }
 }
 
 public struct BackloadStepsEntryDTO: Codable, Sendable, Equatable {
     public var syncId: String
     public var date: String
     public var count: Double
-    public init(syncId: String, date: String, count: Double) { self.syncId = syncId; self.date = date; self.count = count }
+    public var version: Int?
+    public init(syncId: String, date: String, count: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.count = count; self.version = version }
 }
 
 public struct BackloadEnergyEntryDTO: Codable, Sendable, Equatable {
@@ -73,8 +80,9 @@ public struct BackloadEnergyEntryDTO: Codable, Sendable, Equatable {
     public var date: String
     public var activeKcal: Double
     public var basalKcal: Double
-    public init(syncId: String, date: String, activeKcal: Double, basalKcal: Double) {
-        self.syncId = syncId; self.date = date; self.activeKcal = activeKcal; self.basalKcal = basalKcal
+    public var version: Int?
+    public init(syncId: String, date: String, activeKcal: Double, basalKcal: Double, version: Int? = nil) {
+        self.syncId = syncId; self.date = date; self.activeKcal = activeKcal; self.basalKcal = basalKcal; self.version = version
     }
 }
 
@@ -82,7 +90,8 @@ public struct BackloadVo2MaxEntryDTO: Codable, Sendable, Equatable {
     public var syncId: String
     public var date: String
     public var value: Double
-    public init(syncId: String, date: String, value: Double) { self.syncId = syncId; self.date = date; self.value = value }
+    public var version: Int?
+    public init(syncId: String, date: String, value: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.value = value; self.version = version }
 }
 
 public enum BackloadWorkoutKindDTO: String, Codable, Sendable, Equatable {
@@ -101,9 +110,11 @@ public struct BackloadWorkoutEntryDTO: Codable, Sendable, Equatable {
     /// v2: true when `start` is the 12:00 fallback (no `start_time_utc` from Garmin), false/absent
     /// when it's the real local activity start.
     public var startEstimated: Bool?
-    public init(syncId: String, start: String, end: String, kind: BackloadWorkoutKindDTO, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool? = nil) {
+    public var version: Int?
+    public init(syncId: String, start: String, end: String, kind: BackloadWorkoutKindDTO, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool? = nil, version: Int? = nil) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
         self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
+        self.version = version
     }
 }
 
@@ -158,8 +169,9 @@ public struct BackloadDailyRespEntryDTO: Codable, Sendable, Equatable {
     public var date: String
     public var wakingAvg: Double?
     public var sleepAvg: Double?
-    public init(syncId: String, date: String, wakingAvg: Double?, sleepAvg: Double?) {
-        self.syncId = syncId; self.date = date; self.wakingAvg = wakingAvg; self.sleepAvg = sleepAvg
+    public var version: Int?
+    public init(syncId: String, date: String, wakingAvg: Double?, sleepAvg: Double?, version: Int? = nil) {
+        self.syncId = syncId; self.date = date; self.wakingAvg = wakingAvg; self.sleepAvg = sleepAvg; self.version = version
     }
 }
 
@@ -167,8 +179,9 @@ public struct BackloadDailySpo2EntryDTO: Codable, Sendable, Equatable {
     public var syncId: String
     public var date: String
     public var sleepAvg: Double?
-    public init(syncId: String, date: String, sleepAvg: Double?) {
-        self.syncId = syncId; self.date = date; self.sleepAvg = sleepAvg
+    public var version: Int?
+    public init(syncId: String, date: String, sleepAvg: Double?, version: Int? = nil) {
+        self.syncId = syncId; self.date = date; self.sleepAvg = sleepAvg; self.version = version
     }
 }
 

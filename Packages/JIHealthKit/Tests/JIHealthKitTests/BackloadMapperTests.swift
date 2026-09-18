@@ -166,7 +166,7 @@ import JIHub
         #expect(specs.count == 2)
         for spec in specs {
             guard case .quantity(let q) = spec else { Issue.record("expected .quantity"); continue }
-            #expect(q.kind == .hrvSDNN)
+            #expect(q.kind == .hrvRMSSD)
         }
         #expect(specs.map(\.syncId) == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00", "hrv:2026-06-01:2026-06-01T23:05:00+02:00"])
     }
@@ -176,7 +176,7 @@ import JIHub
         let specs = BackloadMapper.mapHrv(entry)
         #expect(specs.count == 1)
         guard case .quantity(let q) = specs[0] else { Issue.record("expected .quantity"); return }
-        #expect(q.kind == .hrvSDNN)
+        #expect(q.kind == .hrvRMSSD)
         #expect(q.syncId == "hrv:2026-06-01")
         #expect(q.value == 42.0)
     }
@@ -264,5 +264,42 @@ import JIHub
         #expect(syncIds.contains("spo2:2026-06-01T22:31:00+02:00"))
         #expect(syncIds.contains("hrv:2026-06-01:2026-06-01T23:00:00+02:00"))
         #expect(syncIds.contains("steps:2026-06-01:0000"))
+    }
+
+    // MARK: - B-30 writer v4: per-item version
+
+    @Test func dailyKindsCarryTheHubVersionIntoTheirSpecs() {
+        let v = 1789729180
+        let dto = BackloadResponseDTO(
+            from: "2026-06-01", to: "2026-06-01", source: "garmin_api",
+            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 5000, lightSec: 15000, remSec: 4000, awakeSec: 800, version: v)],
+            rhr: [.init(syncId: "rhr:2026-06-01", date: "2026-06-01", bpm: 58, version: v)],
+            steps: [.init(syncId: "steps:2026-06-01", date: "2026-06-01", count: 9000, version: v)],
+            energy: [.init(syncId: "energy:2026-06-01", date: "2026-06-01", activeKcal: 500, basalKcal: 1700, version: v)],
+            vo2max: [.init(syncId: "vo2max:2026-06-01", date: "2026-06-01", value: 48.5, version: v)],
+            workouts: [.init(syncId: "workout:1", start: "2026-06-01T07:00:00+02:00", end: "2026-06-01T07:30:00+02:00", kind: .running, name: "Base", kcal: 300, distanceM: 5000, avgHr: 150, version: v)])
+        let specs = BackloadMapper.map(dto)
+        var seen: [String: Int?] = [:]
+        for spec in specs {
+            switch spec {
+            case .quantity(let q): seen[q.syncId] = q.version
+            case .sleep(let s): seen[s.syncId] = s.version
+            case .workout(let w): seen[w.syncId] = w.version
+            default: break
+            }
+        }
+        for id in ["sleep:2026-06-01", "rhr:2026-06-01", "steps:2026-06-01", "energy:2026-06-01:active", "energy:2026-06-01:basal", "vo2max:2026-06-01", "workout:1"] {
+            #expect(seen[id] == v, "\(id)")
+        }
+    }
+
+    @Test func denseSamplesAndStagedSleepCarryTheVersionOrNil() {
+        let v = 1789729180
+        let sleep = BackloadSleepEntryDTO(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 5000, lightSec: 15000, remSec: 4000, awakeSec: 800,
+                                          stages: [.init(stage: .light, start: "2026-06-01T22:00:00+02:00", end: "2026-06-01T23:00:00+02:00")], version: v)
+        guard case .sleepStaged(let staged)? = BackloadMapper.mapSleep(sleep).last else { Issue.record("expected staged"); return }
+        #expect(staged.version == v)
+        guard case .quantity(let hr)? = BackloadMapper.mapHeartRate(.init(ts: "2026-06-01T22:31:00+02:00", bpm: 58)) else { Issue.record("expected hr"); return }
+        #expect(hr.version == nil)
     }
 }

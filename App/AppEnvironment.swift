@@ -35,10 +35,11 @@ final class AppEnvironment {
     private let snapshotStore: SnapshotStore
     private let now: () -> Date
 
-    /// W2i (B-11): App-Group `UserDefaults` handed to `HealthBackloadViewModel` for the
-    /// `hk.backload.writeHRV` toggle — same suite `SnapshotStore` uses, so JIHealthKit (L3) reads
-    /// the same key this writes. Exposed (not just a VM-internal default) so `RootTabView` wires
-    /// it explicitly and tests can substitute a scratch suite via `init(hrvPrefs:)`.
+    /// App-Group `UserDefaults` handed to `HealthBackloadViewModel` — the same suite
+    /// `SnapshotStore` uses, so the VM reads the backload cursor `HealthKitBackloader` (L3)
+    /// writes. Exposed (not just a VM-internal default) so `RootTabView` wires it explicitly and
+    /// tests can substitute a scratch suite via `init(hrvPrefs:)`. (Named for the HRV toggle it
+    /// originally carried; that toggle went away with writer v4 — B-30.)
     let hrvPrefs: UserDefaults?
 
     /// W2h (B-9): the HealthKit backload runner, injected here so JIFeatures (which builds the
