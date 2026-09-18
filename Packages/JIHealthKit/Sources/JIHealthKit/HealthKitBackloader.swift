@@ -7,8 +7,10 @@ import JIHub
 /// `BackloadRunning` (JICore, frozen) implementation: fetches month chunks from the hub via
 /// `BackloadClient`, maps them through `BackloadMapper`, and writes new samples through a
 /// `HealthStoreWriting` (real `HKHealthStore` in the app, a fake in tests). Idempotent — every
-/// write carries `HKMetadataKeySyncIdentifier`, and each month's existing ids are queried before
-/// saving so a re-run writes 0 new samples. Cursor (last fully-written day) persists in the
+/// write carries `HKMetadataKeySyncIdentifier` + `HKMetadataKeySyncVersion` (v4: the hub row's
+/// `updated_at`), and each month's existing ids AND their versions are queried before saving, so
+/// a re-run of unchanged data writes 0 new samples while a corrected hub row replaces the sample
+/// already in Health. Cursor (last fully-written day) persists in the
 /// App-Group `UserDefaults` suite (`group.toby913.JournalInsight`, same suite as `SnapshotStore`)
 /// under key `hk.backload.cursor`, so a killed/resumed run picks up where it left off.
 public final class HealthKitBackloader: BackloadRunning, Sendable {
@@ -18,10 +20,6 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     // this SDK — same reasoning as `JISnapshot.SnapshotStore`.
     private nonisolated(unsafe) let cursorDefaults: UserDefaults?
     private static let cursorKey = "hk.backload.cursor"
-    /// App-Group pref (written by JIFeatures' Settings toggle, L4): write Garmin RMSSD readings
-    /// under Apple's `heartRateVariabilitySDNN` type. Default OFF — Garmin RMSSD and Apple SDNN
-    /// are different metrics, per the v2 contract note.
-    static let writeHRVKey = "hk.backload.writeHRV"
     public static let appGroupSuite = "group.toby913.JournalInsight"
 
     public init(hub: BackloadClient, store: any HealthStoreWriting = RealHealthStore(), appGroupSuite: String = HealthKitBackloader.appGroupSuite) {
@@ -50,9 +48,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
 
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
         // One-time upgrade: an older writer version walks the whole range again and rewrites
-        // the kinds that changed shape (v3: workouts). Everything else is skipped by sync id.
+        // the kinds that changed shape (v3: workouts; v4: everything the hub re-versioned) and,
+        // per chunk, deletes what writer v3 mis-wrote (see `runV4Upgrade`).
         let storedVersion = cursorDefaults?.integer(forKey: Self.writerVersionKey) ?? 0
-        if storedVersion < Self.writerVersion { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
+        let needsV4Upgrade = storedVersion < Self.writerVersion
+        if needsV4Upgrade { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
         let chunks = BackloadMonthChunker.chunks(for: range, resumeFrom: readCursor())
         var written = 0, skipped = 0
         var failed: [String] = []
@@ -72,18 +72,17 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             }
 
             let allSpecs = BackloadMapper.map(dto)
-            let writeHRV = cursorDefaults?.bool(forKey: Self.writeHRVKey) ?? false
+            let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
+            if needsV4Upgrade { await runV4Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
 
             // Deletions (v1 markers superseded by v2 writes) happen before the save pass so a
-            // fresh `existingSyncIds` read (below) never sees the object it's about to replace.
+            // fresh `existingSyncVersions` read (below) never sees the object it's about to replace.
             var deletionsByKind: [BackloadDeleteKind: Set<String>] = [:]
             var writableSpecs: [BackloadWriteSpec] = []
             for spec in allSpecs {
                 switch spec {
                 case .delete(let kind, let syncId):
                     deletionsByKind[kind, default: []].insert(syncId)
-                case .quantity(let q) where q.kind == .hrvRMSSD && !writeHRV:
-                    continue // HRV gated by the App-Group pref; drop silently, no delete either
                 default:
                     writableSpecs.append(spec)
                 }
@@ -94,11 +93,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
 
             let entries = writableSpecs.flatMap(Self.objectEntries(for:))
             let byType = Dictionary(grouping: entries, by: { ObjectIdentifier($0.type) })
-            var existingByType: [ObjectIdentifier: Set<String>] = [:]
-            let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
+            var existingByType: [ObjectIdentifier: [String: Int]] = [:]
             for (key, group) in byType {
                 guard let sampleType = group.first?.type else { continue }
-                existingByType[key] = (try? await store.existingSyncIds(sampleType: sampleType, start: chunk.from, end: chunkEnd)) ?? []
+                existingByType[key] = (try? await store.existingSyncVersions(sampleType: sampleType, start: chunk.from, end: chunkEnd)) ?? [:]
             }
 
             var toSave: [HKObject] = []
@@ -116,7 +114,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                     }
                     toSave.append(workout)
                     if !entry.associated.isEmpty { toAssociate.append((workout, entry.associated)) }
-                } else if existingByType[ObjectIdentifier(entry.type)]?.contains(entry.syncId) == true {
+                } else if let stored = existingByType[ObjectIdentifier(entry.type)]?[entry.syncId], stored >= entry.version {
+                    // Only an object that is already at least as new as the hub's row is left
+                    // alone; anything older is re-saved, and HealthKit replaces a same-sync-id
+                    // object whose stored `HKMetadataKeySyncVersion` is lower (audit D4).
                     skipped += 1
                 } else {
                     toSave.append(entry.object)
@@ -150,6 +151,43 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         if let done = cursorDefaults?.string(forKey: Self.cursorKey) { cursorDefaults?.set(done, forKey: Self.lastCompletedKey) }
         cursorDefaults?.removeObject(forKey: Self.cursorKey)
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
+    }
+
+    // MARK: - v4 upgrade pass
+
+    /// One-time cleanup of what writer v3 left in Health, run per chunk while the stored writer
+    /// version is below `writerVersion` (audit 2026-09-18, D1/D3/D7):
+    /// a) `steps:<date>:HHMM` buckets for days this chunk's dense response has NO buckets for —
+    ///    Garmin returned all-zero buckets back to 2025-05-27 and the hub now drops those days,
+    ///    so the daily `steps:<date>` sample (re-saved in the same run) stands for them again;
+    /// b) `resp:*` samples at or below 0 breaths/min — Garmin's "no reading" sentinels (−1/−2);
+    /// c) every `hrv:*` sample under the SDNN type — Garmin RMSSD, re-written under the native
+    ///    RMSSD type by this same run.
+    /// Failures are swallowed: a cleanup that can't run must never sink the chunk's writes.
+    private func runV4Upgrade(dto: BackloadResponseDTO, start: Date, end: Date) async {
+        let bucketDates = Set(dto.stepBuckets.compactMap { BackloadMapper.dateOnly($0.start) })
+        _ = try? await store.deleteObjects(sampleType: HKQuantityType(.stepCount), start: start, end: end) { sample in
+            guard let id = sample.metadata?[HKMetadataKeySyncIdentifier] as? String,
+                  let date = Self.stepBucketSyncIdDate(id) else { return false }
+            return !bucketDates.contains(date)
+        }
+        _ = try? await store.deleteObjects(sampleType: HKQuantityType(.respiratoryRate), start: start, end: end) { sample in
+            guard let id = sample.metadata?[HKMetadataKeySyncIdentifier] as? String, id.hasPrefix("resp:"),
+                  let q = sample as? HKQuantitySample else { return false }
+            return q.quantity.doubleValue(for: HKUnit(from: "count/min")) <= 0
+        }
+        _ = try? await store.deleteObjects(sampleType: HKQuantityType(.heartRateVariabilitySDNN), start: start, end: end) { sample in
+            (sample.metadata?[HKMetadataKeySyncIdentifier] as? String)?.hasPrefix("hrv:") == true
+        }
+    }
+
+    /// `"steps:2026-06-01:0100"` -> `"2026-06-01"`; `nil` for anything that isn't a 15-min step
+    /// bucket id (notably the daily `"steps:2026-06-01"`, which must survive the pass).
+    static func stepBucketSyncIdDate(_ syncId: String) -> String? {
+        let parts = syncId.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0] == "steps", parts[1].count == 10,
+              parts[2].count == 4, parts[2].allSatisfy(\.isNumber) else { return nil }
+        return String(parts[1])
     }
 
     // MARK: - Response merge
@@ -195,6 +233,9 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         let object: HKObject
         let type: HKSampleType
         let syncId: String
+        /// The `HKMetadataKeySyncVersion` written on `object` — compared against the version
+        /// already in Health to decide save vs skip.
+        let version: Int
         /// Samples to attach to `object` (an `HKWorkout`) after it is saved — see `HealthStoreWriting.add`.
         var associated: [HKSample] = []
     }
@@ -202,7 +243,9 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// Bumped when an already-written kind must be rewritten (HealthKit replaces objects whose
     /// `HKMetadataKeySyncIdentifier` matches and whose `HKMetadataKeySyncVersion` is higher).
     /// v3: workouts gain associated energy/distance samples so Fitness credits the rings.
-    static let writerVersion = 3
+    /// v4 (B-30): per-item hub versions, HRV under the native RMSSD type, and the one-time
+    /// cleanup pass in `runV4Upgrade`.
+    static let writerVersion = 4
     static let writerVersionKey = "hk.backload.writerVersion"
     static let workoutSyncVersion = 3
     static let lastCompletedKey = "hk.backload.lastCompletedDay"
@@ -214,57 +257,60 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// `HealthStoreWriting`.
     static let averageHeartRateMetadataKey = "HTAverageHeartRateBPM"
 
-    /// v2: every write — new kinds and the v1 ones alike — carries `HKMetadataKeySyncVersion = 2`
-    /// per the frozen contract note ("everything keeps ... SyncVersion = 2"). Idempotency itself
-    /// only keys off the sync identifier, so this bump doesn't disturb existing v1 objects still
-    /// on a device that hasn't re-run since.
+    /// Fallback `HKMetadataKeySyncVersion` for an item the hub sent no `version` for (dense
+    /// series, and any hub older than B-30): 2 for samples, 3 for workouts — exactly what writer
+    /// v2/v3 wrote, so a re-run of unchanged data still skips instead of churning.
     static let syncVersion = 2
 
     static func objectEntries(for spec: BackloadWriteSpec) -> [ObjectEntry] {
         switch spec {
         case .quantity(let q):
             guard let type = quantityType(q.kind) else { return [] }
-            let metadata: [String: Any] = [HKMetadataKeySyncIdentifier: q.syncId, HKMetadataKeySyncVersion: syncVersion]
+            let version = q.version ?? syncVersion
+            let metadata: [String: Any] = [HKMetadataKeySyncIdentifier: q.syncId, HKMetadataKeySyncVersion: version]
             let sample = HKQuantitySample(type: type, quantity: HKQuantity(unit: quantityUnit(q.kind), doubleValue: q.value), start: q.start, end: q.end, metadata: metadata)
-            return [ObjectEntry(object: sample, type: type, syncId: q.syncId)]
+            return [ObjectEntry(object: sample, type: type, syncId: q.syncId, version: version)]
 
         case .sleep(let s):
             let sleepType = HKCategoryType(.sleepAnalysis)
             let inBedId = "\(s.syncId):inbed"
             let asleepId = "\(s.syncId):asleep"
+            let version = s.version ?? syncVersion
             let inBed = HKCategorySample(
                 type: sleepType, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
                 start: s.inBedStart, end: s.inBedEnd,
-                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: syncVersion])
+                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: version])
             let asleep = HKCategorySample(
                 type: sleepType, value: HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
                 start: s.asleepStart, end: s.asleepEnd,
-                metadata: [HKMetadataKeySyncIdentifier: asleepId, HKMetadataKeySyncVersion: syncVersion])
+                metadata: [HKMetadataKeySyncIdentifier: asleepId, HKMetadataKeySyncVersion: version])
             return [
-                ObjectEntry(object: inBed, type: sleepType, syncId: inBedId),
-                ObjectEntry(object: asleep, type: sleepType, syncId: asleepId),
+                ObjectEntry(object: inBed, type: sleepType, syncId: inBedId, version: version),
+                ObjectEntry(object: asleep, type: sleepType, syncId: asleepId, version: version),
             ]
 
         case .sleepStaged(let s):
             let sleepType = HKCategoryType(.sleepAnalysis)
             let inBedId = "\(s.baseSyncId):inbed"
+            let version = s.version ?? syncVersion
             let inBed = HKCategorySample(
                 type: sleepType, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
                 start: s.inBedStart, end: s.inBedEnd,
-                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: syncVersion])
-            var out = [ObjectEntry(object: inBed, type: sleepType, syncId: inBedId)]
+                metadata: [HKMetadataKeySyncIdentifier: inBedId, HKMetadataKeySyncVersion: version])
+            var out = [ObjectEntry(object: inBed, type: sleepType, syncId: inBedId, version: version)]
             for stage in s.stages {
                 let sample = HKCategorySample(
                     type: sleepType, value: stageCategoryValue(stage.stage),
                     start: stage.start, end: stage.end,
-                    metadata: [HKMetadataKeySyncIdentifier: stage.syncId, HKMetadataKeySyncVersion: syncVersion])
-                out.append(ObjectEntry(object: sample, type: sleepType, syncId: stage.syncId))
+                    metadata: [HKMetadataKeySyncIdentifier: stage.syncId, HKMetadataKeySyncVersion: version])
+                out.append(ObjectEntry(object: sample, type: sleepType, syncId: stage.syncId, version: version))
             }
             return out
 
         case .workout(let w):
             let type = HKWorkoutType.workoutType()
-            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: workoutSyncVersion, HKMetadataKeyWorkoutBrandName: w.name]
+            let version = w.version ?? workoutSyncVersion
+            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: version, HKMetadataKeyWorkoutBrandName: w.name]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
             if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
@@ -278,14 +324,14 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             if let energy {
                 associated.append(HKQuantitySample(
                     type: HKQuantityType(.activeEnergyBurned), quantity: energy, start: w.start, end: w.end,
-                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):energy", HKMetadataKeySyncVersion: workoutSyncVersion]))
+                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):energy", HKMetadataKeySyncVersion: version]))
             }
             if let distance, let distanceType = distanceType(w.kind) {
                 associated.append(HKQuantitySample(
                     type: distanceType, quantity: distance, start: w.start, end: w.end,
-                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: workoutSyncVersion]))
+                    metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: version]))
             }
-            return [ObjectEntry(object: workout, type: type, syncId: w.syncId, associated: associated)]
+            return [ObjectEntry(object: workout, type: type, syncId: w.syncId, version: version, associated: associated)]
 
         case .delete:
             return [] // handled in `run` before mapping to objects, never saved
@@ -306,7 +352,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .heartRate: return HKQuantityType(.heartRate)
         case .respiratoryRate: return HKQuantityType(.respiratoryRate)
         case .oxygenSaturation: return HKQuantityType(.oxygenSaturation)
-        case .hrvRMSSD: return HKQuantityType(.heartRateVariabilitySDNN)
+        // Resolved only through `HKReadKind` (HKTypes.swift owns the identifier string, and
+        // `HKTypesTests.identifierIsolationSourceGrep` keeps it there); `nil` on a runtime
+        // without the iOS-27 native type, which drops the HRV specs rather than mis-filing them.
+        case .hrvRMSSD: return HKReadKind.hrvRMSSDQuantityType
         }
     }
 
@@ -359,8 +408,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         }
     }
 
+    /// Authorization set. The SDNN type stays in it after v4 — not to write under any more, but
+    /// because `runV4Upgrade` has to be allowed to delete the `hrv:*` samples v3 put there.
     static var allSampleTypes: Set<HKSampleType> {
-        [
+        var types: Set<HKSampleType> = [
             HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling), HKQuantityType(.distanceSwimming),
             HKQuantityType(.restingHeartRate), HKQuantityType(.stepCount),
             HKQuantityType(.activeEnergyBurned), HKQuantityType(.basalEnergyBurned),
@@ -368,6 +419,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             HKQuantityType(.heartRate), HKQuantityType(.respiratoryRate), HKQuantityType(.oxygenSaturation),
             HKQuantityType(.heartRateVariabilitySDNN),
         ]
+        if let rmssd = HKReadKind.hrvRMSSDQuantityType { types.insert(rmssd) }
+        return types
     }
 }
 #endif
