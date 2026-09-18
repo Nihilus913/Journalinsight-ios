@@ -546,10 +546,10 @@
 			projectRoot = "";
 			targets = (
 				BC6F7ABA57B0B1A90E8A2220 /* JournalInsight */,
-				D9A92894867253C7C97099F5 /* JournalInsightTests */,
 				31A8FEE0BE14DE32BED01344 /* WatchApp */,
-				05611A4B9E865480DD2CEC98 /* WatchAppTests */,
 				2386FC5B4492C9D335F7EB74 /* Widgets */,
+				D9A92894867253C7C97099F5 /* JournalInsightTests */,
+				05611A4B9E865480DD2CEC98 /* WatchAppTests */,
 			);
 		};
 /* End PBXProject section */
