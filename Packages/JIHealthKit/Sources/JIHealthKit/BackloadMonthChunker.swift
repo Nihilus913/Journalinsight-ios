@@ -21,6 +21,7 @@ enum BackloadMonthChunker {
     /// (moved to `densePassKinds`, see its doc comment) and every genuinely-dense series.
     static let dailyPassKinds: Set<String> = [
         "rhr", "steps", "energy", "vo2max", "workouts", "daily_resp", "daily_spo2",
+        "floors", "distance", // W9 (B-30 P5), hub contract v3 (HT e7720ff)
     ]
 
     /// Kinds requested in the dense pass. `sleep` rides along with `stages` — the hub only nests

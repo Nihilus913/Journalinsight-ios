@@ -18,6 +18,10 @@ final class FakeHealthStoreReader: HealthStoreReading, @unchecked Sendable {
     /// Captured observer handlers, keyed by sample-type identifier, so a test can simulate an
     /// HK-delivered update by invoking it directly instead of waiting on a real background push.
     private(set) var observerHandlers: [String: (@Sendable (@escaping @Sendable () -> Void) -> Void)] = [:]
+    /// W9 L2: workouts "from other sources" that `workouts(start:end:)` serves (those intersecting
+    /// the queried window), and every window it was asked for.
+    var foreignWorkouts: [HKWorkout] = []
+    private(set) var workoutQueries: [DateInterval] = []
 
     func enqueue(_ page: HKAnchoredPage, for type: HKSampleType) {
         pages[type.identifier, default: []].append(page)
@@ -52,5 +56,10 @@ final class FakeHealthStoreReader: HealthStoreReading, @unchecked Sendable {
     }
 
     func stopObserving(_ query: HKObserverQuery) {}
+
+    func workouts(start: Date, end: Date) async throws -> [HKWorkout] {
+        workoutQueries.append(DateInterval(start: start, end: end))
+        return foreignWorkouts.filter { $0.endDate > start && $0.startDate < end }
+    }
 }
 #endif

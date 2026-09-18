@@ -192,6 +192,26 @@ public struct BackloadDailySpo2EntryDTO: Codable, Sendable, Equatable {
     }
 }
 
+/// W9 (B-30 P5, contract v3 additive — HT e7720ff): daily floors climbed (`floors_ascended`).
+public struct BackloadFloorsEntryDTO: Codable, Sendable, Equatable {
+    public var syncId: String
+    public var date: String
+    public var count: Double
+    public var version: Int?
+    public init(syncId: String, date: String, count: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.count = count; self.version = version }
+}
+
+/// W9 (B-30 P5): daily walking+running distance in metres, already NET of that day's workout
+/// distance on the hub side (same double-count rule as `energy.active_kcal`) — the writer must
+/// never re-subtract.
+public struct BackloadDistanceEntryDTO: Codable, Sendable, Equatable {
+    public var syncId: String
+    public var date: String
+    public var meters: Double
+    public var version: Int?
+    public init(syncId: String, date: String, meters: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.meters = meters; self.version = version }
+}
+
 public struct BackloadResponseDTO: Codable, Sendable, Equatable {
     public var from: String
     public var to: String
@@ -209,6 +229,9 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
     public var stepBuckets: [BackloadStepBucketEntryDTO]
     public var dailyResp: [BackloadDailyRespEntryDTO]
     public var dailySpo2: [BackloadDailySpo2EntryDTO]
+    /// W9 (B-30 P5) daily kinds — `[]` when a pre-W9 hub omits them.
+    public var distance: [BackloadDistanceEntryDTO]
+    public var floors: [BackloadFloorsEntryDTO]
     public init(
         from: String, to: String, source: String,
         sleep: [BackloadSleepEntryDTO], rhr: [BackloadRHREntryDTO], steps: [BackloadStepsEntryDTO],
@@ -216,12 +239,14 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
         heartRate: [BackloadHeartRateEntryDTO] = [], respiration: [BackloadRespirationEntryDTO] = [],
         spo2: [BackloadSpo2EntryDTO] = [], hrv: [BackloadHrvEntryDTO] = [],
         stepBuckets: [BackloadStepBucketEntryDTO] = [], dailyResp: [BackloadDailyRespEntryDTO] = [],
-        dailySpo2: [BackloadDailySpo2EntryDTO] = []
+        dailySpo2: [BackloadDailySpo2EntryDTO] = [],
+        distance: [BackloadDistanceEntryDTO] = [], floors: [BackloadFloorsEntryDTO] = []
     ) {
         self.from = from; self.to = to; self.source = source
         self.sleep = sleep; self.rhr = rhr; self.steps = steps; self.energy = energy; self.vo2max = vo2max; self.workouts = workouts
         self.heartRate = heartRate; self.respiration = respiration; self.spo2 = spo2; self.hrv = hrv
         self.stepBuckets = stepBuckets; self.dailyResp = dailyResp; self.dailySpo2 = dailySpo2
+        self.distance = distance; self.floors = floors
     }
 
     // Custom decode: the v2 dense/daily-fallback arrays default to `[]` when the hub omits them
@@ -229,6 +254,7 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case from, to, source, sleep, rhr, steps, energy, vo2max, workouts
         case heartRate, respiration, spo2, hrv, stepBuckets, dailyResp, dailySpo2
+        case distance, floors
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -248,5 +274,7 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
         stepBuckets = try c.decodeIfPresent([BackloadStepBucketEntryDTO].self, forKey: .stepBuckets) ?? []
         dailyResp = try c.decodeIfPresent([BackloadDailyRespEntryDTO].self, forKey: .dailyResp) ?? []
         dailySpo2 = try c.decodeIfPresent([BackloadDailySpo2EntryDTO].self, forKey: .dailySpo2) ?? []
+        distance = try c.decodeIfPresent([BackloadDistanceEntryDTO].self, forKey: .distance) ?? []
+        floors = try c.decodeIfPresent([BackloadFloorsEntryDTO].self, forKey: .floors) ?? []
     }
 }
