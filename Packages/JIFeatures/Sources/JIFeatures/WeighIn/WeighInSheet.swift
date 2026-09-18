@@ -28,8 +28,10 @@ public struct WeighInSheet: View {
                 switch model.state {
                 case .failure(let message):
                     Surface { Text(message).font(.footnote).foregroundStyle(JIColor.danger) }
+                        .accessibilityIdentifier("weighin-error")
                 case .queued:
                     Surface { Text("Saved — will sync once the hub is reachable.").font(.footnote).foregroundStyle(JIColor.muted) }
+                        .accessibilityIdentifier("weighin-queued")
                 case .submitting:
                     Surface { HStack { ProgressView(); Text("Saving…").foregroundStyle(JIColor.muted) } }
                 case .idle, .success:
@@ -43,6 +45,9 @@ public struct WeighInSheet: View {
                     .padding()
                     .background(JIColor.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .foregroundStyle(JIColor.text)
+                    // Oracle `LogSheet.tsx` TextField label, verbatim.
+                    .accessibilityLabel("Weight (kg)")
+                    .accessibilityIdentifier("weighin-weight-field")
 
                 Button {
                     guard let weightKg = parsedWeightKg else { return }
@@ -58,13 +63,15 @@ public struct WeighInSheet: View {
                 }
                 .buttonStyle(.pressableScale)
                 .disabled(model.state == .submitting || parsedWeightKg == nil)
+                .accessibilityLabel("Save weight")
+                .accessibilityIdentifier("weighin-save")
 
                 Spacer()
             }
             .padding(20)
             .background(JIColor.bg)
             .navigationTitle("Log weight")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("weighin-cancel") } }
         }
     }
 }

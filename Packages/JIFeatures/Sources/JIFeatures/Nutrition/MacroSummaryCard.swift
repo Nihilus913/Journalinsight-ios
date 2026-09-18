@@ -24,6 +24,7 @@ public struct MacroSummaryCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text("Macros today").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                        .accessibilityAddTraits(.isHeader)
                     if let goalsSetupModel {
                         Spacer()
                         Button {
@@ -32,6 +33,7 @@ public struct MacroSummaryCard: View {
                             Image(systemName: "pencil")
                         }
                         .accessibilityLabel("Edit nutrition goals")
+                        .accessibilityIdentifier("macro-edit-goals")
                         // Attached locally, same rationale as VerdictHeroView.challengesModel's
                         // isPresented push — no need for the enclosing NavigationStack's own
                         // navigationDestination(for:), which lives outside this lane's file list.
@@ -48,6 +50,7 @@ public struct MacroSummaryCard: View {
                     macroRow(label: "Fat", value: day.total.fatG, color: JIColor.muted)
                 } else {
                     Text("No nutrition data yet for this day.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityIdentifier("macro-empty")
                 }
             }
         }
@@ -57,9 +60,15 @@ public struct MacroSummaryCard: View {
         HStack(alignment: .firstTextBaseline) {
             Text(total.kcal.map { "\(Int($0))" } ?? "—")
                 .font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(JIColor.text)
+                // Oracle `MacroSummaryCard.tsx` L170 names this row "Calories".
+                .accessibilityLabel("Calories")
+                .accessibilityValue(total.kcal.map { "\(Int($0)) kcal" } ?? "no data")
+                .accessibilityIdentifier("macro-value-kcal")
             Text("kcal").font(.caption).foregroundStyle(JIColor.muted)
             Spacer()
             Text(goalCopy(total)).font(.caption).foregroundStyle(JIColor.muted)
+                .accessibilityLabel(goalCopy(total))
+                .accessibilityIdentifier("macro-goal")
         }
     }
 
@@ -76,6 +85,9 @@ public struct MacroSummaryCard: View {
             Text(label).font(.footnote).foregroundStyle(JIColor.text)
             Spacer()
             Text(value.map { "\(Int($0))g" } ?? "—").font(.footnote.weight(.semibold)).foregroundStyle(JIColor.text)
+                .accessibilityLabel(label)
+                .accessibilityValue(value.map { "\(Int($0)) grams" } ?? "no data")
+                .accessibilityIdentifier("macro-value-\(label.lowercased())")
         }
     }
 }

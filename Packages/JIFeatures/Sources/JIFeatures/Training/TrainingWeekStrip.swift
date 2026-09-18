@@ -26,8 +26,10 @@ public struct TrainingWeekStrip: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(sessions.isEmpty ? "This week's plan" : "This week's plan · \(sessions.count) session\(sessions.count == 1 ? "" : "s")")
                     .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .accessibilityAddTraits(.isHeader)
                 if sessions.isEmpty {
                     Text("No plan sessions yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                        .accessibilityIdentifier("training-week-empty")
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
@@ -44,7 +46,10 @@ public struct TrainingWeekStrip: View {
         return Surface(level: 2) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(name).font(.footnote.weight(.bold)).foregroundStyle(JIColor.text).lineLimit(2)
+                    .accessibilityLabel(name)
                 Text(lifts.joined(separator: ", ")).font(.caption2).foregroundStyle(JIColor.muted).lineLimit(3)
+                    .accessibilityLabel(lifts.joined(separator: ", "))
+                    .accessibilityIdentifier("training-week-session-\(name)")
             }
         }
         .frame(width: 150, alignment: .leading)

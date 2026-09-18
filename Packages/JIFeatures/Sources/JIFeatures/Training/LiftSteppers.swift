@@ -36,6 +36,7 @@ public struct LiftSteppers: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Strength progression").font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .accessibilityAddTraits(.isHeader)
                 Text("Double progression").font(.caption2).foregroundStyle(JIColor.muted)
                 HStack(spacing: 6) {
                     ForEach(liftDefs) { l in
@@ -45,6 +46,8 @@ public struct LiftSteppers: View {
                             .background(l.key == selected ? JIColor.info : JIColor.surface2, in: Capsule())
                             .foregroundStyle(l.key == selected ? JIColor.bg : JIColor.muted)
                             .accessibilityLabel("\(l.label) tab")
+                            .accessibilityAddTraits(l.key == selected ? [.isSelected] : [])
+                            .accessibilityIdentifier("lift-tab-\(l.key)")
                     }
                 }
                 liftPanel(lift)
@@ -72,9 +75,12 @@ public struct LiftSteppers: View {
         return Surface(level: 2) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(canonical.exerciseName).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                    .accessibilityAddTraits(.isHeader)
                 HStack {
                     Text(weight != nil ? "\(weight!.formatted()) kg" : "—")
                         .font(.title2.bold()).foregroundStyle(JIColor.text)
+                        .accessibilityLabel("\(canonical.exerciseName) weight")
+                        .accessibilityValue(weight != nil ? "\(weight!.formatted()) kg" : "no data")
                     Spacer()
                     if canStepWeight {
                         stepButton(symbol: "−", requireConfirm: true, armKey: "weight:\(canonical.exerciseId)", disabled: pending) {
@@ -85,7 +91,7 @@ public struct LiftSteppers: View {
                         }
                     }
                 }
-                if failed { Text("Couldn't save — try again.").font(.caption).foregroundStyle(JIColor.danger) }
+                if failed { Text("Couldn't save — try again.").font(.caption).foregroundStyle(JIColor.danger).accessibilityIdentifier("lift-save-failed") }
                 ForEach(rows, id: \.exerciseId) { row in sessionRepsRow(row, showSession: rows.count > 1) }
             }
             .opacity(pending ? 0.6 : 1)
@@ -98,6 +104,8 @@ public struct LiftSteppers: View {
             Text(exercise.sessionName).font(.caption2).foregroundStyle(JIColor.muted)
             Spacer()
             Text(formatSetsReps(sets: exercise.sets, reps: reps)).font(.caption).foregroundStyle(JIColor.muted)
+                .accessibilityLabel("\(exercise.sessionName) \(exercise.exerciseName)")
+                .accessibilityValue(formatSetsReps(sets: exercise.sets, reps: reps))
             if let reps {
                 stepButton(symbol: "−", requireConfirm: true, armKey: "reps:\(exercise.exerciseId)", disabled: pendingIds.contains(exercise.exerciseId)) {
                     onUpdate(exercise, ExerciseUpdate(currentWeightKg: exercise.currentWeightKg ?? 0, progressionStepKg: exercise.progressionStepKg ?? 0, sets: exercise.sets, repsTarget: max(1, reps - 1)))

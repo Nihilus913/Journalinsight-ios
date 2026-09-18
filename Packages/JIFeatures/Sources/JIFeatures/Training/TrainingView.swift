@@ -19,6 +19,7 @@ public struct TrainingView: View {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                        .accessibilityIdentifier("training-empty")
                 case .loaded: loaded
                 }
             }
@@ -41,6 +42,7 @@ public struct TrainingView: View {
 
     private var header: some View {
         Text("Training").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private var loading: some View {
@@ -53,7 +55,10 @@ public struct TrainingView: View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(JIColor.text)
+                    .accessibilityIdentifier("training-error")
                 Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                    .accessibilityLabel("Retry")
+                    .accessibilityIdentifier("training-retry")
             }
         }
     }
@@ -86,6 +91,8 @@ public struct TrainingView: View {
             }
         }
         .buttonStyle(.pressableScale)
-        .accessibilityLabel("Session coach")
+        // Oracle `SessionCoachEntry.tsx` L24 label, verbatim.
+        .accessibilityLabel("Open live session coach")
+        .accessibilityIdentifier("session-coach-entry")
     }
 }
