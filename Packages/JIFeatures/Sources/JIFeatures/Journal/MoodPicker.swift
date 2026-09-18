@@ -33,7 +33,7 @@ public struct MoodPicker: View {
                     selection = (selection == mood) ? nil : mood
                 } label: {
                     Text(moodEmoji(mood))
-                        .font(.system(size: 26))
+                        .jiFont(.title)
                         .padding(8)
                         .background(
                             Circle().fill(selection == mood ? JIColor.info.opacity(0.25) : Color.clear)

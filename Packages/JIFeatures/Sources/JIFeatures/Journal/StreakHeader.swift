@@ -24,10 +24,10 @@ public struct StreakHeader: View {
 
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.system(size: 18, weight: .semibold)).foregroundStyle(JIColor.text)
+            Text(value).jiFont(.statValue, weight: .semibold).foregroundStyle(JIColor.text)
                 .accessibilityLabel(label)
                 .accessibilityValue(value)
-            Text(label).font(.system(size: 11)).foregroundStyle(JIColor.muted)
+            Text(label).jiFont(.caption).foregroundStyle(JIColor.muted)
         }
     }
 }

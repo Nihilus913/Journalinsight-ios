@@ -52,7 +52,7 @@ public struct IntakeTdeeChart: View {
     private func legendDot(color: Color, label: String) -> some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
-            Text(label).font(.system(size: 10.5)).foregroundStyle(JIColor.muted)
+            Text(label).jiFont(.micro).foregroundStyle(JIColor.muted)
         }
         .accessibilityLabel(label)
     }

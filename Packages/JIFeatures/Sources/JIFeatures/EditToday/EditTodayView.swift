@@ -62,7 +62,7 @@ public struct EditTodayView: View {
     private func circleButton(systemImage: String, tint: Color, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
+                .jiFont(.body, weight: .semibold)
                 .foregroundStyle(tint)
                 .frame(width: 32, height: 32)
                 .background(JIColor.surface2, in: Circle())
