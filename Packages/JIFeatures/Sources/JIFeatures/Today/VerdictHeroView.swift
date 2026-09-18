@@ -61,6 +61,7 @@ public struct VerdictHeroView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .gateRationaleDestination()   // W5b-L2 — oracle VerdictHero.tsx:404 (whole card → gate-rationale)
         .onAppear { withAnimation(reduceMotion ? nil : JIMotion.reveal) { revealed = true } }
         .onDisappear { revealed = false }   // reveal fires on EVERY open/return (feel diagnosis 2026-09-03)
     }
