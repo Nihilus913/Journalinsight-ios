@@ -16,24 +16,29 @@ import JIHub
 public final class HealthKitBackloader: BackloadRunning, Sendable {
     private let hub: BackloadClient
     private let store: any HealthStoreWriting
+    /// W9 L2 (B-30 P2.7): read seam the overlap policy queries for other sources' workouts.
+    /// `nil` (test default) disables the check — every hub workout is written as before.
+    private let reader: (any HealthStoreReading)?
     // UserDefaults is thread-safe by documented contract but predates Sendable annotation on
     // this SDK — same reasoning as `JISnapshot.SnapshotStore`.
     private nonisolated(unsafe) let cursorDefaults: UserDefaults?
     private static let cursorKey = "hk.backload.cursor"
     public static let appGroupSuite = "group.toby913.JournalInsight"
 
-    public init(hub: BackloadClient, store: any HealthStoreWriting = RealHealthStore(), appGroupSuite: String = HealthKitBackloader.appGroupSuite) {
+    public init(hub: BackloadClient, store: any HealthStoreWriting = RealHealthStore(), reader: (any HealthStoreReading)? = RealHealthStoreReader(), appGroupSuite: String = HealthKitBackloader.appGroupSuite) {
         self.hub = hub
         self.store = store
+        self.reader = reader
         self.cursorDefaults = UserDefaults(suiteName: appGroupSuite)
     }
 
     /// Test seam: inject a `UserDefaults` double directly instead of routing through
     /// `UserDefaults(suiteName:)` (see `SnapshotStore`'s own note on why that initializer can't
     /// be trusted to return `nil` for a bogus suite name across toolchains).
-    init(hub: BackloadClient, store: any HealthStoreWriting, defaults: UserDefaults?) {
+    init(hub: BackloadClient, store: any HealthStoreWriting, reader: (any HealthStoreReading)? = nil, defaults: UserDefaults?) {
         self.hub = hub
         self.store = store
+        self.reader = reader
         self.cursorDefaults = defaults
     }
 
@@ -44,15 +49,21 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         } catch {
             throw BackloadError.authorizationDenied
         }
+        // W9 L2: the overlap policy needs to READ other sources' workouts. A read decline is
+        // never fatal (HealthKit then answers with our own objects only, which the reader
+        // excludes -> nothing to overlap -> every hub workout is written as before).
+        try? await reader?.requestAuthorization(toRead: [HKWorkoutType.workoutType()])
     }
 
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
         // One-time upgrade: an older writer version walks the whole range again and rewrites
-        // the kinds that changed shape (v3: workouts; v4: everything the hub re-versioned) and,
-        // per chunk, deletes what writer v3 mis-wrote (see `runV4Upgrade`).
+        // the kinds that changed shape (v3: workouts; v4: everything the hub re-versioned; v5:
+        // see `V5Upgrade`) and, per chunk, deletes what an older writer mis-wrote
+        // (`runV4Upgrade`, `runV5Upgrade`, one step per `V5Upgrade` case).
         let storedVersion = cursorDefaults?.integer(forKey: Self.writerVersionKey) ?? 0
-        let needsV4Upgrade = storedVersion < Self.writerVersion
-        if needsV4Upgrade { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
+        let needsV4Upgrade = storedVersion < 4
+        let needsV5Upgrade = storedVersion < Self.writerVersion
+        if needsV5Upgrade { cursorDefaults?.removeObject(forKey: Self.cursorKey) }
         let chunks = BackloadMonthChunker.chunks(for: range, resumeFrom: readCursor())
         var written = 0, skipped = 0
         var failed: [String] = []
@@ -74,6 +85,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             let allSpecs = BackloadMapper.map(dto)
             let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
             if needsV4Upgrade { await runV4Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
+            if needsV5Upgrade { await runV5Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
+
+            // W9 L2 (B-30 P2.7): hub workouts another source already covers > 50 % of are skipped
+            // — and, if a pre-policy run wrote our copy, it is removed below so Health converges.
+            let overlapSkipped = await overlapSkippedSyncIds(in: allSpecs, start: chunk.from, end: chunkEnd)
 
             // Deletions (v1 markers superseded by v2 writes) happen before the save pass so a
             // fresh `existingSyncVersions` read (below) never sees the object it's about to replace.
@@ -83,6 +99,16 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 switch spec {
                 case .delete(let kind, let syncId):
                     deletionsByKind[kind, default: []].insert(syncId)
+                case .workout(let w) where overlapSkipped.contains(w.syncId):
+                    skipped += 1
+                    for entry in Self.objectEntries(for: spec) {
+                        try? await store.deleteObjects(sampleType: entry.type, syncIdentifiers: [entry.syncId])
+                        for sample in entry.associated {
+                            if let sid = sample.metadata?[HKMetadataKeySyncIdentifier] as? String {
+                                try? await store.deleteObjects(sampleType: sample.sampleType, syncIdentifiers: [sid])
+                            }
+                        }
+                    }
                 default:
                     writableSpecs.append(spec)
                 }
@@ -153,6 +179,51 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
     }
 
+    // MARK: - v5 upgrade pass (W9)
+
+    /// Per-lane steps of the writer v5 upgrade pass, run per chunk while the stored writer
+    /// version is below 5. Each W9 lane adds one `case`; `runV5Upgrade` switches over all of them.
+    enum V5Upgrade: CaseIterable, Sendable {
+        /// Sweep every workout-attached HR sample (`workout:<id>:hr:*`) in the chunk so the
+        /// force-overwrite workout path below re-attaches the hub's current HR exactly once —
+        /// nothing lingers for a reading the hub no longer serves.
+        case workoutHR
+        /// L2 (B-30 P5): `floors` -> flightsClimbed and `distance` -> distanceWalkingRunning are
+        /// additive daily kinds. Nothing in Health predates them, so there is nothing to delete —
+        /// the cursor reset in `run` is what makes the walk start over and give every day its
+        /// first floors/distance write through the normal version-keyed save path.
+        case dailyKinds
+    }
+
+    private func runV5Upgrade(dto: BackloadResponseDTO, start: Date, end: Date) async {
+        for step in V5Upgrade.allCases {
+            switch step {
+            case .workoutHR:
+                _ = try? await store.deleteObjects(sampleType: HKQuantityType(.heartRate), start: start, end: end) { sample in
+                    guard let id = sample.metadata?[HKMetadataKeySyncIdentifier] as? String else { return false }
+                    return id.hasPrefix("workout:") && id.contains(":hr:")
+                }
+            case .dailyKinds:
+                break // additive kinds: no deletion (see the case doc)
+            }
+        }
+    }
+
+    // MARK: - Overlap dedupe (W9 L2, B-30 P2.7)
+
+    /// Sync ids of the hub workouts in `specs` that `WorkoutOverlapPolicy` rejects against the
+    /// workouts other sources hold in `[start, end]`. Empty without a reader, or when the read
+    /// fails — a query that can't run must never block the chunk's writes.
+    private func overlapSkippedSyncIds(in specs: [BackloadWriteSpec], start: Date, end: Date) async -> Set<String> {
+        guard let reader else { return [] }
+        let hubWorkouts: [BackloadWorkoutSampleSpec] = specs.compactMap {
+            if case .workout(let w) = $0 { return w } else { return nil }
+        }
+        guard !hubWorkouts.isEmpty, let foreign = try? await reader.workouts(start: start, end: end), !foreign.isEmpty else { return [] }
+        let intervals = foreign.map { DateInterval(start: $0.startDate, end: $0.endDate) }
+        return Set(hubWorkouts.filter { WorkoutOverlapPolicy.shouldSkip(start: $0.start, end: $0.end, existing: intervals) }.map(\.syncId))
+    }
+
     // MARK: - v4 upgrade pass
 
     /// One-time cleanup of what writer v3 left in Health, run per chunk while the stored writer
@@ -208,7 +279,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             sleep: dense.sleep, rhr: daily.rhr, steps: daily.steps, energy: daily.energy,
             vo2max: daily.vo2max, workouts: daily.workouts,
             heartRate: dense.heartRate, respiration: dense.respiration, spo2: dense.spo2, hrv: dense.hrv,
-            stepBuckets: dense.stepBuckets, dailyResp: daily.dailyResp, dailySpo2: daily.dailySpo2
+            stepBuckets: dense.stepBuckets, dailyResp: daily.dailyResp, dailySpo2: daily.dailySpo2,
+            distance: daily.distance, floors: daily.floors
         )
     }
 
@@ -245,7 +317,9 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// v3: workouts gain associated energy/distance samples so Fitness credits the rings.
     /// v4 (B-30): per-item hub versions, HRV under the native RMSSD type, and the one-time
     /// cleanup pass in `runV4Upgrade`.
-    static let writerVersion = 4
+    /// v5 (W9 B-30 P3/P5/P2.7): workouts carry their window's HR samples, indoor flag, brand +
+    /// title metadata; `runV5Upgrade` sweeps per `V5Upgrade` case.
+    static let writerVersion = 5
     static let writerVersionKey = "hk.backload.writerVersion"
     static let workoutSyncVersion = 3
     static let lastCompletedKey = "hk.backload.lastCompletedDay"
@@ -256,6 +330,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// the plain `save(_:)` seam rather than pulling the builder's async collection API into
     /// `HealthStoreWriting`.
     static let averageHeartRateMetadataKey = "HTAverageHeartRateBPM"
+
+    /// v5: the Garmin activity title ("Monday", "katzensee") — `HKMetadataKeyWorkoutBrandName`
+    /// now holds the device brand (audit D6), so the title moves to this custom key.
+    static let workoutTitleMetadataKey = "HTWorkoutTitle"
+    static let workoutBrandName = "Garmin fēnix 8"
 
     /// Fallback `HKMetadataKeySyncVersion` for an item the hub sent no `version` for (dense
     /// series, and any hub older than B-30): 2 for samples, 3 for workouts — exactly what writer
@@ -310,7 +389,11 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .workout(let w):
             let type = HKWorkoutType.workoutType()
             let version = w.version ?? workoutSyncVersion
-            var metadata: [String: Any] = [HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: version, HKMetadataKeyWorkoutBrandName: w.name]
+            var metadata: [String: Any] = [
+                HKMetadataKeySyncIdentifier: w.syncId, HKMetadataKeySyncVersion: version,
+                HKMetadataKeyWorkoutBrandName: workoutBrandName, workoutTitleMetadataKey: w.name,
+                HKMetadataKeyIndoorWorkout: w.indoor,
+            ]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
             if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
@@ -319,7 +402,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 activityType: activityType(w.kind), start: w.start, end: w.end,
                 workoutEvents: nil, totalEnergyBurned: energy, totalDistance: distance, metadata: metadata)
             // Associated samples: this is what Fitness sums into the Move ring (energy) and what
-            // the workout detail shows as distance. Sync ids derive from the workout's.
+            // the workout detail shows as distance; v5 adds the window's HR readings, which is
+            // what draws the HR chart / zones. Sync ids derive from the workout's.
             var associated: [HKSample] = []
             if let energy {
                 associated.append(HKQuantitySample(
@@ -331,6 +415,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                     type: distanceType, quantity: distance, start: w.start, end: w.end,
                     metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: version]))
             }
+            associated.append(contentsOf: WorkoutHRAttacher.samples(for: w, version: version))
             return [ObjectEntry(object: workout, type: type, syncId: w.syncId, version: version, associated: associated)]
 
         case .delete:
@@ -356,13 +441,16 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         // `HKTypesTests.identifierIsolationSourceGrep` keeps it there); `nil` on a runtime
         // without the iOS-27 native type, which drops the HRV specs rather than mis-filing them.
         case .hrvRMSSD: return HKReadKind.hrvRMSSDQuantityType
+        case .flightsClimbed: return HKQuantityType(.flightsClimbed)
+        case .distanceWalkingRunning: return HKQuantityType(.distanceWalkingRunning)
         }
     }
 
     static func quantityUnit(_ kind: BackloadQuantityKind) -> HKUnit {
         switch kind {
         case .restingHeartRate, .heartRate, .respiratoryRate: return HKUnit(from: "count/min")
-        case .stepCount: return .count()
+        case .stepCount, .flightsClimbed: return .count()
+        case .distanceWalkingRunning: return .meter()
         case .activeEnergyBurned, .basalEnergyBurned: return .kilocalorie()
         case .vo2Max: return HKUnit(from: "ml/(kg*min)")
         case .oxygenSaturation: return .percent() // written as a 0–1 fraction, per HK convention
@@ -418,6 +506,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             HKQuantityType(.vo2Max), HKCategoryType(.sleepAnalysis), HKWorkoutType.workoutType(),
             HKQuantityType(.heartRate), HKQuantityType(.respiratoryRate), HKQuantityType(.oxygenSaturation),
             HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.flightsClimbed), // W9 L2 (P5); distanceWalkingRunning is already above
         ]
         if let rmssd = HKReadKind.hrvRMSSDQuantityType { types.insert(rmssd) }
         return types

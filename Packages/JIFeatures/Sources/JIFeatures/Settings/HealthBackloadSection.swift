@@ -13,7 +13,7 @@ public struct HealthBackloadSection: View {
 
     public var body: some View {
         Section("Apple Health backload") {
-            Text("Fill the gap where Garmin Connect didn't write to Apple Health.")
+            Text("Fill the gap where Garmin Connect didn't write to Apple Health: sleep, resting HR, steps, energy, VO₂ max, workouts, heart rate, respiration, SpO₂, HRV, floors climbed and walking distance.")
                 .font(.footnote)
                 .foregroundStyle(JIColor.muted)
             LabeledContent("Last synced day", value: model.lastSyncedDay ?? "never")

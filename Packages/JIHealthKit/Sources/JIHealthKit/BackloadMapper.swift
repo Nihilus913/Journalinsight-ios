@@ -14,12 +14,19 @@ public enum BackloadMapper {
         specs.append(contentsOf: mapSteps(dto.steps, stepBuckets: dto.stepBuckets))
         specs.append(contentsOf: dto.energy.flatMap(mapEnergy))
         specs.append(contentsOf: dto.vo2max.compactMap(mapVo2Max))
-        specs.append(contentsOf: dto.workouts.compactMap(mapWorkout))
+        // W9 (P3): each workout carries the run's dense HR inside its window. Workouts come from
+        // the daily pass and HR from the dense pass, merged per chunk before `map` — so a
+        // workout's HR is always in the same dto (a workout straddling a chunk boundary loses
+        // the tail beyond it; accepted).
+        let heartRate = WorkoutHRAttacher.parse(dto.heartRate)
+        specs.append(contentsOf: dto.workouts.compactMap { mapWorkout($0, heartRate: heartRate) })
         specs.append(contentsOf: dto.heartRate.compactMap(mapHeartRate))
         specs.append(contentsOf: dto.respiration.compactMap(mapRespiration))
         specs.append(contentsOf: dto.spo2.compactMap(mapSpo2))
         specs.append(contentsOf: dto.hrv.flatMap(mapHrv))
         specs.append(contentsOf: dto.stepBuckets.compactMap(mapStepBucket))
+        specs.append(contentsOf: dto.floors.compactMap(mapFloors))
+        specs.append(contentsOf: dto.distance.compactMap(mapDistance))
 
         // daily_resp/daily_spo2 fallback: only for days with no dense samples of that kind, per
         // the frozen contract note — placed at the night's sleep midpoint.
@@ -107,10 +114,48 @@ public enum BackloadMapper {
         return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .vo2Max, start: start, end: end, value: e.value, version: e.version))
     }
 
-    static func mapWorkout(_ e: BackloadWorkoutEntryDTO) -> BackloadWriteSpec? {
+    // MARK: - W9 daily kinds (B-30 P5)
+
+    static func mapFloors(_ e: BackloadFloorsEntryDTO) -> BackloadWriteSpec? {
+        guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .flightsClimbed, start: start, end: end, value: e.count, version: e.version))
+    }
+
+    /// `meters` is already net of that day's workout distance on the hub (`DistanceItem`); the
+    /// workout's own distance sample is attached separately, so the two never double-count.
+    static func mapDistance(_ e: BackloadDistanceEntryDTO) -> BackloadWriteSpec? {
+        guard let (start, end) = BackloadDateParsing.dayBounds(e.date) else { return nil }
+        return .quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .distanceWalkingRunning, start: start, end: end, value: e.meters, version: e.version))
+    }
+
+    /// W9 (P3): `raw_type` refines the hub's `kind` — `multi_sport` parents wrap a
+    /// strength_training child on Toby's watch (HT `garmin.py` resolves that child for exercise
+    /// sets), so they map to strength instead of "Other"; `motorcycling*` is not exercise and never
+    /// becomes a spec, even when a pre-e7720ff hub still serves the row.
+    static func mapWorkout(_ e: BackloadWorkoutEntryDTO, heartRate: [BackloadWorkoutHRSample] = []) -> BackloadWriteSpec? {
+        if let raw = e.rawType, isSkippedRawType(raw) { return nil }
         guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return nil }
-        let kind = BackloadWorkoutKind(rawValue: e.kind.rawValue) ?? .other
-        return .workout(BackloadWorkoutSampleSpec(syncId: e.syncId, start: start, end: end, kind: kind, name: e.name, kcal: e.kcal, distanceM: e.distanceM, avgHr: e.avgHr, startEstimated: e.startEstimated ?? false, version: e.version))
+        let kind = workoutKind(hubKind: e.kind, rawType: e.rawType)
+        let hr = WorkoutHRAttacher.select(heartRate, start: start, end: end)
+        return .workout(BackloadWorkoutSampleSpec(
+            syncId: e.syncId, start: start, end: end, kind: kind, name: e.name, kcal: e.kcal, distanceM: e.distanceM, avgHr: e.avgHr,
+            startEstimated: e.startEstimated ?? false, version: e.version,
+            rawType: e.rawType, indoor: e.indoor ?? false, hrSamples: hr))
+    }
+
+    static let skippedRawTypePrefixes: [String] = ["motorcycling"]
+
+    static func isSkippedRawType(_ rawType: String) -> Bool {
+        skippedRawTypePrefixes.contains { rawType.hasPrefix($0) }
+    }
+
+    /// Raw Garmin types the writer maps itself (via the child activity type) — everything else keeps
+    /// the hub's `kind`.
+    static let childKindByRawType: [String: BackloadWorkoutKind] = ["multi_sport": .strength]
+
+    static func workoutKind(hubKind: BackloadWorkoutKindDTO, rawType: String?) -> BackloadWorkoutKind {
+        if let raw = rawType, let child = childKindByRawType[raw] { return child }
+        return BackloadWorkoutKind(rawValue: hubKind.rawValue) ?? .other
     }
 
     // MARK: - v2 dense series (no sync_id on the wire — derived from `ts`)

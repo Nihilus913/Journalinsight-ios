@@ -21,6 +21,11 @@ public protocol HealthStoreReading: Sendable {
     /// skipping it stalls further background delivery for that type.
     func startObserving(_ type: HKSampleType, handler: @escaping @Sendable (_ completion: @escaping @Sendable () -> Void) -> Void) -> HKObserverQuery
     func stopObserving(_ query: HKObserverQuery)
+    /// W9 L2 (B-30 P2.7): workouts in `[start, end]` written by sources OTHER than this app —
+    /// what `WorkoutOverlapPolicy` compares a hub workout against. This app's own workouts are
+    /// excluded because the writer force-overwrites them by sync id and must never see itself
+    /// as "another source".
+    func workouts(start: Date, end: Date) async throws -> [HKWorkout]
 }
 
 public struct HKAnchoredPage: Sendable {
@@ -74,6 +79,18 @@ public final class RealHealthStoreReader: HealthStoreReading, @unchecked Sendabl
 
     public func stopObserving(_ query: HKObserverQuery) {
         store.stop(query)
+    }
+
+    public func workouts(start: Date, end: Date) async throws -> [HKWorkout] {
+        let inWindow = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
+        let notOurs = NSCompoundPredicate(notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: HKSource.default()))
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [inWindow, notOurs])
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: HKWorkoutType.workoutType(), predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: (samples ?? []).compactMap { $0 as? HKWorkout }) }
+            }
+            store.execute(query)
+        }
     }
 }
 #endif
