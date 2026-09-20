@@ -32,7 +32,7 @@ public struct VerdictGlance: View {
             VStack(spacing: 6) {
                 if let snapshot {
                     Text(snapshot.verdictWord)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .jiFont(.title, weight: .bold, design: .rounded)   // W9.5-L4: JITypography token (26pt), Dynamic-Type scaled — no fixed sizes (W8-L3 rule)
                         .foregroundStyle(verdictToneColor(snapshot.verdictTone))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
