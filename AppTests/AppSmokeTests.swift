@@ -5,10 +5,25 @@ import UIKit
 @Test func appTargetTestsRun() { #expect(1 + 1 == 2) }
 
 #if DEBUG
+/// True when some window scene reached `.foregroundActive` — the only state in which
+/// `AppDelegate`'s `UIScene.didActivateNotification` observer has installed the overlay.
+@MainActor private func aSceneIsForegroundActive() -> Bool {
+    UIApplication.shared.connectedScenes.contains { $0.activationState == .foregroundActive }
+}
+
 /// The DEBUG touch overlay only works if the observer sits on SwiftUI's key window and the
 /// passthrough overlay window exists — check the wiring at runtime, not by reading code.
-@Test @MainActor func touchOverlayIsWiredToTheKeyWindow() {
-    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+///
+/// B-35 (W9.5 L2): headless `xcodebuild test` never activates the scene, so the overlay is
+/// never installed and the assertion used to fail deterministically. The test is skipped (with
+/// this reason) unless a scene is actually `.foregroundActive`; it still runs on a device or a
+/// foregrounded simulator.
+@Test(.enabled("B-35: no scene is foregroundActive (headless run) — overlay is installed on UIScene.didActivateNotification") {
+    await MainActor.run { aSceneIsForegroundActive() }
+})
+@MainActor func touchOverlayIsWiredToTheKeyWindow() {
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        .first { $0.activationState == .foregroundActive }
     let overlay = scene?.windows.first { $0 is TouchIndicatorWindow }
     let host = scene?.keyWindow ?? scene?.windows.first { !($0 is TouchIndicatorWindow) }
     #expect(overlay != nil, "overlay window missing; windows=\(scene?.windows.map { type(of: $0) } ?? [])")
