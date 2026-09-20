@@ -5,6 +5,7 @@ import JIFeatures
 import JIHub
 import JIPersistence
 import JIVault
+import JIWorkouts
 
 enum RootTab: Hashable {
     case today, journal, recovery, energy, nutrition, training
@@ -27,6 +28,8 @@ struct RootTabView: View {
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
     // and routed through the environment (`GateRationaleView` reads `\.gateRationaleModel`; nil = inert).
     @State private var gateRationaleModel: GateRationaleViewModel?
+    // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
+    @State private var sendToWatchModel: SendToWatchViewModel?
     @State private var recoveryModel: RecoveryViewModel?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
     // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
@@ -160,6 +163,7 @@ struct RootTabView: View {
         energyModel = nil
         nutritionModel = nil
         trainingModel = nil
+        sendToWatchModel = nil
     }
 
     /// Per-tab placeholder for the chrome-only `TabView`. `Color.clear.allowsHitTesting(false)`
@@ -305,9 +309,18 @@ struct RootTabView: View {
             if let provider = store.provider as? any TrainingProviding {
                 if let trainingModel {
                     TrainingView(model: trainingModel)
+                        .environment(\.sendToWatchModel, sendToWatchModel)
                 } else {
                     ProgressView()
-                        .task { trainingModel = TrainingViewModel(provider: provider, healthProvider: store.provider, cache: env.cache, now: Date.init) }
+                        .task {
+                            trainingModel = TrainingViewModel(provider: provider, healthProvider: store.provider, cache: env.cache, now: Date.init)
+                            if let templates = store.provider as? any WorkoutTemplatesProviding {
+                                let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
+                                sendToWatchModel = SendToWatchViewModel(provider: templates, sender: sender, openSettings: {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                                })
+                            }
+                        }
                 }
             } else {
                 screenUnavailable(title: "Training unavailable", systemImage: "dumbbell")

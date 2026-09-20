@@ -1,0 +1,143 @@
+[
+  {
+    "template_id": 1,
+    "name": "Long Run Zone 2",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      6
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 600,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 4500,
+        "hr_lo": 116,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-21T00:00:00Z"
+  },
+  {
+    "template_id": 2,
+    "name": "Zone 2 40 min",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      0
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 1800,
+        "hr_lo": 117,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-21T00:00:00Z"
+  },
+  {
+    "template_id": 3,
+    "name": "Norwegian 4×4",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      1,
+      5
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 600,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 240,
+        "hr_lo": 160,
+        "hr_hi": 175,
+        "repeat": 4
+      },
+      {
+        "purpose": "recovery",
+        "seconds": 180,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 4
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-21T00:00:00Z"
+  },
+  {
+    "template_id": 4,
+    "name": "Zone 2 60 min",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      2,
+      4
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 3000,
+        "hr_lo": 117,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-21T00:00:00Z"
+  }
+]

@@ -16,11 +16,13 @@ let package = Package(
         // W8-L4 (B-12): ONE `HKPermission` app-wide — JIFeatures now consumes JIHealthKit's instead of
         // carrying a same-named duplicate that `AppEnvironment` had to map case by case.
         .package(path: "../JIHealthKit"),
+        // B-37-L1 (P-workouts): `WorkoutSending` + `WorkoutBuilder` for the Training "Send to Watch" sheet (L3).
+        .package(path: "../JIWorkouts"),
     ],
     targets: [
         .target(
             name: "JIFeatures",
-            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute", "JIHealthKit"],
+            dependencies: ["JICore", "JIHub", "JIPersistence", "JIDesign", "JIVault", "JICompute", "JIHealthKit", "JIWorkouts"],
             swiftSettings: [.swiftLanguageMode(.v6), .defaultIsolation(MainActor.self), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]
         ),
         .testTarget(name: "JIFeaturesTests", dependencies: ["JIFeatures"], resources: [.copy("GateConfigFixtures")], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),

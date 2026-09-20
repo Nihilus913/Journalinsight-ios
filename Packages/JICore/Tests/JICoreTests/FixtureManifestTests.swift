@@ -18,7 +18,7 @@ import Testing
         checked += 1
     }
     print("FixtureManifestTests: checked \(checked) of \(manifest.split(separator: "\n").count) manifest entries")
-    #expect(checked == 22, "every manifest entry (17 hub-contract + 5 golden) must be present and verified")
+    #expect(checked == 23, "every manifest entry (18 hub-contract + 5 golden) must be present and verified")
 }
 
 /// Guards JICore library's own hub-contract fixture copies (`Packages/JICore/Sources/JICore/
@@ -45,5 +45,5 @@ import Testing
         #expect(actual == hash, "JICore library copy of \(name) drifted from MANIFEST.sha256 — rerun HealthTraining/scripts/parity/sync_fixtures.py")
         checked += 1
     }
-    #expect(checked == 17)
+    #expect(checked == 18)
 }
