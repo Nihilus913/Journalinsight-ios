@@ -66,3 +66,31 @@ func verdictPartsMatchesRN(input: String?, word: String, session: String, tone: 
     let p = verdictParts(input)
     #expect(p.word == word); #expect(p.session == session); #expect(p.tone == tone)
 }
+
+/// B-37-L1 (P-training) — `GET /api/v1/planning/workout-templates` (Wave Card B-37 ## Contract).
+@Test func decodesWorkoutTemplates() throws {
+    let templates = try JSON.decoder.decode([WorkoutTemplate].self, from: fixture("planning_workout_templates"))
+    #expect(templates.count == 4)
+    #expect(templates.map(\.name) == ["Zone 2 40 min", "Norwegian 4×4", "Zone 2 60 min", "Long Run Zone 2"])
+    #expect(templates.allSatisfy { $0.activity == "running" && $0.location == .outdoor })
+    #expect(templates.allSatisfy { $0.steps.allSatisfy { $0.hrHi <= 175 } })
+
+    let norwegian = templates[1]
+    #expect(norwegian.weekdays == [1, 5])
+    #expect(norwegian.steps.map(\.purpose) == [.warmup, .work, .recovery, .cooldown])
+    #expect(norwegian.steps[1].repeat == 4 && norwegian.steps[2].repeat == 4)
+    #expect(norwegian.steps[1].hrLo == 160 && norwegian.steps[1].hrHi == 175)
+
+    let longRun = templates[3]
+    #expect(longRun.templateId == 4 && longRun.id == 4)
+    #expect(longRun.weekdays == [6])
+    #expect(longRun.steps.map(\.seconds) == [600, 4500, 300])
+    #expect(longRun.updatedAt == "2026-09-21T00:00:00Z")
+}
+
+@Test func mockDataProviderServesFourWorkoutTemplates() async throws {
+    let provider: any WorkoutTemplatesProviding = MockDataProvider()
+    let templates = try await provider.workoutTemplates()
+    #expect(templates.count == 4)
+    #expect(templates.contains { $0.name == "Long Run Zone 2" })
+}

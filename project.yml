@@ -33,6 +33,8 @@ packages:
     path: Packages/JIVault
   JICompute:
     path: Packages/JICompute
+  JIWorkouts: # B-37 (P-workouts): WorkoutKit builder/sender, iOS+watchOS only
+    path: Packages/JIWorkouts
 targets:
   JournalInsight:
     type: application
@@ -88,6 +90,7 @@ targets:
       - package: JISnapshot
       - package: JIVault
       - package: JICompute
+      - package: JIWorkouts
       - target: WatchApp
         embed: true
       - target: Widgets

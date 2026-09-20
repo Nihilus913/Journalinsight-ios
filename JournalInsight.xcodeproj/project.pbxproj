@@ -48,6 +48,7 @@
 		AAE4BC7486F3D87C27FE39E7 /* VerdictGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
+		C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */ = {isa = PBXBuildFile; productRef = 492768B6A5B02BFF4735FCE3 /* JIWorkouts */; };
 		D159A94FC5CE478EBBD98757 /* VerdictComplicationTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */; };
 		D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9592E400266E0385BE90930E /* LiveActivityController.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
@@ -141,6 +142,7 @@
 		50213A12F93450C6AD416BAD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
 		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
+		58E06787E30F9A6DEE3D3C5A /* JIWorkouts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIWorkouts; path = Packages/JIWorkouts; sourceTree = SOURCE_ROOT; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouter.swift; sourceTree = "<group>"; };
 		69F166FFD02B0D810992532A /* JIVault */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIVault; path = Packages/JIVault; sourceTree = SOURCE_ROOT; };
@@ -213,6 +215,7 @@
 				2C75706B563FC3C1A526E874 /* JISnapshot in Frameworks */,
 				FBDC394485A35929AF056DA5 /* JIVault in Frameworks */,
 				E70F6F8C98F73DCF05CB0894 /* JICompute in Frameworks */,
+				C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,6 +255,7 @@
 				5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */,
 				C71FF243F6A68258A948360E /* JISnapshot */,
 				69F166FFD02B0D810992532A /* JIVault */,
+				58E06787E30F9A6DEE3D3C5A /* JIWorkouts */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -466,6 +470,7 @@
 				459223C5C330D5E83A784DEF /* JISnapshot */,
 				A230B1185D4D79616F44967A /* JIVault */,
 				BBFE6322659149502ACF2389 /* JICompute */,
+				492768B6A5B02BFF4735FCE3 /* JIWorkouts */,
 			);
 			productName = JournalInsight;
 			productReference = BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */;
@@ -539,6 +544,7 @@
 				4700E396B501E4A1F173D239 /* XCLocalSwiftPackageReference "Packages/JIPersistence" */,
 				F96F5D7EB4B695ED81A85544 /* XCLocalSwiftPackageReference "Packages/JISnapshot" */,
 				81F613AD04482C4914D04A06 /* XCLocalSwiftPackageReference "Packages/JIVault" */,
+				7FDB2325DB6B57E3DE317240 /* XCLocalSwiftPackageReference "Packages/JIWorkouts" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7E21C80B99A2A95B8D6662A4 /* Products */;
@@ -1032,6 +1038,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIHub;
 		};
+		7FDB2325DB6B57E3DE317240 /* XCLocalSwiftPackageReference "Packages/JIWorkouts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/JIWorkouts;
+		};
 		81F613AD04482C4914D04A06 /* XCLocalSwiftPackageReference "Packages/JIVault" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/JIVault;
@@ -1066,6 +1076,10 @@
 		459223C5C330D5E83A784DEF /* JISnapshot */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JISnapshot;
+		};
+		492768B6A5B02BFF4735FCE3 /* JIWorkouts */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JIWorkouts;
 		};
 		6D3B95761227D23C685A4248 /* JICore */ = {
 			isa = XCSwiftPackageProductDependency;
