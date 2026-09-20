@@ -71,18 +71,19 @@ func verdictPartsMatchesRN(input: String?, word: String, session: String, tone: 
 @Test func decodesWorkoutTemplates() throws {
     let templates = try JSON.decoder.decode([WorkoutTemplate].self, from: fixture("planning_workout_templates"))
     #expect(templates.count == 4)
-    #expect(templates.map(\.name) == ["Zone 2 40 min", "Norwegian 4×4", "Zone 2 60 min", "Long Run Zone 2"])
+    #expect(templates.map(\.name) == ["Long Run Zone 2", "Zone 2 40 min", "Norwegian 4×4", "Zone 2 60 min"])
     #expect(templates.allSatisfy { $0.activity == "running" && $0.location == .outdoor })
     #expect(templates.allSatisfy { $0.steps.allSatisfy { $0.hrHi <= 175 } })
 
-    let norwegian = templates[1]
+    let norwegian = templates[2]
+    #expect(norwegian.templateId == 3)
     #expect(norwegian.weekdays == [1, 5])
     #expect(norwegian.steps.map(\.purpose) == [.warmup, .work, .recovery, .cooldown])
     #expect(norwegian.steps[1].repeat == 4 && norwegian.steps[2].repeat == 4)
     #expect(norwegian.steps[1].hrLo == 160 && norwegian.steps[1].hrHi == 175)
 
-    let longRun = templates[3]
-    #expect(longRun.templateId == 4 && longRun.id == 4)
+    let longRun = templates[0]
+    #expect(longRun.templateId == 1 && longRun.id == 1)
     #expect(longRun.weekdays == [6])
     #expect(longRun.steps.map(\.seconds) == [600, 4500, 300])
     #expect(longRun.updatedAt == "2026-09-21T00:00:00Z")
