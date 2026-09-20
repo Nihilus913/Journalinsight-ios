@@ -28,6 +28,15 @@ public final class OutboxDrainer {
     private let weighIn: (any WeighInProviding)?
     private let gateRespond: (any GateRespondProviding)?
 
+    /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
+    /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
+    /// `HubWatchdog.onReachableAgain` (`drainOnForeground`) and `OutboxRetryScheduler`'s
+    /// foreground tick / BG refresh. Without this, each of them re-read `pending()` while an
+    /// earlier pass was still mid-POST and sent the same row again (double weigh-in / double
+    /// gate-respond). An overlapping caller now awaits and returns THIS task's result instead of
+    /// starting its own pass; the guard is per-pass, not sticky (cleared before the task returns).
+    private var inFlight: Task<[Int64: Result<OutboxDelivery, Error>], Never>?
+
     /// The multi-kind initialiser. Pass `nil` for a kind this app instance cannot deliver (e.g.
     /// `MockDataProvider` in previews) — its rows then stay pending rather than being attempted
     /// against nothing.
@@ -74,8 +83,26 @@ public final class OutboxDrainer {
     /// records the kind's own `describe` text as `lastError` — for a hub rejection (e.g. 502) that
     /// IS the server's own `detail`, verbatim (PINNED weigh-in contract: `describeWeighinError` in
     /// the RN oracle's `useLogFoodActions.ts`; gate rows: `GateRespondViewModel.describe`).
+    ///
+    /// Serialised: a call that lands while a pass is in flight does NOT re-read `pending()` — it
+    /// awaits the in-flight pass and returns its result (so a row is never POSTed twice by two
+    /// overlapping triggers). Anything enqueued during that pass is picked up by the next call.
     @discardableResult
     public func drainOnce() async -> [Int64: Result<OutboxDelivery, Error>] {
+        if let inFlight { return await inFlight.value }
+        let pass = Task { @MainActor [self] in
+            // Cleared on the actor, synchronously before the task's value is published: no window
+            // in which a third caller could see a finished task and skip a row enqueued since.
+            defer { self.inFlight = nil }
+            return await self.drainPass()
+        }
+        inFlight = pass
+        return await pass.value
+    }
+
+    /// One unguarded pass over every pending row of a drainable kind — only ever run through
+    /// `drainOnce()`'s `inFlight` task.
+    private func drainPass() async -> [Int64: Result<OutboxDelivery, Error>] {
         var results: [Int64: Result<OutboxDelivery, Error>] = [:]
         guard let rows = try? outbox.pending() else { return results }
         for row in rows {
