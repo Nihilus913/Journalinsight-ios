@@ -3,7 +3,7 @@ import Foundation
 @testable import JIFeatures
 
 private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
-    Calendar.current.date(from: DateComponents(year: y, month: m, day: d))!
+    JournalCalendarZurich.calendar.date(from: DateComponents(year: y, month: m, day: d))!
 }
 
 @Suite struct JournalStreakTests {

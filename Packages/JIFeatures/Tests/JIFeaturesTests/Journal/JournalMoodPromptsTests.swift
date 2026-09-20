@@ -13,7 +13,7 @@ import Foundation
 
     @Test func tenPromptsTodaysThreeDeterministicByDayOfYear() {
         #expect(JournalPrompts.PROMPTS.count == 10)
-        let d = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
+        let d = JournalCalendarZurich.calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!
         let a = JournalPrompts.todaysPrompts(d)
         #expect(a.count == 3)
         #expect(JournalPrompts.todaysPrompts(d) == a)

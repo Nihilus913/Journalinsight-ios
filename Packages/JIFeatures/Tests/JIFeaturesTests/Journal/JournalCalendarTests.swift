@@ -4,7 +4,7 @@ import JIPersistence
 @testable import JIFeatures
 
 private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
-    Calendar.current.date(from: DateComponents(year: y, month: m, day: d))!
+    JournalCalendarZurich.calendar.date(from: DateComponents(year: y, month: m, day: d))!
 }
 
 @Suite struct JournalCalendarScopeTests {
@@ -15,7 +15,7 @@ private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
     @Test func startOfWeekIsMondayFirstRegardlessOfAnchorWeekday() {
         #expect(JournalCalendar.toISO(JournalCalendar.startOfWeek(sat)) == "2026-07-27")
         #expect(JournalCalendar.toISO(JournalCalendar.startOfWeek(sun)) == "2026-07-27")
-        #expect(Calendar.current.component(.weekday, from: JournalCalendar.startOfWeek(sat)) == 2) // Monday
+        #expect(JournalCalendarZurich.calendar.component(.weekday, from: JournalCalendar.startOfWeek(sat)) == 2) // Monday
     }
 
     @Test func weekScopeIsSevenConsecutiveDaysNoPadding() {
@@ -63,19 +63,19 @@ private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
 
     @Test func monthScopeShiftsOneCalendarMonthNormalizedToFirst() {
         let next = JournalCalendar.shiftAnchor(.month, anchor: sat, dir: 1)
-        let nextComps = Calendar.current.dateComponents([.year, .month, .day], from: next)
+        let nextComps = JournalCalendarZurich.calendar.dateComponents([.year, .month, .day], from: next)
         #expect(nextComps.year == 2026)
         #expect(nextComps.month == 9)
         #expect(nextComps.day == 1)
 
         let prev = JournalCalendar.shiftAnchor(.month, anchor: sat, dir: -1)
-        #expect(Calendar.current.component(.month, from: prev) == 7)
+        #expect(JournalCalendarZurich.calendar.component(.month, from: prev) == 7)
     }
 
     @Test func monthScopeDoesNotOverflowAcrossYearBoundary() {
         let dec = date(2026, 12, 15)
         let next = JournalCalendar.shiftAnchor(.month, anchor: dec, dir: 1)
-        let comps = Calendar.current.dateComponents([.year, .month], from: next)
+        let comps = JournalCalendarZurich.calendar.dateComponents([.year, .month], from: next)
         #expect(comps.year == 2027)
         #expect(comps.month == 1)
     }
