@@ -17,7 +17,7 @@ public nonisolated enum JournalPrompts {
     ]
 
     private static func dayOfYear(_ d: Date) -> Int {
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         let year = calendar.component(.year, from: d)
         guard let start = calendar.date(from: DateComponents(year: year, month: 1, day: 0)) else { return 0 }
         let diff = d.timeIntervalSince(start)

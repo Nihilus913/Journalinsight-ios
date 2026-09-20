@@ -6,7 +6,7 @@ import JIPersistence
 public nonisolated enum JournalCalendar {
     /// 42-cell, Monday-first month grid; `nil` cells pad before day 1 / after the last day.
     public static func monthGrid(month: Date) -> [String?] {
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         let comps = calendar.dateComponents([.year, .month], from: month)
         guard let year = comps.year, let m = comps.month,
               let first = calendar.date(from: DateComponents(year: year, month: m, day: 1)),
@@ -51,14 +51,11 @@ public nonisolated enum JournalCalendar {
         }
     }
 
-    public static func toISO(_ d: Date) -> String {
-        let comps = Calendar.current.dateComponents([.year, .month, .day], from: d)
-        return String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
-    }
+    public static func toISO(_ d: Date) -> String { JournalCalendarZurich.isoDay(d) }
 
     /// Monday of the week containing `d` (matches `monthGrid`'s Mon-first lead padding).
     public static func startOfWeek(_ d: Date) -> Date {
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         let weekday = calendar.component(.weekday, from: d) // Sun=1...Sat=7
         let dow = (weekday + 5) % 7 // Mon=0..Sun=6
         return calendar.date(byAdding: .day, value: -dow, to: calendar.startOfDay(for: d)) ?? d
@@ -68,7 +65,7 @@ public nonisolated enum JournalCalendar {
         if scope == .month { return monthGrid(month: anchor) }
         let n = dayCount(scope)
         let start = startOfWeek(anchor)
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         return (0..<n).map { i in
             guard let d = calendar.date(byAdding: .day, value: i, to: start) else { return nil }
             return toISO(d)
@@ -77,7 +74,7 @@ public nonisolated enum JournalCalendar {
 
     /// Moves `anchor` by one scope-length in `dir` (prev = -1 / next = 1).
     public static func shiftAnchor(_ scope: Scope, anchor: Date, dir: Int) -> Date {
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         if scope == .month {
             let comps = calendar.dateComponents([.year, .month], from: anchor)
             guard let year = comps.year, let m = comps.month,
@@ -91,21 +88,14 @@ public nonisolated enum JournalCalendar {
     }
 
     private static func fmtShort(_ iso: String, withYear: Bool) -> String {
-        let parts = iso.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3,
-              let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-        else { return iso }
-        let formatter = DateFormatter()
-        formatter.dateFormat = withYear ? "MMM d, yyyy" : "MMM d"
-        return formatter.string(from: date)
+        guard let date = JournalCalendarZurich.date(fromISODay: iso) else { return iso }
+        return JournalCalendarZurich.formatter(withYear ? "MMM d, yyyy" : "MMM d").string(from: date)
     }
 
     /// Human-readable range label for the calendar header.
     public static func rangeLabel(_ scope: Scope, anchor: Date) -> String {
         if scope == .month {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM yyyy"
-            return formatter.string(from: anchor)
+            return JournalCalendarZurich.formatter("MMMM yyyy").string(from: anchor)
         }
         let days = scopeDays(scope, anchor: anchor).compactMap { $0 }
         guard let first = days.first, let last = days.last else { return "" }
