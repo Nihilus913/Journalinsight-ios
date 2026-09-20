@@ -46,7 +46,7 @@ private func makeVM(
     await vm.load()
     #expect(vm.state == .idle)
     #expect(vm.templates.count == 4)
-    #expect(vm.templates.map(\.name) == ["Zone 2 40 min", "Norwegian 4×4", "Zone 2 60 min", "Long Run Zone 2"])
+    #expect(vm.templates.map(\.name) == ["Long Run Zone 2", "Zone 2 40 min", "Norwegian 4×4", "Zone 2 60 min"])
     #expect(vm.selected.isEmpty)
     #expect(vm.date == fixedNow)
     #expect(vm.canSend == false)
@@ -70,7 +70,7 @@ private func makeVM(
     let sender = FakeWorkoutSender()
     let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()), sender: sender)
     await vm.load()
-    vm.toggle(2); vm.toggle(4)
+    vm.toggle(3); vm.toggle(1)   // Norwegian 4×4 + Long Run Zone 2 (template_id 3, 1)
     vm.date = ISO8601DateFormatter().date(from: "2026-09-23T06:30:00Z")!
 
     await vm.send()
@@ -87,7 +87,7 @@ private func makeVM(
     }
     let scheduled = try await sender.scheduledWorkouts()
     #expect(scheduled.count == 2)
-    #expect(vm.sentNames == ["Norwegian 4×4", "Long Run Zone 2"])
+    #expect(vm.sentNames == ["Long Run Zone 2", "Norwegian 4×4"])
 }
 
 @Test @MainActor func sendToWatchNothingSelectedIsANoOp() async throws {
