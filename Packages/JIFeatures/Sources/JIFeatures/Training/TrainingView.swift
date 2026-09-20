@@ -8,6 +8,12 @@ import JIDesign
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
     @State private var showSessionCoach = false
+    #if canImport(WorkoutKit)
+    // B-37-L3 (P-workouts): the app wires `\.sendToWatchModel`; nil (previews, tests, no hub) hides
+    // the toolbar button. Environment-routed so `init(model:)` stays the frozen contract.
+    @Environment(\.sendToWatchModel) private var sendToWatch
+    @State private var showSendToWatch = false
+    #endif
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
@@ -38,6 +44,20 @@ public struct TrainingView: View {
         .navigationDestination(isPresented: $showSessionCoach) {
             SessionCoachView(model: SessionCoachViewModel(provider: nil))
         }
+        #if canImport(WorkoutKit)
+        .toolbar {
+            if sendToWatch != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showSendToWatch = true } label: { Label("Send to Watch", systemImage: "applewatch.radiowaves.left.and.right") }
+                        .accessibilityLabel("Send to Watch")
+                        .accessibilityIdentifier("training-send-to-watch")
+                }
+            }
+        }
+        .sheet(isPresented: $showSendToWatch) {
+            if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
+        }
+        #endif
     }
 
     private var header: some View {
