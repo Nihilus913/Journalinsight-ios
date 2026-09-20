@@ -29,10 +29,7 @@ public final class EntrySheetViewModel: Identifiable {
         self.tags = entry?.tags ?? []
     }
 
-    private static func isoDate(_ d: Date) -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: d)
-        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-    }
+    private static func isoDate(_ d: Date) -> String { JournalCalendarZurich.isoDay(d) }
 
     public var canSave: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 

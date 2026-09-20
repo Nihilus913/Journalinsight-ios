@@ -52,6 +52,37 @@ public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> (
 
 /// W5b-L1 (P-data-quality): wires the freshness badge's tap to opening the Data Quality screen
 /// (oracle `DataFreshnessBadge.tsx:33`, `router.push("/data-quality")`). Same pure-seam pattern.
+// MARK: W9.5-L4 (P-today) — rotation: width-driven columns
+
+/// W9.5-L4: the minimum tile width the grid's `.adaptive` columns fit. Compact width (every
+/// iPhone in portrait, non-Max iPhones in landscape) keeps the RN oracle's 2-up on a portrait
+/// phone (≈370pt usable → 2 tiles) yet lets an 18 Pro landscape (≈720pt usable) fill 4;
+/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6.
+public nonisolated func todayGridMinimumTileWidth(horizontalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
+    switch horizontalSizeClass {
+    case .regular: 200
+    default: 150
+    }
+}
+
+/// W9.5-L4: the `LazyVGrid` columns for the tile grid — one `.adaptive(minimum:)` item (the
+/// `GateRespondCard.swift` override-chip pattern) so rotation re-flows the count instead of
+/// stretching 2 fixed columns across a landscape width.
+public nonisolated func todayGridColumns(horizontalSizeClass: UserInterfaceSizeClass?) -> [GridItem] {
+    [GridItem(.adaptive(minimum: todayGridMinimumTileWidth(horizontalSizeClass: horizontalSizeClass)), spacing: todayGridSpacing)]
+}
+
+/// Inter-tile spacing shared by the columns and the rows.
+public nonisolated let todayGridSpacing: CGFloat = 12
+
+/// W9.5-L4: how many tiles `.adaptive(minimum:)` fits in `availableWidth` — the same arithmetic
+/// SwiftUI's adaptive layout runs (`n` tiles + `n−1` gaps), floored at 1 so a width narrower than
+/// one tile still lays out. Pure, so the rotation contract is unit-testable without a window.
+public nonisolated func todayGridColumnCount(availableWidth: CGFloat, minimumTileWidth: CGFloat, spacing: CGFloat = todayGridSpacing) -> Int {
+    guard minimumTileWidth > 0 else { return 1 }
+    return max(1, Int(((availableWidth + spacing) / (minimumTileWidth + spacing)).rounded(.down)))
+}
+
 public nonisolated func dataFreshnessBadgeTapAction(onOpenDataQuality: @escaping () -> Void) -> () -> Void {
     { onOpenDataQuality() }
 }
@@ -93,8 +124,11 @@ public struct TodayGrid: View {
     @State private var showMind = false
     @State private var showDataQuality = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// W9.5-L4 (P-today): rotation — the size class picks the minimum tile width; the column
+    /// count then follows the available width (2 portrait phone, 3+ landscape / iPad).
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private var columns: [GridItem] { todayGridColumns(horizontalSizeClass: horizontalSizeClass) }
 
     public init(
         chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void,
@@ -118,7 +152,7 @@ public struct TodayGrid: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             DataFreshnessBadge(info: freshness, onTap: dataFreshnessBadgeTapAction(onOpenDataQuality: { showDataQuality = true }))
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: todayGridSpacing) {
                 ForEach(orderedChips) { chip in
                     tile(for: chip)
                 }

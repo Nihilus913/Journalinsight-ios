@@ -63,7 +63,7 @@ public nonisolated enum JournalInsights {
             }
         }
         guard let date else { return 0 }
-        return Calendar.current.component(.hour, from: date)
+        return JournalCalendarZurich.calendar.component(.hour, from: date)
     }
 
     public static func timeOfDayDistribution(_ entries: [Entry]) -> [TimeOfDayBucket: Int] {
@@ -96,25 +96,21 @@ public nonisolated enum JournalInsights {
         let parts = iso.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return iso }
         let comps = DateComponents(year: parts[0], month: parts[1], day: parts[2] + n)
-        let calendar = Calendar.current
+        let calendar = JournalCalendarZurich.calendar
         guard let date = calendar.date(from: comps) else { return iso }
         let out = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", out.year ?? 0, out.month ?? 0, out.day ?? 0)
     }
 
     private static func mondayOfWeek(_ dateISO: String) -> String {
-        let parts = dateISO.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3,
-              let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-        else { return dateISO }
-        let weekday = Calendar.current.component(.weekday, from: date) // Sun=1...Sat=7
+        guard let date = JournalCalendarZurich.date(fromISODay: dateISO) else { return dateISO }
+        let weekday = JournalCalendarZurich.calendar.component(.weekday, from: date) // Sun=1...Sat=7
         let dow = (weekday + 5) % 7 // Mon=0
         return addDaysISO(dateISO, -dow)
     }
 
     public static func weeklyStats(_ entries: [Entry], weeks: Int, today: Date) -> [WeekBucket] {
-        let comps = Calendar.current.dateComponents([.year, .month, .day], from: today)
-        let todayISO = String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
+        let todayISO = JournalCalendarZurich.isoDay(today)
         let thisMonday = mondayOfWeek(todayISO)
         let starts = (0..<weeks).map { addDaysISO(thisMonday, -7 * (weeks - 1 - $0)) }
 

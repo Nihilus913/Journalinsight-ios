@@ -56,6 +56,14 @@ targets:
         # that retries pending outbox rows (weigh-in, gate respond, session feel) off-foreground.
         BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh]
         UIBackgroundModes: [fetch]
+        # W9.5-L4 (P-today): rotation is a supported feature, not an accident of a missing key —
+        # portrait + both landscapes (no upside-down on a phone; NOT `UIRequiresFullScreen`, the
+        # app stays multitasking-friendly). `TodayGrid` re-flows its columns via
+        # `.adaptive(minimum:)` + `horizontalSizeClass` instead of 2 fixed columns.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     # W7-L2 (P-apns-push): the Push Notifications capability is carried by the `aps-environment`
     # (+ `com.apple.developer.usernotifications.time-sensitive`) entitlement in
     # App/JournalInsight.entitlements below — that file IS the capability as far as Xcode 27 and

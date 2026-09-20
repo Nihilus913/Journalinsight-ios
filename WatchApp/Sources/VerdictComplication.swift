@@ -73,7 +73,7 @@ private struct VerdictComplicationView: View {
     var body: some View {
         VStack(spacing: 1) {
             Text(entry.verdictWord)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .jiFont(.footnote, weight: .bold, design: .rounded)   // W9.5-L4: JITypography token (13pt) — no fixed sizes (W8-L3 rule)
                 .foregroundStyle(verdictToneColor(entry.tone))
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
