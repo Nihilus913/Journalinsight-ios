@@ -17,6 +17,13 @@ public enum WorkoutHRAttacher {
             .sorted { $0.ts < $1.ts }
     }
 
+    /// W11 (P4): the hub's per-second `workout_hr` entry -> parsed readings in time order (UTC `Z`
+    /// timestamps; `BackloadDateParsing.timestamp` accepts them). Same drop rule as above.
+    public static func parse(_ entry: BackloadWorkoutHrEntryDTO) -> [BackloadWorkoutHRSample] {
+        entry.samples.compactMap { e in BackloadDateParsing.timestamp(e.ts).map { BackloadWorkoutHRSample(ts: $0, bpm: e.bpm) } }
+            .sorted { $0.ts < $1.ts }
+    }
+
     /// Readings with `start <= ts <= end`, in time order.
     public static func select(_ samples: [BackloadWorkoutHRSample], start: Date, end: Date) -> [BackloadWorkoutHRSample] {
         samples.filter { $0.ts >= start && $0.ts <= end }.sorted { $0.ts < $1.ts }

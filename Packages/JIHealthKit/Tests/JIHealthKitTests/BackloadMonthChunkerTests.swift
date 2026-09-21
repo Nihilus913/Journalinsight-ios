@@ -63,6 +63,7 @@ import JICore
             "sleep", "rhr", "steps", "energy", "vo2max", "workouts", "daily_resp", "daily_spo2",
             "heart_rate", "respiration", "spo2", "hrv_readings", "step_buckets", "stages",
             "floors", "distance", // W9 (HT e7720ff)
+            "workout_hr", "workout_routes", // W11 (contract v4)
         ])
     }
 

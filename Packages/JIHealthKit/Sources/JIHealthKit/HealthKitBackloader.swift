@@ -1,4 +1,5 @@
 #if canImport(HealthKit)
+import CoreLocation
 import Foundation
 import HealthKit
 import JICore
@@ -58,7 +59,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
         // One-time upgrade: an older writer version walks the whole range again and rewrites
         // the kinds that changed shape (v3: workouts; v4: everything the hub re-versioned; v5:
-        // see `V5Upgrade`) and, per chunk, deletes what an older writer mis-wrote
+        // see `V5Upgrade`; v6 (W11): routes + per-second HR — no deletion pass of its own, the
+        // workout path force-overwrites) and, per chunk, deletes what an older writer mis-wrote
         // (`runV4Upgrade`, `runV5Upgrade`, one step per `V5Upgrade` case).
         let storedVersion = cursorDefaults?.integer(forKey: Self.writerVersionKey) ?? 0
         let needsV4Upgrade = storedVersion < 4
@@ -109,6 +111,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                             }
                         }
                     }
+                    await deleteRouteAndAttachedHR(for: w)
                 default:
                     writableSpecs.append(spec)
                 }
@@ -127,19 +130,27 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
 
             var toSave: [HKObject] = []
             var toAssociate: [(HKWorkout, [HKSample])] = []
+            var toRoute: [(HKWorkout, [CLLocation], [String: Any])] = []
             for entry in entries {
                 if let workout = entry.object as? HKWorkout {
                     // Workouts are always force-overwritten (Toby 2026-09-17): delete the old
                     // object + its associated samples by sync id, then re-save and re-attach —
-                    // never a duplicate, never a stale ring credit.
+                    // never a duplicate, never a stale ring credit. v6 (W11): the old route
+                    // (`workout:<id>:route`) and EVERY old attached HR sample (`workout:<id>:hr:*`,
+                    // by prefix — a W9 2-min reading's second is not in the per-second series)
+                    // go too, so nothing lingers beside the re-attached series.
                     try? await store.deleteObjects(sampleType: entry.type, syncIdentifiers: [entry.syncId])
                     for sample in entry.associated {
                         if let sid = sample.metadata?[HKMetadataKeySyncIdentifier] as? String {
                             try? await store.deleteObjects(sampleType: sample.sampleType, syncIdentifiers: [sid])
                         }
                     }
+                    await deleteRouteAndAttachedHR(for: workout, syncId: entry.syncId)
                     toSave.append(workout)
                     if !entry.associated.isEmpty { toAssociate.append((workout, entry.associated)) }
+                    if !entry.route.isEmpty {
+                        toRoute.append((workout, entry.route, [HKMetadataKeySyncIdentifier: Self.routeSyncId(entry.syncId), HKMetadataKeySyncVersion: entry.version]))
+                    }
                 } else if let stored = existingByType[ObjectIdentifier(entry.type)]?[entry.syncId], stored >= entry.version {
                     // Only an object that is already at least as new as the hub's row is left
                     // alone; anything older is re-saved, and HealthKit replaces a same-sync-id
@@ -158,8 +169,13 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                     try await store.save(toSave)
                     written += toSave.count
                     for (workout, samples) in toAssociate {
+                        // One `add` per workout, however many per-second readings ride on it.
                         do { try await store.add(samples, to: workout); written += samples.count }
                         catch { failed.append((workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "workout") + ":associated") }
+                    }
+                    for (workout, locations, metadata) in toRoute {
+                        do { try await store.insertRoute(locations, for: workout, metadata: metadata); written += 1 }
+                        catch { failed.append(Self.routeSyncId(workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "workout")) }
                     }
                 } catch {
                     failed.append(contentsOf: toSave.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String })
@@ -177,6 +193,30 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         if let done = cursorDefaults?.string(forKey: Self.cursorKey) { cursorDefaults?.set(done, forKey: Self.lastCompletedKey) }
         cursorDefaults?.removeObject(forKey: Self.cursorKey)
         return BackloadSummary(written: written, skipped: skipped, failed: failed)
+    }
+
+    // MARK: - v6 route + attached-HR cleanup (W11)
+
+    static func routeSyncId(_ workoutSyncId: String) -> String { "\(workoutSyncId):route" }
+
+    /// Removes the workout's previous `HKWorkoutRoute` (by its sync id) and every HR sample
+    /// attached to it (`workout:<id>:hr:*`, matched by prefix inside the workout's window)
+    /// before the run re-saves the workout and re-attaches the hub's current series. Failures
+    /// are swallowed like every other cleanup: they must never sink the chunk's writes.
+    private func deleteRouteAndAttachedHR(for workout: HKWorkout, syncId: String) async {
+        try? await store.deleteObjects(sampleType: HKSeriesType.workoutRoute(), syncIdentifiers: [Self.routeSyncId(syncId)])
+        let hrPrefix = "\(syncId):hr:"
+        _ = try? await store.deleteObjects(sampleType: HKQuantityType(.heartRate), start: workout.startDate, end: workout.endDate) { sample in
+            (sample.metadata?[HKMetadataKeySyncIdentifier] as? String)?.hasPrefix(hrPrefix) == true
+        }
+    }
+
+    private func deleteRouteAndAttachedHR(for spec: BackloadWorkoutSampleSpec) async {
+        try? await store.deleteObjects(sampleType: HKSeriesType.workoutRoute(), syncIdentifiers: [Self.routeSyncId(spec.syncId)])
+        let hrPrefix = "\(spec.syncId):hr:"
+        _ = try? await store.deleteObjects(sampleType: HKQuantityType(.heartRate), start: spec.start, end: spec.end) { sample in
+            (sample.metadata?[HKMetadataKeySyncIdentifier] as? String)?.hasPrefix(hrPrefix) == true
+        }
     }
 
     // MARK: - v5 upgrade pass (W9)
@@ -280,7 +320,8 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             vo2max: daily.vo2max, workouts: daily.workouts,
             heartRate: dense.heartRate, respiration: dense.respiration, spo2: dense.spo2, hrv: dense.hrv,
             stepBuckets: dense.stepBuckets, dailyResp: daily.dailyResp, dailySpo2: daily.dailySpo2,
-            distance: daily.distance, floors: daily.floors
+            distance: daily.distance, floors: daily.floors,
+            workoutHr: dense.workoutHr, workoutRoutes: dense.workoutRoutes // W11: dense kinds
         )
     }
 
@@ -310,6 +351,9 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         let version: Int
         /// Samples to attach to `object` (an `HKWorkout`) after it is saved — see `HealthStoreWriting.add`.
         var associated: [HKSample] = []
+        /// W11: the workout's GPS route, inserted as an `HKWorkoutRoute` after the save — see
+        /// `HealthStoreWriting.insertRoute`. Empty = no route (no-GPS activity or pre-W11 hub).
+        var route: [CLLocation] = []
     }
 
     /// Bumped when an already-written kind must be rewritten (HealthKit replaces objects whose
@@ -319,7 +363,10 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
     /// cleanup pass in `runV4Upgrade`.
     /// v5 (W9 B-30 P3/P5/P2.7): workouts carry their window's HR samples, indoor flag, brand +
     /// title metadata; `runV5Upgrade` sweeps per `V5Upgrade` case.
-    static let writerVersion = 5
+    /// v6 (W11 B-30 P4): every workout gets an `HKWorkoutRoute` + per-second HR from
+    /// `workout_hr`/`workout_routes` and `HKMetadataKeyElevationAscended`; the bump alone makes
+    /// the next run walk the whole range once (workouts force-overwrite — no deletion pass).
+    static let writerVersion = 6
     static let writerVersionKey = "hk.backload.writerVersion"
     static let workoutSyncVersion = 3
     static let lastCompletedKey = "hk.backload.lastCompletedDay"
@@ -396,6 +443,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             ]
             if let avgHr = w.avgHr { metadata[averageHeartRateMetadataKey] = avgHr }
             if w.startEstimated { metadata[startEstimatedMetadataKey] = true }
+            if let ascent = w.ascentM { metadata[HKMetadataKeyElevationAscended] = HKQuantity(unit: .meter(), doubleValue: ascent) }
             let energy = w.kcal.map { HKQuantity(unit: .kilocalorie(), doubleValue: $0) }
             let distance = w.distanceM.map { HKQuantity(unit: .meter(), doubleValue: $0) }
             let workout = HKWorkout(
@@ -416,10 +464,23 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                     metadata: [HKMetadataKeySyncIdentifier: "\(w.syncId):distance", HKMetadataKeySyncVersion: version]))
             }
             associated.append(contentsOf: WorkoutHRAttacher.samples(for: w, version: version))
-            return [ObjectEntry(object: workout, type: type, syncId: w.syncId, version: version, associated: associated)]
+            return [ObjectEntry(object: workout, type: type, syncId: w.syncId, version: version, associated: associated, route: routeLocations(w.route))]
 
         case .delete:
             return [] // handled in `run` before mapping to objects, never saved
+        }
+    }
+
+    /// W11: spec points -> `CLLocation`s for `HKWorkoutRouteBuilder`. Horizontal accuracy is not
+    /// on the wire (Garmin's details carry none), so a nominal 5 m is stamped; a missing
+    /// altitude / speed is marked INVALID (negative accuracy / speed) rather than written as 0.
+    static let routeHorizontalAccuracyM: CLLocationAccuracy = 5
+    static func routeLocations(_ points: [BackloadRoutePoint]) -> [CLLocation] {
+        points.map { p in
+            CLLocation(
+                coordinate: CLLocationCoordinate2D(latitude: p.lat, longitude: p.lon),
+                altitude: p.altM ?? 0, horizontalAccuracy: routeHorizontalAccuracyM, verticalAccuracy: p.altM == nil ? -1 : 5,
+                course: -1, speed: p.speedMps ?? -1, timestamp: p.ts)
         }
     }
 
@@ -507,6 +568,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
             HKQuantityType(.heartRate), HKQuantityType(.respiratoryRate), HKQuantityType(.oxygenSaturation),
             HKQuantityType(.heartRateVariabilitySDNN),
             HKQuantityType(.flightsClimbed), // W9 L2 (P5); distanceWalkingRunning is already above
+            HKSeriesType.workoutRoute(), // W11 (P4): `HKWorkoutRouteBuilder.finishRoute` needs share access
         ]
         if let rmssd = HKReadKind.hrvRMSSDQuantityType { types.insert(rmssd) }
         return types

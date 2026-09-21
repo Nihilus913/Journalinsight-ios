@@ -115,23 +115,26 @@ extension HealthKitBackloaderTests {
         let range = BackloadRange(from: w9Day(2026, 6, 1), to: w9Day(2026, 6, 30))
         _ = try await loader.run(range) { _ in }
 
-        #expect(store.whereDeleteCalls == 1) // only the v5 workoutHR sweep; the v4 pass is done
+        // the v5 workoutHR sweep + (W11) one per-workout `workout:<id>:hr:*` sweep for each of the
+        // 3 written workouts; the v4 pass is done
+        #expect(store.whereDeleteCalls == 1 + 3)
         // the stale reading is swept by the upgrade; the ids the force-overwrite path deletes-then-
         // re-attaches also land in `deletedSyncIds` (same as energy/distance since v4)
         #expect(store.deletedSyncIds[HKQuantityType(.heartRate).identifier]?.contains("workout:1:hr:072000") == true)
         #expect(store.preexisting.isEmpty)
         #expect(hrIds(store, "workout:1").count == 3)
-        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == 5)
+        #expect(defaults.integer(forKey: "hk.backload.writerVersion") == HealthKitBackloader.writerVersion)
 
-        // second run at v5: no sweep, workouts force-overwrite, still exactly 3 HR samples
+        // second run at the current version: no upgrade sweep (only the 3 per-workout ones),
+        // workouts force-overwrite, still exactly 3 HR samples
         _ = try await loader.run(range) { _ in }
-        #expect(store.whereDeleteCalls == 1)
+        #expect(store.whereDeleteCalls == 4 + 3)
         #expect(hrIds(store, "workout:1").count == 3)
         #expect(store.savedObjects.filter { ($0.metadata?[HKMetadataKeySyncIdentifier] as? String) == "workout:1" }.count == 1)
     }
 
-    @Test func writerVersionIsFiveAndTheEnumHasTheWorkoutHRStep() {
-        #expect(HealthKitBackloader.writerVersion == 5)
+    @Test func writerVersionIsAtLeastFiveAndTheEnumHasTheWorkoutHRStep() {
+        #expect(HealthKitBackloader.writerVersion >= 5) // W11 bumped it to 6
         #expect(HealthKitBackloader.V5Upgrade.allCases.contains(.workoutHR))
     }
 }

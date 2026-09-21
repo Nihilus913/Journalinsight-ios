@@ -29,10 +29,12 @@ enum BackloadMonthChunker {
     /// (`app/vitals/backload.py:fetch_backload`, `"stages" in kinds` populates `stages_by_date`,
     /// but only entries built while `"sleep" in kinds` attach it) — so fetching `stages` alone
     /// would come back with an empty `sleep` array and every stage interval silently discarded.
-    /// The other five names are the hub's own `DENSE_KINDS`. Requesting any of them caps the
-    /// range at `MAX_RANGE_DAYS_DENSE` (31 days), which every chunk here already satisfies.
+    /// The other names are the hub's own `DENSE_KINDS` (W11 adds the per-workout `workout_hr` /
+    /// `workout_routes`, contract v4). Requesting any of them caps the range at
+    /// `MAX_RANGE_DAYS_DENSE` (31 days), which every chunk here already satisfies.
     static let densePassKinds: Set<String> = [
         "sleep", "stages", "heart_rate", "respiration", "spo2", "hrv_readings", "step_buckets",
+        "workout_hr", "workout_routes", // W11 (B-30 P4), hub contract v4
     ]
 
     private static var zurichCalendar: Calendar {
