@@ -25,5 +25,6 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Recovery") { L4Screens.recovery() },
         ScreenEntry(name: "Readiness rationale") { L4Screens.readinessRationale() },
         ScreenEntry(name: "Gate config") { L4Screens.gateConfig() },
+        ScreenEntry(name: "Edit today") { L4Screens.editToday() },
     ]
 }

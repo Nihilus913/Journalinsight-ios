@@ -108,4 +108,7 @@ struct NativeFixtureUnavailable: View {
         return AnyView(NativeScreenPreview { GateConfigView(model: model) })
     }
 
+    static func editToday() -> AnyView {
+        AnyView(NativeScreenPreview { EditTodayView(model: EditTodayViewModel(prefs: NativeFixtureStore.prefs)) })
+    }
 }
