@@ -10,6 +10,9 @@ public nonisolated func readinessBand(for value: Double) -> ReadinessBand {
 /// RN clock convention: 270° = 9 o'clock (0), 360° = 12 o'clock (50), 450° = 3 o'clock (100).
 public nonisolated func gaugeAngle(for value: Double) -> Angle { .degrees(270 + (min(100, max(0, value)) / 100) * 180) }
 
+/// §4 native fill: SwiftUI angles, 180° = 9 o'clock. Used for the gradient's end angle.
+public nonisolated func gaugeFillEndAngle(for value: Double) -> Angle { .degrees(180 + 1.8 * min(100, max(0, value))) }
+
 private func bandColor(_ b: ReadinessBand) -> Color { switch b { case .danger: JIColor.danger; case .warn: JIColor.reduced; case .go: JIColor.go } }
 
 /// DESIGN-6: source-missing announces the shared "not from current source" copy — never a
@@ -21,13 +24,15 @@ public nonisolated func readinessAccessibilityLabel(score: Double?, sourceMissin
 
 private nonisolated struct ArcSegment: Shape {
     var from: Double, to: Double, lineWidth: CGFloat
+    var lineCap: CGLineCap = .butt
+    var animatableData: Double { get { to } set { to = newValue } }
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.maxY - lineWidth)
         let r = min(rect.width, rect.height * 2) / 2 - lineWidth
         var p = Path()
         // SwiftUI angles: 0 = 3 o'clock, clockwise. RN 270 (9 o'clock) = SwiftUI 180.
         p.addArc(center: c, radius: r, startAngle: gaugeAngle(for: from) - .degrees(90), endAngle: gaugeAngle(for: to) - .degrees(90), clockwise: false)
-        return p.strokedPath(StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
+        return p.strokedPath(StrokeStyle(lineWidth: lineWidth, lineCap: lineCap))
     }
 }
 
@@ -35,9 +40,24 @@ public struct ReadinessArcGauge: View {
     let score: Double?, sourceMissing: Bool, size: CGFloat
     public init(score: Double?, sourceMissing: Bool = false, size: CGFloat = 180) { self.score = score; self.sourceMissing = sourceMissing; self.size = size }
     private let track: CGFloat = 14
+    /// §4 native: stroke 16, scaled with the type size (§8.4).
+    @ScaledMetric(relativeTo: .body) private var nativeTrack: CGFloat = 16
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.jiTheme) private var theme
+    /// Native reveal: animates 0 → score on first appearance (§4).
+    @State private var displayed: Double = 0
 
     public var body: some View {
+        Group {
+            if theme == .native { nativeBody } else { classicBody }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(readinessAccessibilityLabel(score: score, sourceMissing: sourceMissing))
+    }
+
+    // MARK: classic (unchanged since W2a)
+
+    private var classicBody: some View {
         ZStack(alignment: .bottom) {
             ArcSegment(from: 0, to: 40, lineWidth: track).fill(bandColor(.danger).opacity(0.35))
             ArcSegment(from: 40, to: 70, lineWidth: track).fill(bandColor(.warn).opacity(0.35))
@@ -45,24 +65,9 @@ public struct ReadinessArcGauge: View {
             if let score, !sourceMissing {
                 needle(at: score)
             }
-            VStack(spacing: 2) {
-                if sourceMissing {
-                    Text("—").jiNumeral(.numeralGauge).foregroundStyle(JIColor.muted)
-                    Text(sourceMissingCopy).font(.caption).foregroundStyle(JIColor.muted)
-                } else if let score {
-                    Text(score, format: .number.precision(.fractionLength(0)))
-                        .jiNumeral(.numeralGauge)
-                        .foregroundStyle(bandColor(readinessBand(for: score)))
-                        .contentTransition(.numericText())
-                    Text("readiness").font(.caption).foregroundStyle(JIColor.muted)
-                } else {
-                    Text("No data yet").font(.caption).foregroundStyle(JIColor.muted)
-                }
-            }.padding(.bottom, 8)
+            numerals(color: score.map { bandColor(readinessBand(for: $0)) } ?? JIColor.muted, muted: JIColor.muted)
         }
         .frame(width: size, height: size / 2 + track)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(readinessAccessibilityLabel(score: score, sourceMissing: sourceMissing))
     }
 
     private func needle(at value: Double) -> some View {
@@ -76,5 +81,69 @@ public struct ReadinessArcGauge: View {
                 .position(x: c.x + r * cos(a.radians), y: c.y + r * sin(a.radians))
                 .animation(reduceMotion ? nil : JIMotion.reveal, value: value)
         }
+    }
+
+    // MARK: native (B-33 §4) — single track, long-fade fill, head dot, reveal
+
+    private var nativeBody: some View {
+        ZStack(alignment: .bottom) {
+            ArcSegment(from: 0, to: 100, lineWidth: nativeTrack, lineCap: .round).fill(theme.color(.nested))
+            if let score, !sourceMissing {
+                let tint = nativeBandColor(readinessBand(for: score))
+                ArcSegment(from: 0, to: displayed, lineWidth: nativeTrack, lineCap: .round)
+                    .fill(AngularGradient(stops: ringFadeStops(tint), center: gradientCenter, startAngle: .degrees(180), endAngle: gaugeFillEndAngle(for: score)))
+                headDot(at: displayed, tint: tint)
+            }
+            numerals(color: score.map { nativeBandColor(readinessBand(for: $0)) } ?? theme.color(.muted), muted: theme.color(.muted))
+        }
+        .frame(width: size, height: size / 2 + nativeTrack)
+        .onAppear { reveal(to: score ?? 0) }
+        .onChange(of: score) { reveal(to: score ?? 0) }
+    }
+
+    /// The arc centre as a unit point of the gauge frame (`rect.maxY - lineWidth` in `ArcSegment`).
+    private var gradientCenter: UnitPoint {
+        let h = size / 2 + nativeTrack
+        return UnitPoint(x: 0.5, y: (h - nativeTrack) / h)
+    }
+
+    private func reveal(to value: Double) {
+        withAnimation(reduceMotion ? nil : JIMotion.standard) { displayed = value }
+    }
+
+    private func nativeBandColor(_ b: ReadinessBand) -> Color {
+        switch b { case .danger: theme.color(.danger); case .warn: theme.color(.reduced); case .go: theme.color(.go) }
+    }
+
+    private func headDot(at value: Double, tint: Color) -> some View {
+        GeometryReader { g in
+            let c = CGPoint(x: g.size.width / 2, y: g.size.height - nativeTrack)
+            let r = min(g.size.width, g.size.height * 2) / 2 - nativeTrack
+            let a = gaugeAngle(for: value) - .degrees(90)
+            ZStack {
+                Circle().fill(tint).frame(width: 18, height: 18).blur(radius: 4).opacity(0.35)
+                Circle().fill(.white).frame(width: 10, height: 10)
+            }
+            .position(x: c.x + r * cos(a.radians), y: c.y + r * sin(a.radians))
+        }
+    }
+
+    // MARK: shared numerals
+
+    private func numerals(color: Color, muted: Color) -> some View {
+        VStack(spacing: 2) {
+            if sourceMissing {
+                Text("—").jiNumeral(.numeralGauge).foregroundStyle(muted)
+                Text(sourceMissingCopy).font(.caption).foregroundStyle(muted)
+            } else if let score {
+                Text(score, format: .number.precision(.fractionLength(0)))
+                    .jiNumeral(.numeralGauge)
+                    .foregroundStyle(color)
+                    .contentTransition(.numericText())
+                Text("readiness").font(.caption).foregroundStyle(muted)
+            } else {
+                Text("No data yet").font(.caption).foregroundStyle(muted)
+            }
+        }.padding(.bottom, 8)
     }
 }
