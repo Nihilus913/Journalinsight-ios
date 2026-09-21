@@ -103,4 +103,9 @@ struct NativeFixtureUnavailable: View {
         AnyView(NativeScreenPreview { GateRationaleView(model: GateRationaleViewModel.fixture()) })
     }
 
+    static func gateConfig() -> AnyView {
+        guard let model = GateConfigViewModel.fixture() else { return AnyView(NativeFixtureUnavailable(screen: "Gate config")) }
+        return AnyView(NativeScreenPreview { GateConfigView(model: model) })
+    }
+
 }
