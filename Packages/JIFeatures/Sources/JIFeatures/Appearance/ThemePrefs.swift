@@ -53,6 +53,22 @@ public nonisolated enum AccentKey: String, Codable, Sendable, CaseIterable, Equa
     }
 
     public var color: Color { Color(hex: hex) }
+
+    /// B-33 §1: the iOS system tint this accent becomes under `.native`. Names and rawValues are
+    /// unchanged so saved prefs survive.
+    public var nativeColor: Color {
+        switch self {
+        case .emerald: .green
+        case .teal: .teal
+        case .indigo: .indigo
+        case .orange: .orange
+        case .fuchsia: .pink
+        }
+    }
+
+    public func color(for theme: JITheme) -> Color {
+        switch theme { case .classic: color; case .native: nativeColor }
+    }
 }
 
 /// tokens.ts `FontScalePreset` — "system" = the device's own text size (RN
