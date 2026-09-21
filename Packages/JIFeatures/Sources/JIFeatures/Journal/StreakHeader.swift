@@ -3,6 +3,7 @@ import JIDesign
 
 /// Current/best/this-week streak stats (oracle: `StreakHeader.tsx`), fed by `JournalStreak`.
 public struct StreakHeader: View {
+    @Environment(\.jiTheme) private var theme
     let stats: JournalStreak.Stats
     public init(stats: JournalStreak.Stats) { self.stats = stats }
 
@@ -24,10 +25,10 @@ public struct StreakHeader: View {
 
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).jiFont(.statValue, weight: .semibold).foregroundStyle(JIColor.text)
+            Text(value).jiFont(.statValue, weight: .semibold).foregroundStyle(theme.color(.text))
                 .accessibilityLabel(label)
                 .accessibilityValue(value)
-            Text(label).jiFont(.caption).foregroundStyle(JIColor.muted)
+            Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
     }
 }

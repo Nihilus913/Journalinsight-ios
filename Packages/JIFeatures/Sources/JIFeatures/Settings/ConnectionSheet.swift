@@ -56,6 +56,7 @@ public final class ConnectionSheetModel {
 }
 
 public struct ConnectionSheet: View {
+    @Environment(\.jiTheme) private var theme
     @State private var model: ConnectionSheetModel
     private let onSaved: (ConnectionConfig) -> Void
     /// Optional (B-9): nil hides the section entirely (e.g. previews that don't wire a runner).
@@ -92,8 +93,8 @@ public struct ConnectionSheet: View {
                 Section {
                     Button { Task { await model.test() } } label: { HStack { Text("Test connection"); if model.testing { Spacer(); ProgressView() } } }
                         .disabled(model.testing)
-                    if let s = model.status { Text(statusText(s)).font(.footnote).foregroundStyle(JIColor.muted) }
-                    if let e = model.saveError { Text(e).font(.footnote).foregroundStyle(.red) }
+                    if let s = model.status { Text(statusText(s)).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+                    if let e = model.saveError { Text(e).jiFont(.footnote).foregroundStyle(theme.color(.danger)) }
                 }
                 if let backloadModel {
                     HealthBackloadSection(model: backloadModel)
@@ -109,10 +110,11 @@ public struct ConnectionSheet: View {
                     }
                 }
             }
+            .jiTheme(.native)
             .navigationTitle("Connection")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { if let c = model.save() { onSaved(c); dismiss() } }.tint(JIColor.info)
+                    Button("Save") { if let c = model.save() { onSaved(c); dismiss() } }.tint(theme.color(.info))
                 }
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }

@@ -6,6 +6,7 @@ import JIDesign
 /// calendar) rather than porting the RN month-grid math — same "pick one date or clear it" result,
 /// different picker chrome.
 public struct GoalDatePicker: View {
+    @Environment(\.jiTheme) private var theme
     @Binding var value: String?
 
     public init(value: Binding<String?>) { self._value = value }
@@ -34,7 +35,7 @@ public struct GoalDatePicker: View {
             if value != nil {
                 Button("Clear date") { value = nil }
                     .font(.caption.bold())
-                    .foregroundStyle(JIColor.danger)
+                    .foregroundStyle(theme.color(.danger))
                     .accessibilityLabel("Clear target date")
                     .accessibilityIdentifier("goal-clear-target-date")
             }

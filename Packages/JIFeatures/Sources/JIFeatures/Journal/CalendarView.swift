@@ -5,6 +5,7 @@ import JIPersistence
 /// Scope-aware calendar grid (oracle: `CalendarView.tsx`), fed by `JournalCalendar`. Highlights
 /// days that have at least one entry.
 public struct CalendarView: View {
+    @Environment(\.jiTheme) private var theme
     let scope: JournalCalendar.Scope
     let anchor: Date
     let entryDates: Set<String>
@@ -30,7 +31,7 @@ public struct CalendarView: View {
                         .accessibilityLabel("Previous \(JournalCalendar.scopeLabel(scope))")
                     Spacer()
                     Text(JournalCalendar.rangeLabel(scope, anchor: anchor))
-                        .jiFont(.footnote, weight: .semibold).foregroundStyle(JIColor.text)
+                        .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                     Spacer()
                     Button { onShift(1) } label: { Image(systemName: "chevron.right") }
                         .buttonStyle(.pressableScale)
@@ -45,9 +46,9 @@ public struct CalendarView: View {
                                     .jiFont(.label)
                                     .frame(maxWidth: .infinity, minHeight: 28)
                                     .background(
-                                        Circle().fill(hasEntry ? JIColor.go.opacity(0.3) : Color.clear)
+                                        Circle().fill(hasEntry ? theme.color(.go).opacity(0.3) : Color.clear)
                                     )
-                                    .foregroundStyle(JIColor.text)
+                                    .foregroundStyle(theme.color(.text))
                             }
                             .buttonStyle(.plain)
                             // Oracle `CalendarView.tsx` labels a day cell with its date + entry

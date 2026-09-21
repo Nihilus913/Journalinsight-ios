@@ -38,6 +38,11 @@ public struct CheckInSheet: View {
                             Text("\(m.emoji) \(m.rawValue.capitalized)").tag(JIPersistence.Mood?.some(m))
                         }
                     }
+                    // §8.2/§8.4: an inline picker instead of the menu style — the choices are a
+                    // short fixed set, and inline rows reflow at AX sizes where a menu label has
+                    // to be measured against a popover it can no longer fit.
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                     .accessibilityLabel("Mood")
                 }
                 scoreSection("Stress", value: $stress)
@@ -59,6 +64,7 @@ public struct CheckInSheet: View {
             }
             .accessibilityIdentifier("checkin-sheet-panel")
             .navigationTitle("Daily check-in")
+            .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("checkin-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
@@ -67,7 +73,9 @@ public struct CheckInSheet: View {
                         .accessibilityIdentifier("checkin-save")
                 }
             }
-            .onAppear(perform: prefill)
+            // Only prefill when there IS a row for today — with nothing to copy, the eight
+            // assignments were a no-op that still pushed a state update through the view.
+            .onAppear { if model.today != nil { prefill() } }
         }
     }
 

@@ -8,6 +8,7 @@ import JIPersistence
 /// doesn't have yet (`migratesInW5`) shows "migrates in W5" instead of a
 /// count, per the W4 card's "listed, never silently dropped" rule.
 public struct RestorePreviewView: View {
+    @Environment(\.jiTheme) private var theme
     let preview: BackupImportPreview
     @Binding var passphrase: String
     let onConfirm: () -> Void
@@ -28,27 +29,23 @@ public struct RestorePreviewView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Backup from \(preview.exportedAt) · app \(preview.appVersion)")
-                .font(.footnote)
-                .foregroundStyle(JIColor.muted)
+                .jiFont(.footnote)
+                .foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("restore-preview-header")
 
+            // §2b.2: one 44-pt row per table instead of a hand-spaced HStack.
             ForEach(preview.rows, id: \.table) { row in
-                HStack {
-                    Text(row.table)
-                    Spacer()
-                    if row.migratesInW5 {
-                        Text("migrates in W5").font(.caption).foregroundStyle(JIColor.muted)
-                            .accessibilityLabel("\(row.table), migrates in W5")
-                    } else {
-                        Text("\(row.currentRowCount) → \(row.incomingRowCount)").font(.caption)
-                            .accessibilityLabel("\(row.table), \(row.currentRowCount) rows now, \(row.incomingRowCount) after restore")
-                    }
+                if row.migratesInW5 {
+                    JIRow(title: row.table) { Text("migrates in W5").jiFont(.caption) }
+                        .accessibilityLabel("\(row.table), migrates in W5")
+                } else {
+                    JIRow(title: row.table) { Text("\(row.currentRowCount) → \(row.incomingRowCount)").jiFont(.caption) }
+                        .accessibilityLabel("\(row.table), \(row.currentRowCount) rows now, \(row.incomingRowCount) after restore")
                 }
             }
 
             if preview.hasVaultKey {
                 SecureField("Backup passphrase", text: $passphrase)
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("restore-passphrase")
                     .accessibilityLabel("Backup passphrase")
             }
@@ -58,7 +55,7 @@ public struct RestorePreviewView: View {
                     .accessibilityIdentifier("restore-cancel")
                 Spacer()
                 Button("Restore") { onConfirm() }
-                    .tint(JIColor.info)
+                    .tint(theme.color(.info))
                     .disabled(preview.hasVaultKey && passphrase.isEmpty)
                     .accessibilityIdentifier("restore-confirm")
                     .accessibilityHint("Replaces this device's data with the backup shown above.")

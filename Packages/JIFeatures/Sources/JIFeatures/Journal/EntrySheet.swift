@@ -4,6 +4,7 @@ import JIDesign
 /// Add/edit-entry sheet (oracle: `EntrySheet.tsx`). `onSave` is handed the finished `NewEntry`
 /// write closure from `JournalViewModel` so this view never touches `JournalStore` directly.
 public struct EntrySheet: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: EntrySheetViewModel
     let onSave: () -> Void
     let onCancel: () -> Void
@@ -43,9 +44,10 @@ public struct EntrySheet: View {
                     }
                 }
                 if let error = model.errorMessage {
-                    Text(error).foregroundStyle(JIColor.danger)
+                    Text(error).foregroundStyle(theme.color(.danger))
                 }
             }
+            .jiTheme(.native)
             .navigationTitle(model.editingId == nil ? "New Entry" : "Edit Entry")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
