@@ -27,5 +27,6 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Nutrition") { AnyView(NutritionNativePreview()) },
         ScreenEntry(name: "Nutrition log") { AnyView(NutritionLogNativePreview()) },
         ScreenEntry(name: "Weigh-in") { AnyView(WeighInNativePreview()) },
+        ScreenEntry(name: "Energy") { AnyView(EnergyNativePreview()) },
     ]
 }
