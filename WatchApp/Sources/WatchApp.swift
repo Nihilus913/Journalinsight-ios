@@ -18,16 +18,19 @@ struct WatchApp: App {
         WindowGroup {
             TabView(selection: $watchGlanceDebugSelection) {
                 VerdictGlance(snapshot: snapshotStore.snapshot)
-                    .containerBackground(JIColor.bg, for: .tabView)
+                    .containerBackground(JITheme.native.color(.bg), for: .tabView)
                     .tag(0)
                 ReadinessGlance(snapshot: snapshotStore.snapshot)
-                    .containerBackground(JIColor.bg, for: .tabView)
+                    .containerBackground(JITheme.native.color(.bg), for: .tabView)
                     .tag(1)
                 MyKpisGlance(snapshot: snapshotStore.snapshot)
-                    .containerBackground(JIColor.bg, for: .tabView)
+                    .containerBackground(JITheme.native.color(.bg), for: .tabView)
                     .tag(2)
             }
             .tabViewStyle(.verticalPage)
+            // B-33: the whole watch app ships in the native language (spec §1 — watchOS has no
+            // UIKit semantic colours, so JINativePalette's watch branch supplies them).
+            .jiTheme(.native)
             .task { snapshotStore.refresh() }
             .onAppear { snapshotStore.refresh() }
         }

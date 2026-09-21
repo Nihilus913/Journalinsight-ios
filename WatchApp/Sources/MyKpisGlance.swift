@@ -20,6 +20,7 @@ public nonisolated func kpiAccessibilityLabel(_ kpi: SnapshotKPI) -> String {
 /// an empty list (rule 5).
 public struct MyKpisGlance: View {
     let snapshot: HubSnapshot?
+    @Environment(\.jiTheme) private var theme
     public init(snapshot: HubSnapshot?) { self.snapshot = snapshot }
 
     public var body: some View {
@@ -29,9 +30,9 @@ public struct MyKpisGlance: View {
                     ForEach(Array(kpis.enumerated()), id: \.offset) { _, kpi in
                         Surface(level: 2, padding: 10) {
                             HStack {
-                                Text(kpi.label).font(.caption).foregroundStyle(JIColor.muted).lineLimit(1)
+                                Text(kpi.label).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
                                 Spacer(minLength: 4)
-                                Text(kpiValueText(kpi)).font(.body.weight(.semibold)).foregroundStyle(JIColor.text)
+                                Text(kpiValueText(kpi)).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                             }
                         }
                         .accessibilityElement(children: .ignore)
@@ -40,7 +41,7 @@ public struct MyKpisGlance: View {
                 } else {
                     SkeletonBlock(height: 32)
                     SkeletonBlock(height: 32)
-                    Text("No data yet").font(.caption2).foregroundStyle(JIColor.muted)
+                    Text("No data yet").jiFont(.micro).foregroundStyle(theme.color(.muted))
                 }
             }
             .padding(.horizontal, 4)
