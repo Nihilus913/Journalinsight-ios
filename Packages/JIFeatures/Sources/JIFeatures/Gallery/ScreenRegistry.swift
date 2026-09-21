@@ -28,5 +28,7 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Nutrition log") { AnyView(NutritionLogNativePreview()) },
         ScreenEntry(name: "Weigh-in") { AnyView(WeighInNativePreview()) },
         ScreenEntry(name: "Energy") { AnyView(EnergyNativePreview()) },
+        ScreenEntry(name: "KPIs") { AnyView(KpiListNativePreview()) },
+        ScreenEntry(name: "KPI detail") { AnyView(KpiDetailNativePreview()) },
     ]
 }

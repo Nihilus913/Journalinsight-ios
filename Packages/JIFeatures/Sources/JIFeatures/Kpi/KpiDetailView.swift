@@ -10,13 +10,17 @@ import JIDesign
 public struct KpiDetailView: View {
     @Bindable private var model: KpiDetailViewModel
     @State private var thresholdText: String = ""
+    /// §2b.3 Health range picker above the trend.
+    @State private var range: TrendRange = .month
+    /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
+    private let theme = JITheme.native
 
     public init(model: KpiDetailViewModel) { self.model = model }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header
+                headline
                 StalenessBanner(fetchedAt: nil, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -25,8 +29,10 @@ public struct KpiDetailView: View {
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
         }
-        .background(JIColor.bg)
+        .background(theme.color(.bg))
+        .jiTheme(.native)
         .navigationTitle(model.def.label)
         .refreshable { await model.refresh() }
         .task {
@@ -41,20 +47,22 @@ public struct KpiDetailView: View {
         thresholdText = model.target.map { formatKpiValue($0.threshold, decimals: 2) } ?? ""
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(model.def.label).font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-            let unit = model.def.unit
-            Text(formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"))
-                .font(.title2.bold()).foregroundStyle(JIColor.text)
+    /// §5: the screen's name is the navigation title; the card keeps only the live number.
+    private var headline: some View {
+        let unit = model.def.unit
+        let text = formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)")
+        return Surface {
+            Text(text)
+                .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityLabel(model.def.label)
-                .accessibilityValue(formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"))
+                .accessibilityValue(text)
                 .accessibilityIdentifier("kpi-detail-value")
         }
     }
 
     private var loading: some View {
-        Surface(level: 1, radius: JIRadius.card, padding: 20) {
+        Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 12) { SkeletonBlock(height: 160) }
         }
     }
@@ -62,8 +70,8 @@ public struct KpiDetailView: View {
     private func errorCard(_ msg: String) -> some View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
-                Text(msg).foregroundStyle(JIColor.text)
-                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                Text(msg).foregroundStyle(theme.color(.text))
+                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(theme.color(.info))
                     .accessibilityLabel("Retry")
                     .accessibilityIdentifier("kpi-detail-retry")
             }
@@ -76,40 +84,38 @@ public struct KpiDetailView: View {
         if model.target != nil { editor }
     }
 
+    /// The history as `TrendPoint`s, newest `range.days` days. A day with no reading is omitted,
+    /// never plotted as a zero (rule 5).
+    private var trendPoints: [TrendPoint] {
+        model.history
+            .compactMap { point -> TrendPoint? in
+                guard let value = point.value, let date = trainingStripDate(point.date) else { return nil }
+                return TrendPoint(date: date, value: value)
+            }
+            .sorted { $0.date < $1.date }
+            .suffix(range.days)
+    }
+
     @ViewBuilder
     private var chartSection: some View {
-        let points = model.history
-        if points.compactMap(\.value).isEmpty {
-            Surface { Text("No data yet").foregroundStyle(JIColor.muted) }
-        } else {
-            Surface(level: 2) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Trend").font(.caption).foregroundStyle(JIColor.muted)
-                    Chart {
-                        ForEach(points, id: \.date) { point in
-                            if let value = point.value {
-                                LineMark(x: .value("Date", point.date), y: .value(model.def.label, value))
-                                    .foregroundStyle(JIColor.mutedNested)
-                                    .symbol(.circle)
-                            }
-                        }
-                    }
-                    .chartXAxis(.hidden)
-                    .frame(height: 160)
-                    .accessibilityLabel("\(model.def.label) trend")
-                    .accessibilityIdentifier("kpi-detail-chart")
-                }
-            }
+        JISectionHeader("Trend")
+        Surface {
+            // §2b.3: the Health chart — D/W/M/6M/Y picker, trailing axis, dashed average,
+            // "Show All Data ›". Empty renders its own "No data yet" (rule 5).
+            TrendChart(points: trendPoints, tint: theme.color(.info),
+                       unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range, showAll: nil)
+                .accessibilityLabel("\(model.def.label) trend")
+                .accessibilityIdentifier("kpi-detail-chart")
         }
     }
 
     @ViewBuilder
     private var editor: some View {
-        Surface(level: 2) {
+        JISectionHeader("Target threshold")
+        Surface {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Target threshold").font(.caption).foregroundStyle(JIColor.muted)
                 if let target = model.target {
-                    Text("\(target.metric) \(target.operator) …").font(.footnote).foregroundStyle(JIColor.mutedNested)
+                    Text("\(target.metric) \(target.operator) …").jiFont(.footnote).foregroundStyle(theme.color(.mutedNested))
                 }
                 HStack(spacing: 10) {
                     TextField("Threshold", text: $thresholdText)
@@ -123,13 +129,14 @@ public struct KpiDetailView: View {
                         guard let value = Double(thresholdText) else { return }
                         Task { await model.saveThreshold(value) }
                     }
-                    .buttonStyle(.pressableScale)
+                    .buttonStyle(.bordered)
+                    .tint(theme.color(.info))
                     .disabled(model.saving || Double(thresholdText) == nil)
                     .accessibilityLabel("Save target threshold")
                     .accessibilityIdentifier("kpi-detail-threshold-save")
                 }
                 if let saveError = model.saveError {
-                    Text(saveError).font(.footnote).foregroundStyle(JIColor.reduced)
+                    Text(saveError).jiFont(.footnote).foregroundStyle(theme.color(.reduced))
                 }
             }
         }
