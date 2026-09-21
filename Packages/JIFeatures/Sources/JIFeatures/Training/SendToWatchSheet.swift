@@ -10,6 +10,8 @@ import JIDesign
 public struct SendToWatchSheet: View {
     @Bindable private var model: SendToWatchViewModel
     @Environment(\.dismiss) private var dismiss
+    /// B-33: a sheet root installs the theme for its own subtree — its own reads resolve here.
+    private let theme = JITheme.native
 
     public init(model: SendToWatchViewModel) { self.model = model }
 
@@ -42,27 +44,35 @@ public struct SendToWatchSheet: View {
                 }
             }
             .task { if model.templates.isEmpty { await model.load() } }
+            #if os(iOS)
+            .listStyle(.insetGrouped)
+            #endif
         }
+        .jiTheme(.native)
+        #if os(iOS)
+        // §8.2: form-sized on a regular-width canvas instead of full-screen.
+        .presentationSizing(.form)
+        #endif
     }
 
     @ViewBuilder
     private var templatesSection: some View {
         Section {
             if model.state == .loading && model.templates.isEmpty {
-                HStack { ProgressView(); Text("Loading templates…").foregroundStyle(JIColor.muted) }
+                HStack { ProgressView(); Text("Loading templates…").foregroundStyle(theme.color(.muted)) }
                     .accessibilityIdentifier("send-to-watch-loading")
             } else if model.templates.isEmpty {
-                Text("No workout templates on the hub.").foregroundStyle(JIColor.muted)
+                Text("No workout templates on the hub.").foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("send-to-watch-empty")
             } else {
                 ForEach(model.templates) { template in
                     Button { model.toggle(template.templateId) } label: {
                         HStack(spacing: 12) {
                             Image(systemName: model.isSelected(template.templateId) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(model.isSelected(template.templateId) ? JIColor.info : JIColor.muted)
+                                .foregroundStyle(model.isSelected(template.templateId) ? theme.color(.info) : theme.color(.muted))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(template.name).foregroundStyle(JIColor.text)
-                                Text(Self.summary(template)).font(.footnote).foregroundStyle(JIColor.muted)
+                                Text(template.name).foregroundStyle(theme.color(.text))
+                                Text(Self.summary(template)).font(.footnote).foregroundStyle(theme.color(.muted))
                             }
                             Spacer()
                         }
@@ -88,21 +98,21 @@ public struct SendToWatchSheet: View {
             EmptyView()
         case .sending:
             Section {
-                HStack { ProgressView(); Text(model.statusMessage).foregroundStyle(JIColor.muted) }
+                HStack { ProgressView(); Text(model.statusMessage).foregroundStyle(theme.color(.muted)) }
                     .accessibilityIdentifier("send-to-watch-sending")
             }
         case .sent:
             Section("Scheduled") {
                 ForEach(model.sentNames, id: \.self) { name in
-                    Label(name, systemImage: "checkmark.applewatch").foregroundStyle(JIColor.go)
+                    Label(name, systemImage: "checkmark.applewatch").foregroundStyle(theme.color(.go))
                         .accessibilityIdentifier("send-to-watch-scheduled-row")
                 }
-                Text(model.statusMessage).font(.footnote).foregroundStyle(JIColor.muted)
+                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("send-to-watch-status")
             }
         case .authDenied:
             Section {
-                Text(model.statusMessage).font(.footnote).foregroundStyle(JIColor.danger)
+                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.danger))
                     .accessibilityIdentifier("send-to-watch-status")
                 Button("Open Settings") { model.openSettings() }
                     .accessibilityLabel("Open Settings")
@@ -110,7 +120,7 @@ public struct SendToWatchSheet: View {
             }
         case .error:
             Section {
-                Text(model.statusMessage).font(.footnote).foregroundStyle(JIColor.danger)
+                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.danger))
                     .accessibilityIdentifier("send-to-watch-status")
                 Button("Retry") { Task { if model.templates.isEmpty { await model.load() } else { await model.send() } } }
                     .accessibilityLabel("Retry")

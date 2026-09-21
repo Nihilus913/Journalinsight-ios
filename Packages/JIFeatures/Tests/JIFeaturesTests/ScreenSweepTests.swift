@@ -16,7 +16,10 @@ import JIDesign
 }
 
 @Test func registryHasTheGallery() {
-    #expect(ScreenRegistry.entries.map(\.name) == ["Native gallery"])
+    // Phase B lanes append their screens to the registry, so this asserts the gallery is still
+    // first and every entry is unique and native — not an exact list that every lane would fight.
+    #expect(ScreenRegistry.entries.first?.name == "Native gallery")
+    #expect(Set(ScreenRegistry.entries.map(\.name)).count == ScreenRegistry.entries.count)
     #expect(ScreenRegistry.entries.allSatisfy { $0.theme == .native })
 }
 

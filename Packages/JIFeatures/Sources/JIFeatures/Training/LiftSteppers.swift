@@ -25,6 +25,7 @@ public struct LiftSteppers: View {
     let failedIds: Set<Int>
     let onUpdate: (Exercise, ExerciseUpdate) -> Void
     @State private var selected = liftDefs[0].key
+    @Environment(\.jiTheme) private var theme
     @State private var armedDecrease: Set<String> = [] // "weight" or "reps:<exerciseId>"
 
     public init(exercises: [Exercise], pendingIds: Set<Int> = [], failedIds: Set<Int> = [], onUpdate: @escaping (Exercise, ExerciseUpdate) -> Void) {
@@ -35,21 +36,18 @@ public struct LiftSteppers: View {
         let lift = liftDefs.first { $0.key == selected } ?? liftDefs[0]
         Surface {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Strength progression").font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                Text("Strength progression").jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                     .accessibilityAddTraits(.isHeader)
-                Text("Double progression").font(.caption2).foregroundStyle(JIColor.muted)
-                HStack(spacing: 6) {
+                Text("Double progression").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                // §2b.3: the hand-rolled capsule tabs become the system segmented control — it
+                // scrolls, wraps and reflows at AX sizes on its own, which the capsule row did not.
+                Picker("Lift", selection: $selected) {
                     ForEach(liftDefs) { l in
-                        Button(l.label) { selected = l.key }
-                            .buttonStyle(.pressableScale)
-                            .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(l.key == selected ? JIColor.info : JIColor.surface2, in: Capsule())
-                            .foregroundStyle(l.key == selected ? JIColor.bg : JIColor.muted)
-                            .accessibilityLabel("\(l.label) tab")
-                            .accessibilityAddTraits(l.key == selected ? [.isSelected] : [])
-                            .accessibilityIdentifier("lift-tab-\(l.key)")
+                        Text(l.label).tag(l.key).accessibilityIdentifier("lift-tab-\(l.key)")
                     }
                 }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("lift-tabs")
                 liftPanel(lift)
             }
         }
@@ -59,7 +57,7 @@ public struct LiftSteppers: View {
     private func liftPanel(_ lift: LiftDef) -> some View {
         let rows = exercises.filter { lift.match($0.exerciseName) }
         if rows.isEmpty {
-            Text("Not currently tracked in the active plan.").font(.footnote).foregroundStyle(JIColor.muted)
+            Text("Not currently tracked in the active plan.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
         } else {
             liftCard(rows)
         }
@@ -74,11 +72,11 @@ public struct LiftSteppers: View {
         let failed = rows.contains { failedIds.contains($0.exerciseId) }
         return Surface(level: 2) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(canonical.exerciseName).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                Text(canonical.exerciseName).jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
                     .accessibilityAddTraits(.isHeader)
                 HStack {
                     Text(weight != nil ? "\(weight!.formatted()) kg" : "—")
-                        .font(.title2.bold()).foregroundStyle(JIColor.text)
+                        .jiNumeral(.numeralCompact).foregroundStyle(theme.color(.text))
                         .accessibilityLabel("\(canonical.exerciseName) weight")
                         .accessibilityValue(weight != nil ? "\(weight!.formatted()) kg" : "no data")
                     Spacer()
@@ -91,7 +89,7 @@ public struct LiftSteppers: View {
                         }
                     }
                 }
-                if failed { Text("Couldn't save — try again.").font(.caption).foregroundStyle(JIColor.danger).accessibilityIdentifier("lift-save-failed") }
+                if failed { Text("Couldn't save — try again.").jiFont(.caption).foregroundStyle(theme.color(.danger)).accessibilityIdentifier("lift-save-failed") }
                 ForEach(rows, id: \.exerciseId) { row in sessionRepsRow(row, showSession: rows.count > 1) }
             }
             .opacity(pending ? 0.6 : 1)
@@ -101,9 +99,9 @@ public struct LiftSteppers: View {
     private func sessionRepsRow(_ exercise: Exercise, showSession: Bool) -> some View {
         let reps = parseRepsTarget(exercise.repsTarget)
         return HStack {
-            Text(exercise.sessionName).font(.caption2).foregroundStyle(JIColor.muted)
+            Text(exercise.sessionName).font(.caption2).foregroundStyle(theme.color(.muted))
             Spacer()
-            Text(formatSetsReps(sets: exercise.sets, reps: reps)).font(.caption).foregroundStyle(JIColor.muted)
+            Text(formatSetsReps(sets: exercise.sets, reps: reps)).font(.caption).foregroundStyle(theme.color(.muted))
                 .accessibilityLabel("\(exercise.sessionName) \(exercise.exerciseName)")
                 .accessibilityValue(formatSetsReps(sets: exercise.sets, reps: reps))
             if let reps {
@@ -128,8 +126,8 @@ public struct LiftSteppers: View {
         } label: {
             Text(symbol).font(.callout.bold())
                 .frame(width: 30, height: 30)
-                .background(armed ? JIColor.reduced.opacity(0.2) : JIColor.surface, in: Circle())
-                .foregroundStyle(armed ? JIColor.reduced : JIColor.text)
+                .background(armed ? theme.color(.reduced).opacity(0.2) : theme.color(.control), in: Circle())
+                .foregroundStyle(armed ? theme.color(.reduced) : theme.color(.text))
         }
         .buttonStyle(.pressableScale)
         .disabled(disabled)

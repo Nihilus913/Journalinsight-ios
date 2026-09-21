@@ -19,5 +19,7 @@ public nonisolated struct ScreenEntry: Sendable, Identifiable {
 public nonisolated enum ScreenRegistry {
     public static let entries: [ScreenEntry] = [
         ScreenEntry(name: "Native gallery") { AnyView(NativeGalleryView()) },
+        // MARK: L5 — Training · Nutrition · Energy · KPI · Watch · Widgets (append-only)
+        ScreenEntry(name: "Training") { AnyView(TrainingNativePreview()) },
     ]
 }
