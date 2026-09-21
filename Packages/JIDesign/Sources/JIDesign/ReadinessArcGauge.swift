@@ -44,6 +44,7 @@ public struct ReadinessArcGauge: View {
     @ScaledMetric(relativeTo: .body) private var nativeTrack: CGFloat = 16
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// Native reveal: animates 0 → score on first appearance (§4).
     @State private var displayed: Double = 0
 
@@ -86,6 +87,26 @@ public struct ReadinessArcGauge: View {
     // MARK: native (B-33 §4) — single track, long-fade fill, head dot, reveal
 
     private var nativeBody: some View {
+        // §8.1: at AX sizes the numeral no longer fits inside the arc, so it reflows BELOW the
+        // art instead of colliding with the stroke and the head dot. Below AX it stays inside.
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: 4) {
+                    nativeArt
+                    nativeNumerals
+                }
+            } else {
+                ZStack(alignment: .bottom) {
+                    nativeArt
+                    nativeNumerals
+                }
+            }
+        }
+        .onAppear { reveal(to: score ?? 0) }
+        .onChange(of: score) { reveal(to: score ?? 0) }
+    }
+
+    private var nativeArt: some View {
         ZStack(alignment: .bottom) {
             ArcSegment(from: 0, to: 100, lineWidth: nativeTrack, lineCap: .round).fill(theme.color(.nested))
             if let score, !sourceMissing {
@@ -94,11 +115,12 @@ public struct ReadinessArcGauge: View {
                     .fill(AngularGradient(stops: ringFadeStops(tint), center: gradientCenter, startAngle: .degrees(180), endAngle: gaugeFillEndAngle(for: score)))
                 headDot(at: displayed, tint: tint)
             }
-            numerals(color: score.map { nativeBandColor(readinessBand(for: $0)) } ?? theme.color(.muted), muted: theme.color(.muted))
         }
         .frame(width: size, height: size / 2 + nativeTrack)
-        .onAppear { reveal(to: score ?? 0) }
-        .onChange(of: score) { reveal(to: score ?? 0) }
+    }
+
+    private var nativeNumerals: some View {
+        numerals(color: score.map { nativeBandColor(readinessBand(for: $0)) } ?? theme.color(.muted), muted: theme.color(.muted))
     }
 
     /// The arc centre as a unit point of the gauge frame (`rect.maxY - lineWidth` in `ArcSegment`).

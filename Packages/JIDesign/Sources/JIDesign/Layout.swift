@@ -11,11 +11,18 @@ public nonisolated func columnCount(availableWidth: CGFloat, minimum: CGFloat, s
 /// Every tile grid: 2-up on an iPhone, 3–4 in a readable column on iPad / Max landscape.
 public struct Columns<Content: View>: View {
     let minimum: CGFloat, spacing: CGFloat, content: Content
+    /// The tile floor grows with the type size, so AX3 drops a 2-up grid to 1-up instead of
+    /// squeezing a card until its title breaks mid-word (§8.1 "reflows, never clips").
+    @ScaledMetric(relativeTo: .body) private var scaledMinimum: CGFloat = 160
+
     public init(minimum: CGFloat = 160, spacing: CGFloat = 12, @ViewBuilder content: () -> Content) {
         self.minimum = minimum; self.spacing = spacing; self.content = content()
+        self._scaledMinimum = ScaledMetric(wrappedValue: minimum, relativeTo: .body)
     }
     public var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: minimum), spacing: spacing)], spacing: spacing) { content }
+        // `.top`: tiles in one row differ in height, and the default centre alignment offsets
+        // the shorter card against its neighbour.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: scaledMinimum), spacing: spacing, alignment: .top)], spacing: spacing) { content }
     }
 }
 
