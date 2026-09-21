@@ -9,26 +9,34 @@ import JIDesign
 public struct NutritionView: View {
     @Bindable private var model: NutritionViewModel
     @State private var logSheetVisible = false
+    /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
+    private let theme = JITheme.native
 
     public init(model: NutritionViewModel) { self.model = model }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
-                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
                         .accessibilityIdentifier("nutrition-empty")
                 case .loaded: loaded
                 }
                 logButton
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
         }
-        .background(JIColor.bg)
+        .background(theme.color(.bg))
+        .jiTheme(.native)
+        // §5: the hand-drawn large title + date line become the system title and subtitle.
+        .navigationTitle("Nutrition")
+        #if os(iOS)
+        .navigationSubtitle(model.selectedDate)
+        #endif
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
@@ -39,17 +47,8 @@ public struct NutritionView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Nutrition").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-                .accessibilityAddTraits(.isHeader)
-            Text(model.selectedDate).font(.subheadline).foregroundStyle(JIColor.muted)
-                .accessibilityLabel(model.selectedDate)
-        }
-    }
-
     private var loading: some View {
-        Surface(level: 1, radius: JIRadius.hero, padding: 20) {
+        Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 12) { SkeletonBlock(height: 60); SkeletonBlock(height: 120); SkeletonBlock(height: 90) }
         }
     }
@@ -57,9 +56,9 @@ public struct NutritionView: View {
     private func errorCard(_ msg: String) -> some View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
-                Text(msg).foregroundStyle(JIColor.text)
+                Text(msg).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("nutrition-error")
-                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(theme.color(.info))
                     .accessibilityLabel("Retry")
                     .accessibilityIdentifier("nutrition-retry")
             }
@@ -71,7 +70,9 @@ public struct NutritionView: View {
             NutritionWeekStrip(days: model.week, selectedDate: model.selectedDate) { date in
                 Task { await model.selectDate(date) }
             }
+            JISectionHeader("Today")
             MacroSummaryCard(day: model.day)
+            JISectionHeader("Meals")
             MealTimeline(day: model.day)
             WeeklyPlanNutritionRow(provider: model.provider) // W5b-L5: RN nutrition.tsx:292 "Weekly kcal / macro plan" row
         }
@@ -79,11 +80,11 @@ public struct NutritionView: View {
 
     private var logButton: some View {
         Button { logSheetVisible = true } label: {
-            Text("+ Log").font(.footnote.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                .background(JIColor.info, in: RoundedRectangle(cornerRadius: 999, style: .continuous))
-                .foregroundStyle(JIColor.bg)
+            Label("Log", systemImage: "plus").jiFont(.body, weight: .semibold)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
         }
-        .buttonStyle(.pressableScale)
+        .buttonStyle(.borderedProminent)
+        .tint(theme.color(.info))
         .accessibilityLabel("Add an entry")
         .accessibilityIdentifier("nutrition-log-button")
     }

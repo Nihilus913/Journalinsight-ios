@@ -17,6 +17,7 @@ nonisolated public func orderedSessionNames(_ exercises: [Exercise]) -> [String]
 /// fabricating a Mon–Sun grid not backed by data.
 public struct TrainingWeekStrip: View {
     let exercises: [Exercise]
+    @Environment(\.jiTheme) private var theme
     public init(exercises: [Exercise]) { self.exercises = exercises }
 
     private var sessions: [String] { orderedSessionNames(exercises) }
@@ -25,15 +26,18 @@ public struct TrainingWeekStrip: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 Text(sessions.isEmpty ? "This week's plan" : "This week's plan · \(sessions.count) session\(sessions.count == 1 ? "" : "s")")
-                    .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                     .accessibilityAddTraits(.isHeader)
                 if sessions.isEmpty {
-                    Text("No plan sessions yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("No plan sessions yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("training-week-empty")
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(sessions, id: \.self) { name in sessionCard(name) }
+                    // §2b.2: the horizontal card carousel becomes inset-grouped rows — one
+                    // 44-pt `JIRow` per session, hairline-separated, so it reads like Health.
+                    VStack(spacing: 0) {
+                        ForEach(Array(sessions.enumerated()), id: \.element) { idx, name in
+                            sessionRow(name)
+                            if idx != sessions.count - 1 { Divider().overlay(theme.color(.hairlineNested)) }
                         }
                     }
                 }
@@ -41,17 +45,14 @@ public struct TrainingWeekStrip: View {
         }
     }
 
-    private func sessionCard(_ name: String) -> some View {
+    private func sessionRow(_ name: String) -> some View {
         let lifts = exercises.filter { $0.sessionName == name }.map(\.exerciseName)
-        return Surface(level: 2) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name).font(.footnote.weight(.bold)).foregroundStyle(JIColor.text).lineLimit(2)
-                    .accessibilityLabel(name)
-                Text(lifts.joined(separator: ", ")).font(.caption2).foregroundStyle(JIColor.muted).lineLimit(3)
-                    .accessibilityLabel(lifts.joined(separator: ", "))
-                    .accessibilityIdentifier("training-week-session-\(name)")
-            }
+        return JIRow(title: name, subtitle: lifts.joined(separator: ", "), systemImage: "dumbbell.fill") {
+            Text("\(lifts.count)")
         }
-        .frame(width: 150, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(name)
+        .accessibilityValue(lifts.joined(separator: ", "))
+        .accessibilityIdentifier("training-week-session-\(name)")
     }
 }

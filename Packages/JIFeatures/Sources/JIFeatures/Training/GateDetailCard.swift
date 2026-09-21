@@ -8,6 +8,7 @@ import JIDesign
 public struct GateDetailCard: View {
     let morning: MorningResponse?
     let gate: GateResponse?
+    @Environment(\.jiTheme) private var theme
     public init(morning: MorningResponse?, gate: GateResponse?) { self.morning = morning; self.gate = gate }
 
     public var body: some View {
@@ -15,12 +16,12 @@ public struct GateDetailCard: View {
         Surface {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Readiness · \(morning?.verdictDate ?? "—")")
-                    .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
                 Text(v.word)
                     .font(.title3.bold())
-                    .foregroundStyle(JIColor.color(for: v.tone))
+                    .foregroundStyle(trainingToneColor(v.tone, theme))
                 Text("Gate recommendation: \(gateRecommendationLabel)")
-                    .font(.footnote).foregroundStyle(JIColor.muted).padding(.top, 2)
+                    .font(.footnote).foregroundStyle(theme.color(.muted)).padding(.top, 2)
             }
         }
         .accessibilityElement(children: .combine)

@@ -19,13 +19,15 @@ public enum EnergyFormat {
 
     /// Surplus and untracked are both neutral (`muted`); `dangerous` is the one fail-type band and
     /// may use `danger` (rule 6: green stays reserved for verdict/score/status, never used here).
-    public static func deficitColor(_ deficit: Double?, class deficitClass: String?) -> Color {
-        guard let deficit else { return JIColor.muted }
-        if deficit < 0 || deficitClass == "surplus" { return JIColor.muted }
+    /// B-33: the roles are unchanged; only their resolution moved to the active theme, so the
+    /// caller passes the one its screen installed.
+    public static func deficitColor(_ deficit: Double?, class deficitClass: String?, theme: JITheme) -> Color {
+        guard let deficit else { return theme.color(.muted) }
+        if deficit < 0 || deficitClass == "surplus" { return theme.color(.muted) }
         switch deficitClass {
-        case "dangerous": return JIColor.danger
-        case "aggressive": return JIColor.reduced
-        default: return JIColor.info
+        case "dangerous": return theme.color(.danger)
+        case "aggressive": return theme.color(.reduced)
+        default: return theme.color(.info)
         }
     }
 }
@@ -37,6 +39,7 @@ public enum EnergyFormat {
 public struct EnergyHero: View {
     private let report: EnergyReport
     private let minTrackingDays: Int
+    @Environment(\.jiTheme) private var theme
 
     public init(report: EnergyReport, minTrackingDays: Int = 4) {
         self.report = report; self.minTrackingDays = minTrackingDays
@@ -46,18 +49,18 @@ public struct EnergyHero: View {
     private static let aggressiveMaxPct = 28.0
 
     public var body: some View {
-        Surface(level: 1, radius: JIRadius.hero, padding: 18) {
+        Surface(level: 1, padding: 18) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("ENERGY BALANCE · LAST 7 DAYS").font(.caption.bold()).foregroundStyle(JIColor.muted)
+                    Text("ENERGY BALANCE · LAST 7 DAYS").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    Text("\(report.trackingDays)/7 tracked").font(.caption2.bold()).foregroundStyle(JIColor.muted)
+                    Text("\(report.trackingDays)/7 tracked").jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.muted))
                         .accessibilityLabel("\(report.trackingDays) of 7 days tracked")
                 }
                 if report.trackingDays < minTrackingDays {
                     Text("\(minTrackingDays - report.trackingDays) more day\(minTrackingDays - report.trackingDays == 1 ? "" : "s") needed for reliable averages")
-                        .font(.footnote).foregroundStyle(JIColor.muted)
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("energy.hero.minDataGate")
                 } else {
                     numeralAndBar
@@ -68,7 +71,7 @@ public struct EnergyHero: View {
                     }
                 }
                 if let warning = report.complianceWarning {
-                    Text("⚠ \(warning)").font(.footnote).foregroundStyle(JIColor.reduced)
+                    Text("⚠ \(warning)").jiFont(.footnote).foregroundStyle(theme.color(.reduced))
                         .accessibilityLabel("Warning: \(warning)")
                         .accessibilityIdentifier("energy.hero.complianceWarning")
                 }
@@ -86,13 +89,13 @@ public struct EnergyHero: View {
     private var numeralAndBar: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal/d")
-                .jiNumeral(.numeralLarge).foregroundStyle(JIColor.text)
+                .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
                 .contentTransition(.numericText())
                 .accessibilityLabel("Adjusted energy balance")
                 .accessibilityValue("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal per day")
                 .accessibilityIdentifier("energy.hero.balance")
             Text(report.avgDeficitCorrected7d == nil ? "—" : (isSurplus ? "surplus" : "deficit"))
-                .font(.footnote).foregroundStyle(JIColor.muted)
+                .jiFont(.footnote).foregroundStyle(theme.color(.muted))
             bar
         }
     }
@@ -101,13 +104,13 @@ public struct EnergyHero: View {
         let magnitude = report.avgDeficitPct7d.map(abs)
         let fillFrac = min((magnitude ?? 0) / Self.aggressiveMaxPct, 1)
         let overSustainable = (magnitude ?? 0) > Self.sustainableMaxPct
-        let barColor = isSurplus || overSustainable ? JIColor.reduced : JIColor.info
+        let barColor = isSurplus || overSustainable ? theme.color(.reduced) : theme.color(.info)
         let markerFrac = min(Self.sustainableMaxPct / Self.aggressiveMaxPct, 1)
         return GeometryReader { g in
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 5).fill(JIColor.control).frame(height: 10)
+                RoundedRectangle(cornerRadius: 5).fill(theme.color(.nested)).frame(height: 10)
                 RoundedRectangle(cornerRadius: 5).fill(barColor).frame(width: g.size.width * fillFrac, height: 10)
-                Rectangle().fill(JIColor.nested).frame(width: 2, height: 10).offset(x: g.size.width * markerFrac)
+                Rectangle().fill(theme.color(.nested)).frame(width: 2, height: 10).offset(x: g.size.width * markerFrac)
             }
         }.frame(height: 10)
         .accessibilityLabel("Deficit against the sustainable zone")
@@ -117,8 +120,8 @@ public struct EnergyHero: View {
     private func chip(label: String, value: String) -> some View {
         Surface(level: 2, radius: 12, padding: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.caption2.bold()).foregroundStyle(JIColor.muted).lineLimit(1)
-                Text(value).font(.footnote.bold()).foregroundStyle(JIColor.text).lineLimit(1)
+                Text(label).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                Text(value).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(1)
             }.frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(label)
             .accessibilityValue(value)

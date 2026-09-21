@@ -9,6 +9,7 @@ import JIDesign
 /// (Nutrition ships in sibling lane L2), so this list is display-only; a future wave wires the tap.
 public struct DeficitDayList: View {
     private let days: [EnergyDay]
+    @Environment(\.jiTheme) private var theme
     public init(days: [EnergyDay]) { self.days = days }
 
     public var body: some View {
@@ -17,36 +18,32 @@ public struct DeficitDayList: View {
             ForEach(sorted, id: \.date) { day in
                 row(day)
                 if day.date != sorted.last?.date {
-                    Divider().overlay(JIColor.nested)
+                    Divider().overlay(theme.color(.hairlineNested))
                 }
             }
         }
     }
 
+    /// §2b.2: one 44-pt inset-grouped row per day, the status dot carried as the row's tint.
     private func row(_ day: EnergyDay) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            Circle().fill(dotColor(day)).frame(width: 8, height: 8)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(day.date).font(.footnote.bold()).foregroundStyle(JIColor.text)
-                Text("intake \(fmt(day.kcalConsumed)) · TDEE \(fmt(day.tdeeCorrected)) · \(day.deficitClass ?? "—")")
-                    .font(.caption2).foregroundStyle(JIColor.muted)
-            }
-            Spacer()
+        JIRow(title: day.date,
+              subtitle: "intake \(fmt(day.kcalConsumed)) · TDEE \(fmt(day.tdeeCorrected)) · \(day.deficitClass ?? "—")",
+              systemImage: "circle.fill", tint: dotColor(day)) {
             Text(EnergyFormat.balanceText(day.deficitCorrected))
-                .font(.subheadline.bold())
-                .foregroundStyle(EnergyFormat.deficitColor(day.deficitCorrected, class: day.deficitClass))
+                .jiFont(.subheadline, weight: .bold)
+                .foregroundStyle(EnergyFormat.deficitColor(day.deficitCorrected, class: day.deficitClass, theme: theme))
         }
         // Display-only rows (RN's `View ${d.date} in Nutrition` tap-through has no Swift
         // counterpart yet), so the label is the row's visible text.
         .accessibilityLabel("\(day.date), intake \(fmt(day.kcalConsumed)), TDEE \(fmt(day.tdeeCorrected)), \(day.deficitClass ?? "unknown")")
         .accessibilityValue("\(EnergyFormat.balanceText(day.deficitCorrected)) kcal")
         .accessibilityIdentifier("energy.day.\(day.date)")
-        .padding(.vertical, 10)
+        .padding(.vertical, 2)
     }
 
     private func dotColor(_ day: EnergyDay) -> Color {
-        guard let meals = day.mealsLogged, day.kcalConsumed != nil else { return JIColor.danger }
-        return meals >= 2 ? JIColor.info : JIColor.reduced
+        guard let meals = day.mealsLogged, day.kcalConsumed != nil else { return theme.color(.danger) }
+        return meals >= 2 ? theme.color(.info) : theme.color(.reduced)
     }
 
     private func fmt(_ v: Double?) -> String {

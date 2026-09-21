@@ -9,40 +9,42 @@ public struct NutritionWeekStrip: View {
     let selectedDate: String
     let onSelect: (String) -> Void
 
+    @Environment(\.jiTheme) private var theme
+
     public init(days: [NutritionDailyRow], selectedDate: String, onSelect: @escaping (String) -> Void) {
         self.days = days; self.selectedDate = selectedDate; self.onSelect = onSelect
     }
 
-    public var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(days.sorted { $0.date < $1.date }, id: \.date) { day in
-                    Button { onSelect(day.date) } label: { chip(for: day) }
-                        .buttonStyle(.pressableScale)
-                        .accessibilityLabel(accessibilityLabel(for: day))
-                        // Oracle passes accessibilityState={{ selected }} on the day chip.
-                        .accessibilityAddTraits(day.date == selectedDate ? [.isSelected] : [])
-                        .accessibilityIdentifier("nutrition-week-day-\(day.date)")
-                }
-            }
-            .padding(.horizontal, 2)
+    private var sorted: [NutritionDailyRow] { days.sorted { $0.date < $1.date } }
+
+    /// §2b.4: the Fitness calendar strip. A day with logged calories is "marked" (the accent
+    /// ring); an unlogged day stays plain — never a zero standing in for "not tracked" (rule 5).
+    private var stripDays: [WeekStripDay] {
+        let symbols = trainingStripCalendar.veryShortWeekdaySymbols
+        return sorted.compactMap { day in
+            guard let d = trainingStripDate(day.date) else { return nil }
+            let weekday = trainingStripCalendar.component(.weekday, from: d)
+            return WeekStripDay(date: d, initial: symbols[weekday - 1],
+                                isToday: day.date == selectedDate, marked: day.kcalConsumed != nil)
         }
     }
 
-    private func chip(for day: NutritionDailyRow) -> some View {
-        let selected = day.date == selectedDate
-        return VStack(spacing: 4) {
-            Text(NutritionWeekStrip.weekdayLabel(day.date)).font(.caption2).foregroundStyle(JIColor.muted)
-            Circle()
-                .fill(day.kcalConsumed == nil ? JIColor.surface3 : JIColor.info)
-                .frame(width: 6, height: 6)
-            Text(day.kcalConsumed.map { "\(Int($0))" } ?? "—")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(JIColor.text)
+    private var selection: Binding<Date?> {
+        Binding(get: { trainingStripDate(selectedDate) }, set: { if let d = $0 { onSelect(trainingStripISO(d)) } })
+    }
+
+    public var body: some View {
+        Surface {
+            VStack(alignment: .leading, spacing: 10) {
+                WeekStrip(days: stripDays, tint: theme.color(.info), selected: selection)
+                    .accessibilityIdentifier("nutrition-week-strip")
+                if let day = sorted.first(where: { $0.date == selectedDate }) {
+                    Text(accessibilityLabel(for: day))
+                        .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("nutrition-week-day-\(day.date)")
+                }
+            }
         }
-        .padding(.vertical, 8).padding(.horizontal, 10)
-        .background(selected ? JIColor.surface2 : Color.clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(selected ? JIColor.info : .clear, lineWidth: 1))
     }
 
     private func accessibilityLabel(for day: NutritionDailyRow) -> String {

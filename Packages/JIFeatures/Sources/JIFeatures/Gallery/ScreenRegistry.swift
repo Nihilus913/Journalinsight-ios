@@ -27,6 +27,18 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Gate config") { L4Screens.gateConfig() },
         ScreenEntry(name: "Edit today") { L4Screens.editToday() },
 
+        // MARK: L5 — Training · Nutrition · Energy · KPI · Watch · Widgets (append-only)
+        ScreenEntry(name: "Training") { AnyView(TrainingNativePreview()) },
+        ScreenEntry(name: "Session coach") { AnyView(SessionCoachNativePreview()) },
+        ScreenEntry(name: "Weekly plan") { AnyView(WeeklyPlanNativePreview()) },
+        ScreenEntry(name: "Send to Watch") { AnyView(SendToWatchNativePreview()) },
+        ScreenEntry(name: "Nutrition") { AnyView(NutritionNativePreview()) },
+        ScreenEntry(name: "Nutrition log") { AnyView(NutritionLogNativePreview()) },
+        ScreenEntry(name: "Weigh-in") { AnyView(WeighInNativePreview()) },
+        ScreenEntry(name: "Energy") { AnyView(EnergyNativePreview()) },
+        ScreenEntry(name: "KPIs") { AnyView(KpiListNativePreview()) },
+        ScreenEntry(name: "KPI detail") { AnyView(KpiDetailNativePreview()) },
+
         // MARK: L6 — Journal · Mind · Coach · Settings & Data (B-33 Phase B). Append-only.
         ScreenEntry(name: "Journal") { L6Fixtures.journal() },
         ScreenEntry(name: "Journal calendar") { L6Fixtures.journalCalendar() },
