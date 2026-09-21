@@ -37,3 +37,29 @@ public extension JITheme {
         }
     }
 }
+
+public nonisolated enum JIRadiusRole: Sendable, CaseIterable, Equatable { case hero, card, nested, control }
+
+public nonisolated extension JITheme {
+    /// §2: native hero = card = 26, nested 18 (concentric 26 − 8 padding), control 12.
+    func radius(_ role: JIRadiusRole) -> CGFloat {
+        switch (self, role) {
+        case (.classic, .hero): JIRadius.hero
+        case (.classic, .card): JIRadius.card
+        case (.classic, .nested): 12
+        case (.classic, .control): 8
+        case (.native, .hero), (.native, .card): 26
+        case (.native, .nested): 18
+        case (.native, .control): 12
+        }
+    }
+}
+
+/// `Surface(level:)` → fill role + radius role. Classic keeps `default:` → surface (CONTEXT §7).
+public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole) {
+    switch level {
+    case 2: (.surface2, .nested)
+    case 3: (theme == .native ? .control : .surface3, .control)
+    default: (.surface, .card)
+    }
+}

@@ -124,4 +124,5 @@ public enum JIColor {
     }
 }
 
-public enum JIRadius { public static let card: CGFloat = 16; public static let hero: CGFloat = 24 }
+/// `nonisolated` since B-33: `JITheme.radius(_:)` is pure and callable off the MainActor.
+public nonisolated enum JIRadius { public static let card: CGFloat = 16; public static let hero: CGFloat = 24 }
