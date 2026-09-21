@@ -57,10 +57,13 @@ public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> (
 /// W9.5-L4: the minimum tile width the grid's `.adaptive` columns fit. Compact width (every
 /// iPhone in portrait, non-Max iPhones in landscape) keeps the RN oracle's 2-up on a portrait
 /// phone (≈370pt usable → 2 tiles) yet lets an 18 Pro landscape (≈720pt usable) fill 4;
-/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6.
+/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6 —
+/// B-33 §8.5 caps that growth at 160 so the four summary tiles still make one row inside the
+/// 720 pt `readableColumn()` at 956 pt — 680 pt of content after the 20 pt gutters (200 left
+/// them 3-up with a widow on the next row).
 public nonisolated func todayGridMinimumTileWidth(horizontalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
     switch horizontalSizeClass {
-    case .regular: 200
+    case .regular: 160
     default: 150
     }
 }

@@ -99,6 +99,8 @@ import JIPersistence
     // Regular width (iPad / Max landscape) still lands on 3+.
     let regularMin = todayGridMinimumTileWidth(horizontalSizeClass: .regular)
     #expect(todayGridColumnCount(availableWidth: 820 - 32, minimumTileWidth: regularMin) >= 3)
+    // B-33 §8.5: four summary columns at 956 pt — the readable column is 720 pt wide there.
+    #expect(todayGridColumnCount(availableWidth: 720 - 40, minimumTileWidth: regularMin) == 4)
     // Never zero, even when the width is narrower than one tile.
     #expect(todayGridColumnCount(availableWidth: 100, minimumTileWidth: min) == 1)
 }

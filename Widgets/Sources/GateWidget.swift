@@ -8,7 +8,7 @@ import WidgetKit
 /// `com.apple.security.application-groups` in `Widgets/Widgets.entitlements`
 /// and `App/JournalInsight.entitlements` (L0, frozen this wave).
 /// B-33: widgets ship in the native language. `JIDesign` is consume-only this wave, so the
-/// tone → role mapping (the counterpart of the old `JIColor.color(for:)`) lives here, next to the
+/// tone → role mapping (the counterpart of the old classic palette lookup) lives here, next to the
 /// extension's other shared declarations — a separate file would need a `xcodegen generate` and
 /// a `project.pbxproj` diff for one constant.
 let widgetTheme = JITheme.native

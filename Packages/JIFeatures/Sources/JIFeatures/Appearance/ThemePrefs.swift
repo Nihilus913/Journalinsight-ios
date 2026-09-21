@@ -52,8 +52,6 @@ public nonisolated enum AccentKey: String, Codable, Sendable, CaseIterable, Equa
         }
     }
 
-    public var color: Color { Color(hex: hex) }
-
     /// B-33 §1: the iOS system tint this accent becomes under `.native`. Names and rawValues are
     /// unchanged so saved prefs survive.
     public var nativeColor: Color {
@@ -66,8 +64,11 @@ public nonisolated enum AccentKey: String, Codable, Sendable, CaseIterable, Equa
         }
     }
 
+    /// B-33 phase B: every surface renders under `.native`, so the classic swatch (`hex`, kept
+    /// for the persisted prefs round-trip) no longer resolves to a `Color`. Phase C removes the
+    /// `.classic` case and this switch with it.
     public func color(for theme: JITheme) -> Color {
-        switch theme { case .classic: color; case .native: nativeColor }
+        switch theme { case .classic: nativeColor; case .native: nativeColor }
     }
 }
 

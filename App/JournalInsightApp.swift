@@ -72,7 +72,7 @@ struct JournalInsightApp: App {
         WindowGroup {
             RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
                 .preferredColorScheme(.dark)
-                .tint(JIColor.info)
+                .tint(AccentKey.default.color(for: .native))
                 .onOpenURL { url in
                     guard let link = DeepLink.parse(url) else { return }
                     pendingDeepLink = link

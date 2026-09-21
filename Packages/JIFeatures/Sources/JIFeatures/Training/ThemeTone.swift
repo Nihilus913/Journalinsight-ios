@@ -2,7 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-33: the theme-aware counterpart of `JIColor.color(for:)` (JIDesign is consume-only this
+/// B-33: the theme-aware counterpart of the old classic palette lookup (JIDesign is consume-only this
 /// wave, so the mapping lives here). Same tone → role mapping, resolved through the active
 /// theme so a native screen gets `systemGreen`/`systemOrange`/`systemRed` instead of the RN hexes.
 func trainingToneColor(_ tone: VerdictTone, _ theme: JITheme) -> Color {

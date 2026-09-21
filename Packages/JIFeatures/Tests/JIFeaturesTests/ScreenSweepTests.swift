@@ -49,18 +49,23 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     host.traitOverrides.horizontalSizeClass = cell.width >= 700 ? .regular : .compact
     host.traitOverrides.verticalSizeClass = cell.height < 500 ? .compact : .regular
 
+    // A window, so `List`/`NavigationStack`'s UIKit backing lays out and loads its cells — but
+    // never `makeKeyAndVisible()`: the JIFeatures bundle runs under the xctest agent with no host
+    // app, where making a window visible throws `bundleProxyForCurrentProcess is nil`.
     let window = UIWindow(frame: bounds)
     window.overrideUserInterfaceStyle = cell.dark ? .dark : .light
     window.rootViewController = host
     window.isHidden = false
-    window.makeKeyAndVisible()
 
     host.view.setNeedsLayout()
     host.view.layoutIfNeeded()
-    // One turn of the run loop so list/navigation representables commit their first layout.
+    // A run-loop turn plus an explicit flush so list/navigation representables lay out AND the
+    // layer tree actually displays — an off-screen layer keeps empty `contents` otherwise, which
+    // is what made every screen render as one blank image.
     RunLoop.current.run(until: Date().addingTimeInterval(0.05))
     host.view.setNeedsLayout()
     host.view.layoutIfNeeded()
+    CATransaction.flush()
 
     let format = UIGraphicsImageRendererFormat()
     format.scale = 2
@@ -76,6 +81,9 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
 }
 
 @Test @MainActor func everyRegistryEntryRendersInEveryCell() throws {
+    // `xcodebuild` does not forward the shell environment to a simulator test process; pass the
+    // directory as `TEST_RUNNER_JI_SWEEP_DIR=…` (Xcode strips the prefix), or set `JI_SWEEP_DIR`
+    // when running the host `swift test`.
     let outDir = ProcessInfo.processInfo.environment["JI_SWEEP_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
     if let outDir { try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true) }
     for entry in ScreenRegistry.entries {
@@ -99,8 +107,8 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     let base = try #require(light.first { !$0.ax })
     let ax = try #require(light.first { $0.ax })
     for entry in ScreenRegistry.entries {
-        let a = try #require(sweepImage(entry, base).flatMap(pngBytes), entry.name)
-        let b = try #require(sweepImage(entry, ax).flatMap(pngBytes), entry.name)
+        let a = try #require(sweepImage(entry, base).flatMap(pngBytes), "\(entry.name) @ \(base.fileStem)")
+        let b = try #require(sweepImage(entry, ax).flatMap(pngBytes), "\(entry.name) @ \(ax.fileStem)")
         #expect(a != b, "\(entry.name) renders identically at AX3 — it does not reflow (§8.5)")
     }
 }
