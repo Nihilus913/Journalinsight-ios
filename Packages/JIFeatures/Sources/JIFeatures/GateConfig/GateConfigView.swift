@@ -9,6 +9,9 @@ import JIDesign
 // `GateConfigSection` (Settings › Preferences) — RN's only entry is its Settings row too.
 public struct GateConfigView: View {
     @State private var model: GateConfigViewModel
+    @Environment(\.jiTheme) private var theme
+    /// B-33 §8.5: no hub fetch while the sweep renders this screen.
+    @Environment(\.jiOffscreenRender) private var offscreen
 
     public init(model: GateConfigViewModel) { _model = State(initialValue: model) }
 
@@ -16,7 +19,7 @@ public struct GateConfigView: View {
         Form {
             Section {
                 Text("Local overrides on the on-device compute ports' thresholds — not yet wired into any live verdict (see the preview below). Server KPI targets further down ARE live.")
-                    .font(.footnote).foregroundStyle(JIColor.muted)
+                    .font(.footnote).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gateConfig.info")
             }
             morningSection
@@ -24,8 +27,10 @@ public struct GateConfigView: View {
             kpiRulesSection
             serverSection
         }
+        // §5: a `Form` keeps the system grouped background and the inset-grouped cells.
+        .listStyle(.insetGrouped)
         .navigationTitle("Gate config")
-        .task { await model.load() }
+        .task { if !offscreen { await model.load() } }
     }
 
     // MARK: - Section 1: local morning-gate overrides
@@ -33,7 +38,7 @@ public struct GateConfigView: View {
     private var morningSection: some View {
         Section {
             if !model.loaded {
-                Text("Loading…").font(.subheadline).foregroundStyle(JIColor.muted)
+                Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
             } else {
                 ForEach(MorningGateOverridableField.allCases, id: \.rawValue) { field in
                     morningRow(field)
@@ -42,7 +47,7 @@ public struct GateConfigView: View {
                     Button {
                         model.resetAllMorning()
                     } label: {
-                        Text("Reset all to defaults").font(.subheadline.weight(.semibold)).foregroundStyle(JIColor.info)
+                        Text("Reset all to defaults").font(.subheadline.weight(.semibold)).foregroundStyle(theme.color(.info))
                     }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Reset all morning gate thresholds to defaults")
@@ -59,16 +64,16 @@ public struct GateConfigView: View {
         let unit = field.unit.map { " \($0)" } ?? ""
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(field.label).font(.subheadline).foregroundStyle(JIColor.text)
+                Text(field.label).font(.subheadline).foregroundStyle(theme.color(.text))
                 Text("default \(gateConfigFormat(field.value(in: .default)))\(unit)\(overridden ? " · overridden" : "")")
-                    .font(.caption2).foregroundStyle(JIColor.muted)
+                    .font(.caption2).foregroundStyle(theme.color(.muted))
             }
             Spacer(minLength: 4)
             stepButton(glyph: "minus") { model.bump(field, direction: -1) }
                 .accessibilityLabel("\(field.label) decrease")
                 .accessibilityIdentifier("gateConfig.morning.\(field.rawValue).decrease")
             Text("\(gateConfigFormat(model.value(for: field)))\(unit)")
-                .font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                .font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
                 .frame(minWidth: 68).multilineTextAlignment(.center)
                 .accessibilityIdentifier("gateConfig.morning.\(field.rawValue).value")
             stepButton(glyph: "plus") { model.bump(field, direction: 1) }
@@ -91,20 +96,20 @@ public struct GateConfigView: View {
         let flipped = model.verdictFlipped
         return Section {
             Text("Runs the real evaluate() against one bundled interval-day row (2026-08-25, 6.2h sleep). This demonstrates the override reaching the compute port — it does not affect Today or Training.")
-                .font(.caption).foregroundStyle(JIColor.muted)
+                .font(.caption).foregroundStyle(theme.color(.muted))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Default").font(.caption).foregroundStyle(JIColor.muted)
-                Text(baseline.verdict).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                Text("Default").font(.caption).foregroundStyle(theme.color(.muted))
+                Text(baseline.verdict).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("gateConfig.preview.baseline")
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("With your overrides").font(.caption).foregroundStyle(JIColor.muted)
+                Text("With your overrides").font(.caption).foregroundStyle(theme.color(.muted))
                 Text(withOverrides.verdict)
                     .font(.subheadline.weight(.heavy))
-                    .foregroundStyle(flipped ? JIColor.reduced : JIColor.text)
+                    .foregroundStyle(flipped ? theme.color(.reduced) : theme.color(.text))
                     .accessibilityIdentifier("gateConfig.preview.withOverrides")
                 if flipped {
-                    Text("Flipped by your override(s).").font(.caption).foregroundStyle(JIColor.reduced)
+                    Text("Flipped by your override(s).").font(.caption).foregroundStyle(theme.color(.reduced))
                         .accessibilityIdentifier("gateConfig.preview.flipped")
                 }
             }
@@ -118,7 +123,7 @@ public struct GateConfigView: View {
     private var kpiRulesSection: some View {
         Section {
             if !model.loaded {
-                Text("Loading…").font(.subheadline).foregroundStyle(JIColor.muted)
+                Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
             } else {
                 // `KpiRule` is not `Hashable`; `kpiRuleKey` is the row identity (unique per row).
                 ForEach(defaultKpiRules.map { (key: kpiRuleKey($0), rule: $0) }, id: \.key) { entry in
@@ -135,16 +140,16 @@ public struct GateConfigView: View {
         let overridden = model.isKpiOverridden(key)
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(rule.metric) \(rule.operator)").font(.subheadline).foregroundStyle(JIColor.text)
+                Text("\(rule.metric) \(rule.operator)").font(.subheadline).foregroundStyle(theme.color(.text))
                 Text("\(rule.description)\(overridden ? " · overridden" : "")")
-                    .font(.caption2).foregroundStyle(JIColor.muted).lineLimit(1)
+                    .font(.caption2).foregroundStyle(theme.color(.muted)).lineLimit(1)
             }
             Spacer(minLength: 4)
             stepButton(glyph: "minus") { model.bumpKpi(rule, direction: -1) }
                 .accessibilityLabel("\(key) threshold decrease")
                 .accessibilityIdentifier("gateConfig.kpi.\(key).decrease")
             Text(gateConfigFormat(model.kpiThreshold(for: rule)))
-                .font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                .font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
                 .frame(minWidth: 56).multilineTextAlignment(.center)
                 .accessibilityIdentifier("gateConfig.kpi.\(key).value")
             stepButton(glyph: "plus") { model.bumpKpi(rule, direction: 1) }
@@ -164,24 +169,24 @@ public struct GateConfigView: View {
     private var serverSection: some View {
         Section {
             Text("These drive the real Training-tab gate recommendation right now (plan.kpi_target).")
-                .font(.caption).foregroundStyle(JIColor.muted)
+                .font(.caption).foregroundStyle(theme.color(.muted))
             if !model.hasServerProvider {
                 // Rule 5: never a silent zero — say why the block is empty.
                 Text("No hub connection saved — connect in Settings › Connection to edit live targets.")
-                    .font(.caption).foregroundStyle(JIColor.muted)
+                    .font(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gateConfig.server.noHub")
             } else {
                 switch model.serverPhase {
                 case .idle, .loading:
-                    Text("Loading…").font(.subheadline).foregroundStyle(JIColor.muted)
+                    Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
                 case .error(let message):
-                    Text("Couldn't load server targets.").font(.caption).foregroundStyle(JIColor.danger)
+                    Text("Couldn't load server targets.").font(.caption).foregroundStyle(theme.color(.danger))
                         .accessibilityIdentifier("gateConfig.server.loadError")
-                    Text(message).font(.caption2).foregroundStyle(JIColor.muted)
+                    Text(message).font(.caption2).foregroundStyle(theme.color(.muted))
                     Button {
                         Task { await model.loadServer() }
                     } label: {
-                        Text("Retry").font(.subheadline.weight(.semibold)).foregroundStyle(JIColor.info)
+                        Text("Retry").font(.subheadline.weight(.semibold)).foregroundStyle(theme.color(.info))
                     }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Retry loading server targets")
@@ -192,7 +197,7 @@ public struct GateConfigView: View {
                     }
                 }
                 if let saveError = model.serverSaveError {
-                    Text(saveError).font(.caption).foregroundStyle(JIColor.danger)
+                    Text(saveError).font(.caption).foregroundStyle(theme.color(.danger))
                         .accessibilityIdentifier("gateConfig.server.saveError")
                 }
             }
@@ -205,9 +210,9 @@ public struct GateConfigView: View {
         let name = "\(target.metric) \(target.operator)"
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(.subheadline).foregroundStyle(JIColor.text)
+                Text(name).font(.subheadline).foregroundStyle(theme.color(.text))
                 if let description = target.description, !description.isEmpty {
-                    Text(description).font(.caption2).foregroundStyle(JIColor.muted).lineLimit(1)
+                    Text(description).font(.caption2).foregroundStyle(theme.color(.muted)).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)
@@ -215,7 +220,7 @@ public struct GateConfigView: View {
                 .accessibilityLabel("Server \(name) decrease")
                 .accessibilityIdentifier("gateConfig.server.\(target.targetId).decrease")
             Text(gateConfigFormat(target.threshold))
-                .font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                .font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
                 .frame(minWidth: 56).multilineTextAlignment(.center)
                 .accessibilityIdentifier("gateConfig.server.\(target.targetId).value")
             stepButton(glyph: "plus") { Task { await model.nudgeServer(target, direction: 1) } }
@@ -233,9 +238,9 @@ public struct GateConfigView: View {
         Button(action: action) {
             Image(systemName: glyph)
                 .jiFont(.footnote, weight: .bold)
-                .foregroundStyle(JIColor.text)
+                .foregroundStyle(theme.color(.text))
                 .frame(width: 30, height: 30)
-                .background(JIColor.surface2, in: Circle())
+                .background(theme.color(.surface2), in: Circle())
         }
         .buttonStyle(.pressableScale)
     }
@@ -243,7 +248,7 @@ public struct GateConfigView: View {
     /// RN `ResetChip` — small `accent2` text button, only shown while the row is overridden.
     private func resetChip(action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text("Reset").font(.caption2.weight(.bold)).foregroundStyle(JIColor.info)
+            Text("Reset").font(.caption2.weight(.bold)).foregroundStyle(theme.color(.info))
         }
         .buttonStyle(.pressableScale)
     }

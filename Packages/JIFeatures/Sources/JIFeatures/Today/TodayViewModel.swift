@@ -211,3 +211,52 @@ public final class TodayViewModel {
         }
     }
 }
+
+// MARK: - B-33 §8.5 fixture
+
+public extension TodayViewModel {
+    /// A loaded Today, built from wire-format literals (the DTOs' memberwise inits are internal),
+    /// for `ScreenRegistry`/the screenshot sweep. Never used by the app.
+    /// `nil` only when an in-memory SQLite file cannot be opened — the registry then renders the
+    /// screen's unavailable state rather than trapping inside a test run.
+    static func fixture() -> TodayViewModel? {
+        guard let cache = NativeFixtureStore.cache else { return nil }
+        let model = TodayViewModel(provider: MockDataProvider(), cache: cache)
+        model.morning = NativeFixtureStore.decode(fixtureMorningJSON, as: MorningResponse.self)
+        model.gate = NativeFixtureStore.decode(fixtureGateJSON, as: GateResponse.self)
+        model.recovery = (0..<7).map { i in
+            RecoveryDay(
+                date: "2026-09-\(15 + i)",
+                sleepScore: [78, 81, 74, 88, 83, 79, 85][i],
+                sleepDurationSec: [25_200, 26_400, 23_400, 28_200, 27_000, 25_800, 27_600][i],
+                rhrBpm: [54, 53, 55, 52, 53, 54, 52][i],
+                bodyBatteryAvg: [61, 64, 58, 70, 66, 62, 68][i],
+                readinessScore: [68, 71, 64, 79, 74, 70, 76][i],
+                acwr: [1.02, 1.05, 1.11, 0.97, 1.01, 1.08, 1.04][i],
+                hrvWeeklyAvg: [48, 50, 47, 53, 51, 49, 52][i]
+            )
+        }
+        model.fetchedAt = Date(timeIntervalSince1970: 1_789_992_000)
+        model.phase = .loaded
+        model.hasLiveResult = true
+        return model
+    }
+}
+
+private let fixtureMorningJSON = """
+{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
+ "hrv_series":[{"date":"2026-09-15","hrv_weekly_avg":48,"rhr_bpm":54},{"date":"2026-09-16","hrv_weekly_avg":50,"rhr_bpm":53},
+ {"date":"2026-09-17","hrv_weekly_avg":47,"rhr_bpm":55},{"date":"2026-09-18","hrv_weekly_avg":53,"rhr_bpm":52},
+ {"date":"2026-09-19","hrv_weekly_avg":51,"rhr_bpm":53},{"date":"2026-09-20","hrv_weekly_avg":49,"rhr_bpm":54},
+ {"date":"2026-09-21","hrv_weekly_avg":52,"rhr_bpm":52}]}
+"""
+
+let fixtureGateJSON = """
+{"averages":{"avg_kcal_7d":2410,"avg_protein_7d":158,"avg_weight_kg":96.4,"avg_rhr_bpm":53,"sleep_score_7d":81,"acwr":1.04,"trends":{"weight":"down","kcal":"flat"}},
+ "daily":[{"date":"2026-09-15","steps":8120,"kcal_consumed":2380,"protein_g":151},{"date":"2026-09-16","steps":10450,"kcal_consumed":2440,"protein_g":163},
+ {"date":"2026-09-17","steps":6980,"kcal_consumed":2290,"protein_g":147},{"date":"2026-09-18","steps":11230,"kcal_consumed":2510,"protein_g":166},
+ {"date":"2026-09-19","steps":9040,"kcal_consumed":2400,"protein_g":159},{"date":"2026-09-20","steps":7610,"kcal_consumed":2350,"protein_g":154},
+ {"date":"2026-09-21","steps":6420,"kcal_consumed":2470,"protein_g":161}],
+ "recommendation":"MAINTAIN","tracked_days":7,"total_days":7,"min_tracked_days":5,
+ "triggered_rules":["acwr_in_band","protein_on_target"],"suggestions":["Hold the current intake for another week."]}
+"""

@@ -16,7 +16,11 @@ import JIDesign
 }
 
 @Test func registryHasTheGallery() {
-    #expect(ScreenRegistry.entries.map(\.name) == ["Native gallery"])
+    // B-33 phase B: every lane appends its own screens to the registry, so this pins the
+    // invariants (gallery first, all native, unique names) instead of the exact list.
+    let names = ScreenRegistry.entries.map(\.name)
+    #expect(names.first == "Native gallery")
+    #expect(Set(names).count == names.count)
     #expect(ScreenRegistry.entries.allSatisfy { $0.theme == .native })
 }
 

@@ -10,11 +10,14 @@ import JIDesign
 /// deliberately shows less (the persisted `morning_verdict` row has no rules/suggestions/trail).
 public struct GateRationaleView: View {
     @Bindable var model: GateRationaleViewModel
+    @Environment(\.jiTheme) private var theme
+    /// B-33 §8.5: no hub fetch while the sweep renders this screen.
+    @Environment(\.jiOffscreenRender) private var offscreen
 
     public init(model: GateRationaleViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 switch model.phase {
                 case .idle, .loading:
@@ -22,7 +25,7 @@ public struct GateRationaleView: View {
                 case .noVerdictForDate(let copy):
                     // The ONE benign failure — nothing to retry, so no Retry button (oracle).
                     Surface {
-                        Text(copy).font(.footnote).foregroundStyle(JIColor.muted)
+                        Text(copy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("gateRationale.noVerdict")
                     }
                 case .error(let message):
@@ -42,10 +45,11 @@ public struct GateRationaleView: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .readableColumn()
         }
-        .background(JIColor.bg)
+        .background(theme.color(.bg))
         .navigationTitle("Readiness rationale")
-        .task { await model.load() }
+        .task { if !offscreen { await model.load() } }
     }
 
     // MARK: - Cards
@@ -53,7 +57,7 @@ public struct GateRationaleView: View {
     private func errorCard(_ message: String) -> some View {
         Surface {
             VStack(spacing: 10) {
-                Text(message).font(.footnote).foregroundStyle(JIColor.muted)
+                Text(message).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 Button("Retry") { Task { await model.refresh() } }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Retry loading the readiness rationale")
@@ -64,21 +68,21 @@ public struct GateRationaleView: View {
     }
 
     private var verdictCard: some View {
-        Surface(radius: JIRadius.hero, padding: 20) {
+        Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 4) {
                 sectionLabel("Readiness verdict")
                 Text(model.verdict.word)
                     .jiNumeral(.numeralLarge, weight: .heavy)
-                    .foregroundStyle(JIColor.color(for: model.verdict.tone))
+                    .foregroundStyle(theme.color(verdictColorRole(model.verdict.tone)))
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
                     .accessibilityIdentifier("gateRationale.verdict.word")
                 if !model.verdict.session.isEmpty {
-                    Text(model.verdict.session).font(.footnote).foregroundStyle(JIColor.muted)
+                    Text(model.verdict.session).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("gateRationale.verdict.session")
                 }
                 if let time = model.computedAtTime() {
-                    Text("Computed \(time)").font(.caption2).foregroundStyle(JIColor.muted)
+                    Text("Computed \(time)").jiFont(.micro).foregroundStyle(theme.color(.muted))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,7 +93,7 @@ public struct GateRationaleView: View {
     private var byDateReasonCard: some View {
         if let reason = model.verdictForDate?.reason, !reason.isEmpty {
             card("Why") {
-                Text(reason).font(.footnote).foregroundStyle(JIColor.text)
+                Text(reason).jiFont(.footnote).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("gateRationale.byDate.reason")
             }
         }
@@ -100,10 +104,10 @@ public struct GateRationaleView: View {
     private var nutritionGateCard: some View {
         card("Weekly nutrition gate") {
             VStack(alignment: .leading, spacing: 4) {
-                Text(model.recommendationLabel ?? "—").font(.footnote).foregroundStyle(JIColor.text)
+                Text(model.recommendationLabel ?? "—").jiFont(.footnote).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("gateRationale.recommendation")
                 if let tracked = model.trackedDaysLine {
-                    Text(tracked).font(.caption).foregroundStyle(JIColor.muted)
+                    Text(tracked).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("gateRationale.trackedDays")
                 }
             }
@@ -113,12 +117,12 @@ public struct GateRationaleView: View {
     private var triggeredRulesCard: some View {
         card("Why — triggered rules") {
             if let clean = model.noRulesCopy {
-                Text(clean).font(.caption).foregroundStyle(JIColor.muted)
+                Text(clean).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gateRationale.noRules")
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(model.humanizedRules().enumerated()), id: \.offset) { _, rule in
-                        bullet(rule, dot: JIColor.reduced)
+                        bullet(rule, dot: theme.color(.reduced))
                     }
                 }
                 .accessibilityIdentifier("gateRationale.triggeredRules")
@@ -150,12 +154,12 @@ public struct GateRationaleView: View {
     private var suggestionsCard: some View {
         card("Suggestions") {
             if let empty = model.suggestionsEmptyCopy {
-                Text(empty).font(.caption).foregroundStyle(JIColor.muted)
+                Text(empty).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gateRationale.noSuggestions")
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(model.suggestionLines.enumerated()), id: \.offset) { _, line in
-                        bullet(line, dot: JIColor.go)
+                        bullet(line, dot: theme.color(.go))
                     }
                 }
                 .accessibilityIdentifier("gateRationale.suggestions")
@@ -167,15 +171,15 @@ public struct GateRationaleView: View {
         let days = model.trailDays
         return card("Decision trail · last \(days.count) days") {
             if days.isEmpty {
-                Text("No recovery history yet.").font(.caption).foregroundStyle(JIColor.muted)
+                Text("No recovery history yet.").jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gateRationale.noTrail")
             } else {
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(days) { day in
                         VStack(spacing: 4) {
-                            Circle().fill(JIColor.color(for: day.tone)).frame(width: 12, height: 12)
-                            Text(Self.weekdayLabel(day.date)).font(.caption2.weight(.bold)).foregroundStyle(JIColor.text)
-                            Text(day.metricsLine()).jiFont(.micro).foregroundStyle(JIColor.muted)
+                            Circle().fill(theme.color(verdictColorRole(day.tone))).frame(width: 12, height: 12)
+                            Text(Self.weekdayLabel(day.date)).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.text))
+                            Text(day.metricsLine()).jiFont(.micro).foregroundStyle(theme.color(.muted))
                                 .multilineTextAlignment(.center).lineLimit(2)
                         }
                         .frame(maxWidth: .infinity)
@@ -200,18 +204,15 @@ public struct GateRationaleView: View {
         }
     }
 
+    /// §2: the uppercase footnote header, from JIDesign (unpadded inside a card).
     private func sectionLabel(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.caption2.weight(.bold))
-            .kerning(0.8)
-            .foregroundStyle(JIColor.muted)
-            .accessibilityAddTraits(.isHeader)
+        JISectionHeader(text).padding(.leading, -16)
     }
 
     private func bullet(_ text: String, dot: Color) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text("•").font(.footnote).foregroundStyle(dot)
-            Text(text).font(.footnote).foregroundStyle(JIColor.text).frame(maxWidth: .infinity, alignment: .leading)
+            Text("•").jiFont(.footnote).foregroundStyle(dot)
+            Text(text).jiFont(.footnote).foregroundStyle(theme.color(.text)).frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)

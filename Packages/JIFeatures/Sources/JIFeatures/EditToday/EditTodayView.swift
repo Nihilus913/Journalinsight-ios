@@ -8,6 +8,7 @@ import JIPersistence
 // Swift counterpart in `TodayGrid.swift`, so no `.navigationDestination` was added there.
 public struct EditTodayView: View {
     @State private var model: EditTodayViewModel
+    @Environment(\.jiTheme) private var theme
 
     public init(model: EditTodayViewModel) { _model = State(initialValue: model) }
 
@@ -15,7 +16,7 @@ public struct EditTodayView: View {
         Form {
             Section {
                 Text("Choose which tiles show on Today. Prefer dragging tiles directly on Today itself — long-press one to reorder in place. The up/down arrows below are a screen-reader friendly fallback for the same reorder. The verdict card always leads — it isn't part of this list.")
-                    .font(.footnote).foregroundStyle(JIColor.muted)
+                    .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("editToday.info")
             }
             Section("Tiles") {
@@ -24,6 +25,8 @@ public struct EditTodayView: View {
                 }
             }
         }
+        // §5: the grouped background and inset-grouped cells come from the system.
+        .listStyle(.insetGrouped)
         .navigationTitle("Edit Today")
         .onAppear { model.load() }
     }
@@ -35,24 +38,25 @@ public struct EditTodayView: View {
         let atTop = index == 0
         let atBottom = index == count - 1
         HStack(spacing: 8) {
-            Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(JIColor.text)
-            Spacer()
-            circleButton(systemImage: "chevron.up", tint: atTop ? JIColor.muted : JIColor.text, disabled: atTop) {
+            Text(label).jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.text))
+            Spacer(minLength: 8)
+            circleButton(systemImage: "chevron.up", tint: atTop ? theme.color(.muted) : theme.color(.text), disabled: atTop) {
                 model.move(id, direction: -1)
             }
             .accessibilityLabel("Move \(label) up")
             .accessibilityIdentifier("editToday.\(id).up")
-            circleButton(systemImage: "chevron.down", tint: atBottom ? JIColor.muted : JIColor.text, disabled: atBottom) {
+            circleButton(systemImage: "chevron.down", tint: atBottom ? theme.color(.muted) : theme.color(.text), disabled: atBottom) {
                 model.move(id, direction: 1)
             }
             .accessibilityLabel("Move \(label) down")
             .accessibilityIdentifier("editToday.\(id).down")
-            circleButton(systemImage: hidden ? "eye.slash" : "eye", tint: hidden ? JIColor.muted : JIColor.info, disabled: false) {
+            circleButton(systemImage: hidden ? "eye.slash" : "eye", tint: hidden ? theme.color(.muted) : theme.color(.info), disabled: false) {
                 model.setHidden(id, hide: !hidden)
             }
             .accessibilityLabel(hidden ? "Show \(label) on Today" : "Hide \(label) from Today")
             .accessibilityIdentifier("editToday.\(id).toggle")
         }
+        .frame(minHeight: JIRow<EmptyView>.minHeight)   // §2b.2: the inset-grouped row height
         .opacity(hidden ? 0.45 : 1)
         .accessibilityIdentifier("editToday.row.\(id)")
     }
@@ -65,7 +69,7 @@ public struct EditTodayView: View {
                 .jiFont(.body, weight: .semibold)
                 .foregroundStyle(tint)
                 .frame(width: 32, height: 32)
-                .background(JIColor.surface2, in: Circle())
+                .background(theme.color(.surface2), in: Circle())
         }
         .buttonStyle(.pressableScale)
         .disabled(disabled)
