@@ -19,5 +19,8 @@ public nonisolated struct ScreenEntry: Sendable, Identifiable {
 public nonisolated enum ScreenRegistry {
     public static let entries: [ScreenEntry] = [
         ScreenEntry(name: "Native gallery") { AnyView(NativeGalleryView()) },
+
+        // MARK: L4 — chrome + hero screens (append-only; never reorder another lane's block)
+        ScreenEntry(name: "Today") { L4Screens.today() },
     ]
 }
