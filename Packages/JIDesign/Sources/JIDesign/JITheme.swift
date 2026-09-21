@@ -17,3 +17,23 @@ public extension View {
     /// Opt a screen (or any subtree) into a theme. Every JIDesign view reads `\.jiTheme`.
     func jiTheme(_ theme: JITheme) -> some View { environment(\.jiTheme, theme) }
 }
+
+/// Every neutral / semantic colour a screen may ask for. Mirrors the `JIColor` statics one to one
+/// so a migration is a rename (`JIColor.muted` → `theme.color(.muted)`).
+public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
+    case bg, surface, surface2, surface3, nested, control
+    case text, muted, mutedNested
+    case hairlineOuter, hairlineNested
+    /// Reserved: verdict / band / 0–100 score / status ONLY (rule 6). Selection + CTA = info.
+    case go, reduced, danger, info, sleep
+}
+
+public extension JITheme {
+    /// MainActor (reads the `JIColor` statics): call from `body` or a `@MainActor` test.
+    func color(_ role: JIColorRole) -> Color {
+        switch self {
+        case .classic: JIColor.classic(role)
+        case .native: JINativePalette.color(role)
+        }
+    }
+}

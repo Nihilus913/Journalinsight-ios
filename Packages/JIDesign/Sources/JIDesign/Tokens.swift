@@ -110,6 +110,18 @@ public enum JIColor {
     public static func fixed(_ key: KeyPath<JIPalette, UInt32>, for scheme: JIScheme) -> Color {
         Color(hex: JIPalette.palette(for: scheme)[keyPath: key])
     }
+
+    /// B-33 §8.0: the classic value for a role — `JITheme.classic.color(_:)` reads this so the
+    /// old language is byte-identical to the statics above.
+    public static func classic(_ role: JIColorRole) -> Color {
+        switch role {
+        case .bg: bg; case .surface: surface; case .surface2: surface2; case .surface3: surface3
+        case .nested: nested; case .control: control
+        case .text: text; case .muted: muted; case .mutedNested: mutedNested
+        case .hairlineOuter: hairlineOuter; case .hairlineNested: hairlineNested
+        case .go: go; case .reduced: reduced; case .danger: danger; case .info: info; case .sleep: sleep
+        }
+    }
 }
 
 public enum JIRadius { public static let card: CGFloat = 16; public static let hero: CGFloat = 24 }
