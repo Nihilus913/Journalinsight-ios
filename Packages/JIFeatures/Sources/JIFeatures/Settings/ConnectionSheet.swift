@@ -110,7 +110,6 @@ public struct ConnectionSheet: View {
                     }
                 }
             }
-            .jiNativeFormChrome()
             .jiTheme(.native)
             .navigationTitle("Connection")
             .toolbar {

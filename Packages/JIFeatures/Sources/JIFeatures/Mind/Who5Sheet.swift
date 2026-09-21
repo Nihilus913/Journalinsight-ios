@@ -57,7 +57,6 @@ public struct Who5Sheet: View {
             }
             .accessibilityIdentifier("who5-sheet-panel")
             .navigationTitle("Weekly well-being check-in")
-            .jiNativeFormChrome()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("who5-cancel") }

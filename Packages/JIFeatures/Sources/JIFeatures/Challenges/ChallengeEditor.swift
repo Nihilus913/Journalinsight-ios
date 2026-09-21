@@ -65,7 +65,6 @@ public struct ChallengeEditor: View {
                 }
             }
             .navigationTitle(model.isEditing ? "Edit challenge" : "New challenge")
-            .jiNativeFormChrome()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("challenge-editor-cancel") }

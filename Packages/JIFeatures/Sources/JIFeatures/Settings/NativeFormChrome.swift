@@ -9,6 +9,11 @@ import JIDesign
 /// Named for the lane so a parallel Phase-B lane adding its own chrome helper cannot collide.
 extension View {
     /// `.listStyle(.insetGrouped)` where the platform has it, a no-op where it does not.
+    ///
+    /// **`List` only.** A `Form` is already inset grouped on iOS, and forcing the style onto one
+    /// deadlocks `ImageRenderer` at accessibility text sizes — the §8.5 sweep hangs instead of
+    /// failing (bisected on `CheckInSheet`, B-33 L6). The `Form` screens in this lane therefore
+    /// carry no style modifier at all; they only drop their explicit page background (§5).
     func jiNativeFormChrome() -> some View {
         #if os(iOS) || os(visionOS)
         return self.listStyle(.insetGrouped)

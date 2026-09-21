@@ -27,7 +27,6 @@ public struct SettingsView: View {
                 }
             }
             .environment(model)
-            .jiNativeFormChrome()
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

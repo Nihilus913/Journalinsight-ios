@@ -67,7 +67,6 @@ public struct EventSheet: View {
             }
             .accessibilityIdentifier("event-sheet-panel")
             .navigationTitle("Log an event")
-            .jiNativeFormChrome()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("event-cancel") }

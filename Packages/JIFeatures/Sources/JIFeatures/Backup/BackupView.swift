@@ -32,8 +32,6 @@ public struct BackupView: View {
                 importStageView
             }
         }
-        .jiNativeFormChrome()
-        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Backup & restore")
         .fileExporter(

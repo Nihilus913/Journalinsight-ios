@@ -64,7 +64,6 @@ public struct CheckInSheet: View {
             }
             .accessibilityIdentifier("checkin-sheet-panel")
             .navigationTitle("Daily check-in")
-            .jiNativeFormChrome()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("checkin-cancel") }
