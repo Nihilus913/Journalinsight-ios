@@ -64,7 +64,6 @@
 		FBDC394485A35929AF056DA5 /* JIVault in Frameworks */ = {isa = PBXBuildFile; productRef = A230B1185D4D79616F44967A /* JIVault */; };
 		FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */; };
 		FCECBF89D30402A28DE67681 /* KpiWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */; };
-		FE5FD1B198F1A63528FA5AD6 /* JournalSearchStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBDA5FE7BF0FF3172886F09F /* JournalSearchStub.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -178,7 +177,6 @@
 		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		ECB808090BFEC147D0BC4C92 /* JICompute */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICompute; path = Packages/JICompute; sourceTree = SOURCE_ROOT; };
-		FBDA5FE7BF0FF3172886F09F /* JournalSearchStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalSearchStub.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
 		FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchIndicatorWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -361,7 +359,6 @@
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
-				FBDA5FE7BF0FF3172886F09F /* JournalSearchStub.swift */,
 				AA32214326886B2F6938D0AC /* ProviderSelection.swift */,
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
 				056638029CC232C84D208888 /* Debug */,
@@ -607,7 +604,6 @@
 				5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
-				FE5FD1B198F1A63528FA5AD6 /* JournalSearchStub.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
