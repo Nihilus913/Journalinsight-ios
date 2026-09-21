@@ -10,6 +10,11 @@ public final class HealthBackloadViewModel {
     public enum Phase: Equatable, Sendable {
         case idle
         case authorizing
+        /// B-39: access granted, first month chunk in flight. The runner reports progress only
+        /// AFTER each chunk (JICore `BackloadProgress` contract), and a writer upgrade re-walks
+        /// the whole history — so without this phase the first (heaviest) chunk sat under
+        /// "Requesting Health access…" and read as a hang on device.
+        case starting
         case running(monthIndex: Int, monthCount: Int, written: Int, skipped: Int)
         case done(BackloadSummary)
         case failed(String)
@@ -27,7 +32,7 @@ public final class HealthBackloadViewModel {
     private var mappedPhase: TodayViewModel.Phase {
         switch phase {
         case .idle: .idle
-        case .authorizing, .running: .loading
+        case .authorizing, .starting, .running: .loading
         case .done: .loaded
         case .failed(let message): .error(message)
         }
@@ -72,7 +77,7 @@ public final class HealthBackloadViewModel {
 
     public var isRunning: Bool {
         switch phase {
-        case .authorizing, .running: true
+        case .authorizing, .starting, .running: true
         default: false
         }
     }
@@ -88,6 +93,7 @@ public final class HealthBackloadViewModel {
             phase = .failed(error.localizedDescription)
             return
         }
+        phase = .starting
         await run(defaultRange)
     }
 
