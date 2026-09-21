@@ -11,6 +11,7 @@ import JIDesign
 /// intentionally wait for the real, complete raw score rather than showing a "running" score that
 /// could misfire.
 public struct Who5Sheet: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: MindViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -40,19 +41,20 @@ public struct Who5Sheet: View {
                 }
                 Section {
                     HStack {
-                        Text("Score").foregroundStyle(JIColor.muted)
+                        Text("Score").foregroundStyle(theme.color(.muted))
                         Spacer()
                         Text(pct.map { "\($0)/100" } ?? "—/100").font(.title3.bold())
                             .accessibilityLabel("Score")
                             .accessibilityValue(pct.map { "\($0) out of 100" } ?? "Not scored yet")
                     }
                     if let message {
-                        Text(message).font(.footnote).foregroundStyle(JIColor.reduced)
+                        Text(message).font(.footnote).foregroundStyle(theme.color(.reduced))
                     }
                 }
             }
             .accessibilityIdentifier("who5-sheet-panel")
             .navigationTitle("Weekly well-being check-in")
+            .jiNativeFormChrome()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("who5-cancel") }
                 ToolbarItem(placement: .confirmationAction) {
