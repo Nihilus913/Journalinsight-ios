@@ -10,19 +10,20 @@ public struct MealTimeline: View {
     private static let order: [String] = ["breakfast", "lunch", "dinner", "snack"]
     private static let labels: [String: String] = ["breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack"]
 
+    @Environment(\.jiTheme) private var theme
     public init(day: NutritionDayDetail?) { self.day = day }
 
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Meals").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                Text("Meals").jiFont(.caption).foregroundStyle(theme.color(.muted)).textCase(.uppercase)
                     .accessibilityAddTraits(.isHeader)
                 if let day, !day.items.isEmpty {
                     ForEach(mealsInOrder(day), id: \.slot) { meal in
                         mealSection(slot: meal.slot, items: meal.items)
                     }
                 } else {
-                    Text("No meals logged yet for this day.").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("No meals logged yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("meal-timeline-empty")
                 }
             }
@@ -44,17 +45,17 @@ public struct MealTimeline: View {
 
     private func mealSection(slot: String, items: [NutritionMealItem]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(Self.labels[slot] ?? slot.capitalized).font(.footnote.weight(.bold)).foregroundStyle(JIColor.text)
+            Text(Self.labels[slot] ?? slot.capitalized).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("meal-row-\(slot)")
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                HStack {
-                    Text(item.name).font(.footnote).foregroundStyle(JIColor.text).lineLimit(1)
-                        .accessibilityLabel(item.name)
-                    Spacer()
-                    Text(item.kcal.map { "\(Int($0)) kcal" } ?? "—").font(.caption).foregroundStyle(JIColor.muted)
+            // §2b.2: each logged item is a 44-pt inset-grouped row.
+            ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                JIRow(title: item.name, systemImage: "fork.knife", tint: theme.color(.info)) {
+                    Text(item.kcal.map { "\(Int($0)) kcal" } ?? "—")
                         .accessibilityLabel(item.kcal.map { "\(Int($0)) kcal" } ?? "no calorie data")
                 }
+                .accessibilityLabel(item.name)
+                if idx != items.count - 1 { Divider().overlay(theme.color(.hairlineNested)).padding(.leading, 40) }
             }
         }
     }

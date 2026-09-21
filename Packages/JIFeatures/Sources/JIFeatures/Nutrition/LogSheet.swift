@@ -15,6 +15,8 @@ public struct LogSheet: View {
     let onLogged: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var showingWeighIn = false
+    /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
+    private let theme = JITheme.native
 
     /// Mirrors the oracle's `BREAKFAST_TEMPLATE_ID` (`mobile/src/data/nutritionTemplates.ts`).
     public static let breakfastTemplateID = "breakfast_default"
@@ -25,15 +27,28 @@ public struct LogSheet: View {
 
     public var body: some View {
         NavigationStack {
+            nativeContent
+                .navigationTitle("Log food")
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("logsheet-cancel") } }
+        }
+        .jiTheme(.native)
+        #if os(iOS)
+        // §8.2: form-sized on a regular-width canvas instead of full-screen.
+        .presentationSizing(.form)
+        #endif
+    }
+
+    /// §8.5: the sheet's composition without its navigation shell — what the sweep renders.
+    @ViewBuilder var nativeContent: some View {
             VStack(spacing: 16) {
                 switch model.state {
                 case .failure(let message):
                     Surface {
-                        Text(message).font(.footnote).foregroundStyle(JIColor.danger)
+                        Text(message).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                             .accessibilityIdentifier("logsheet-error")
                     }
                 case .submitting:
-                    Surface { HStack { ProgressView(); Text("Logging…").foregroundStyle(JIColor.muted) } }
+                    Surface { HStack { ProgressView(); Text("Logging…").foregroundStyle(theme.color(.muted)) } }
                         .accessibilityIdentifier("logsheet-submitting")
                 default:
                     EmptyView()
@@ -46,11 +61,10 @@ public struct LogSheet: View {
                         }
                     }
                 } label: {
-                    Text("Log Standard breakfast").frame(maxWidth: .infinity).padding()
-                        .background(JIColor.info, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .foregroundStyle(JIColor.bg)
+                    Text("Log Standard breakfast").frame(maxWidth: .infinity).padding(.vertical, 8)
                 }
-                .buttonStyle(.pressableScale)
+                .buttonStyle(.borderedProminent)
+                .tint(theme.color(.info))
                 .disabled(model.state == .submitting)
                 .accessibilityLabel("Log Standard breakfast")
                 .accessibilityIdentifier("logsheet-log-breakfast")
@@ -59,11 +73,10 @@ public struct LogSheet: View {
                     Button {
                         showingWeighIn = true
                     } label: {
-                        Text("Log weight").frame(maxWidth: .infinity).padding()
-                            .background(JIColor.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .foregroundStyle(JIColor.text)
+                        Text("Log weight").frame(maxWidth: .infinity).padding(.vertical, 8)
                     }
-                    .buttonStyle(.pressableScale)
+                    .buttonStyle(.bordered)
+                    .tint(theme.color(.info))
                     // Oracle `LogSheet.tsx` MenuRow: title "Log weight", sub "Push a weigh-in to Garmin".
                     .accessibilityLabel("Log weight")
                     .accessibilityHint("Push a weigh-in to Garmin")
@@ -76,9 +89,8 @@ public struct LogSheet: View {
                 Spacer()
             }
             .padding(20)
-            .background(JIColor.bg)
-            .navigationTitle("Log food")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("logsheet-cancel") } }
-        }
+            .readableColumn()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(theme.color(.bg))
     }
 }

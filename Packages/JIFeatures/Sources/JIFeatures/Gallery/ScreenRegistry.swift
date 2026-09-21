@@ -24,5 +24,7 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Session coach") { AnyView(SessionCoachNativePreview()) },
         ScreenEntry(name: "Weekly plan") { AnyView(WeeklyPlanNativePreview()) },
         ScreenEntry(name: "Send to Watch") { AnyView(SendToWatchNativePreview()) },
+        ScreenEntry(name: "Nutrition") { AnyView(NutritionNativePreview()) },
+        ScreenEntry(name: "Nutrition log") { AnyView(NutritionLogNativePreview()) },
     ]
 }

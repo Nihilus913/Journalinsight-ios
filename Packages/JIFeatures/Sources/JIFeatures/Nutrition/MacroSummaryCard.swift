@@ -13,6 +13,7 @@ public struct MacroSummaryCard: View {
     /// hides the button, same optional-model pattern as `VerdictHeroView.challengesModel`.
     let goalsSetupModel: GoalsSetupViewModel?
     @State private var showGoalsSetup = false
+    @Environment(\.jiTheme) private var theme
 
     public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil) {
         self.day = day
@@ -23,7 +24,7 @@ public struct MacroSummaryCard: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Macros today").font(.caption).foregroundStyle(JIColor.muted).textCase(.uppercase)
+                    Text("Macros today").jiFont(.caption).foregroundStyle(theme.color(.muted)).textCase(.uppercase)
                         .accessibilityAddTraits(.isHeader)
                     if let goalsSetupModel {
                         Spacer()
@@ -43,30 +44,66 @@ public struct MacroSummaryCard: View {
                     }
                 }
                 if let day {
-                    kcalRow(day.total)
-                    Divider().overlay(JIColor.nested)
-                    macroRow(label: "Protein", value: day.total.proteinG, color: JIColor.info)
-                    macroRow(label: "Carbs", value: day.total.carbsG, color: JIColor.sleep)
-                    macroRow(label: "Fat", value: day.total.fatG, color: JIColor.muted)
+                    // §4b: Calories ring (green, 0 → goal) + the Fitness macro triple. Both are
+                    // bounded-against-a-goal values; a ring renders ONLY when its goal is known,
+                    // otherwise the numbers stand alone (rule 5 — never a ring against a guess).
+                    AdaptiveHStack(spacing: 20) {
+                        HStack(spacing: 16) {
+                            if let kcal = day.total.kcal, let goal = day.total.kcalGoal, goal > 0 {
+                                ScoreRing(value: kcal, max: goal, tint: theme.color(.go))
+                                    .accessibilityLabel("Calories against goal")
+                            }
+                            kcalRow(day.total)
+                        }
+                        if let rings = macroGoalRings(day.total) {
+                            HStack(spacing: 16) {
+                                MacroRings(protein: rings.protein, carbs: rings.carbs, fat: rings.fat)
+                                macroLegend(day.total)
+                            }
+                        }
+                    }
+                    Divider().overlay(theme.color(.hairlineNested))
+                    macroRow(label: "Protein", value: day.total.proteinG, color: theme.color(.info))
+                    macroRow(label: "Carbs", value: day.total.carbsG, color: theme.color(.reduced))
+                    macroRow(label: "Fat", value: day.total.fatG, color: theme.color(.sleep))
                 } else {
-                    Text("No nutrition data yet for this day.").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("No nutrition data yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("macro-empty")
                 }
             }
         }
     }
 
+    /// The macro triple needs all three goals; the day payload carries only `kcalGoal`, so the
+    /// rings come from the goals document when the screen was given one (`goalsSetupModel`).
+    private func macroGoalRings(_ total: NutritionDayTotal) -> (protein: MacroRingValue, carbs: MacroRingValue, fat: MacroRingValue)? {
+        guard let goal = goalsSetupModel?.goals?.nutrition,
+              let pGoal = goal.proteinG, let cGoal = goal.carbsG, let fGoal = goal.fatG,
+              pGoal > 0, cGoal > 0, fGoal > 0 else { return nil }
+        return (MacroRingValue(value: total.proteinG ?? 0, goal: pGoal),
+                MacroRingValue(value: total.carbsG ?? 0, goal: cGoal),
+                MacroRingValue(value: total.fatG ?? 0, goal: fGoal))
+    }
+
+    private func macroLegend(_ total: NutritionDayTotal) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Protein · Carbs · Fat").jiFont(.caption).foregroundStyle(theme.color(.muted))
+            Text("vs goal").jiFont(.micro).foregroundStyle(theme.color(.mutedNested))
+        }
+        .accessibilityHidden(true)
+    }
+
     private func kcalRow(_ total: NutritionDayTotal) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(total.kcal.map { "\(Int($0))" } ?? "—")
-                .jiNumeral(.numeralMedium).foregroundStyle(JIColor.text)
+                .jiNumeral(.numeralMedium).foregroundStyle(theme.color(.text))
                 // Oracle `MacroSummaryCard.tsx` L170 names this row "Calories".
                 .accessibilityLabel("Calories")
                 .accessibilityValue(total.kcal.map { "\(Int($0)) kcal" } ?? "no data")
                 .accessibilityIdentifier("macro-value-kcal")
-            Text("kcal").font(.caption).foregroundStyle(JIColor.muted)
+            Text("kcal").jiFont(.caption).foregroundStyle(theme.color(.muted))
             Spacer()
-            Text(goalCopy(total)).font(.caption).foregroundStyle(JIColor.muted)
+            Text(goalCopy(total)).jiFont(.caption).foregroundStyle(theme.color(.muted))
                 .accessibilityLabel(goalCopy(total))
                 .accessibilityIdentifier("macro-goal")
         }
@@ -80,14 +117,16 @@ public struct MacroSummaryCard: View {
     }
 
     private func macroRow(label: String, value: Double?, color: Color) -> some View {
-        HStack {
+        HStack(spacing: 8) {
             Circle().fill(color).frame(width: 8, height: 8)
-            Text(label).font(.footnote).foregroundStyle(JIColor.text)
+            Text(label).jiFont(.footnote).foregroundStyle(theme.color(.text))
             Spacer()
-            Text(value.map { "\(Int($0))g" } ?? "—").font(.footnote.weight(.semibold)).foregroundStyle(JIColor.text)
+            Text(value.map { "\(Int($0))g" } ?? "—").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                 .accessibilityLabel(label)
                 .accessibilityValue(value.map { "\(Int($0)) grams" } ?? "no data")
                 .accessibilityIdentifier("macro-value-\(label.lowercased())")
         }
+        // §2b.2: the macro lines are 44-pt inset-grouped rows, not 20-pt text lines.
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
     }
 }
