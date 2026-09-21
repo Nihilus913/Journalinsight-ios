@@ -216,6 +216,8 @@ public extension ButtonStyle where Self == PressableScaleStyle { static var pres
 
 `Surface`: `public struct Surface<Content: View>: View { public init(level: Int = 1, radius: CGFloat = JIRadius.card, padding: CGFloat = 16, @ViewBuilder content: () -> Content) }`. `level` 1/2/3 → surface/surface2/surface3; **`default:` in the switch falls back to `surface`**, silently absorbing an invalid level.
 
+**B-33 §8.0 (W-B33.0):** `\.jiTheme: JITheme` (`.classic` default, `.native` opt-in via `.jiTheme(_:)`). Every JIDesign view branches on it internally; `.classic` output is byte-identical to the pre-W-B33.0 rendering (tests: TokensTests, TokensLightTests, JITypographyTests unchanged). New surface API: `JITheme.color(_ role: JIColorRole)` (MainActor), `JITheme.radius(_ role: JIRadiusRole)` and `surfaceStyle(level:theme:)` (nonisolated). `Surface.init` signature unchanged; under `.native` the `radius:` argument is ignored (level-driven 26/18/12). Migration recipe: add `.jiTheme(.native)` on the screen root, replace raw `JIColor.*`/`JIRadius.*` reads with `theme.color(_:)`/`theme.radius(_:)`, update `docs/THEME_STATUS.md` (HT).
+
 `SkeletonBlock`: `public init(width: CGFloat? = nil, height: CGFloat = 16)`. `StalenessBanner`: `public init(fetchedAt: Date?, hubReachable: Bool)` — renders only when `!hubReachable && fetchedAt != nil`; copy `"Showing data from HH:mm — hub unreachable"`.
 
 ```swift
