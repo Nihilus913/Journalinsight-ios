@@ -7,8 +7,11 @@ import JIPersistence
 import JIVault
 import JIWorkouts
 
+// B-33 §2b.4/§5: the bar is five content tabs + the iOS 27 search role. `energy` stays in the
+// vocabulary (and in `tabContent`) but is no longer one of the five — it is pushed from the
+// toolbar, next to My KPIs, so Training is a first-level tab instead of living in iOS "More".
 enum RootTab: Hashable {
-    case today, journal, recovery, energy, nutrition, training
+    case today, journal, recovery, energy, nutrition, training, search
 }
 
 struct RootTabView: View {
@@ -54,6 +57,11 @@ struct RootTabView: View {
     // change — the toggle AND a hub reconnect — and this is the single site that invalidates the
     // cache; each tab's `.task` then rebuilds its model against the provider now in the store.
     @State private var providerRevision = 0
+    // B-33 §5: Energy left the five-tab bar; it is pushed from the toolbar instead.
+    @State private var showEnergy = false
+    // B-33 §2b.4: the search-role Tab's query, owned here so it survives tab switches.
+    @State private var journalSearchQuery = ""
+    @Environment(\.jiTheme) private var theme
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -74,38 +82,45 @@ struct RootTabView: View {
                     }
                     .accessibilityIdentifier("tab.today")
                     .accessibilityLabel("Today")
-                    Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.journal")
-                    .accessibilityLabel("Journal")
                     Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
                         transparentTabContent
                     }
                     .accessibilityIdentifier("tab.recovery")
                     .accessibilityLabel("Recovery")
-                    Tab("Energy", systemImage: "flame", value: RootTab.energy) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.energy")
-                    .accessibilityLabel("Energy")
-                    Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.nutrition")
-                    .accessibilityLabel("Nutrition")
                     Tab("Training", systemImage: "dumbbell", value: RootTab.training) {
                         transparentTabContent
                     }
                     .accessibilityIdentifier("tab.training")
                     .accessibilityLabel("Training")
+                    Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
+                        transparentTabContent
+                    }
+                    .accessibilityIdentifier("tab.nutrition")
+                    .accessibilityLabel("Nutrition")
+                    Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
+                        transparentTabContent
+                    }
+                    .accessibilityIdentifier("tab.journal")
+                    .accessibilityLabel("Journal")
+                    // B-33 Contract: the search-role Tab references `JournalSearchView` by name;
+                    // L6 owns the real screen (`Journal/JournalSearchView.swift`).
+                    Tab(value: RootTab.search, role: .search) {
+                        transparentTabContent
+                    }
+                    .accessibilityIdentifier("tab.search")
                 }
+                .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
             }
-            .background(JIColor.bg)
+            .background(theme.color(.bg))
             // W2i: the connection sheet used to be reachable only before a hub was configured or
             // from the Today error card — once connected, Settings (incl. the Health backload)
             // had no entry point. Keep it one tap away from every tab.
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showEnergy = true } label: { Image(systemName: "flame") }
+                        .accessibilityLabel("Energy")
+                        .accessibilityIdentifier("root.energy")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { path.append(RootRoute.kpiList) } label: { Image(systemName: "list.bullet.rectangle") }
                         .accessibilityLabel("My KPIs")
@@ -116,6 +131,7 @@ struct RootTabView: View {
                         .accessibilityIdentifier("root.settings")
                 }
             }
+            .navigationDestination(isPresented: $showEnergy) { energyTab }
             .navigationDestination(for: RootRoute.self) { route in
                 switch route {
                 case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
@@ -123,6 +139,10 @@ struct RootTabView: View {
                 }
             }
         }
+        // B-33 §8.0: the whole shell renders in the native language; §5: tab/selection tint is
+        // the personalization accent resolved for `.native`.
+        .jiTheme(.native)
+        .tint(AccentKey.default.color(for: .native))
         .onChange(of: ProviderSwitch.shared.revision) { _, revision in
             guard revision != providerRevision else { return }
             providerRevision = revision
@@ -188,6 +208,7 @@ struct RootTabView: View {
         case .energy: energyTab
         case .nutrition: nutritionTab
         case .training: trainingTab
+        case .search: searchTab
         }
     }
 
@@ -259,6 +280,22 @@ struct RootTabView: View {
             }
         } else {
             connectionPrompt
+        }
+    }
+
+    /// B-33 Contract: `JournalSearchView(scopes:query:)` — public, owned by L6. Scopes are the
+    /// Journal's tag capsules (§2b.4); nil model = no tags yet, never a crash.
+    @ViewBuilder
+    private var searchTab: some View {
+        NavigationStack {
+            JournalSearchView(scopes: journalModel?.allTags ?? [], query: $journalSearchQuery)
+        }
+        .task {
+            guard journalModel == nil else { return }
+            let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+            let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
+            guard let db else { return }
+            journalModel = JournalViewModel(db: db, vault: vault)
         }
     }
 
