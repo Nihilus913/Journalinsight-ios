@@ -212,6 +212,50 @@ public struct BackloadDistanceEntryDTO: Codable, Sendable, Equatable {
     public init(syncId: String, date: String, meters: Double, version: Int? = nil) { self.syncId = syncId; self.date = date; self.meters = meters; self.version = version }
 }
 
+/// W11 (B-30 P4, contract v4 additive — HT `feat/w11-activity-details`): one per-second heart-rate
+/// reading from Garmin `activity/{id}/details`. `ts` is UTC ISO-8601 with `Z`.
+public struct BackloadWorkoutHrSampleDTO: Codable, Sendable, Equatable {
+    public var ts: String
+    public var bpm: Double
+    public init(ts: String, bpm: Double) { self.ts = ts; self.bpm = bpm }
+}
+
+/// W11: full-resolution HR for one activity — `sync_id` is the workout's (`workout:<activity_id>`),
+/// `version` the hub's `fetched_at` epoch seconds. Only activities with ≥1 sample are sent.
+public struct BackloadWorkoutHrEntryDTO: Codable, Sendable, Equatable {
+    public var syncId: String
+    public var version: Int
+    public var samples: [BackloadWorkoutHrSampleDTO]
+    public init(syncId: String, version: Int, samples: [BackloadWorkoutHrSampleDTO]) {
+        self.syncId = syncId; self.version = version; self.samples = samples
+    }
+}
+
+/// W11: one GPS point of a workout route. `alt_m` / `speed_mps` are null on the wire when Garmin
+/// served no elevation / speed for that second.
+public struct BackloadWorkoutRoutePointDTO: Codable, Sendable, Equatable {
+    public var ts: String
+    public var lat: Double
+    public var lon: Double
+    public var altM: Double?
+    public var speedMps: Double?
+    public init(ts: String, lat: Double, lon: Double, altM: Double?, speedMps: Double?) {
+        self.ts = ts; self.lat = lat; self.lon = lon; self.altM = altM; self.speedMps = speedMps
+    }
+}
+
+/// W11: the route of one activity (only activities with ≥2 lat/lon points). `ascent_m` = the hub's
+/// sum of positive `alt_m` deltas, null when no elevation column.
+public struct BackloadWorkoutRouteEntryDTO: Codable, Sendable, Equatable {
+    public var syncId: String
+    public var version: Int
+    public var ascentM: Double?
+    public var points: [BackloadWorkoutRoutePointDTO]
+    public init(syncId: String, version: Int, ascentM: Double?, points: [BackloadWorkoutRoutePointDTO]) {
+        self.syncId = syncId; self.version = version; self.ascentM = ascentM; self.points = points
+    }
+}
+
 public struct BackloadResponseDTO: Codable, Sendable, Equatable {
     public var from: String
     public var to: String
@@ -232,6 +276,10 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
     /// W9 (B-30 P5) daily kinds — `[]` when a pre-W9 hub omits them.
     public var distance: [BackloadDistanceEntryDTO]
     public var floors: [BackloadFloorsEntryDTO]
+    /// W11 (B-30 P4) dense per-workout series — `nil` when the hub omits them (a pre-W11 hub, or a
+    /// `kinds=` filter without `workout_hr`/`workout_routes`), so every existing fixture still decodes.
+    public var workoutHr: [BackloadWorkoutHrEntryDTO]?
+    public var workoutRoutes: [BackloadWorkoutRouteEntryDTO]?
     public init(
         from: String, to: String, source: String,
         sleep: [BackloadSleepEntryDTO], rhr: [BackloadRHREntryDTO], steps: [BackloadStepsEntryDTO],
@@ -240,13 +288,15 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
         spo2: [BackloadSpo2EntryDTO] = [], hrv: [BackloadHrvEntryDTO] = [],
         stepBuckets: [BackloadStepBucketEntryDTO] = [], dailyResp: [BackloadDailyRespEntryDTO] = [],
         dailySpo2: [BackloadDailySpo2EntryDTO] = [],
-        distance: [BackloadDistanceEntryDTO] = [], floors: [BackloadFloorsEntryDTO] = []
+        distance: [BackloadDistanceEntryDTO] = [], floors: [BackloadFloorsEntryDTO] = [],
+        workoutHr: [BackloadWorkoutHrEntryDTO]? = nil, workoutRoutes: [BackloadWorkoutRouteEntryDTO]? = nil
     ) {
         self.from = from; self.to = to; self.source = source
         self.sleep = sleep; self.rhr = rhr; self.steps = steps; self.energy = energy; self.vo2max = vo2max; self.workouts = workouts
         self.heartRate = heartRate; self.respiration = respiration; self.spo2 = spo2; self.hrv = hrv
         self.stepBuckets = stepBuckets; self.dailyResp = dailyResp; self.dailySpo2 = dailySpo2
         self.distance = distance; self.floors = floors
+        self.workoutHr = workoutHr; self.workoutRoutes = workoutRoutes
     }
 
     // Custom decode: the v2 dense/daily-fallback arrays default to `[]` when the hub omits them
@@ -255,6 +305,7 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
         case from, to, source, sleep, rhr, steps, energy, vo2max, workouts
         case heartRate, respiration, spo2, hrv, stepBuckets, dailyResp, dailySpo2
         case distance, floors
+        case workoutHr, workoutRoutes
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -276,5 +327,7 @@ public struct BackloadResponseDTO: Codable, Sendable, Equatable {
         dailySpo2 = try c.decodeIfPresent([BackloadDailySpo2EntryDTO].self, forKey: .dailySpo2) ?? []
         distance = try c.decodeIfPresent([BackloadDistanceEntryDTO].self, forKey: .distance) ?? []
         floors = try c.decodeIfPresent([BackloadFloorsEntryDTO].self, forKey: .floors) ?? []
+        workoutHr = try c.decodeIfPresent([BackloadWorkoutHrEntryDTO].self, forKey: .workoutHr)
+        workoutRoutes = try c.decodeIfPresent([BackloadWorkoutRouteEntryDTO].self, forKey: .workoutRoutes)
     }
 }
