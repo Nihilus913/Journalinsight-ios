@@ -6,6 +6,7 @@ import JIDesign
 /// separate from `GoalsSetupView`'s structured, hub-backed targets (see that oracle's own header
 /// comment / `GoalStore.ts`'s module comment for the two-feature split).
 public struct GoalsView: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: GoalsViewModel
     let now: () -> Date
 
@@ -21,33 +22,29 @@ public struct GoalsView: View {
     private var todayString: String { String(now().ISO8601Format().prefix(10)) }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Surface {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("New goal").font(.caption.bold()).foregroundStyle(JIColor.muted).textCase(.uppercase)
-                        TextField("Goal title", text: $title)
-                            .accessibilityLabel("Goal title")
-                            .accessibilityIdentifier("goals-new-title")
-                        GoalDatePicker(value: $targetDate)
-                        Button("Add goal") {
-                            model.addGoal(title: title, targetDate: targetDate)
-                            title = ""; targetDate = nil
-                        }
-                        .disabled(!canAdd)
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityLabel("Add goal")
-                        .accessibilityIdentifier("goals-add")
-                    }
+        List {
+            Section {
+                TextField("Goal title", text: $title)
+                    .accessibilityLabel("Goal title")
+                    .accessibilityIdentifier("goals-new-title")
+                GoalDatePicker(value: $targetDate)
+                Button("Add goal") {
+                    model.addGoal(title: title, targetDate: targetDate)
+                    title = ""; targetDate = nil
                 }
+                .disabled(!canAdd)
+                .accessibilityLabel("Add goal")
+                .accessibilityIdentifier("goals-add")
+            } header: {
+                Text("New goal")
+            }
 
+            Section("Goals") {
                 if model.isLoading {
-                    Text("Loading…").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("Loading…").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 } else if model.goals.isEmpty {
-                    Surface {
-                        Text("No goals yet. Add one above to start tracking progress.")
-                            .font(.footnote).foregroundStyle(JIColor.muted)
-                    }
+                    Text("No goals yet. Add one above to start tracking progress.")
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 } else {
                     ForEach(model.goals) { goal in
                         GoalCard(
@@ -59,8 +56,10 @@ public struct GoalsView: View {
                     }
                 }
             }
-            .padding(16)
         }
+        .jiNativeFormChrome()
+        .jiTheme(.native)
+        .navigationTitle("Goals")
         .task { model.load() }
     }
 }
