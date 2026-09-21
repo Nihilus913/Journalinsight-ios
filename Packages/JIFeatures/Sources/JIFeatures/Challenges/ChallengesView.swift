@@ -50,6 +50,7 @@ public struct ChallengesView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Challenges")
         .task { await model.load() }

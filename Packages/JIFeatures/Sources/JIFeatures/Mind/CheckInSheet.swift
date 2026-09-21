@@ -38,6 +38,11 @@ public struct CheckInSheet: View {
                             Text("\(m.emoji) \(m.rawValue.capitalized)").tag(JIPersistence.Mood?.some(m))
                         }
                     }
+                    // §8.2/§8.4: an inline picker instead of the menu style — the choices are a
+                    // short fixed set, and inline rows reflow at AX sizes where a menu label has
+                    // to be measured against a popover it can no longer fit.
+                    .pickerStyle(.inline)
+                    .labelsHidden()
                     .accessibilityLabel("Mood")
                 }
                 scoreSection("Stress", value: $stress)
@@ -60,6 +65,7 @@ public struct CheckInSheet: View {
             .accessibilityIdentifier("checkin-sheet-panel")
             .navigationTitle("Daily check-in")
             .jiNativeFormChrome()
+            .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("checkin-cancel") }
                 ToolbarItem(placement: .confirmationAction) {

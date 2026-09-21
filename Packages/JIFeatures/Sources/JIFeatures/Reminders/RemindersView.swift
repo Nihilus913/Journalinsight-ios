@@ -29,6 +29,7 @@ public struct RemindersView: View {
             WorkoutRemindersSection(model: model)
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Reminders")
         .task { if !model.loaded { await model.load() } }

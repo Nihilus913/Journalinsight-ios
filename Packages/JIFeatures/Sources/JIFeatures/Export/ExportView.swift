@@ -61,6 +61,7 @@ public struct ExportView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Export")
         .onAppear { model.load() }

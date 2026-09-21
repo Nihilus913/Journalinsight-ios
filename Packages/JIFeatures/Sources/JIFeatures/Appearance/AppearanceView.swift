@@ -79,6 +79,7 @@ public struct AppearanceView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .tint(accent)
         .navigationTitle("Appearance")

@@ -38,6 +38,7 @@ public struct VersionView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("About & version")
         .onAppear { model.markSeen() }

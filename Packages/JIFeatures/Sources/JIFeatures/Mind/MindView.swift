@@ -32,6 +32,7 @@ public struct MindView: View {
             if case .loaded = model.phase { loaded }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Mind")
         .task { if model.phase == .idle { await model.load() } }

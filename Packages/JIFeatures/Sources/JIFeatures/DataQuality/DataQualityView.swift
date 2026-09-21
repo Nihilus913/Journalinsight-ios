@@ -34,6 +34,7 @@ public struct DataQualityView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         // §5: the hand-drawn large title is the system's; the oracle's `ScreenHeader info=…`
         // copy becomes the navigation subtitle, verbatim.

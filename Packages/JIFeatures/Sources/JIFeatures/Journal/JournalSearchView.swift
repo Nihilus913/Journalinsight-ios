@@ -50,6 +50,7 @@ public struct JournalSearchView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Search")
         .searchable(text: $query, prompt: "Search entries")

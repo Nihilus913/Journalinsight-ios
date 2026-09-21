@@ -33,6 +33,7 @@ public struct BackupView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Backup & restore")
         .fileExporter(

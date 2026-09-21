@@ -47,6 +47,8 @@ public struct EntrySheet: View {
                     Text(error).foregroundStyle(theme.color(.danger))
                 }
             }
+            .jiNativeFormChrome()
+            .jiTheme(.native)
             .navigationTitle(model.editingId == nil ? "New Entry" : "Edit Entry")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

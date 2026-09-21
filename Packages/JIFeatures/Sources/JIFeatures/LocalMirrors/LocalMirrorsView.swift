@@ -95,6 +95,7 @@ public struct LocalMirrorsView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Local data mirrors")
         .task { await model.load() }

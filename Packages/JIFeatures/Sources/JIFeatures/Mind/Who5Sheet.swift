@@ -36,6 +36,9 @@ public struct Who5Sheet: View {
                                 Text(r.label).tag(Int?.some(r.value))
                             }
                         }
+                        // §8.2: five responses per item is too long for a menu label to fit at
+                        // AX sizes — the Form idiom for a long option set is a pushed list.
+                        .pickerStyle(.navigationLink)
                         .accessibilityLabel(item)
                     }
                 }
@@ -55,6 +58,7 @@ public struct Who5Sheet: View {
             .accessibilityIdentifier("who5-sheet-panel")
             .navigationTitle("Weekly well-being check-in")
             .jiNativeFormChrome()
+            .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("who5-cancel") }
                 ToolbarItem(placement: .confirmationAction) {

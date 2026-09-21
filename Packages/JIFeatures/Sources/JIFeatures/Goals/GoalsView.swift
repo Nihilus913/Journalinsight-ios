@@ -58,6 +58,7 @@ public struct GoalsView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Goals")
         .task { model.load() }

@@ -2,7 +2,7 @@ import SwiftUI
 import JIDesign
 
 /// B-33 §5 + §8.2 chrome for the `List`/`Form` screens this lane owns (L6). The explicit
-/// `JIColor.bg` backgrounds are gone, so the **system grouped background** shows through; the
+/// the explicit page backgrounds are gone, so the **system grouped background** shows through; the
 /// only thing a screen still has to say is "inset grouped", and that style does not exist on
 /// macOS (the host the package tests run on), hence the one `#if` here instead of ~15 inline.
 ///

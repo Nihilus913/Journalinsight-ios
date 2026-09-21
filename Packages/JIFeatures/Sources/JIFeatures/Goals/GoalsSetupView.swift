@@ -101,6 +101,7 @@ public struct GoalsSetupView: View {
             }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Goals setup")
         .task {

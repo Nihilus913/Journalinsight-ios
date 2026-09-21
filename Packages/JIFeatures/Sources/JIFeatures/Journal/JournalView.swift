@@ -28,6 +28,7 @@ public struct JournalView: View {
             Section { Disclaimer() }
         }
         .jiNativeFormChrome()
+        .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Journal")
         .toolbar {
