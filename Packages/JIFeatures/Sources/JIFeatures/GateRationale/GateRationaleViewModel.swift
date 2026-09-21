@@ -242,3 +242,30 @@ public final class GateRationaleViewModel {
         }
     }
 }
+
+// MARK: - B-33 §8.5 fixture
+
+public extension GateRationaleViewModel {
+    /// A loaded rationale for `ScreenRegistry`/the screenshot sweep, built from wire-format
+    /// literals (the DTOs' memberwise inits are internal). Never used by the app.
+    static func fixture() -> GateRationaleViewModel {
+        let model = GateRationaleViewModel(provider: MockDataProvider())
+        model.gate = NativeFixtureStore.decode(fixtureGateJSON, as: GateResponse.self)
+        model.morning = NativeFixtureStore.decode(fixtureRationaleMorningJSON, as: MorningResponse.self)
+        model.recovery = (0..<3).map { i in
+            RecoveryDay(
+                date: "2026-09-\(19 + i)",
+                sleepScore: [83, 79, 85][i],
+                rhrBpm: [53, 54, 52][i],
+                readinessScore: [74, 70, 76][i],
+                hrvWeeklyAvg: [51, 49, 52][i]
+            )
+        }
+        model.phase = .loaded
+        return model
+    }
+}
+
+private let fixtureRationaleMorningJSON = """
+{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"hrv_series":[]}
+"""

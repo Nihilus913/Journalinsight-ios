@@ -23,5 +23,6 @@ public nonisolated enum ScreenRegistry {
         // MARK: L4 — chrome + hero screens (append-only; never reorder another lane's block)
         ScreenEntry(name: "Today") { L4Screens.today() },
         ScreenEntry(name: "Recovery") { L4Screens.recovery() },
+        ScreenEntry(name: "Readiness rationale") { L4Screens.readinessRationale() },
     ]
 }

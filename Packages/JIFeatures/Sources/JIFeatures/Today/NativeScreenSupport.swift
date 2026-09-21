@@ -99,4 +99,8 @@ struct NativeFixtureUnavailable: View {
         return AnyView(NativeScreenPreview { RecoveryView(model: model) })
     }
 
+    static func readinessRationale() -> AnyView {
+        AnyView(NativeScreenPreview { GateRationaleView(model: GateRationaleViewModel.fixture()) })
+    }
+
 }
