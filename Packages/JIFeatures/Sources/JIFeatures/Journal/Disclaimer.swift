@@ -4,11 +4,12 @@ import JIDesign
 /// Persistent, non-negotiable rail (mental-health spec, oracle `Disclaimer.tsx`): tracking-not-
 /// diagnosis framing + the CH crisis line, shown on every render of the Journal tab.
 public struct Disclaimer: View {
+    @Environment(\.jiTheme) private var theme
     public init() {}
     public var body: some View {
         Text("Tracking, not diagnosis · In crisis? 143 — Die Dargebotene Hand")
             .jiFont(.caption)
-            .foregroundStyle(JIColor.muted)
+            .foregroundStyle(theme.color(.muted))
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .accessibilityLabel("Tracking, not diagnosis. In crisis? Call 143, Die Dargebotene Hand.")

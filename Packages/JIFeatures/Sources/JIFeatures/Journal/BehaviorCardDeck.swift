@@ -132,6 +132,7 @@ public final class BehaviorDeckViewModel {
 
 /// Behaviour check-in deck (oracle: `BehaviorCardDeck.tsx`). Mounted by `JournalView`.
 public struct BehaviorCardDeck: View {
+    @Environment(\.jiTheme) private var theme
     @State private var model: BehaviorDeckViewModel
     @State private var dragOffset: CGFloat = 0
     @State private var dragClaimed = false
@@ -163,11 +164,11 @@ public struct BehaviorCardDeck: View {
                     card(top)
                 } else {
                     header(trailing: nil)
-                    Text("All logged for today.").font(.subheadline).foregroundStyle(JIColor.text)
-                    Text("Every check-in answered — see you tomorrow.").font(.caption).foregroundStyle(JIColor.muted)
+                    Text("All logged for today.").font(.subheadline).foregroundStyle(theme.color(.text))
+                    Text("Every check-in answered — see you tomorrow.").font(.caption).foregroundStyle(theme.color(.muted))
                 }
                 if let error = model.persistError {
-                    Text(error).font(.caption).foregroundStyle(JIColor.reduced)
+                    Text(error).font(.caption).foregroundStyle(theme.color(.reduced))
                         .accessibilityIdentifier("behavior-card-persist-error")
                 }
                 if let undo = model.undoEntry {
@@ -177,7 +178,7 @@ public struct BehaviorCardDeck: View {
                     } label: {
                         Label("Undo \(undo.answer.rawValue) — \(undo.card.title)", systemImage: "arrow.uturn.backward")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(JIColor.info)
+                            .foregroundStyle(theme.color(.info))
                     }
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Undo \(undo.card.title) — \(undo.answer.rawValue)")
@@ -201,10 +202,10 @@ public struct BehaviorCardDeck: View {
     private func header(trailing: String?) -> some View {
         HStack {
             Text("Behavior check-in").font(.caption.weight(.bold)).textCase(.uppercase).kerning(0.6)
-                .foregroundStyle(JIColor.muted)
+                .foregroundStyle(theme.color(.muted))
             Spacer()
             if let trailing {
-                Text(trailing).font(.caption).foregroundStyle(JIColor.muted)
+                Text(trailing).font(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("behavior-card-remaining")
             }
         }
@@ -212,26 +213,26 @@ public struct BehaviorCardDeck: View {
 
     private func card(_ top: BehaviorCard) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(top.title).font(.headline).foregroundStyle(JIColor.text)
-            Text(top.prompt).font(.subheadline).foregroundStyle(JIColor.text)
-            Text(top.detail).font(.caption).foregroundStyle(JIColor.muted)
+            Text(top.title).font(.headline).foregroundStyle(theme.color(.text))
+            Text(top.prompt).font(.subheadline).foregroundStyle(theme.color(.text))
+            Text(top.detail).font(.caption).foregroundStyle(theme.color(.muted))
 
             HStack(spacing: 10) {
-                answerButton("No", answer: .no, tint: JIColor.danger, card: top)
-                answerButton("Yes", answer: .yes, tint: JIColor.go, card: top)
+                answerButton("No", answer: .no, tint: theme.color(.danger), card: top)
+                answerButton("Yes", answer: .yes, tint: theme.color(.go), card: top)
             }
             .padding(.top, 8)
 
             Text("Swipe right for yes, left for no — or use the buttons.")
-                .font(.caption2).foregroundStyle(JIColor.muted)
+                .font(.caption2).foregroundStyle(theme.color(.muted))
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .padding(.top, 4)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(JIColor.nested, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(JIColor.hairlineNested, lineWidth: 1))
+        .background(theme.color(.nested), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(theme.color(.hairlineNested), lineWidth: 1))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { model.cardWidth = Double($0) }
         .offset(x: dragOffset)
         .gesture(swipeGesture, including: reduceMotion ? .subviews : .all)
