@@ -1,4 +1,5 @@
 #if canImport(HealthKit)
+import CoreLocation
 import Foundation
 import HealthKit
 @testable import JIHealthKit
@@ -10,6 +11,19 @@ final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
     private(set) var savedObjects: [HKObject] = []
     /// workout sync id -> samples attached via `add(_:to:)`
     private(set) var associated: [String: [HKSample]] = [:]
+    /// W11: workout sync id -> how many `add(_:to:)` calls it received (≥1 000 HR samples must
+    /// stay ONE call).
+    private(set) var addCalls: [String: Int] = [:]
+    /// W11: every `insertRoute` call, in order.
+    struct InsertedRoute {
+        let workoutSyncId: String
+        let workout: HKWorkout
+        let locations: [CLLocation]
+        let metadata: [String: Any]
+    }
+    private(set) var insertedRoutes: [InsertedRoute] = []
+    /// W11: workout sync id -> whether its `workout:<id>:route` delete was seen BEFORE its insert.
+    private(set) var routeDeletedBeforeInsert: [String: Bool] = [:]
     /// Pre-seeded "already in HealthKit" sync ids, keyed by `HKSampleType.identifier`. Pre-v4
     /// shorthand: these read back at `HKMetadataKeySyncVersion` 2 (what writer v2/v3 wrote).
     var existing: [String: Set<String>] = [:]
@@ -44,6 +58,13 @@ final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
     func add(_ samples: [HKSample], to workout: HKWorkout) async throws {
         let id = workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "?"
         associated[id, default: []].append(contentsOf: samples)
+        addCalls[id, default: 0] += 1
+    }
+
+    func insertRoute(_ locations: [CLLocation], for workout: HKWorkout, metadata: [String: Any]) async throws {
+        let id = workout.metadata?[HKMetadataKeySyncIdentifier] as? String ?? "?"
+        routeDeletedBeforeInsert[id] = deletedSyncIds[HKSeriesType.workoutRoute().identifier]?.contains("\(id):route") == true
+        insertedRoutes.append(InsertedRoute(workoutSyncId: id, workout: workout, locations: locations, metadata: metadata))
     }
 
     func deleteObjects(sampleType: HKSampleType, syncIdentifiers: Set<String>) async throws {

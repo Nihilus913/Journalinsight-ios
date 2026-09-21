@@ -1,4 +1,5 @@
 #if canImport(HealthKit)
+import CoreLocation
 import Foundation
 import HealthKit
 
@@ -27,6 +28,12 @@ public protocol HealthStoreWriting: Sendable {
     /// Associates already-built samples (active energy, distance) with a saved workout — what
     /// makes Fitness credit the Move ring / Exercise minutes for a third-party workout.
     func add(_ samples: [HKSample], to workout: HKWorkout) async throws
+    /// W11 (B-30 P4): builds an `HKWorkoutRoute` from `locations` and attaches it to the saved
+    /// `workout` — what makes Fitness draw the map. `metadata` carries the route's own
+    /// `HKMetadataKeySyncIdentifier` (`workout:<id>:route`) + `HKMetadataKeySyncVersion`; the caller
+    /// deletes the previous route by that id first (`HKSeriesType.workoutRoute()`), since a route
+    /// is never replaced in place. A no-op for an empty `locations`.
+    func insertRoute(_ locations: [CLLocation], for workout: HKWorkout, metadata: [String: Any]) async throws
 }
 
 public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
@@ -88,6 +95,13 @@ public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
                 if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
+    }
+
+    public func insertRoute(_ locations: [CLLocation], for workout: HKWorkout, metadata: [String: Any]) async throws {
+        guard !locations.isEmpty else { return }
+        let builder = HKWorkoutRouteBuilder(healthStore: store, device: nil)
+        try await builder.insertRouteData(locations)
+        _ = try await builder.finishRoute(with: workout, metadata: metadata)
     }
 }
 #endif

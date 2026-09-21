@@ -19,7 +19,11 @@ public enum BackloadMapper {
         // workout's HR is always in the same dto (a workout straddling a chunk boundary loses
         // the tail beyond it; accepted).
         let heartRate = WorkoutHRAttacher.parse(dto.heartRate)
-        specs.append(contentsOf: dto.workouts.compactMap { mapWorkout($0, heartRate: heartRate) })
+        // W11 (P4): per-second HR + GPS per activity from `activity/{id}/details`, keyed by the
+        // workout's sync id. Both come from the dense pass too, so they are in the same dto.
+        let workoutHr = Dictionary((dto.workoutHr ?? []).map { ($0.syncId, $0) }, uniquingKeysWith: { _, last in last })
+        let workoutRoutes = Dictionary((dto.workoutRoutes ?? []).map { ($0.syncId, $0) }, uniquingKeysWith: { _, last in last })
+        specs.append(contentsOf: dto.workouts.compactMap { mapWorkout($0, heartRate: heartRate, workoutHr: workoutHr[$0.syncId], route: workoutRoutes[$0.syncId]) })
         specs.append(contentsOf: dto.heartRate.compactMap(mapHeartRate))
         specs.append(contentsOf: dto.respiration.compactMap(mapRespiration))
         specs.append(contentsOf: dto.spo2.compactMap(mapSpo2))
@@ -132,15 +136,29 @@ public enum BackloadMapper {
     /// strength_training child on Toby's watch (HT `garmin.py` resolves that child for exercise
     /// sets), so they map to strength instead of "Other"; `motorcycling*` is not exercise and never
     /// becomes a spec, even when a pre-e7720ff hub still serves the row.
-    static func mapWorkout(_ e: BackloadWorkoutEntryDTO, heartRate: [BackloadWorkoutHRSample] = []) -> BackloadWriteSpec? {
+    ///
+    /// W11 (P4): `workoutHr` (the hub's per-second series for this sync id) REPLACES the windowed
+    /// dense selection when present — never both, so a 2-min intraday reading is never attached
+    /// next to the per-second one at the same second. `route` becomes the spec's GPS points.
+    static func mapWorkout(_ e: BackloadWorkoutEntryDTO, heartRate: [BackloadWorkoutHRSample] = [], workoutHr: BackloadWorkoutHrEntryDTO? = nil, route: BackloadWorkoutRouteEntryDTO? = nil) -> BackloadWriteSpec? {
         if let raw = e.rawType, isSkippedRawType(raw) { return nil }
         guard let start = BackloadDateParsing.timestamp(e.start), let end = BackloadDateParsing.timestamp(e.end) else { return nil }
         let kind = workoutKind(hubKind: e.kind, rawType: e.rawType)
-        let hr = WorkoutHRAttacher.select(heartRate, start: start, end: end)
+        let perSecond = workoutHr.map(WorkoutHRAttacher.parse) ?? []
+        let hr = perSecond.isEmpty ? WorkoutHRAttacher.select(heartRate, start: start, end: end) : perSecond
+        let points = route.map(mapRoutePoints) ?? []
         return .workout(BackloadWorkoutSampleSpec(
             syncId: e.syncId, start: start, end: end, kind: kind, name: e.name, kcal: e.kcal, distanceM: e.distanceM, avgHr: e.avgHr,
             startEstimated: e.startEstimated ?? false, version: e.version,
-            rawType: e.rawType, indoor: e.indoor ?? false, hrSamples: hr))
+            rawType: e.rawType, indoor: e.indoor ?? false, hrSamples: hr,
+            route: points, ascentM: points.isEmpty ? nil : route?.ascentM))
+    }
+
+    /// Wire points -> parsed, in time order; unparseable timestamps are dropped (same rule as HR).
+    static func mapRoutePoints(_ e: BackloadWorkoutRouteEntryDTO) -> [BackloadRoutePoint] {
+        e.points.compactMap { p in
+            BackloadDateParsing.timestamp(p.ts).map { BackloadRoutePoint(ts: $0, lat: p.lat, lon: p.lon, altM: p.altM, speedMps: p.speedMps) }
+        }.sorted { $0.ts < $1.ts }
     }
 
     static let skippedRawTypePrefixes: [String] = ["motorcycling"]

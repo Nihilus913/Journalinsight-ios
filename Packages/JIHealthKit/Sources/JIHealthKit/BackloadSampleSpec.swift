@@ -71,6 +71,21 @@ public struct BackloadWorkoutHRSample: Sendable, Equatable {
     public init(ts: Date, bpm: Double) { self.ts = ts; self.bpm = bpm }
 }
 
+/// W11 (B-30 P4): one GPS point of a workout's route, from the hub's `workout_routes` entry —
+/// the HK-free shape the writer turns into a `CLLocation`. `altM` / `speedMps` are `nil` when
+/// Garmin served no elevation / speed for that second (the writer marks them invalid rather than
+/// inventing 0).
+public struct BackloadRoutePoint: Sendable, Equatable {
+    public var ts: Date
+    public var lat: Double
+    public var lon: Double
+    public var altM: Double?
+    public var speedMps: Double?
+    public init(ts: Date, lat: Double, lon: Double, altM: Double? = nil, speedMps: Double? = nil) {
+        self.ts = ts; self.lat = lat; self.lon = lon; self.altM = altM; self.speedMps = speedMps
+    }
+}
+
 public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     public var syncId: String
     public var start: Date
@@ -87,14 +102,22 @@ public struct BackloadWorkoutSampleSpec: Sendable, Equatable {
     public var rawType: String?
     /// v5: `HKMetadataKeyIndoorWorkout` — true iff the hub flagged the row indoor.
     public var indoor: Bool
-    /// v5: the run's dense HR readings inside `[start, end]`, in time order; `[]` when Garmin has
-    /// none for the window (the workout is still written — just without an HR chart).
+    /// v5: the workout's HR readings in time order; `[]` when Garmin has none (the workout is
+    /// still written — just without an HR chart). v6 (W11): the hub's per-second `workout_hr`
+    /// series when it has an entry for this sync id, else the W9 windowed dense selection — never both.
     public var hrSamples: [BackloadWorkoutHRSample]
-    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false, version: Int? = nil, rawType: String? = nil, indoor: Bool = false, hrSamples: [BackloadWorkoutHRSample] = []) {
+    /// v6 (W11): GPS points from the matching `workout_routes` entry, in time order; `[]` for a
+    /// no-GPS activity (strength, treadmill) or a pre-W11 hub -> no `HKWorkoutRoute` is built.
+    public var route: [BackloadRoutePoint]
+    /// v6: the hub's ascent (sum of positive elevation deltas) -> `HKMetadataKeyElevationAscended`;
+    /// `nil` when no elevation column / no route.
+    public var ascentM: Double?
+    public init(syncId: String, start: Date, end: Date, kind: BackloadWorkoutKind, name: String, kcal: Double?, distanceM: Double?, avgHr: Double?, startEstimated: Bool = false, version: Int? = nil, rawType: String? = nil, indoor: Bool = false, hrSamples: [BackloadWorkoutHRSample] = [], route: [BackloadRoutePoint] = [], ascentM: Double? = nil) {
         self.syncId = syncId; self.start = start; self.end = end; self.kind = kind; self.name = name
         self.kcal = kcal; self.distanceM = distanceM; self.avgHr = avgHr; self.startEstimated = startEstimated
         self.version = version
         self.rawType = rawType; self.indoor = indoor; self.hrSamples = hrSamples
+        self.route = route; self.ascentM = ascentM
     }
 }
 
