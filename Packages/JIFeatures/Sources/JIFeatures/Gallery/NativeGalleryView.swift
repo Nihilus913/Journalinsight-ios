@@ -15,13 +15,17 @@ public struct NativeGalleryView: View {
     public init() {}
 
     public var body: some View {
-        ScrollView {
+        // Test-only contact sheet: a plain stack, not a `ScrollView` — `ImageRenderer` renders a
+        // `ScrollView`'s background but never its content off-screen, so the sweep would be blank.
+        VStack {
             VStack(alignment: .leading, spacing: 24) {
                 JISectionHeader("Readiness")
                 AdaptiveHStack {
                     Surface { ReadinessArcGauge(score: 72).frame(maxWidth: .infinity) }
                     Surface {
-                        HStack(spacing: 24) {
+                        // A ring row is fixed-width art: at AX sizes it stops fitting side by side,
+                        // so it reflows into a grid instead of pushing the whole sheet wider (§8.1).
+                        Columns(minimum: 100, spacing: 24) {
                             VStack { ScoreRing(value: 85, max: 100, tint: .purple); Text("Sleep").jiFont(.caption) }
                             VStack { ScoreRing(value: 6_400, max: 8_000, tint: .orange); Text("Steps").jiFont(.caption) }
                             VStack { MacroRings(protein: .init(value: 120, goal: 160), carbs: .init(value: 210, goal: 250), fat: .init(value: 55, goal: 70)); Text("Macros").jiFont(.caption) }
@@ -50,7 +54,9 @@ public struct NativeGalleryView: View {
             }
             .padding(16)
             .readableColumn()
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .modifier(GalleryBackground())
     }
 }

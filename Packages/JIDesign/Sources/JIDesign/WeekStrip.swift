@@ -27,6 +27,10 @@ public struct WeekStrip: View {
     @Binding var selected: Date?
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var chip: CGFloat = 36
+    /// §8.1: seven chips must still fit a compact width. The chip grows with the type size but
+    /// stops at the 44-pt system target; the day number scales inside it rather than pushing the
+    /// whole strip (and with it the screen) wider at AX sizes.
+    private var chipSize: CGFloat { Swift.min(chip, 44) }
 
     public init(days: [WeekStripDay], tint: Color, selected: Binding<Date?>) {
         self.days = days; self.tint = tint; self._selected = selected
@@ -37,10 +41,13 @@ public struct WeekStrip: View {
             ForEach(days) { day in
                 VStack(spacing: 6) {
                     Text(day.initial).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .lineLimit(1).minimumScaleFactor(0.6)
                     Button { selected = day.date } label: {
                         Text(day.date, format: .dateTime.day())
                             .jiFont(.subheadline, weight: .semibold)
-                            .frame(width: chip, height: chip)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .frame(width: chipSize, height: chipSize)
                             .background(Circle().fill(day.isToday ? tint : (selected == day.date ? theme.color(.control) : .clear)))
                             .overlay(Circle().stroke(day.marked ? tint : .clear, lineWidth: 2))
                             .foregroundStyle(day.isToday ? Color.white : theme.color(.text))

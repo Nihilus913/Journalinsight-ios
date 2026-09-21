@@ -26,7 +26,7 @@ import JIDesign
     for entry in ScreenRegistry.entries {
         for cell in SweepMatrix.cells {
             let view = entry.make()
-                .frame(width: cell.width, height: cell.height)
+                .frame(width: cell.width, height: cell.height, alignment: .top) // .top: a screen taller than the cell is cut at the fold, never at the header
                 .jiTheme(entry.theme)
                 .environment(\.colorScheme, cell.dark ? .dark : .light)
                 .environment(\.dynamicTypeSize, cell.ax ? .accessibility3 : .large)
