@@ -5,6 +5,7 @@ import JIDesign
 /// `ConnectionSheet`. Purely a view over `HealthBackloadViewModel.Phase` — no HealthKit import
 /// here (JIFeatures never imports JIHealthKit; see the wave card).
 public struct HealthBackloadSection: View {
+    @Environment(\.jiTheme) private var theme
     private let model: HealthBackloadViewModel
 
     public init(model: HealthBackloadViewModel) {
@@ -15,7 +16,7 @@ public struct HealthBackloadSection: View {
         Section("Apple Health backload") {
             Text("Fill the gap where Garmin Connect didn't write to Apple Health: sleep, resting HR, steps, energy, VO₂ max, workouts, heart rate, respiration, SpO₂, HRV, floors climbed and walking distance.")
                 .font(.footnote)
-                .foregroundStyle(JIColor.muted)
+                .foregroundStyle(theme.color(.muted))
             LabeledContent("Last synced day", value: model.lastSyncedDay ?? "never")
                 .font(.footnote)
             statusRow
@@ -34,20 +35,20 @@ public struct HealthBackloadSection: View {
         case .running(let monthIndex, let monthCount, let written, let skipped):
             VStack(alignment: .leading, spacing: 4) {
                 HStack { ProgressView(); Text("Month \(monthIndex) of \(monthCount)") }
-                Text("\(written) written · \(skipped) skipped").font(.footnote).foregroundStyle(JIColor.muted)
+                Text("\(written) written · \(skipped) skipped").font(.footnote).foregroundStyle(theme.color(.muted))
             }
         case .done(let summary):
             VStack(alignment: .leading, spacing: 4) {
                 Text("Done: \(summary.written) written, \(summary.skipped) skipped.")
-                    .foregroundStyle(JIColor.go)
+                    .foregroundStyle(theme.color(.go))
                 if !summary.failed.isEmpty {
                     Text("\(summary.failed.count) samples couldn't be written.")
                         .font(.footnote)
-                        .foregroundStyle(JIColor.danger)
+                        .foregroundStyle(theme.color(.danger))
                 }
             }
         case .failed(let message):
-            Text(message).font(.footnote).foregroundStyle(JIColor.danger)
+            Text(message).font(.footnote).foregroundStyle(theme.color(.danger))
         }
     }
 }

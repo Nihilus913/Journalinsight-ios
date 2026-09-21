@@ -7,6 +7,7 @@ import JIDesign
 // Mirrors `mobile/app/settings.tsx`: header info, then Connection / Preferences / Data /
 // Advanced. Presented as a sheet from the `RootTabView` gear ("Done" = RN's `DoneButton`).
 public struct SettingsView: View {
+    @Environment(\.jiTheme) private var theme
     private let model: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -16,9 +17,9 @@ public struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    EmptyView()
+                } footer: {
                     Text("Connect to your HealthTraining hub to replace the built-in sample data.")
-                        .font(.footnote)
-                        .foregroundStyle(JIColor.muted)
                 }
                 ForEach(model.sections, id: \.id) { section in
                     AnyView(section.body)
@@ -26,16 +27,18 @@ public struct SettingsView: View {
                 }
             }
             .environment(model)
+            .jiNativeFormChrome()
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .tint(JIColor.info)
+                        .tint(theme.color(.info))
                         .accessibilityLabel("Done")
                         .accessibilityIdentifier("settings.done")
                 }
             }
         }
+        .jiTheme(.native)
     }
 }
 
@@ -43,16 +46,13 @@ public struct SettingsView: View {
 // and backup). W5b screens (local mirrors, Health Connect, gate config) are NOT here — their
 // lanes add their own sections.
 
-/// RN row shape: bold title, muted subtitle, chevron.
+/// RN row shape (bold title, muted subtitle, chevron) — B-33 §2b.2: the 44-pt `JIRow`. The
+/// chevron comes from the enclosing `NavigationLink`, so the row never draws its own.
 struct SettingsLinkLabel: View {
     let title: String
     let subtitle: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-            Text(subtitle).font(.caption).foregroundStyle(JIColor.muted)
-        }
-    }
+    var systemImage: String? = nil
+    var body: some View { JIRow(title: title, subtitle: subtitle, systemImage: systemImage) }
 }
 
 /// RN "Preferences": Goals → `GoalsSetupView` (W4-L3), My KPIs → `KpiListView` (W3b-L2).

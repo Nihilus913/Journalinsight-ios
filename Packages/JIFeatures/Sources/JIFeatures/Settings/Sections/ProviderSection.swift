@@ -110,6 +110,7 @@ public struct ProviderSection: SettingsSection {
 
 #if DEBUG
 private struct ProviderSectionRows: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var providerSwitch: ProviderSwitch
 
     private var useAppleWatch: Binding<Bool> {
@@ -130,18 +131,18 @@ private struct ProviderSectionRows: View {
                 )
             }
             .disabled(!providerSwitch.isAppleWatchAvailable)
-            .tint(JIColor.info)
+            .tint(theme.color(.info))
             .accessibilityLabel("Read from Apple Watch")
             .accessibilityIdentifier("settings.toggle.provider.appleWatch")
 
             Text("Today's verdict and gate stay on the hub — not available on Apple Watch until Apple and Garmin nights are proven equivalent.")
                 .font(.caption)
-                .foregroundStyle(JIColor.muted)
+                .foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("settings.row.provider.gateNote")
 
             Text("Active: \(providerSwitch.kind.title)")
                 .font(.caption)
-                .foregroundStyle(JIColor.muted)
+                .foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("settings.row.provider.active")
         }
     }

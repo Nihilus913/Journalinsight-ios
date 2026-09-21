@@ -17,6 +17,7 @@ public struct HubSection: SettingsSection {
 }
 
 private struct HubSectionRows: View {
+    @Environment(\.jiTheme) private var theme
     @Environment(SettingsViewModel.self) private var model
 
     var body: some View {
@@ -42,11 +43,11 @@ private struct HubSectionRows: View {
                 Text(statusText(s)).font(.footnote).foregroundStyle(statusColor(s))
             }
             Button("Save & use hub") { model.saveHub() }
-                .tint(JIColor.info)
+                .tint(theme.color(.info))
                 .accessibilityLabel("Save and use hub")
                 .accessibilityIdentifier("settings.hub.save")
-            if let e = model.connection.saveError { Text(e).font(.footnote).foregroundStyle(JIColor.danger) }
-            if let saved = model.savedMessage { Text(saved).font(.footnote).foregroundStyle(JIColor.muted) }
+            if let e = model.connection.saveError { Text(e).font(.footnote).foregroundStyle(theme.color(.danger)) }
+            if let saved = model.savedMessage { Text(saved).font(.footnote).foregroundStyle(theme.color(.muted)) }
         }
     }
 
@@ -64,9 +65,9 @@ private struct HubSectionRows: View {
     /// danger, other → warn.
     private func statusColor(_ s: ConnectionTestResult) -> Color {
         switch s {
-        case .ok: JIColor.go
-        case .unauthorized, .unreachable: JIColor.danger
-        case .other: JIColor.reduced
+        case .ok: theme.color(.go)
+        case .unauthorized, .unreachable: theme.color(.danger)
+        case .other: theme.color(.reduced)
         }
     }
 }
