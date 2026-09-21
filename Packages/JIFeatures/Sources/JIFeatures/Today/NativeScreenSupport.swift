@@ -94,4 +94,9 @@ struct NativeFixtureUnavailable: View {
         return AnyView(NativeScreenPreview { TodayView(model: model, onOpenConnection: {}) })
     }
 
+    static func recovery() -> AnyView {
+        guard let model = RecoveryViewModel.fixture() else { return AnyView(NativeFixtureUnavailable(screen: "Recovery")) }
+        return AnyView(NativeScreenPreview { RecoveryView(model: model) })
+    }
+
 }
