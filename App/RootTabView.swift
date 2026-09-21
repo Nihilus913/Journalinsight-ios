@@ -10,8 +10,33 @@ import JIWorkouts
 // B-33 §2b.4/§5: the bar is five content tabs + the iOS 27 search role. `energy` stays in the
 // vocabulary (and in `tabContent`) but is no longer one of the five — it is pushed from the
 // toolbar, next to My KPIs, so Training is a first-level tab instead of living in iOS "More".
-enum RootTab: Hashable {
+enum RootTab: Hashable, Identifiable, CaseIterable {
     case today, journal, recovery, energy, nutrition, training, search
+
+    var id: Self { self }
+
+    /// The five content tabs the bar shows, in order. Exactly five, so iOS never folds one into
+    /// "More" — that is why `energy` is reachable from the toolbar instead (§5).
+    static let firstLevel: [RootTab] = [.today, .recovery, .training, .nutrition, .journal]
+
+    var title: String {
+        switch self {
+        case .today: "Today"; case .journal: "Journal"; case .recovery: "Recovery"
+        case .energy: "Energy"; case .nutrition: "Nutrition"; case .training: "Training"
+        case .search: "Search"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .today: "sun.max"; case .journal: "book.closed"; case .recovery: "heart"
+        case .energy: "flame"; case .nutrition: "fork.knife"; case .training: "dumbbell"
+        case .search: "magnifyingglass"
+        }
+    }
+
+    /// `tab.today`, `tab.search`, … — the identifiers the UI smoke and AppTests use.
+    var accessibilityIdentifier: String { "tab.\(String(describing: self))" }
 }
 
 struct RootTabView: View {
@@ -77,37 +102,19 @@ struct RootTabView: View {
             ZStack {
                 TabTransition(selection: selectedTab, content: tabContent)
                 TabView(selection: $selectedTab) {
-                    Tab("Today", systemImage: "sun.max", value: RootTab.today) {
-                        transparentTabContent
+                    ForEach(RootTab.firstLevel) { tab in
+                        Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                            transparentTabContent
+                        }
+                        .accessibilityIdentifier(tab.accessibilityIdentifier)
+                        .accessibilityLabel(tab.title)
                     }
-                    .accessibilityIdentifier("tab.today")
-                    .accessibilityLabel("Today")
-                    Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.recovery")
-                    .accessibilityLabel("Recovery")
-                    Tab("Training", systemImage: "dumbbell", value: RootTab.training) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.training")
-                    .accessibilityLabel("Training")
-                    Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.nutrition")
-                    .accessibilityLabel("Nutrition")
-                    Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.journal")
-                    .accessibilityLabel("Journal")
                     // B-33 Contract: the search-role Tab references `JournalSearchView` by name;
                     // L6 owns the real screen (`Journal/JournalSearchView.swift`).
                     Tab(value: RootTab.search, role: .search) {
                         transparentTabContent
                     }
-                    .accessibilityIdentifier("tab.search")
+                    .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
                 }
                 .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
             }
