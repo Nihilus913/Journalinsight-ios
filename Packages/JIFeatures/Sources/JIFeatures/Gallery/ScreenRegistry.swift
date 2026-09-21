@@ -22,5 +22,6 @@ public nonisolated enum ScreenRegistry {
         // MARK: L5 — Training · Nutrition · Energy · KPI · Watch · Widgets (append-only)
         ScreenEntry(name: "Training") { AnyView(TrainingNativePreview()) },
         ScreenEntry(name: "Session coach") { AnyView(SessionCoachNativePreview()) },
+        ScreenEntry(name: "Weekly plan") { AnyView(WeeklyPlanNativePreview()) },
     ]
 }
