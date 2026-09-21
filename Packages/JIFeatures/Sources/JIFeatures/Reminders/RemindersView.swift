@@ -5,6 +5,7 @@ import JIDesign
 // status line + notice) and the 7-row workout matrix. Pushed from `Settings/Sections/RemindersSection`.
 
 public struct RemindersView: View {
+    @Environment(\.jiTheme) private var theme
     @State private var model: RemindersViewModel
 
     public init(model: RemindersViewModel) {
@@ -12,26 +13,30 @@ public struct RemindersView: View {
     }
 
     public var body: some View {
-        Form {
+        List {
             Section {
-                Text(RemindersCopy.header).font(.footnote).foregroundStyle(JIColor.muted)
                 if model.permissionDenied {
-                    Text(RemindersCopy.permissionDenied)
-                        .font(.footnote).foregroundStyle(JIColor.reduced)
+                    Label(RemindersCopy.permissionDenied, systemImage: "bell.slash")
+                        .foregroundStyle(theme.color(.reduced))
                         .accessibilityIdentifier("reminders.notice.permissionDenied")
                 }
+            } footer: {
+                Text(RemindersCopy.header)
             }
             ForEach(ReminderKind.allCases, id: \.self) { kind in
                 DailyReminderSection(kind: kind, model: model)
             }
             WorkoutRemindersSection(model: model)
         }
+        .jiNativeFormChrome()
+        .jiTheme(.native)
         .navigationTitle("Reminders")
         .task { if !model.loaded { await model.load() } }
     }
 }
 
 private struct DailyReminderSection: View {
+    @Environment(\.jiTheme) private var theme
     let kind: ReminderKind
     let model: RemindersViewModel
 
@@ -43,12 +48,9 @@ private struct DailyReminderSection: View {
                 get: { state?.enabled ?? false },
                 set: { next in Task { await model.setEnabled(kind, next) } }
             )) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(kind.sectionTitle).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-                    Text(kind.sectionCaption).font(.caption).foregroundStyle(JIColor.muted)
-                }
+                JIRow(title: kind.sectionTitle, subtitle: kind.sectionCaption)
             }
-            .tint(JIColor.info)
+            .tint(theme.color(.info))
             .disabled(state?.busy ?? false)
             .accessibilityLabel(kind.sectionTitle)
             .accessibilityIdentifier("reminders.\(kind.rawValue).toggle")
@@ -61,18 +63,24 @@ private struct DailyReminderSection: View {
                        identifier: "reminders.\(kind.rawValue).minute",
                        onDecrease: { Task { await model.stepMinute(kind, -1) } },
                        onIncrease: { Task { await model.stepMinute(kind, 1) } })
-
-            Text(model.statusLine(for: kind)).font(.caption).foregroundStyle(JIColor.muted)
-                .accessibilityIdentifier("reminders.\(kind.rawValue).status")
-            if let notice = state?.notice {
-                Text(notice).font(.caption).foregroundStyle(JIColor.reduced)
-                    .accessibilityIdentifier("reminders.\(kind.rawValue).notice")
+        } header: {
+            Text(kind.sectionTitle)
+        } footer: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.statusLine(for: kind))
+                    .accessibilityIdentifier("reminders.\(kind.rawValue).status")
+                if let notice = state?.notice {
+                    Text(notice).foregroundStyle(theme.color(.reduced))
+                        .accessibilityIdentifier("reminders.\(kind.rawValue).notice")
+                }
             }
         }
     }
 }
 
-/// RN `Stepper`: "− 09 +" with `"<label> decrease"` / `"<label> increase"` a11y labels.
+/// RN `Stepper` ("− 09 +") — B-33 §2b.2: the system `Stepper`, so the ± targets, their
+/// repeat-on-hold and their a11y actions all come from iOS. The identifiers stay on the
+/// increment/decrement halves the RN tests knew.
 private struct StepperRow: View {
     let label: String
     let value: String
@@ -81,73 +89,63 @@ private struct StepperRow: View {
     let onIncrease: () -> Void
 
     var body: some View {
-        HStack {
-            Text(label).font(.subheadline).foregroundStyle(JIColor.text)
-            Spacer()
-            RoundStepButton(symbol: "minus", action: onDecrease)
-                .accessibilityLabel("\(label) decrease")
-                .accessibilityIdentifier("\(identifier).decrease")
-            Text(value).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-                .frame(minWidth: 44).monospacedDigit()
-            RoundStepButton(symbol: "plus", action: onIncrease)
-                .accessibilityLabel("\(label) increase")
-                .accessibilityIdentifier("\(identifier).increase")
+        Stepper {
+            JIRow(title: label) { Text(value).jiFont(.subheadline, weight: .semibold).monospacedDigit() }
+        } onIncrement: {
+            onIncrease()
+        } onDecrement: {
+            onDecrease()
         }
-    }
-}
-
-private struct RoundStepButton: View {
-    let symbol: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-                .frame(width: 36, height: 36)
-                .background(JIColor.surface2, in: Circle())
-        }
-        .buttonStyle(.pressableScale)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+        .accessibilityIdentifier(identifier)
     }
 }
 
 private struct WorkoutRemindersSection: View {
+    @Environment(\.jiTheme) private var theme
     let model: RemindersViewModel
 
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(RemindersCopy.workoutTitle).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-                Text(RemindersCopy.workoutCaption).font(.caption).foregroundStyle(JIColor.muted)
-            }
+            // §8.1: the 7-row matrix stacks toggle over stepper instead of squeezing five
+            // controls onto one line — it reflows at AX sizes rather than clipping.
             ForEach(Weekday.displayOrder, id: \.self) { wd in
                 let s = model.workouts[wd]
-                HStack(spacing: 8) {
-                    Text(wd.shortLabel).font(.subheadline).foregroundStyle(JIColor.text).frame(width: 40, alignment: .leading)
-                    Toggle(isOn: Binding(
-                        get: { s?.enabled ?? false },
-                        set: { next in Task { await model.setWorkoutEnabled(wd, next) } }
-                    )) { EmptyView() }
-                    .labelsHidden()
-                    .tint(JIColor.info)
-                    .disabled(s?.busy ?? false)
-                    .accessibilityLabel("\(wd.label) workout reminder")
-                    .accessibilityIdentifier("reminders.workout.\(wd.rawValue).toggle")
-                    Spacer()
-                    RoundStepButton(symbol: "minus") { Task { await model.shiftWorkoutTime(wd, minutes: -RemindersViewModel.workoutStepMinutes) } }
-                        .disabled(s?.busy ?? false)
-                        .accessibilityLabel("\(wd.label) reminder time, earlier")
-                        .accessibilityIdentifier("reminders.workout.\(wd.rawValue).earlier")
-                    Text(model.workoutTimeLabel(wd)).font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
-                        .frame(minWidth: 50).monospacedDigit()
-                    RoundStepButton(symbol: "plus") { Task { await model.shiftWorkoutTime(wd, minutes: RemindersViewModel.workoutStepMinutes) } }
-                        .disabled(s?.busy ?? false)
-                        .accessibilityLabel("\(wd.label) reminder time, later")
-                        .accessibilityIdentifier("reminders.workout.\(wd.rawValue).later")
+                Toggle(isOn: Binding(
+                    get: { s?.enabled ?? false },
+                    set: { next in Task { await model.setWorkoutEnabled(wd, next) } }
+                )) {
+                    Text(wd.label).jiFont(.subheadline)
                 }
+                .tint(theme.color(.info))
+                .disabled(s?.busy ?? false)
+                .accessibilityLabel("\(wd.label) workout reminder")
+                .accessibilityIdentifier("reminders.workout.\(wd.rawValue).toggle")
+
+                Stepper {
+                    JIRow(title: wd.shortLabel) {
+                        Text(model.workoutTimeLabel(wd)).jiFont(.subheadline, weight: .semibold).monospacedDigit()
+                    }
+                } onIncrement: {
+                    Task { await model.shiftWorkoutTime(wd, minutes: RemindersViewModel.workoutStepMinutes) }
+                } onDecrement: {
+                    Task { await model.shiftWorkoutTime(wd, minutes: -RemindersViewModel.workoutStepMinutes) }
+                }
+                .disabled(s?.busy ?? false)
+                .accessibilityLabel("\(wd.label) reminder time")
+                .accessibilityValue(model.workoutTimeLabel(wd))
+                .accessibilityIdentifier("reminders.workout.\(wd.rawValue).time")
             }
-            if let notice = model.workoutNotice {
-                Text(notice).font(.caption).foregroundStyle(JIColor.reduced)
-                    .accessibilityIdentifier("reminders.workout.notice")
+        } header: {
+            Text(RemindersCopy.workoutTitle)
+        } footer: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(RemindersCopy.workoutCaption)
+                if let notice = model.workoutNotice {
+                    Text(notice).foregroundStyle(theme.color(.reduced))
+                        .accessibilityIdentifier("reminders.workout.notice")
+                }
             }
         }
     }

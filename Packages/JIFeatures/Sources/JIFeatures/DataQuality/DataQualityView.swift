@@ -14,111 +14,92 @@ import JIDesign
 /// Null-graceful throughout — an omitted sub-score reads as "not scored" text, never as a blank or
 /// a fabricated number (rule 5).
 public struct DataQualityView: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable private var model: DataQualityViewModel
 
     public init(model: DataQualityViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
-                switch model.phase {
-                case .idle, .loading: loading
-                case .error(let message): errorCard(message)
-                case .empty: emptyCard
-                case .loaded: content
-                }
+        List {
+            if !model.hubReachable, model.fetchedAt != nil {
+                Section { StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable) }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            switch model.phase {
+            case .idle, .loading: loading
+            case .error(let message): errorCard(message)
+            case .empty: emptyCard
+            case .loaded:
+                qualitySection
+                trustSection
+            }
         }
-        .background(JIColor.bg)
+        .jiNativeFormChrome()
+        .jiTheme(.native)
+        // §5: the hand-drawn large title is the system's; the oracle's `ScreenHeader info=…`
+        // copy becomes the navigation subtitle, verbatim.
         .navigationTitle("Data quality")
+        .navigationSubtitle("Per-source data quality, freshness, and trust — every source and metric the pipeline ingests, worst first.")
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Data quality").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-            // Oracle `ScreenHeader info=…`, verbatim.
-            Text("Per-source data quality, freshness, and trust — every source and metric the pipeline ingests, worst first.")
-                .font(.subheadline).foregroundStyle(JIColor.muted)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("dataQuality.header")
-    }
-
     private var loading: some View {
-        Surface(level: 1, radius: JIRadius.card, padding: 20) {
-            VStack(alignment: .leading, spacing: 12) { SkeletonBlock(height: 260) }
-        }
-        .accessibilityIdentifier("dataQuality.loading")
+        Section { SkeletonBlock(height: 260) }
+            .accessibilityIdentifier("dataQuality.loading")
     }
 
     /// Oracle's error card: its own copy plus a Retry that refetches all three reports.
     private func errorCard(_ message: String) -> some View {
-        Surface {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(message).foregroundStyle(JIColor.text)
-                Button("Retry") { Task { await model.refresh() } }
-                    .buttonStyle(.pressableScale)
-                    .tint(JIColor.info)
-                    .accessibilityLabel("Retry loading data quality")
-                    .accessibilityIdentifier("dataQuality.retry")
-            }
+        Section {
+            Text(message).foregroundStyle(theme.color(.text))
+            Button("Retry") { Task { await model.refresh() } }
+                .accessibilityLabel("Retry loading data quality")
+                .accessibilityIdentifier("dataQuality.retry")
         }
     }
 
     private var emptyCard: some View {
-        Surface {
+        Section {
             Text("No data-quality rows yet.")
-                .font(.subheadline).foregroundStyle(JIColor.muted)
+                .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("dataQuality.empty")
-        }
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            qualitySection
-            trustSection
         }
     }
 
     // MARK: - Per-source quality
 
     private var qualitySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Per-source quality · \(model.sortedScores.count)")
-                .accessibilityIdentifier("dataQuality.section.quality")
+        Section {
             if model.sortedScores.isEmpty {
-                Text("No data-quality rows yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                Text("No data-quality rows yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
             } else {
                 ForEach(model.sortedScores) { entry in
                     qualityRow(entry, fresh: model.freshness(for: entry))
                 }
             }
+        } header: {
+            Text("Per-source quality · \(model.sortedScores.count)")
+                .accessibilityIdentifier("dataQuality.section.quality")
+        } footer: {
             if let gap = model.provenanceGap {
-                Text(gap).font(.caption2).foregroundStyle(JIColor.mutedNested)
-                    .accessibilityIdentifier("dataQuality.provenanceGap")
+                Text(gap).accessibilityIdentifier("dataQuality.provenanceGap")
             }
         }
     }
 
     private func qualityRow(_ entry: QualityScoreEntry, fresh: FreshnessEntry?) -> some View {
         let tone = dataQualityCompositeTone(entry.composite)
-        return Surface(level: 2, radius: JIRadius.card, padding: 16) {
-            VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     toneDot(tone)
-                    Text(entry.metricLabel).font(.footnote.bold()).foregroundStyle(JIColor.text)
+                    Text(entry.metricLabel).font(.footnote.bold()).foregroundStyle(theme.color(.text))
                         .lineLimit(2)
                     Spacer(minLength: 8)
                     Text("\(Int((entry.composite * 100).rounded()))%")
                         .font(.caption.bold()).foregroundStyle(color(tone))
                 }
-                Text(entry.source).font(.caption2).foregroundStyle(JIColor.muted)
+                Text(entry.source).font(.caption2).foregroundStyle(theme.color(.muted))
 
                 VStack(alignment: .leading, spacing: 4) {
                     freshnessLine(fresh)
@@ -140,8 +121,9 @@ public struct DataQualityView: View {
                         )
                     }
                 }
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(entry.metricLabel), \(entry.source), \(Int((entry.composite * 100).rounded())) percent, \(tone.label)")
         .accessibilityIdentifier("dataQuality.row.\(entry.id)")
@@ -154,7 +136,7 @@ public struct DataQualityView: View {
             let stale = fresh.daysStale.map { ", \($0)d stale" } ?? ""
             let coverage = fresh.coverageChecked ? "" : " · sparse-by-design, coverage not checked"
             Text("Freshness — \(Text(tone.label).foregroundStyle(color(tone)))\(stale + coverage)")
-                .font(.caption).foregroundStyle(JIColor.muted)
+                .font(.caption).foregroundStyle(theme.color(.muted))
         } else {
             // The hub's two reports didn't line up for this row — say so, never invent a state.
             detailLine("Freshness — —")
@@ -162,50 +144,46 @@ public struct DataQualityView: View {
     }
 
     private func detailLine(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(JIColor.muted)
+        Text(text).font(.caption).foregroundStyle(theme.color(.muted))
     }
 
     // MARK: - Source trust
 
     private var trustSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Source trust · \(model.sourceTrust.count)")
-                .accessibilityIdentifier("dataQuality.section.trust")
+        Section {
             if model.sourceTrust.isEmpty {
-                Text("No source-trust rows yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                Text("No source-trust rows yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
             } else {
                 ForEach(model.sourceTrust) { entry in trustRow(entry) }
             }
+        } header: {
+            Text("Source trust · \(model.sourceTrust.count)")
+                .accessibilityIdentifier("dataQuality.section.trust")
         }
     }
 
     private func trustRow(_ entry: SourceTrustEntry) -> some View {
         let tone = dataQualityTrustTone(entry.trustTier)
         let label = dataQualityTrustLabel(entry.trustTier)
-        return Surface(level: 2, radius: JIRadius.card, padding: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(entry.sourceLabel).font(.footnote.bold()).foregroundStyle(JIColor.text)
-                    Spacer(minLength: 8)
-                    toneDot(tone)
-                    Text(label).font(.caption.bold()).foregroundStyle(color(tone))
-                }
-                Text(entry.metricClass.uppercased())
-                    .font(.caption2).kerning(0.6).foregroundStyle(JIColor.muted)
-                Text(entry.note).font(.caption).foregroundStyle(JIColor.muted)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(entry.sourceLabel).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
+                Spacer(minLength: 8)
+                toneDot(tone)
+                Text(label).jiFont(.caption, weight: .bold).foregroundStyle(color(tone))
             }
+            Text(entry.metricClass.uppercased())
+                .jiFont(.micro).foregroundStyle(theme.color(.muted))
+            Text(entry.note).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(entry.sourceLabel), \(entry.metricClass), \(label)")
         .accessibilityIdentifier("dataQuality.trust.\(entry.id)")
     }
 
     // MARK: - Shared bits
-
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.caption2.bold()).kerning(0.8).foregroundStyle(JIColor.muted)
-    }
 
     private func toneDot(_ tone: DataQualityTone) -> some View {
         Circle().fill(color(tone)).frame(width: 10, height: 10)
@@ -214,9 +192,9 @@ public struct DataQualityView: View {
     /// Rule 6: green is reserved for verdict/band/status — a traffic-light band is exactly that.
     private func color(_ tone: DataQualityTone) -> Color {
         switch tone {
-        case .go: JIColor.go
-        case .amber: JIColor.reduced
-        case .red: JIColor.danger
+        case .go: theme.color(.go)
+        case .amber: theme.color(.reduced)
+        case .red: theme.color(.danger)
         }
     }
 }
@@ -225,19 +203,20 @@ public struct DataQualityView: View {
 /// `DataQualityAccess` (e.g. the on-device Apple Watch source, which has no hub reports) — a
 /// screen that explains itself, never a blank push.
 public struct DataQualityUnavailableView: View {
+    @Environment(\.jiTheme) private var theme
     public init() {}
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Data quality").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-                Surface {
-                    Text("Data quality reports come from the HealthTraining hub. Connect the hub in Settings › Connection to see per-source freshness, quality and trust.")
-                        .font(.subheadline).foregroundStyle(JIColor.muted)
-                }
+        List {
+            Section {
+                ContentUnavailableView(
+                    "Data quality",
+                    systemImage: "antenna.radiowaves.left.and.right.slash",
+                    description: Text("Data quality reports come from the HealthTraining hub. Connect the hub in Settings › Connection to see per-source freshness, quality and trust.")
+                )
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
         }
-        .background(JIColor.bg)
+        .jiNativeFormChrome()
+        .jiTheme(.native)
         .navigationTitle("Data quality")
         .accessibilityIdentifier("dataQuality.unavailable")
     }
