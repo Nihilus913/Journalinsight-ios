@@ -49,10 +49,7 @@ public struct TrendChart: View {
     public var body: some View {
         let shown = downsample(points)
         VStack(alignment: .leading, spacing: 12) {
-            Picker("Range", selection: $range) {
-                ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            rangePicker
 
             Chart {
                 ForEach(shown) { p in
@@ -90,5 +87,18 @@ public struct TrendChart: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// `.segmented` is unavailable on watchOS (the WatchApp links this same JIDesign target),
+    /// so the Watch gets the platform's own picker style instead of a compile error.
+    @ViewBuilder private var rangePicker: some View {
+        let picker = Picker("Range", selection: $range) {
+            ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
+        }
+        #if os(watchOS)
+        picker
+        #else
+        picker.pickerStyle(.segmented)
+        #endif
     }
 }
