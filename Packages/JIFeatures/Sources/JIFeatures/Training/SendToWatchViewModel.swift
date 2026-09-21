@@ -48,7 +48,11 @@ public final class SendToWatchViewModel {
         builder: @escaping Builder = WorkoutBuilder.build,
         now: () -> Date = Date.init,
         calendar: Calendar = .current,
-        openSettings: @escaping () -> Void = {}
+        openSettings: @escaping () -> Void = {},
+        // B-33 §8.5: `ImageRenderer` runs no `.task`, so the sweep would only ever photograph the
+        // pre-load empty state. A seed lets the screenshot entry start from a loaded list; the app
+        // never passes it (default `[]`), and `load()` overwrites it on the first real fetch.
+        seededTemplates: [WorkoutTemplate] = []
     ) {
         self.provider = provider
         self.sender = sender
@@ -56,6 +60,7 @@ public final class SendToWatchViewModel {
         self.calendar = calendar
         self.openSettings = openSettings
         self.date = now()
+        self.templates = seededTemplates
     }
 
     public func load() async {

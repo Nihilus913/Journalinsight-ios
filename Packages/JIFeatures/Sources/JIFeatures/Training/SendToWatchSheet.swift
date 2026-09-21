@@ -17,15 +17,7 @@ public struct SendToWatchSheet: View {
 
     public var body: some View {
         NavigationStack {
-            List {
-                templatesSection
-                Section {
-                    DatePicker("Date", selection: $model.date, displayedComponents: [.date])
-                        .accessibilityLabel("Workout date")
-                        .accessibilityIdentifier("send-to-watch-date")
-                }
-                statusSection
-            }
+            nativeContent
             .navigationTitle("Send to Watch")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -44,14 +36,27 @@ public struct SendToWatchSheet: View {
                 }
             }
             .task { if model.templates.isEmpty { await model.load() } }
-            #if os(iOS)
-            .listStyle(.insetGrouped)
-            #endif
         }
         .jiTheme(.native)
         #if os(iOS)
         // §8.2: form-sized on a regular-width canvas instead of full-screen.
         .presentationSizing(.form)
+        #endif
+    }
+
+    /// §8.5: the sheet's list without the navigation/toolbar shell — what the sweep renders.
+    @ViewBuilder var nativeContent: some View {
+        List {
+            templatesSection
+            Section {
+                DatePicker("Date", selection: $model.date, displayedComponents: [.date])
+                    .accessibilityLabel("Workout date")
+                    .accessibilityIdentifier("send-to-watch-date")
+            }
+            statusSection
+        }
+        #if os(iOS)
+        .listStyle(.insetGrouped)
         #endif
     }
 
@@ -72,7 +77,7 @@ public struct SendToWatchSheet: View {
                                 .foregroundStyle(model.isSelected(template.templateId) ? theme.color(.info) : theme.color(.muted))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(template.name).foregroundStyle(theme.color(.text))
-                                Text(Self.summary(template)).font(.footnote).foregroundStyle(theme.color(.muted))
+                                Text(Self.summary(template)).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             }
                             Spacer()
                         }
@@ -107,12 +112,12 @@ public struct SendToWatchSheet: View {
                     Label(name, systemImage: "checkmark.applewatch").foregroundStyle(theme.color(.go))
                         .accessibilityIdentifier("send-to-watch-scheduled-row")
                 }
-                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.muted))
+                Text(model.statusMessage).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("send-to-watch-status")
             }
         case .authDenied:
             Section {
-                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.danger))
+                Text(model.statusMessage).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                     .accessibilityIdentifier("send-to-watch-status")
                 Button("Open Settings") { model.openSettings() }
                     .accessibilityLabel("Open Settings")
@@ -120,7 +125,7 @@ public struct SendToWatchSheet: View {
             }
         case .error:
             Section {
-                Text(model.statusMessage).font(.footnote).foregroundStyle(theme.color(.danger))
+                Text(model.statusMessage).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                     .accessibilityIdentifier("send-to-watch-status")
                 Button("Retry") { Task { if model.templates.isEmpty { await model.load() } else { await model.send() } } }
                     .accessibilityLabel("Retry")
