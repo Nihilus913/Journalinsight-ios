@@ -73,7 +73,9 @@ public struct CheckInSheet: View {
                         .accessibilityIdentifier("checkin-save")
                 }
             }
-            .onAppear(perform: prefill)
+            // Only prefill when there IS a row for today — with nothing to copy, the eight
+            // assignments were a no-op that still pushed a state update through the view.
+            .onAppear { if model.today != nil { prefill() } }
         }
     }
 
