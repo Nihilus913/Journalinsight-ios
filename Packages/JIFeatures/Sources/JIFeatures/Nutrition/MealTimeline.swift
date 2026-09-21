@@ -16,8 +16,8 @@ public struct MealTimeline: View {
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Meals").jiFont(.caption).foregroundStyle(theme.color(.muted)).textCase(.uppercase)
-                    .accessibilityAddTraits(.isHeader)
+                // B-33: the screen's `JISectionHeader("Meals")` carries the group title now —
+                // an in-card repeat of it read as two headers in the sweep.
                 if let day, !day.items.isEmpty {
                     ForEach(mealsInOrder(day), id: \.slot) { meal in
                         mealSection(slot: meal.slot, items: meal.items)
