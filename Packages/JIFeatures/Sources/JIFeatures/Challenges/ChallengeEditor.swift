@@ -6,6 +6,7 @@ import JIDesign
 /// `app/challenges.tsx`), driven by `ChallengeEditorViewModel`. Presented as a sheet from
 /// `ChallengesView` for both "+ New challenge" and a card's "Edit" action.
 public struct ChallengeEditor: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: ChallengeEditorViewModel
     let onSaved: (GateChallenge) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -42,7 +43,7 @@ public struct ChallengeEditor: View {
                     }
                 } else {
                     Text("Target sessions and start date are locked — archive it and create a new challenge instead to change those.")
-                        .font(.caption).foregroundStyle(JIColor.muted)
+                        .font(.caption).foregroundStyle(theme.color(.muted))
                 }
                 if model.isEditing {
                     Section("Result note") {
@@ -55,15 +56,17 @@ public struct ChallengeEditor: View {
                 // FROZEN CONTRACT — HR<=175 is a non-negotiable safety floor, not a challenge-
                 // configurable rule (migration 032 has no column for it); shown fixed, never editable.
                 Section {
-                    Text("HR ≤ 175 always applies — not configurable").font(.caption.bold()).foregroundStyle(JIColor.reduced)
+                    Text("HR ≤ 175 always applies — not configurable").font(.caption.bold()).foregroundStyle(theme.color(.reduced))
                 }
                 if let errorMessage = model.errorMessage {
                     Section {
-                        Text(errorMessage).font(.footnote).foregroundStyle(JIColor.danger)
+                        Text(errorMessage).font(.footnote).foregroundStyle(theme.color(.danger))
                     }
                 }
             }
             .navigationTitle(model.isEditing ? "Edit challenge" : "New challenge")
+            .jiNativeFormChrome()
+            .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityLabel("Cancel").accessibilityIdentifier("challenge-editor-cancel") }
                 ToolbarItem(placement: .confirmationAction) {

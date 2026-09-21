@@ -6,6 +6,7 @@ import JIDesign
 /// link. Owns its own create/edit sheet presentation; the list body lives in
 /// `ChallengesMirrorSection`.
 public struct ChallengesView: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: ChallengesViewModel
     @State private var editing: EditingTarget?
 
@@ -22,54 +23,45 @@ public struct ChallengesView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // W7-L4: the hub being down must be visible on THIS screen too, not only Today.
-                // Renders only once a fetch has landed and only while unreachable (see the banner's
-                // own guard), so a first-ever load shows the spinner, not a scare.
-                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
-                switch model.phase {
-                case .idle, .loading:
-                    ProgressView().frame(maxWidth: .infinity)
-                case .error:
-                    Surface {
-                        VStack(spacing: 10) {
-                            Text("Couldn't load challenges.").font(.footnote).foregroundStyle(JIColor.muted)
-                            Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale)
-                                .accessibilityLabel("Retry")
-                                .accessibilityIdentifier("challenges-retry")
-                        }
-                    }
-                case .empty, .loaded:
-                    ChallengesMirrorSection(model: model, onEdit: { editing = .edit($0) })
-                    newChallengeButton
+        List {
+            // W7-L4: the hub being down must be visible on THIS screen too, not only Today.
+            // Renders only once a fetch has landed and only while unreachable (see the banner's
+            // own guard), so a first-ever load shows the spinner, not a scare.
+            if !model.hubReachable, model.fetchedAt != nil {
+                Section { StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable) }
+            }
+            switch model.phase {
+            case .idle, .loading:
+                Section { ProgressView().frame(maxWidth: .infinity) }
+            case .error:
+                Section {
+                    Text("Couldn't load challenges.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    Button("Retry") { Task { await model.refresh() } }
+                        .accessibilityLabel("Retry")
+                        .accessibilityIdentifier("challenges-retry")
+                }
+            case .empty, .loaded:
+                ChallengesMirrorSection(model: model, onEdit: { editing = .edit($0) })
+                Section {
+                    Button("New challenge", systemImage: "plus") { editing = .create }
+                        .accessibilityLabel("+ New challenge")
+                        .accessibilityIdentifier("challenges-new")
                 }
             }
-            .padding(16)
         }
-        .background(JIColor.bg)
+        .jiNativeFormChrome()
+        .jiTheme(.native)
         .navigationTitle("Challenges")
         .task { await model.load() }
         .sheet(item: $editing) { target in
             switch target {
             case .create:
                 ChallengeEditor(model: ChallengeEditorViewModel(challenges: model), onSaved: { _ in })
+                    .jiNativeSheetSizing()
             case .edit(let challenge):
                 ChallengeEditor(model: ChallengeEditorViewModel(challenges: model, existing: challenge), onSaved: { _ in })
+                    .jiNativeSheetSizing()
             }
         }
-    }
-
-    private var newChallengeButton: some View {
-        Button {
-            editing = .create
-        } label: {
-            Text("+ New challenge").frame(maxWidth: .infinity).padding()
-                .background(JIColor.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .foregroundStyle(JIColor.text)
-        }
-        .buttonStyle(.pressableScale)
-        .accessibilityLabel("+ New challenge")
-        .accessibilityIdentifier("challenges-new")
     }
 }
