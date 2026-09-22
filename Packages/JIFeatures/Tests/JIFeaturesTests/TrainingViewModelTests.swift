@@ -14,10 +14,16 @@ nonisolated final class TrainingFakeProvider: TrainingProviding, @unchecked Send
         Exercise(exerciseId: 19, sessionName: "Day 1 Full Upper", exerciseName: "Barbell Bench Press", sets: 3, repsTarget: "6-12", currentWeightKg: 50, progressionStepKg: 2.5),
     ]
     var updateResult: (Int, ExerciseUpdate) throws -> ExerciseUpdateResult = { id, _ in ExerciseUpdateResult(exerciseId: id, updated: true) }
+    /// B-45 (c): nil = behave like a hub without the route (the protocol's default throws).
+    var planSessionUpdate: ((Int, Int?) throws -> PlanSessionOut)?
 
     func trainingDay(date: String) async throws -> TrainingDayDetail { if failing { throw error }; return day }
     func exercises() async throws -> [Exercise] { if failing { throw error }; return exerciseRows }
     func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult { try updateResult(exerciseId, patch) }
+    func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut {
+        guard let planSessionUpdate else { throw PlanSessionUpdateUnavailable() }
+        return try planSessionUpdate(sessionId, weekday)
+    }
 }
 
 @MainActor
