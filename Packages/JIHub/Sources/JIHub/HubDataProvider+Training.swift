@@ -24,3 +24,8 @@ extension HubDataProvider: TrainingProviding {
         try await client.send("PUT", "/api/v1/planning/plan-sessions/\(sessionId)", body: PlanSessionWeekdayUpdate(weekday: weekday))
     }
 }
+
+/// B-52: the same write, seen through the narrow protocol `OutboxDrainer` replays `"plan_weekday"`
+/// rows with. The method body is `TrainingProviding`'s above — conforming here only tells the
+/// drainer that THIS provider can deliver that kind.
+extension HubDataProvider: PlanSessionWeekdayProviding {}

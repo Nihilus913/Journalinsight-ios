@@ -7,9 +7,13 @@ import JIDesign
 /// shape is `EditTodayView`'s, so it reads like every other edit sheet in the app.
 ///
 /// The sheet is deliberately honest about the two states the hub can put it in: a write in flight
-/// shows a spinner on the Save button, and a write the hub refused (including an old hub that has
-/// no such route — `PlanSessionUpdateUnavailable`) leaves the sheet open with a failure line
+/// shows a spinner on the Save button, and a write the hub *refused* (including an old hub that
+/// has no such route — `PlanSessionUpdateUnavailable`) leaves the sheet open with a failure line
 /// instead of dismissing as though it had worked.
+///
+/// B-52: an *unreachable* hub is no longer one of those states. The weekday is queued in the
+/// `Outbox` before the hub is asked, so the sheet dismisses and the week strip carries a pending
+/// marker until the drainer lands the row — the tap is never lost and never faked.
 public struct AssignWeekdaySheet: View {
     public struct Session: Identifiable, Equatable, Sendable {
         public let id: Int
@@ -52,12 +56,12 @@ public struct AssignWeekdaySheet: View {
                 } header: {
                     Text("Which day is \(session.name)?")
                 } footer: {
-                    Text("The plan session shows on this weekday everywhere — the hub stores it once.")
+                    Text("The plan session shows on this weekday everywhere. Saved offline too — it syncs to the hub when it's reachable.")
                 }
 
                 if didFail {
                     Section {
-                        Text("Couldn't save the weekday. The hub may be unreachable or may not support this yet.")
+                        Text("The hub refused this weekday — it may not support plan-session assignment yet. Nothing was saved.")
                             .foregroundStyle(theme.color(.danger))
                             .accessibilityIdentifier("training-assign-weekday-error")
                     }

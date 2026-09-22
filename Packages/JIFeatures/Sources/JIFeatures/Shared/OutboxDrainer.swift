@@ -9,6 +9,7 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case weighIn(WeighinResult)
     case gateRespond(GateRespondResult)
     case sessionFeel(FeelResult)
+    case planWeekday(PlanSessionOut)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -27,6 +28,7 @@ public final class OutboxDrainer {
     private let outbox: Outbox
     private let weighIn: (any WeighInProviding)?
     private let gateRespond: (any GateRespondProviding)?
+    private let planWeekday: (any PlanSessionWeekdayProviding)?
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -40,33 +42,55 @@ public final class OutboxDrainer {
     /// The multi-kind initialiser. Pass `nil` for a kind this app instance cannot deliver (e.g.
     /// `MockDataProvider` in previews) — its rows then stay pending rather than being attempted
     /// against nothing.
-    public init(outbox: Outbox, weighIn: (any WeighInProviding)?, gateRespond: (any GateRespondProviding)?) {
+    public init(
+        outbox: Outbox,
+        weighIn: (any WeighInProviding)?,
+        gateRespond: (any GateRespondProviding)?,
+        planWeekday: (any PlanSessionWeekdayProviding)? = nil
+    ) {
         self.outbox = outbox
         self.weighIn = weighIn
         self.gateRespond = gateRespond
+        self.planWeekday = planWeekday
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
     /// over ONE `WeighInProviding` handles weigh-in rows only.
     public convenience init(outbox: Outbox, provider: any WeighInProviding) {
-        self.init(outbox: outbox, weighIn: provider, gateRespond: provider as? any GateRespondProviding)
+        self.init(
+            outbox: outbox,
+            weighIn: provider,
+            gateRespond: provider as? any GateRespondProviding,
+            planWeekday: provider as? any PlanSessionWeekdayProviding
+        )
     }
 
-    /// One hub object serving every kind it conforms to (`HubDataProvider` conforms to both).
+    /// One hub object serving every kind it conforms to (`HubDataProvider` conforms to all three).
     public convenience init(outbox: Outbox, hub: any Sendable) {
-        self.init(outbox: outbox, weighIn: hub as? any WeighInProviding, gateRespond: hub as? any GateRespondProviding)
+        self.init(
+            outbox: outbox,
+            weighIn: hub as? any WeighInProviding,
+            gateRespond: hub as? any GateRespondProviding,
+            planWeekday: hub as? any PlanSessionWeekdayProviding
+        )
     }
 
     public nonisolated static let weighInKind = "weighin"
     public nonisolated static let gateRespondKind = GateRespondViewModel.gateRespondKind
     public nonisolated static let sessionFeelKind = GateRespondViewModel.sessionFeelKind
-    public nonisolated static let knownKinds: Set<String> = [weighInKind, gateRespondKind, sessionFeelKind]
+    /// B-52 (P-training): the weekday a plan session is trained on. `snake_case` unlike the two
+    /// camelCase kinds above it — the kind string is a caller-chosen tag the store never parses,
+    /// and the Contract pins this one as `plan_weekday`; changing either spelling later would
+    /// orphan rows already queued on the phone, so neither is "tidied".
+    public nonisolated static let planWeekdayKind = "plan_weekday"
+    public nonisolated static let knownKinds: Set<String> = [weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
     public var drainableKinds: Set<String> {
         var kinds = Set<String>()
         if weighIn != nil { kinds.insert(Self.weighInKind) }
         if gateRespond != nil { kinds.insert(Self.gateRespondKind); kinds.insert(Self.sessionFeelKind) }
+        if planWeekday != nil { kinds.insert(Self.planWeekdayKind) }
         return kinds
     }
 
@@ -124,6 +148,11 @@ public final class OutboxDrainer {
                 await attempt(row: row, describe: GateRespondViewModel.describe, into: &results) {
                     .sessionFeel(try await gateRespond.logFeel(feelScore: body.feelScore, notes: body.notes, date: body.date))
                 }
+            case Self.planWeekdayKind:
+                guard let planWeekday, let body = try? JSONDecoder().decode(PlanWeekdayBody.self, from: row.payload) else { continue }
+                await attempt(row: row, describe: Self.describePlanWeekday, into: &results) {
+                    .planWeekday(try await planWeekday.updatePlanSessionWeekday(sessionId: body.sessionId, weekday: body.weekday))
+                }
             default:
                 continue
             }
@@ -169,6 +198,31 @@ public final class OutboxDrainer {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
         default: "Couldn't save weigh-in — try again."
         }
+    }
+}
+
+public extension OutboxDrainer {
+    /// B-52: the hub's own `detail` where it gave one, and otherwise a line that says what is
+    /// actually true of a queued weekday — it is still queued, not lost. `Self.describe`'s
+    /// fallback text names the weigh-in, so a plan-weekday row cannot borrow it.
+    nonisolated static func describePlanWeekday(_ error: Error) -> String {
+        switch error as? HubError {
+        case .http(_, let detail) where detail?.isEmpty == false: detail!
+        case .network(let message): message
+        case .unauthorized: "Hub rejected the token — check Settings › Connection."
+        default:
+            error is PlanSessionUpdateUnavailable
+                ? "This hub has no plan-session route yet — the weekday stays queued."
+                : "Couldn't reach the hub — the weekday stays queued."
+        }
+    }
+
+    /// Whether a failed attempt is worth keeping queued. A 4xx other than 401 is the hub saying
+    /// "no" about THIS row (unknown session id, bad weekday): retrying it forever would be a lie
+    /// dressed as patience, so the caller surfaces it as a failure instead of a pending sync.
+    nonisolated static func isPermanentRejection(_ error: Error) -> Bool {
+        if case .http(let status, _) = error as? HubError { return (400..<500).contains(status) && status != 401 }
+        return false
     }
 }
 
