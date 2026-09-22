@@ -38,14 +38,16 @@ public struct SummaryCard: View {
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(theme.color(.mutedNested))
                         }
                     }
-                    HStack(alignment: .bottom, spacing: 12) {
-                        ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .firstTextBaseline, spacing: 3) { numeral; unitText }
-                            VStack(alignment: .leading, spacing: 0) { numeral; unitText }
-                        }
-                        Spacer(minLength: 0)
-                        if sparkline.compactMap({ $0 }).count >= 2 {
-                            Sparkline(points: sparkline).frame(width: sparkWidth, height: sparkHeight)
+                    // B-47 fix: at half width (2-up grid) the value and the 64 pt sparkline do not
+                    // fit on one row. `numeral`/`unitText` are hard-limited to one line, so their
+                    // ideal width is the TRUE single-line width and `ViewThatFits` can reject the
+                    // side-by-side candidate instead of silently wrapping the number. The fallback
+                    // puts the sparkline on its own row under the value (Apple Fitness idiom).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .bottom, spacing: 12) { valueRow; Spacer(minLength: 0); sparklineView }
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .bottom, spacing: 12) { valueRow; Spacer(minLength: 0) }
+                            sparklineView
                         }
                     }
                     if sourceMissing {
@@ -63,16 +65,35 @@ public struct SummaryCard: View {
         .accessibilityLabel(summaryCardAccessibilityLabel(title: title, value: value, unit: unit, timestamp: timestamp, sourceMissing: sourceMissing))
     }
 
-    private var numeral: some View {
+    /// Value + unit, side by side when they fit, stacked otherwise. Never wraps a number.
+    /// Internal (not private) so the B-47 no-wrap regression test can measure it in isolation.
+    var valueRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 3) { numeral; unitText }
+            VStack(alignment: .leading, spacing: 0) { numeral; unitText }
+        }
+    }
+
+    @ViewBuilder private var sparklineView: some View {
+        if sparkline.compactMap({ $0 }).count >= 2 {
+            Sparkline(points: sparkline).frame(width: sparkWidth, height: sparkHeight)
+        }
+    }
+
+    /// Internal (not private) so the B-47 no-wrap regression test can measure it alone.
+    var numeral: some View {
         Text(sourceMissing ? "—" : (value ?? "—"))
             .jiNumeral(.numeralCompact)
             .foregroundStyle(value == nil || sourceMissing ? theme.color(.muted) : tint)
+            // A number is never broken across lines; it shrinks first (the title already does this).
+            .lineLimit(1).minimumScaleFactor(0.6)
             .contentTransition(.numericText())
     }
 
     @ViewBuilder private var unitText: some View {
         if let unit, value != nil, !sourceMissing {
             Text(unit).jiFont(.subheadline, weight: .semibold).foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.6)
         }
     }
 }
