@@ -8,20 +8,28 @@ public struct StatChip: View {
     /// Accessibility identifier for the as-of line, so a sweep/UI test can assert the label is
     /// RENDERED and not merely computed (the exact defect this fixer closes).
     public let asOfIdentifier: String?
+    /// B-47: the metric's own colour (`metricTintRole`), carried by the value and its unit like
+    /// Apple Fitness's Summary cards. `.text` — the default — is the old, untinted look, so an
+    /// existing call site keeps rendering exactly as it did.
+    public let tint: JIColorRole
     @Environment(\.jiTheme) private var theme
-    public init(label: String, value: Double?, unit: String? = nil, points: [Double?] = [], sourceMissing: Bool = false, asOf: String? = nil, asOfIdentifier: String? = nil, action: (() -> Void)? = nil) {
+    public init(label: String, value: Double?, unit: String? = nil, points: [Double?] = [], sourceMissing: Bool = false, asOf: String? = nil, asOfIdentifier: String? = nil, tint: JIColorRole = .text, action: (() -> Void)? = nil) {
         self.label = label; self.value = value; self.unit = unit; self.points = points; self.sourceMissing = sourceMissing
-        self.asOf = asOf; self.asOfIdentifier = asOfIdentifier; self.action = action
+        self.asOf = asOf; self.asOfIdentifier = asOfIdentifier; self.tint = tint; self.action = action
     }
     public var body: some View {
         Button(action: { action?() }) {
             Surface(level: 2, padding: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(numeral).jiNumeral(.numeralCompact).foregroundStyle(theme.color(.text))
+                    // B-47: `jiFont`, not a raw `.font(.caption)` — this label was the one text
+                    // site in JIDesign that never went through the token scale at all.
+                    Text(label).jiFont(.subheadline).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(numeral).jiNumeral(.numeralCompact, tint: valueTint)
                             .contentTransition(.numericText())
-                        if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(theme.color(.muted)) }
+                        // The unit rides the value's colour at ~70 % of its size (Fitness's
+                        // "13/980 CAL"), never a muted caption hanging off a coloured numeral.
+                        if let unit, showsUnit { Text(unit).jiFont(.subheadline, weight: .semibold, tint: valueTint) }
                     }
                     if let asOf, !sourceMissing {
                         Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
@@ -35,6 +43,9 @@ public struct StatChip: View {
         .disabled(action == nil)
         .accessibilityLabel(statChipAccessibilityLabel(label: label, numeral: numeral, unit: unit, showsUnit: showsUnit, sourceMissing: sourceMissing, asOf: asOf))
     }
+    /// No value = no colour: an empty or gated chip is muted, exactly like `TrendRow`'s "-/-" rows.
+    private var valueTint: JIColorRole { (value == nil || sourceMissing) ? .muted : tint }
+
     /// Unit is shown (visually and to VoiceOver) only when there is a real value to attach it to.
     private var showsUnit: Bool { value != nil && !sourceMissing }
     private var numeral: String {
