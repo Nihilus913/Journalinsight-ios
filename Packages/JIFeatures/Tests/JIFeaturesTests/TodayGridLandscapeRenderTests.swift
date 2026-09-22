@@ -65,6 +65,39 @@ import JIDesign
             try data.write(to: URL(fileURLWithPath: path))
         }
     }
+
+    /// W-B47 L2 evidence: the whole two-up card grid at a 393 pt portrait phone, rendered the same
+    /// way. The build host has no Simulator UI, so a live-hub `simctl` screenshot can only show the
+    /// grid's first row above the tab bar — this shows all of it. `JI_PORTRAIT_SHOT` names the file.
+    @Test @MainActor func portraitRendersTheTwoUpCardGrid() throws {
+        #expect(todayCardColumnCount(horizontalSizeClass: .compact, isAccessibilitySize: false) == 2)
+        let size = CGSize(width: 393, height: 900)
+        let grid = TodayGrid(chips: Array(Self.chips.prefix(4)), prefs: nil, onSelectKpi: { _ in }, makeDataQualityViewModel: { nil })
+            .padding(.horizontal, 20)
+            .environment(\.horizontalSizeClass, .compact)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background(JITheme.native.color(.bg))
+        let host = UIHostingController(rootView: grid)
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.frame = window.bounds
+        host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        host.view.layoutIfNeeded()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            window.layer.render(in: ctx.cgContext)
+        }
+        window.isHidden = true
+        #expect(abs(image.size.width - size.width) < 1)
+
+        if let path = ProcessInfo.processInfo.environment["JI_PORTRAIT_SHOT"], !path.isEmpty {
+            let data = try #require(image.pngData())
+            try data.write(to: URL(fileURLWithPath: path))
+        }
+    }
 }
 
 #endif
