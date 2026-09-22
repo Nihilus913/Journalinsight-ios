@@ -25,6 +25,8 @@ import Testing
     #expect(JITypography.size(.subheadline) == 15)
     #expect(JITypography.size(.statValue) == 18)
     #expect(JITypography.size(.emoji) == 20)
+    #expect(JITypography.size(.cardTitle) == 20)
+    #expect(JITypography.size(.cardTitleLarge) == 22)
     #expect(JITypography.size(.numeralSmall) == 22)
     #expect(JITypography.size(.numeralCompact) == 24)
     #expect(JITypography.size(.title) == 26)
@@ -38,7 +40,13 @@ import Testing
 @Test func scaleIsMonotonicInTokenOrder() {
     let sizes = JITypography.Token.allCases.map(JITypography.size)
     #expect(sizes == sizes.sorted())
-    #expect(Set(sizes).count == sizes.count)
+    // B-47: a design size may now be shared by a text and a numeral token (`.cardTitle` 20 sits
+    // with `.emoji`, `.cardTitleLarge` 22 with `.numeralSmall`) — they ride different curves, so
+    // the scale stays ordered without being injective. Duplicates are allowed in PAIRS only:
+    // three tokens at one size would mean a token nobody can tell apart from its neighbours.
+    for size in Set(sizes) {
+        #expect(sizes.filter { $0 == size }.count <= 2, "more than two tokens share \(size) pt")
+    }
 }
 
 @Test func everyTokenAnchorsToAnAppleTextStyle() {
@@ -51,6 +59,7 @@ import Testing
         case .largeTitle: #expect(size >= 34)
         case .title: #expect(size >= 20 && size < 34)
         case .headline, .title3: #expect(size >= 17 && size < 26)
+        case .title2: #expect(size >= 20 && size < 28)
         case .subheadline: #expect(size >= 14 && size < 17)
         case .footnote: #expect(size >= 13 && size < 14)
         case .caption: #expect(size >= 12 && size < 13)
@@ -64,7 +73,12 @@ import Testing
     let numerals = JITypography.Token.allCases.filter(\.isNumeral)
     #expect(numerals == [.numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay])
     for t in numerals { #expect(JITypography.defaultWeight(t) == .bold) }
-    for t in JITypography.Token.allCases where !t.isNumeral { #expect(JITypography.defaultWeight(t) == .regular) }
+    for t in JITypography.Token.allCases where !t.isNumeral && !t.isCardTitle { #expect(JITypography.defaultWeight(t) == .regular) }
+    // B-47: a card title is bold in BOTH paths — it is the one text class that carries weight.
+    for t in JITypography.Token.allCases where t.isCardTitle {
+        #expect(JITypography.defaultWeight(t) == .bold)
+        #expect(JITypography.nativeWeight(t) == .bold)
+    }
 }
 
 @Test func fontBuildsForEveryToken() {

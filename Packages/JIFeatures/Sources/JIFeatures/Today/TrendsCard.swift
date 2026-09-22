@@ -75,10 +75,10 @@ public struct TrendsCard: View {
         Surface(level: 1) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("Trends").jiFont(.statValue, weight: .semibold).foregroundStyle(theme.color(.text))
+                    Text("Trends").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    Text("7 d vs 28 d").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    Text("7 d vs 28 d").jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 }
                 Columns(minimum: 150, spacing: 14) {
                     ForEach(trends) { t in

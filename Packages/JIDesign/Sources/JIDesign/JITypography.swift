@@ -33,8 +33,13 @@ public nonisolated enum JITypography {
         case statValue
         /// 20 pt — entry-row mood emoji (`text-xl`).
         case emoji
+        /// B-47: 20 pt — the card title above a Health/Fitness-style card (native `.title3`,
+        /// bold by default). Measured off `2026-09-22-apple-fitness-summary.png`.
+        case cardTitle
         /// 22 pt — SleepCard duration / score numerals.
         case numeralSmall
+        /// B-47: 22 pt — the title of a full-width hero-weight card (native `.title2`, bold).
+        case cardTitleLarge
         /// 24 pt — StatChip value numeral (Today stat row).
         case numeralCompact
         /// 26 pt — mood picker emoji, MIND headline (`text-[26px]`).
@@ -57,6 +62,23 @@ public nonisolated enum JITypography {
             default: false
             }
         }
+
+        /// B-47: the card-title class — bold by default in both the legacy and the native path.
+        public var isCardTitle: Bool { self == .cardTitle || self == .cardTitleLarge }
+
+        /// B-47: numerals that take the **native** branch, i.e. scale off `nativeTextStyle` like
+        /// text does (the root cause of "the numerals never scale": every numeral used to be
+        /// pinned to its fixed design size). The three display numerals stay on the sized
+        /// `@ScaledMetric` path — a gauge/hero glyph is a layout constant, not a text style.
+        public var usesNativeNumeralStyle: Bool {
+            switch self {
+            case .numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge: true
+            default: false
+            }
+        }
+
+        /// Renders through `.font(.system(nativeTextStyle(self), …))` under `.native`.
+        public var usesNativeTextStyle: Bool { !isNumeral || usesNativeNumeralStyle }
     }
 
     /// Design point size at the default content size category.
@@ -71,7 +93,9 @@ public nonisolated enum JITypography {
         case .subheadline: 15
         case .statValue: 18
         case .emoji: 20
+        case .cardTitle: 20
         case .numeralSmall: 22
+        case .cardTitleLarge: 22
         case .numeralCompact: 24
         case .title: 26
         case .numeralMedium: 28
@@ -90,7 +114,8 @@ public nonisolated enum JITypography {
         case .footnote: .footnote
         case .body, .subheadline: .subheadline
         case .statValue: .headline
-        case .emoji: .title3
+        case .emoji, .cardTitle: .title3
+        case .cardTitleLarge: .title2
         case .numeralSmall, .numeralCompact, .title, .numeralMedium: .title
         case .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: .largeTitle
         }
@@ -107,7 +132,10 @@ public nonisolated enum JITypography {
     }
 
     /// Default weight per token: numerals are bold like the oracle's numeral face; text is regular.
-    public static func defaultWeight(_ token: Token) -> Font.Weight { token.isNumeral ? .bold : .regular }
+    public static func defaultWeight(_ token: Token) -> Font.Weight {
+        if token.isNumeral { return .bold }
+        return token.isCardTitle ? .bold : .regular
+    }
 
     // MARK: B-33 §3 — native language
 
@@ -118,19 +146,37 @@ public nonisolated enum JITypography {
         switch token {
         case .micro: .caption2
         case .caption: .caption
-        case .label, .footnote: .footnote
-        case .bodySmall, .subheadline: .subheadline
+        case .footnote: .footnote
+        // B-47: `.label` / `.bodySmall` were the RN 12–12.5 pt cluster; on the native curve the
+        // smallest legible secondary style is `.subheadline` (15) — 169 of ~207 call sites sat
+        // on the three smallest tokens, which is what read as "back to the scaling".
+        case .label, .bodySmall, .subheadline: .subheadline
         case .body: .body
-        case .title, .emoji: .title2
+        case .cardTitle: .title3
+        case .title, .emoji, .cardTitleLarge: .title2
         case .statValue: .headline
-        case .numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: .largeTitle
+        // B-47: numerals take the native branch too — Fitness's context numeral is `.title` (28),
+        // not a pinned 24. The three display numerals keep their sized path (see
+        // `usesNativeNumeralStyle`) and are listed here only for completeness.
+        case .numeralSmall: .title2
+        case .numeralCompact, .numeralMedium: .title
+        case .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: .largeTitle
         }
+    }
+
+    /// B-47: the `.native` font for a token — a SYSTEM TEXT STYLE, which is the only system-font
+    /// route that follows the content size category on its own (the sized `Font.system(size:)`
+    /// path never does). Numerals keep SF Rounded + tabular figures on top of the style, which is
+    /// what lets `numeralCompact` be Fitness's 28 pt `.title` and still grow at ax3.
+    public static func nativeFont(_ token: Token, weight: Font.Weight, design: Font.Design = .default) -> Font {
+        let font = Font.system(nativeTextStyle(token), design: token.isNumeral ? .rounded : design, weight: weight)
+        return token.isNumeral ? font.monospacedDigit() : font
     }
 
     /// Native weights: numerals semibold below 40 pt, bold from 40 pt; titles bold; text regular.
     public static func nativeWeight(_ token: Token) -> Font.Weight {
         if token.isNumeral { return size(token) >= 40 ? .bold : .semibold }
-        return token == .title ? .bold : .regular
+        return (token == .title || token.isCardTitle) ? .bold : .regular
     }
 
     // MARK: numeralLineHeight — port of tokens.ts `NUMERAL_LINE_HEIGHT_RATIO` / `numeralLineHeight`
@@ -161,11 +207,15 @@ public struct JITypographyModifier: ViewModifier {
     private let token: JITypography.Token
     private let explicitWeight: Font.Weight?
     private let design: Font.Design
+    /// B-47: the metric's own colour, applied by the modifier so a numeral and its unit are
+    /// tinted from ONE place (Fitness tints the value, never the card title).
+    private let tint: JIColorRole?
 
-    public init(token: JITypography.Token, weight: Font.Weight?, design: Font.Design = .default) {
+    public init(token: JITypography.Token, weight: Font.Weight?, design: Font.Design = .default, tint: JIColorRole? = nil) {
         self.token = token
         self.explicitWeight = weight
         self.design = design
+        self.tint = tint
         _scaledSize = ScaledMetric(wrappedValue: JITypography.size(token), relativeTo: JITypography.textStyle(token))
     }
 
@@ -174,9 +224,14 @@ public struct JITypographyModifier: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
-        if theme == .native, !token.isNumeral {
-            // §3: text styles only — the system curve owns the size.
-            content.font(.system(JITypography.nativeTextStyle(token), design: design, weight: weight))
+        styled(content).jiTintIfNeeded(tint.map { theme.color($0) })
+    }
+
+    @ViewBuilder private func styled(_ content: Content) -> some View {
+        if theme == .native, token.usesNativeTextStyle {
+            // §3 + B-47: the system curve owns the size — for text AND for the four scaling
+            // numerals, which keep SF Rounded + tabular figures on top of it.
+            content.font(JITypography.nativeFont(token, weight: weight, design: design))
         } else {
             let font = JITypography.font(token, scaledSize: scaledSize, weight: weight, design: design)
             if token.isNumeral {
@@ -188,15 +243,23 @@ public struct JITypographyModifier: ViewModifier {
     }
 }
 
+private extension View {
+    /// `foregroundStyle` only when a tint was asked for — an untinted token must keep whatever
+    /// colour the call site (or the enclosing card) already set.
+    @ViewBuilder func jiTintIfNeeded(_ color: Color?) -> some View {
+        if let color { foregroundStyle(color) } else { self }
+    }
+}
+
 public extension View {
     /// `.jiFont(.footnote, weight: .semibold)` — a text token, scaled with Dynamic Type.
-    func jiFont(_ token: JITypography.Token, weight: Font.Weight? = nil, design: Font.Design = .default) -> some View {
-        modifier(JITypographyModifier(token: token, weight: weight, design: design))
+    func jiFont(_ token: JITypography.Token, weight: Font.Weight? = nil, design: Font.Design = .default, tint: JIColorRole? = nil) -> some View {
+        modifier(JITypographyModifier(token: token, weight: weight, design: design, tint: tint))
     }
 
-    /// `.jiNumeral(.numeralHero)` — a numeral token: rounded, tabular, bold by default, with the RN
-    /// `numeralLineHeight` floor so glyph tops never clip.
-    func jiNumeral(_ token: JITypography.Token, weight: Font.Weight? = nil) -> some View {
-        modifier(JITypographyModifier(token: token, weight: weight, design: .rounded))
+    /// `.jiNumeral(.numeralCompact, tint: .info)` — a numeral token: rounded, tabular, and (from
+    /// B-47) scaled off the native text style with the metric's colour applied in one place.
+    func jiNumeral(_ token: JITypography.Token, weight: Font.Weight? = nil, tint: JIColorRole? = nil) -> some View {
+        modifier(JITypographyModifier(token: token, weight: weight, design: .rounded, tint: tint))
     }
 }

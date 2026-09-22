@@ -103,7 +103,9 @@ public struct VerdictHeroView: View {
                     .contentTransition(.numericText())
                     .lineLimit(1).minimumScaleFactor(0.5)
             }
-            Text(label).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+            // B-47: Bevel sets its Strain/Recovery/Sleep labels in primary text at body size —
+            // a muted 13 pt label under a 76 pt ring is what read as "cheap".
+            Text(label).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                 .lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)

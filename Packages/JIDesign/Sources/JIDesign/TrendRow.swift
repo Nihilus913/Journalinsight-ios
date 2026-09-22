@@ -84,19 +84,21 @@ public struct TrendRow: View {
                 .background(theme.color(.nested), in: Circle())
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+                Text(name).jiFont(.body).foregroundStyle(theme.color(.text))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 HStack(spacing: 4) {
                     Text(trendValueText(recent: recent, baseline: baseline, unit: unit, decimals: decimals))
-                        .jiFont(.caption, weight: .semibold).foregroundStyle(valueTint)
+                        .jiFont(.body, weight: .semibold).foregroundStyle(valueTint)
                         .lineLimit(1).minimumScaleFactor(0.6)
                     Image(systemName: direction.symbolName)
-                        .font(.caption2.weight(.bold)).foregroundStyle(valueTint)
+                        .font(.footnote.weight(.bold)).foregroundStyle(valueTint)
                 }
             }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // B-47: every Trends row is a tap target in `TrendsCard` — 44 pt is the HIG minimum, and
+        // it is what keeps the two 17 pt lines from crowding at the default type size.
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(trendRowAccessibilityLabel(name: name, recent: recent, baseline: baseline, unit: unit, decimals: decimals, direction: direction))
     }

@@ -29,7 +29,10 @@ public struct SummaryCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: icon).foregroundStyle(tint)
-                        Text(title).jiFont(.footnote, weight: .semibold).foregroundStyle(tint)
+                        // B-47: Fitness sets the card title in primary text at `.title3` bold and
+                        // tints the VALUE — the icon already carries the metric's colour.
+                        Text(title).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                            .lineLimit(1).minimumScaleFactor(0.7)
                         Spacer(minLength: 0)
                         if action != nil {
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(theme.color(.mutedNested))
@@ -63,13 +66,13 @@ public struct SummaryCard: View {
     private var numeral: some View {
         Text(sourceMissing ? "—" : (value ?? "—"))
             .jiNumeral(.numeralCompact)
-            .foregroundStyle(value == nil || sourceMissing ? theme.color(.muted) : theme.color(.text))
+            .foregroundStyle(value == nil || sourceMissing ? theme.color(.muted) : tint)
             .contentTransition(.numericText())
     }
 
     @ViewBuilder private var unitText: some View {
         if let unit, value != nil, !sourceMissing {
-            Text(unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
+            Text(unit).jiFont(.subheadline, weight: .semibold).foregroundStyle(tint)
         }
     }
 }
