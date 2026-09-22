@@ -2,9 +2,16 @@ import SwiftUI
 
 public struct StatChip: View {
     let label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool, action: (() -> Void)?
+    /// B-46 item 3 (fixer): the day a fallback reading was actually taken on ("as of Sep 15"),
+    /// already humanised by `kpiAsOfLabel`. `nil` = the reading IS today's, so nothing is shown.
+    public let asOf: String?
+    /// Accessibility identifier for the as-of line, so a sweep/UI test can assert the label is
+    /// RENDERED and not merely computed (the exact defect this fixer closes).
+    public let asOfIdentifier: String?
     @Environment(\.jiTheme) private var theme
-    public init(label: String, value: Double?, unit: String? = nil, points: [Double?] = [], sourceMissing: Bool = false, action: (() -> Void)? = nil) {
-        self.label = label; self.value = value; self.unit = unit; self.points = points; self.sourceMissing = sourceMissing; self.action = action
+    public init(label: String, value: Double?, unit: String? = nil, points: [Double?] = [], sourceMissing: Bool = false, asOf: String? = nil, asOfIdentifier: String? = nil, action: (() -> Void)? = nil) {
+        self.label = label; self.value = value; self.unit = unit; self.points = points; self.sourceMissing = sourceMissing
+        self.asOf = asOf; self.asOfIdentifier = asOfIdentifier; self.action = action
     }
     public var body: some View {
         Button(action: { action?() }) {
@@ -16,13 +23,17 @@ public struct StatChip: View {
                             .contentTransition(.numericText())
                         if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(theme.color(.muted)) }
                     }
+                    if let asOf, !sourceMissing {
+                        Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                            .accessibilityIdentifier(asOfIdentifier ?? "")
+                    }
                     Sparkline(points: points).frame(height: 18)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(.pressableScale)
         .disabled(action == nil)
-        .accessibilityLabel(statChipAccessibilityLabel(label: label, numeral: numeral, unit: unit, showsUnit: showsUnit, sourceMissing: sourceMissing))
+        .accessibilityLabel(statChipAccessibilityLabel(label: label, numeral: numeral, unit: unit, showsUnit: showsUnit, sourceMissing: sourceMissing, asOf: asOf))
     }
     /// Unit is shown (visually and to VoiceOver) only when there is a real value to attach it to.
     private var showsUnit: Bool { value != nil && !sourceMissing }
@@ -36,9 +47,9 @@ public struct StatChip: View {
 /// DESIGN-6: a source-missing chip announces the shared "not from current source" copy —
 /// never a bare "—" with a dangling unit. Pure + testable independent of SwiftUI's view
 /// lifecycle (mirrors the ReadinessArcGauge/EAGatedTile/DriverBars label builders).
-public nonisolated func statChipAccessibilityLabel(label: String, numeral: String, unit: String?, showsUnit: Bool, sourceMissing: Bool) -> String {
+public nonisolated func statChipAccessibilityLabel(label: String, numeral: String, unit: String?, showsUnit: Bool, sourceMissing: Bool, asOf: String? = nil) -> String {
     if sourceMissing { return [label, sourceMissingCopy].joined(separator: " ") }
-    return [label, numeral, showsUnit ? unit : nil].compactMap { $0 }.joined(separator: " ")
+    return [label, numeral, showsUnit ? unit : nil, asOf].compactMap { $0 }.joined(separator: " ")
 }
 
 /// Neutral gray, always — sparklines never carry the reserved verdict green.

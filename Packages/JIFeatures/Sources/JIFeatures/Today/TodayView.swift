@@ -82,7 +82,9 @@ public struct TodayView: View {
             Columns(minimum: 96, spacing: 16) {
                 ForEach(myKpis, id: \.self) { id in
                     let def = KpiMetrics.def(id)
-                    kpiCell(def: def, value: kpiValue(id))
+                    let latest = kpiLatest(id)
+                    kpiCell(def: def, value: latest?.value,
+                            asOf: kpiAsOfLabel(valueDate: latest?.date, today: todayDateString))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -99,10 +101,16 @@ public struct TodayView: View {
     /// Live value for a KPI, from the sections Today already holds. Nutrition-sourced KPIs
     /// (kcal/protein/carbs/fat) read `[]` here — this screen never fetches the nutrition week —
     /// so they show their "No data yet" state rather than a stale number.
-    private func kpiValue(_ id: KpiMetricId) -> Double? {
-        KpiMetrics.value(for: id, recovery: model.recovery, nutrition: [],
-                         dailyRows: model.gate?.daily ?? [], gateAverages: model.gate?.averages)
+    private func kpiValue(_ id: KpiMetricId) -> Double? { kpiLatest(id)?.value }
+
+    /// B-46 item 3 (fixer): the value AND the day it was actually taken on, so a week-old HRV is
+    /// never presented as today's reading (the same `KpiMetrics.latest` the KPI detail screen uses).
+    private func kpiLatest(_ id: KpiMetricId) -> (value: Double, date: String)? {
+        KpiMetrics.latest(for: id, recovery: model.recovery, nutrition: [],
+                          dailyRows: model.gate?.daily ?? [], gateAverages: model.gate?.averages)
     }
+
+    private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
 
     private func chip(_ id: String) -> TodayChip? { model.chips.first { $0.id == id } }
 
@@ -113,7 +121,7 @@ public struct TodayView: View {
     }
 
     @ViewBuilder
-    private func kpiCell(def: KpiMetricDef, value: Double?) -> some View {
+    private func kpiCell(def: KpiMetricDef, value: Double?, asOf: String? = nil) -> some View {
         Button { onSelectKpi(def.id.rawValue) } label: {
             VStack(spacing: 6) {
                 if let max = todayKpiRingMax(def.id) {
@@ -135,12 +143,18 @@ public struct TodayView: View {
                     }
                 }
                 .lineLimit(1).minimumScaleFactor(0.6)
+                // B-46 item 3: a fallback reading names its own day — never silently "today".
+                if let asOf {
+                    Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue).as-of")
+                }
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.pressableScale)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(value.map { "\(def.label) \($0.formatted(.number.precision(.fractionLength(def.decimals)))) \(def.unit)" } ?? "\(def.label), no data yet")
+        .accessibilityLabel(todayKpiCellAccessibilityLabel(label: def.label, value: value, decimals: def.decimals, unit: def.unit, asOf: asOf))
         .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue)")
     }
 
@@ -196,4 +210,13 @@ public nonisolated let todayStepsGoal: Double = 8_000
 /// The number under a Today ring — a whole, grouped figure (a 0–100 score or a step count).
 public nonisolated func todayRingValueText(_ value: Double) -> String {
     value.formatted(.number.precision(.fractionLength(0)))
+}
+
+
+/// B-46 item 3 (fixer): the My-KPI cell's VoiceOver sentence, pure so a host test can assert the
+/// as-of day is announced and not merely computed.
+nonisolated func todayKpiCellAccessibilityLabel(label: String, value: Double?, decimals: Int, unit: String, asOf: String?) -> String {
+    guard let value else { return "\(label), no data yet" }
+    let number = value.formatted(.number.precision(.fractionLength(decimals)))
+    return [label, number, unit.isEmpty ? nil : unit, asOf].compactMap { $0 }.joined(separator: " ")
 }

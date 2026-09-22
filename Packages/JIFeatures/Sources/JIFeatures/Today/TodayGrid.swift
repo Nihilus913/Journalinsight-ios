@@ -210,9 +210,9 @@ public struct TodayGrid: View {
 
     @ViewBuilder
     private func tile(for chip: TodayChip) -> some View {
-        StatChip(label: chip.label, value: chip.value, unit: chip.unit, points: chip.points, sourceMissing: chip.sourceMissing, action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
+        todayStatChip(for: chip, action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
             // Label is the RN oracle's StatChip default (`${label} — open detail`), verbatim.
-            .accessibilityLabel("\(chip.label) — open detail")
+            .accessibilityLabel(chip.asOf.map { "\(chip.label) — open detail, \($0)" } ?? "\(chip.label) — open detail")
             .accessibilityIdentifier("today.chip.\(chip.id)")
             .accessibilityHint("Long-press to reorder the tiles")
             .rotationEffect(.degrees(jiggling ? (chip.id.hashValue % 2 == 0 ? 1.5 : -1.5) : 0))
@@ -260,3 +260,14 @@ struct TodayTileDropDelegate: DropDelegate {
     func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
 }
 #endif
+
+
+/// B-46 item 3 (fixer): the ONE place a `TodayChip` becomes a `StatChip`, so every field the model
+/// computes — `asOf` above all — is provably threaded through. The first fix computed "as of Sep 15"
+/// in the view model and then dropped it here, which is exactly what `todayStatChipCarriesAsOf…`
+/// now guards.
+func todayStatChip(for chip: TodayChip, action: (() -> Void)?) -> StatChip {
+    StatChip(label: chip.label, value: chip.value, unit: chip.unit, points: chip.points,
+             sourceMissing: chip.sourceMissing, asOf: chip.asOf,
+             asOfIdentifier: "today.chip.\(chip.id).as-of", action: action)
+}
