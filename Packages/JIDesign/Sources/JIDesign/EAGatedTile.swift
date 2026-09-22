@@ -12,6 +12,7 @@ public nonisolated let sourceMissingCopy = "Not from the current source"
 public struct EAGatedTile: View {
     let label: String
     let reason: String
+    @Environment(\.jiTheme) private var theme
 
     public init(label: String, reason: String = sourceMissingCopy) {
         self.label = label
@@ -21,10 +22,10 @@ public struct EAGatedTile: View {
     public var body: some View {
         Surface(level: 2, padding: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(label).font(.caption).foregroundStyle(JIColor.muted).lineLimit(1)
+                Text(label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
                 HStack(spacing: 6) {
-                    Image(systemName: "lock.fill").font(.caption).foregroundStyle(JIColor.muted)
-                    Text(reason).font(.footnote).foregroundStyle(JIColor.muted)
+                    Image(systemName: "lock.fill").font(.caption).foregroundStyle(theme.color(.muted))
+                    Text(reason).font(.footnote).foregroundStyle(theme.color(.muted))
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }

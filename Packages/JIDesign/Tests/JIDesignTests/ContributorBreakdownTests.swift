@@ -32,11 +32,11 @@ import Testing
 }
 
 // Reserved-color rule: the contributor bars are neutral, never the reserved verdict green
-// (CLAUDE.md §6) — the fill is a fixed token independent of the ranked contributors.
-// @MainActor: JIColor's properties are MainActor-isolated (unlike ReadinessContributor,
-// which is `nonisolated`), matching DriverBarsTests.swift's split between a `@MainActor`
-// struct for its JIColor-touching tests and free nonisolated funcs for the rest.
+// (CLAUDE.md §6) — the fill is a fixed ROLE independent of the ranked contributors.
+// @MainActor: resolving a role through `JITheme.color(_:)` is MainActor-isolated (unlike
+// `ContributorBreakdown.barRole` / `ReadinessContributor`, which are `nonisolated`).
 @MainActor @Test func contributorBarsAreAlwaysNeutralNeverReservedGreen() {
-    let contributorBarFill = JIColor.mutedNested
-    #expect(contributorBarFill != JIColor.go)
+    #expect(ContributorBreakdown.barRole == .mutedNested)
+    #expect(ContributorBreakdown.barRole != .go)
+    #expect(JITheme.native.color(ContributorBreakdown.barRole) != JITheme.native.color(.go))
 }

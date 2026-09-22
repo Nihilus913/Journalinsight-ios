@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct StatChip: View {
     let label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool, action: (() -> Void)?
+    @Environment(\.jiTheme) private var theme
     public init(label: String, value: Double?, unit: String? = nil, points: [Double?] = [], sourceMissing: Bool = false, action: (() -> Void)? = nil) {
         self.label = label; self.value = value; self.unit = unit; self.points = points; self.sourceMissing = sourceMissing; self.action = action
     }
@@ -9,11 +10,11 @@ public struct StatChip: View {
         Button(action: { action?() }) {
             Surface(level: 2, padding: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(label).font(.caption).foregroundStyle(JIColor.muted).lineLimit(1)
+                    Text(label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(numeral).jiNumeral(.numeralCompact).foregroundStyle(JIColor.text)
+                        Text(numeral).jiNumeral(.numeralCompact).foregroundStyle(theme.color(.text))
                             .contentTransition(.numericText())
-                        if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(JIColor.muted) }
+                        if let unit, showsUnit { Text(unit).font(.caption).foregroundStyle(theme.color(.muted)) }
                     }
                     Sparkline(points: points).frame(height: 18)
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -43,6 +44,7 @@ public nonisolated func statChipAccessibilityLabel(label: String, numeral: Strin
 /// Neutral gray, always — sparklines never carry the reserved verdict green.
 public struct Sparkline: View {
     let points: [Double?]
+    @Environment(\.jiTheme) private var theme
     public init(points: [Double?]) { self.points = points }
     public var body: some View {
         GeometryReader { g in
@@ -57,7 +59,7 @@ public struct Sparkline: View {
                         let y = g.size.height * (1 - CGFloat((v - lo) / span))
                         if first { p.move(to: CGPoint(x: x, y: y)); first = false } else { p.addLine(to: CGPoint(x: x, y: y)) }
                     }
-                }.stroke(JIColor.mutedNested, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                }.stroke(theme.color(.mutedNested), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
             }
         }.accessibilityHidden(true)
     }

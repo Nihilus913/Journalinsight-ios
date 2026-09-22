@@ -13,8 +13,6 @@ public nonisolated func gaugeAngle(for value: Double) -> Angle { .degrees(270 + 
 /// §4 native fill: SwiftUI angles, 180° = 9 o'clock. Used for the gradient's end angle.
 public nonisolated func gaugeFillEndAngle(for value: Double) -> Angle { .degrees(180 + 1.8 * min(100, max(0, value))) }
 
-private func bandColor(_ b: ReadinessBand) -> Color { switch b { case .danger: JIColor.danger; case .warn: JIColor.reduced; case .go: JIColor.go } }
-
 /// DESIGN-6: source-missing announces the shared "not from current source" copy — never a
 /// bare dash. Pure + testable independent of SwiftUI's view lifecycle.
 public nonisolated func readinessAccessibilityLabel(score: Double?, sourceMissing: Bool) -> String {
@@ -39,7 +37,6 @@ private nonisolated struct ArcSegment: Shape {
 public struct ReadinessArcGauge: View {
     let score: Double?, sourceMissing: Bool, size: CGFloat
     public init(score: Double?, sourceMissing: Bool = false, size: CGFloat = 180) { self.score = score; self.sourceMissing = sourceMissing; self.size = size }
-    private let track: CGFloat = 14
     /// §4 native: stroke 16, scaled with the type size (§8.4).
     @ScaledMetric(relativeTo: .body) private var nativeTrack: CGFloat = 16
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -55,39 +52,9 @@ public struct ReadinessArcGauge: View {
     private var shownValue: Double { animatesReveal ? displayed : (score ?? 0) }
 
     public var body: some View {
-        Group {
-            if theme == .native { nativeBody } else { classicBody }
-        }
+        nativeBody
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(readinessAccessibilityLabel(score: score, sourceMissing: sourceMissing))
-    }
-
-    // MARK: classic (unchanged since W2a)
-
-    private var classicBody: some View {
-        ZStack(alignment: .bottom) {
-            ArcSegment(from: 0, to: 40, lineWidth: track).fill(bandColor(.danger).opacity(0.35))
-            ArcSegment(from: 40, to: 70, lineWidth: track).fill(bandColor(.warn).opacity(0.35))
-            ArcSegment(from: 70, to: 100, lineWidth: track).fill(bandColor(.go).opacity(0.35))
-            if let score, !sourceMissing {
-                needle(at: score)
-            }
-            numerals(color: score.map { bandColor(readinessBand(for: $0)) } ?? JIColor.muted, muted: JIColor.muted)
-        }
-        .frame(width: size, height: size / 2 + track)
-    }
-
-    private func needle(at value: Double) -> some View {
-        GeometryReader { g in
-            let c = CGPoint(x: g.size.width / 2, y: g.size.height - track)
-            let r = min(g.size.width, g.size.height * 2) / 2 - track
-            let a = gaugeAngle(for: value) - .degrees(90)
-            Circle().fill(JIColor.text)
-                .overlay(Circle().stroke(bandColor(readinessBand(for: value)), lineWidth: 3))
-                .frame(width: 16, height: 16)
-                .position(x: c.x + r * cos(a.radians), y: c.y + r * sin(a.radians))
-                .animation(reduceMotion ? nil : JIMotion.reveal, value: value)
-        }
     }
 
     // MARK: native (B-33 §4) — single track, long-fade fill, head dot, reveal

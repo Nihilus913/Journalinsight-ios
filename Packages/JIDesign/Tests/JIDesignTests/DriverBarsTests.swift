@@ -7,8 +7,9 @@ import Testing
 @MainActor
 struct DriverBarsTests {
     @Test func barColorIsNeutralNeverReservedGreen() {
-        #expect(DriverBars.barColor == JIColor.mutedNested)
-        #expect(DriverBars.barColor != JIColor.go)
+        #expect(DriverBars.barRole == .mutedNested)
+        #expect(DriverBars.barRole != .go)
+        #expect(JITheme.native.color(DriverBars.barRole) != JITheme.native.color(.go))
     }
 
     @Test(arguments: [0.0, 0.25, 0.5, 0.9, 1.0])
@@ -17,7 +18,7 @@ struct DriverBarsTests {
         // constructing drivers spanning the full range and confirming the shared paint token
         // used to render every bar never varies.
         _ = DriverBar(id: "d", label: "Driver", value: value)
-        #expect(DriverBars.barColor == JIColor.mutedNested)
+        #expect(DriverBars.barRole == .mutedNested)
     }
 }
 
