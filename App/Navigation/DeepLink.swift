@@ -46,3 +46,51 @@ enum RootRoute: Hashable, Sendable {
         }
     }
 }
+
+/// B-55 (P0 crash "tapping something too fast force-closes the app"): the per-tab push state
+/// `RootTabView` binds each tab's own `NavigationStack(path:)` to. There is deliberately NO root
+/// stack any more — the old shell wrapped the whole `TabView` in `NavigationStack(path: $path)`
+/// while the search-role Tab (and More) ran their own nested stacks under it. Once the search Tab
+/// had been mounted, EVERY change to that root bound path (a KPI push, and the pop back) trapped in
+/// SwiftUI's `NavigationColumnState.boundPathChange` → `try!` →
+/// `AnyNavigationPath.Error.comparisonTypeMismatch` (reproduced on the sim: Search → Today → tap a
+/// KPI ring), and a push followed by a fast tab switch sent the nested `UINavigationController`s
+/// into a content-inset layout loop (the phone's 0x8BADF00D hang-kill).
+///
+/// Every route has exactly one owning tab; a push lands in that tab's stack only, and a second
+/// push onto the same tab inside `reentryInterval` (one push animation) is dropped, so a double
+/// tap or two tiles hit back-to-back can never stack two appends inside one navigation update.
+struct TabRouter: Equatable {
+    /// Roughly one UIKit push animation (0.35 s) plus a frame of slack.
+    static let reentryInterval: TimeInterval = 0.4
+
+    private var paths: [RootTab: [RootRoute]] = [:]
+    private var lastPush: [RootTab: Date] = [:]
+
+    /// The tab whose stack a route is pushed onto. Both routes are Today's (the KPI rings/chips
+    /// and the `ji://kpi-detail` deep link, which also focuses Today).
+    static func owner(of route: RootRoute) -> RootTab {
+        switch route {
+        case .kpiDetail, .kpiList: .today
+        }
+    }
+
+    func path(for tab: RootTab) -> [RootRoute] { paths[tab] ?? [] }
+
+    /// The stack's own writes (system back button, swipe-to-pop) come through here.
+    mutating func setPath(_ path: [RootRoute], for tab: RootTab) {
+        paths[tab] = path
+    }
+
+    /// Pushes `route` onto its owning tab's stack. Returns false (and changes nothing) when the
+    /// route is already on top, or when another push onto that tab is still in flight.
+    @discardableResult
+    mutating func push(_ route: RootRoute, now: Date = Date()) -> Bool {
+        let tab = Self.owner(of: route)
+        guard path(for: tab).last != route else { return false }
+        if let last = lastPush[tab], now.timeIntervalSince(last) < Self.reentryInterval, now >= last { return false }
+        paths[tab, default: []].append(route)
+        lastPush[tab] = now
+        return true
+    }
+}
