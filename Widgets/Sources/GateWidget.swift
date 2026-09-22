@@ -50,9 +50,10 @@ struct SnapshotTimelineProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SnapshotEntry>) -> Void) {
         let entry = SnapshotEntry(date: .now, snapshot: store.read())
-        // The extension never polls the hub itself — App/AppEnvironment.swift (W2c-L1)
-        // writes a fresh snapshot after each fetch and reloads our timelines via
-        // WidgetCenter; .never here means "wait to be told", not "stale forever".
+        // The extension never polls the hub itself — App/AppEnvironment.swift writes a fresh
+        // snapshot after each fetch (W2c-L1) and, since W-B34, calls
+        // `WidgetCenter.shared.reloadAllTimelines()` right after the write; .never here means
+        // "wait to be told", not "stale forever".
         completion(Timeline(entries: [entry], policy: .never))
     }
 }
@@ -67,7 +68,7 @@ struct GateWidget: Widget {
         }
         .configurationDisplayName("Gate")
         .description("Today's morning verdict.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
@@ -96,6 +97,9 @@ private struct GateWidgetView: View {
                 } else {
                     noData
                 }
+            case .accessoryInline:
+                // W-B34: one line — verdict word + session; the system tints inline text itself.
+                Text("\(snapshot.verdictWord) · \(snapshot.verdictSession)")
             case .accessoryRectangular:
                 verdictLines(snapshot)
             case .systemSmall:
@@ -153,12 +157,40 @@ extension HubSnapshot {
             SnapshotKPI(label: "HRV", value: 61, unit: "ms"),
             SnapshotKPI(label: "Sleep", value: 7.4, unit: "h"),
         ],
+        // W-B34: one entry per KPI id, as `publishSnapshot` writes it (nutrition left nil to
+        // exercise the "—" face).
+        allKpis: KpiMetricId.allCases.map { id in
+            let def = KpiMetrics.def(id)
+            return SnapshotKPI(id: id, label: def.label, value: previewSeedValues[id], unit: def.unit)
+        },
         fetchedAt: .now,
         lastSync: .now
     )
+
+    private static let previewSeedValues: [KpiMetricId: Double] = [
+        .hrv: 61, .rhr: 52, .sleep: 82, .bodyBattery: 64, .readiness: 78,
+        .acwr: 1.08, .weight: 93.4, .steps: 8412,
+    ]
 }
 
 #Preview("Gate — small", as: .systemSmall, widget: { GateWidget() }, timeline: {
+    SnapshotEntry(date: .now, snapshot: .previewSeed)
+    SnapshotEntry(date: .now, snapshot: nil)
+})
+
+#Preview("Gate — medium", as: .systemMedium, widget: { GateWidget() }, timeline: {
+    SnapshotEntry(date: .now, snapshot: .previewSeed)
+})
+
+#Preview("Gate — rectangular", as: .accessoryRectangular, widget: { GateWidget() }, timeline: {
+    SnapshotEntry(date: .now, snapshot: .previewSeed)
+})
+
+#Preview("Gate — circular", as: .accessoryCircular, widget: { GateWidget() }, timeline: {
+    SnapshotEntry(date: .now, snapshot: .previewSeed)
+})
+
+#Preview("Gate — inline", as: .accessoryInline, widget: { GateWidget() }, timeline: {
     SnapshotEntry(date: .now, snapshot: .previewSeed)
     SnapshotEntry(date: .now, snapshot: nil)
 })

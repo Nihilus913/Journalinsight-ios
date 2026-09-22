@@ -7,6 +7,9 @@ import JIHealthKit
 import JIPersistence
 import JIFeatures
 import JISnapshot
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// W2h (B-9) fallback: satisfies `BackloadRunning` until a hub connection exists (no `HubClient`
 /// to build a `BackloadClient`/`HealthKitBackloader` from yet). `apply(_:)` swaps this out for a
@@ -251,6 +254,7 @@ final class AppEnvironment {
         let readiness = today?.readiness ?? recovery?.latestReadiness
         let kpis = (today?.chips ?? []).map { SnapshotKPI(label: $0.label, value: $0.value, unit: $0.unit) }
         let lastSync = [today?.fetchedAt, recovery?.fetchedAt].compactMap { $0 }.max()
+        let allKpis = Self.allKpis(today: today, cache: cache)
         let snapshot = HubSnapshot(
             verdictWord: verdict?.word ?? "—",
             verdictSession: verdict?.session ?? "No verdict yet",
@@ -258,10 +262,33 @@ final class AppEnvironment {
             verdictDate: today?.morning?.verdictDate,
             readiness: readiness,
             kpis: kpis,
+            allKpis: allKpis,
             fetchedAt: now(),
             lastSync: lastSync
         )
         snapshotStore.write(snapshot)
+        // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
+        // kept showing the snapshot it was first rendered with until iOS happened to refresh it.
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
+    /// W-B34 (B-36): every KPI's latest value for the configurable KPI widget — one entry per
+    /// `KpiMetricId.allCases`, computed by the same `KpiMetrics.latest(for:…)` the KPI screens use,
+    /// over what `TodayViewModel` already holds (recovery, gate daily rows + averages). The four
+    /// nutrition KPIs read the rows `KpiListViewModel` last cached under
+    /// `KpiListViewModel.nutritionCacheKey` — never a fetch from here; no cache → nil ("—").
+    private static func allKpis(today: TodayViewModel?, cache: OfflineCache) -> [SnapshotKPI] {
+        let recovery = today?.recovery ?? []
+        let dailyRows = today?.gate?.daily ?? []
+        let averages = today?.gate?.averages
+        let nutrition = (try? cache.get(KpiListViewModel.nutritionCacheKey, as: [NutritionDailyRow].self))?.value ?? []
+        return KpiMetricId.allCases.map { id in
+            let def = KpiMetrics.def(id)
+            let value = KpiMetrics.latest(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: averages)?.value
+            return SnapshotKPI(id: id, label: def.label, value: value, unit: def.unit.isEmpty ? nil : def.unit)
+        }
     }
 
     private static func toneString(_ tone: VerdictTone?) -> String {

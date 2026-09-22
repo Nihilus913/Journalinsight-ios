@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import JICore
 import JIPersistence
 @testable import JIFeatures
 
