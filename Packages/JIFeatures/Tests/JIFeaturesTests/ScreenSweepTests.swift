@@ -27,6 +27,12 @@ import UIKit
     #expect(ScreenRegistry.entries.allSatisfy { $0.theme == .native })
 }
 
+@Test func registryHasTheMorningFlowFaces() {
+    // B-57a: Decide / Coach / Day each render in the sweep, beside the existing "Today" (= Day).
+    let names = ScreenRegistry.entries.map(\.name)
+    for name in ["Today", "Today decide", "Today coach", "Today day"] { #expect(names.contains(name)) }
+}
+
 #if canImport(UIKit) && !os(watchOS)
 
 /// §8.5 the sweep renders through a real `UIWindow` + `UIHostingController`, not `ImageRenderer`.

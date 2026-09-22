@@ -47,6 +47,14 @@ public final class TodayViewModel {
     /// (CODE-1: a cancelled fetch over a warm cache must still re-fetch live on next appearance).
     public private(set) var hasLiveResult = false
 
+    // B-57 §2 — the morning flow (Decide → Coach → Day), kept per verdict date. Advances on user
+    // action only (`morningEvent`), never on the clock; re-synced whenever `morning.verdictDate` changes.
+    public private(set) var morningState: TodayMorningState = .decide
+    /// Fallback store when `prefs == nil` (previews, older call sites): state lives for the session.
+    private var memoryMorningStates: [String: TodayMorningState] = [:]
+    private var syncedVerdictDate: String?
+    public var verdictDate: String? { morning?.verdictDate }
+
     // PARITY-7: each section's own capture time, independent of the others — a hub outage that only
     // takes down `recovery` shouldn't make `morning`'s freshly-fetched data look stale, or vice versa.
     public private(set) var morningFetchedAt: Date?
@@ -159,6 +167,7 @@ public final class TodayViewModel {
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = r.value; recoveryFetchedAt = r.fetchedAt }
         if morning != nil { phase = .loaded }
+        syncMorningState()
         if morning != nil || gate != nil || !recovery.isEmpty { onSectionUpdate?() }
     }
 
@@ -176,7 +185,7 @@ public final class TodayViewModel {
             async let rR = SectionLoader.load(key: Self.keys.recovery, cache: cache) { try await provider.recovery(windowDays: 28) }
             let (m, g, r) = try await (mR, gR, rR)
 
-            if let mv = m.value { morning = mv }
+            if let mv = m.value { morning = mv; syncMorningState() }
             if let gv = g.value { gate = gv }
             if let rv = r.value { recovery = rv }
             morningFetchedAt = m.fetchedAt ?? morningFetchedAt
@@ -230,6 +239,26 @@ public final class TodayViewModel {
         }
     }
 
+    /// Reduces `event` into `morningState` and persists it under the current verdict date.
+    public func morningEvent(_ event: TodayMorningEvent) {
+        morningState = TodayMorningFlow.next(morningState, event)
+        guard let date = verdictDate else { return }
+        memoryMorningStates[date] = morningState
+        try? prefs?.set(TodayMorningFlow.prefKey(verdictDate: date), morningState)
+    }
+
+    /// Re-reads the reached state whenever the verdict date changes (§2: kept per verdict date).
+    private func syncMorningState() {
+        guard let date = verdictDate else { morningState = .decide; syncedVerdictDate = nil; return }
+        guard date != syncedVerdictDate else { return }
+        syncedVerdictDate = date
+        let stored = (try? prefs?.get(TodayMorningFlow.prefKey(verdictDate: date), as: TodayMorningState.self)) ?? nil
+        morningState = stored ?? memoryMorningStates[date] ?? .decide
+    }
+
+    /// Test seam: assigns `morning` the way a fetch would, then re-syncs the morning state.
+    func setMorningForTesting(_ m: MorningResponse) { morning = m; syncMorningState() }
+
     private static func describe(_ error: Error) -> String {
         switch error as? HubError {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
@@ -247,7 +276,11 @@ public extension TodayViewModel {
     /// for `ScreenRegistry`/the screenshot sweep. Never used by the app.
     /// `nil` only when an in-memory SQLite file cannot be opened — the registry then renders the
     /// screen's unavailable state rather than trapping inside a test run.
-    static func fixture() -> TodayViewModel? {
+    static func fixture() -> TodayViewModel? { fixture(morningState: .day) }
+
+    /// B-57: the same loaded Today pinned to one morning state (Decide / Coach / Day) for the
+    /// gallery. Fixtures never persist — the state is set directly.
+    static func fixture(morningState: TodayMorningState) -> TodayViewModel? {
         guard let cache = NativeFixtureStore.cache else { return nil }
         let model = TodayViewModel(provider: MockDataProvider(), cache: cache)
         model.morning = NativeFixtureStore.decode(fixtureMorningJSON, as: MorningResponse.self)
@@ -267,11 +300,12 @@ public extension TodayViewModel {
         model.fetchedAt = Date(timeIntervalSince1970: 1_789_992_000)
         model.phase = .loaded
         model.hasLiveResult = true
+        model.morningState = morningState
         return model
     }
 }
 
-private let fixtureMorningJSON = """
+let fixtureMorningJSON = """
 {"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
  "hrv_series":[{"date":"2026-09-15","hrv_weekly_avg":48,"rhr_bpm":54},{"date":"2026-09-16","hrv_weekly_avg":50,"rhr_bpm":53},
  {"date":"2026-09-17","hrv_weekly_avg":47,"rhr_bpm":55},{"date":"2026-09-18","hrv_weekly_avg":53,"rhr_bpm":52},

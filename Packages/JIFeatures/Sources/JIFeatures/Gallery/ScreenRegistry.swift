@@ -27,6 +27,11 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Gate config") { L4Screens.gateConfig() },
         ScreenEntry(name: "Edit today") { L4Screens.editToday() },
 
+        // MARK: W-B57a L2 — B-57 Today morning flow (Decide → Coach → Day)
+        ScreenEntry(name: "Today decide") { L4Screens.todayDecide() },
+        ScreenEntry(name: "Today coach") { L4Screens.todayCoach() },
+        ScreenEntry(name: "Today day") { L4Screens.todayDay() },
+
         // MARK: W-B46 L2 — B-42 Today components
         ScreenEntry(name: "Trends card") { AnyView(TrendsCardNativePreview()) },
 

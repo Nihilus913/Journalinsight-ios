@@ -25,6 +25,9 @@ public struct VerdictHeroView: View {
     let insight: String
     let challengesModel: ChallengesViewModel?
     let gateRespondModel: GateRespondViewModel?   // W5b-L4: nil = no respond controls (same optional idiom as `challengesModel`)
+    /// B-57 §6: the Day face drops the "Respond ›" / logged one-liner (Decide owns the answer);
+    /// the feel segment stays either way.
+    let showsRespondRow: Bool
     @State private var revealed = false
     @State private var showChallenges = false
     @State private var showRespond = false
@@ -39,10 +42,12 @@ public struct VerdictHeroView: View {
 
     public init(verdict: VerdictParts, readiness: Double?, readinessMissing: Bool,
                 sleepScore: Double? = nil, load: Double? = nil, insight: String = "",
-                challengesModel: ChallengesViewModel? = nil, gateRespondModel: GateRespondViewModel? = nil) {
+                challengesModel: ChallengesViewModel? = nil, gateRespondModel: GateRespondViewModel? = nil,
+                showsRespondRow: Bool = true) {
         self.verdict = verdict; self.readiness = readiness; self.readinessMissing = readinessMissing
         self.sleepScore = sleepScore; self.load = load; self.insight = insight
         self.challengesModel = challengesModel; self.gateRespondModel = gateRespondModel
+        self.showsRespondRow = showsRespondRow
     }
 
     private var line: (lead: String, rest: String) {
@@ -167,9 +172,9 @@ public struct VerdictHeroView: View {
         if model.recommendation != .insufficientData {
             VStack(alignment: .leading, spacing: 10) {
                 Divider().overlay(theme.color(.hairlineNested))
-                if model.responded {
+                if showsRespondRow, model.responded {
                     GateRespondedRow(model: model)
-                } else {
+                } else if showsRespondRow {
                     Button { showRespond = true } label: {
                         HStack(spacing: 4) {
                             Text("Respond").jiFont(.footnote, weight: .semibold)
