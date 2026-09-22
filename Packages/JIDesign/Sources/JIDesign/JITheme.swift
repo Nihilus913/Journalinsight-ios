@@ -18,6 +18,19 @@ public extension View {
     func jiTheme(_ theme: JITheme) -> some View { environment(\.jiTheme, theme) }
 }
 
+public extension EnvironmentValues {
+    /// Whether the rings / arc play their 0 → value reveal on appear. Default `true` (the app).
+    /// `false` renders the FINAL value immediately, with no animation: what a snapshot harness
+    /// needs, because an off-screen render captures the frame before the reveal has run and every
+    /// ring comes out empty (B-33 phase-B verifier F1).
+    @Entry var jiRevealAnimations: Bool = true
+}
+
+public extension View {
+    /// Turn the reveal animations off (snapshot / sweep renders) or back on for a subtree.
+    func jiRevealAnimations(_ on: Bool) -> some View { environment(\.jiRevealAnimations, on) }
+}
+
 /// Every neutral / semantic colour a screen may ask for. Mirrors the `JIColor` statics one to one
 /// so a migration is a rename (`JIColor.muted` → `theme.color(.muted)`).
 public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {

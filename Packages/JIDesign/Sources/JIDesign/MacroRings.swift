@@ -18,7 +18,11 @@ public struct MacroRings: View {
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 64
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
+    @Environment(\.jiRevealAnimations) private var revealAnimations
     @State private var revealed = false
+
+    /// Off for reduced motion and for snapshot renders (§8.5): the rings paint their FINAL value.
+    private var animatesReveal: Bool { revealAnimations && !reduceMotion }
 
     public init(protein: MacroRingValue, carbs: MacroRingValue, fat: MacroRingValue) {
         self.protein = protein; self.carbs = carbs; self.fat = fat
@@ -31,7 +35,7 @@ public struct MacroRings: View {
             ring(fat, tint: theme.color(.sleep), inset: 2)
         }
         .frame(width: size, height: size)
-        .onAppear { withAnimation(reduceMotion ? nil : JIMotion.standard) { revealed = true } }
+        .onAppear { if animatesReveal { withAnimation(JIMotion.standard) { revealed = true } } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(macroRingsAccessibilityLabel(protein: protein, carbs: carbs, fat: fat))
     }
@@ -42,7 +46,7 @@ public struct MacroRings: View {
         let fraction = ringFraction(value: m.value, max: m.goal)
         return ZStack {
             Circle().stroke(theme.color(.nested), lineWidth: lineWidth)
-            Circle().trim(from: 0, to: revealed ? fraction : 0)
+            Circle().trim(from: 0, to: (revealed || !animatesReveal) ? fraction : 0)
                 .stroke(
                     AngularGradient(stops: ringFadeStops(tint), center: .center, startAngle: .degrees(0), endAngle: .degrees(360 * fraction)),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)

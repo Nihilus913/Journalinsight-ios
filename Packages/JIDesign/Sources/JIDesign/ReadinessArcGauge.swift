@@ -45,8 +45,14 @@ public struct ReadinessArcGauge: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.jiRevealAnimations) private var revealAnimations
     /// Native reveal: animates 0 → score on first appearance (§4).
     @State private var displayed: Double = 0
+
+    /// Off for reduced motion and for snapshot renders (§8.5): the arc paints its FINAL value.
+    private var animatesReveal: Bool { revealAnimations && !reduceMotion }
+    /// What the fill / head dot actually draw at: the animated state, or the final score.
+    private var shownValue: Double { animatesReveal ? displayed : (score ?? 0) }
 
     public var body: some View {
         Group {
@@ -102,8 +108,8 @@ public struct ReadinessArcGauge: View {
                 }
             }
         }
-        .onAppear { reveal(to: score ?? 0) }
-        .onChange(of: score) { reveal(to: score ?? 0) }
+        .onAppear { if animatesReveal { reveal(to: score ?? 0) } }
+        .onChange(of: score) { if animatesReveal { reveal(to: score ?? 0) } }
     }
 
     private var nativeArt: some View {
@@ -111,9 +117,9 @@ public struct ReadinessArcGauge: View {
             ArcSegment(from: 0, to: 100, lineWidth: nativeTrack, lineCap: .round).fill(theme.color(.nested))
             if let score, !sourceMissing {
                 let tint = nativeBandColor(readinessBand(for: score))
-                ArcSegment(from: 0, to: displayed, lineWidth: nativeTrack, lineCap: .round)
+                ArcSegment(from: 0, to: shownValue, lineWidth: nativeTrack, lineCap: .round)
                     .fill(AngularGradient(stops: ringFadeStops(tint), center: gradientCenter, startAngle: .degrees(180), endAngle: gaugeFillEndAngle(for: score)))
-                headDot(at: displayed, tint: tint)
+                headDot(at: shownValue, tint: tint)
             }
         }
         .frame(width: size, height: size / 2 + nativeTrack)
@@ -130,7 +136,7 @@ public struct ReadinessArcGauge: View {
     }
 
     private func reveal(to value: Double) {
-        withAnimation(reduceMotion ? nil : JIMotion.standard) { displayed = value }
+        withAnimation(JIMotion.standard) { displayed = value }
     }
 
     private func nativeBandColor(_ b: ReadinessBand) -> Color {

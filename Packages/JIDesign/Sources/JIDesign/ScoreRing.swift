@@ -9,7 +9,11 @@ public struct ScoreRing: View {
     @ScaledMetric private var size: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
+    @Environment(\.jiRevealAnimations) private var revealAnimations
     @State private var shown: Double = 0
+
+    /// Off for reduced motion and for snapshot renders (§8.5): the ring paints its FINAL value.
+    private var animatesReveal: Bool { revealAnimations && !reduceMotion }
 
     public init(value: Double, max: Double, tint: Color, size: CGFloat = ScoreRing.defaultSize) {
         self.value = value; self.max = max; self.tint = tint
@@ -22,7 +26,7 @@ public struct ScoreRing: View {
         let lineWidth = size * 0.14
         ZStack {
             Circle().stroke(theme.color(.nested), lineWidth: lineWidth)
-            Circle().trim(from: 0, to: shown)
+            Circle().trim(from: 0, to: animatesReveal ? shown : fraction)
                 .stroke(
                     AngularGradient(stops: ringFadeStops(tint), center: .center, startAngle: .degrees(0), endAngle: .degrees(360 * fraction)),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
@@ -30,13 +34,13 @@ public struct ScoreRing: View {
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: size, height: size)
-        .onAppear { reveal() }
-        .onChange(of: value) { reveal() }
+        .onAppear { if animatesReveal { reveal() } }
+        .onChange(of: value) { if animatesReveal { reveal() } }
         .accessibilityElement(children: .ignore)
         .accessibilityValue(ringAccessibilityValue(value: value, max: max))
     }
 
     private func reveal() {
-        withAnimation(reduceMotion ? nil : JIMotion.standard) { shown = fraction }
+        withAnimation(JIMotion.standard) { shown = fraction }
     }
 }

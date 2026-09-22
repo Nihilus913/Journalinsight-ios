@@ -39,7 +39,9 @@ import UIKit
 @MainActor
 private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     let bounds = CGRect(x: 0, y: 0, width: cell.width, height: cell.height)
-    let host = UIHostingController(rootView: entry.make().jiTheme(entry.theme))
+    // F1: the reveal animations are off for a snapshot — an off-screen render captures the
+    // frame before `onAppear`'s animation runs, so every ring/arc came out at 0 progress.
+    let host = UIHostingController(rootView: entry.make().jiTheme(entry.theme).jiRevealAnimations(false))
     host.view.frame = bounds
     host.view.backgroundColor = .systemBackground
 

@@ -15,6 +15,14 @@ struct JIThemeTests {
         #expect(env.jiTheme == .native)
     }
 
+    // B-33 F1: the sweep/snapshot switch that makes rings + arc paint their FINAL value.
+    @Test func revealAnimationsDefaultOnAndCanBeTurnedOff() {
+        #expect(EnvironmentValues().jiRevealAnimations == true)
+        var env = EnvironmentValues()
+        env.jiRevealAnimations = false
+        #expect(env.jiRevealAnimations == false)
+    }
+
     @Test func rawValuesAreStable() {
         // Persisted nowhere yet, but B-40b screens hard-code `.native`; keep the names.
         #expect(JITheme.allCases.map(\.rawValue) == ["classic", "native"])
