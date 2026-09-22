@@ -33,6 +33,9 @@ public struct VerdictHeroView: View {
     /// B-33 §8.5: the sweep renders this view outside a real window — a haptic fired from there
     /// enqueues an action with no update to attach it to and traps the test process.
     @Environment(\.jiOffscreenRender) private var offscreen
+    /// §8.1 "reflows, never clips": `ScoreRing` scales with the type size, so three 76 pt rings
+    /// side by side overflow 393 pt at AX sizes — the trio stacks there instead.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(verdict: VerdictParts, readiness: Double?, readinessMissing: Bool,
                 sleepScore: Double? = nil, load: Double? = nil, insight: String = "",
@@ -65,11 +68,13 @@ public struct VerdictHeroView: View {
     // MARK: - Ring trio (spec §4b exception: the trio replaces the single hero arc)
 
     @ViewBuilder private var ringTrio: some View {
-        HStack(alignment: .top, spacing: 0) {
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 20)) : AnyLayout(HStackLayout(alignment: .top, spacing: 0))
+        layout {
             heroRing(label: "Readiness", value: readiness, max: 100, tint: theme.color(.go), missing: readinessMissing, identifier: "today.readinessGauge")
-            trioDivider
+            if !stacked { trioDivider }
             heroRing(label: "Sleep", value: sleepScore, max: 100, tint: theme.color(.sleep), missing: false, identifier: "today.hero.sleep")
-            trioDivider
+            if !stacked { trioDivider }
             // Load = ACWR, a 0–2 band where 1.0 is "carrying last month's load"; the ring is that
             // band, not a 0–100 score.
             heroRing(label: "Load", value: load, max: 2, tint: theme.color(.reduced), missing: false, decimals: 2, identifier: "today.hero.load")
