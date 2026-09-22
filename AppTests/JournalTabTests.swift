@@ -15,6 +15,7 @@ import JIVault
 @Test func rootTabIncludesJournalInRNsSecondPosition() {
     let tabs: Set<RootTab> = [.today, .journal, .recovery, .energy, .nutrition, .training]
     #expect(tabs.count == 6)
+    #expect(!tabs.contains(.more))
     #expect(RootTab.journal != RootTab.today)
 }
 

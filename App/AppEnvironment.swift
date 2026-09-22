@@ -76,11 +76,31 @@ final class AppEnvironment {
         self.backload = backload
     }
 
+    /// B-46 (L1) dev affordance: `-hub-url <url> -hub-token <token>` on the launch command line
+    /// applies that connection before the persisted one is read, so a simulator run can be pointed
+    /// at the live hub from `xcrun simctl launch` without driving the Connection sheet by hand.
+    /// Only honoured in DEBUG builds; the release app always reads the Keychain config.
+    static func launchArgumentConfig(_ arguments: [String] = CommandLine.arguments) -> ConnectionConfig? {
+        func value(_ flag: String) -> String? {
+            guard let i = arguments.firstIndex(of: flag), arguments.index(after: i) < arguments.endIndex else { return nil }
+            return arguments[arguments.index(after: i)]
+        }
+        guard let raw = value("-hub-url"), let url = URL(string: raw), let token = value("-hub-token") else { return nil }
+        return ConnectionConfig(baseURL: url, token: token)
+    }
+
     func boot() throws {
         // W8-L1 appWiring: warm the haptics prefs cache from disk at cold start, so
         // `JIHapticDispatcher.shared.prefs` reflects the persisted enabled/intensity values
         // immediately instead of the open default (enabled, 100) until Settings is visited.
         HapticsPrefsStore.warm(from: prefs)
+        #if DEBUG
+        if let injected = Self.launchArgumentConfig() {
+            try? ConnectionConfigStore(secrets: secrets).save(injected)
+            apply(injected)
+            return
+        }
+        #endif
         if let config = try ConnectionConfigStore(secrets: secrets).load() { apply(config) } else { needsConnection = true }
     }
 
@@ -109,6 +129,9 @@ final class AppEnvironment {
         // for read access explicitly; this best-effort call only starts delivery when access was
         // already granted in an earlier session (`requestAuthorization` on an already-decided
         // read type is a no-op per HealthKit, not a re-prompt).
+        // B-46 (L1): `-no-healthkit` suppresses the cold-start HealthKit prompt so a scripted
+        // simulator run against the live hub lands on Today instead of the system access sheet.
+        guard !CommandLine.arguments.contains("-no-healthkit") else { return }
         Task { [weak self] in
             guard let self else { return }
             do {

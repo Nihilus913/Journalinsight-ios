@@ -18,4 +18,9 @@ extension HubDataProvider: TrainingProviding {
     public func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult {
         try await client.send("PUT", "/api/v1/planning/exercises/\(exerciseId)", body: patch)
     }
+
+    /// W-B46 Contract (L3's new route). Same `send("PUT", …)` seam as `updateExercise`.
+    public func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut {
+        try await client.send("PUT", "/api/v1/planning/plan-sessions/\(sessionId)", body: PlanSessionWeekdayUpdate(weekday: weekday))
+    }
 }

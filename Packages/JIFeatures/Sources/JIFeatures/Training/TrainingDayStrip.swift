@@ -41,6 +41,22 @@ nonisolated func trainingStripISO(_ date: Date) -> String {
 /// the Fitness calendar strip (`WeekStrip`), so the day chips, today's fill and the activity ring
 /// come from JIDesign instead of a bespoke horizontal `ScrollView`.
 public struct TrainingDayStrip: View {
+    /// B-46 device feedback 8 (ROOT CAUSE, reproduced on the iPhone 17 Pro sim against the live
+    /// hub — `/tmp/w-b46/l1/repro-02-training.png`): `WeekStrip` lays its chips out in a plain
+    /// `HStack`, each chip a fixed `chipSize` circle (36–44 pt). It is built for *seven* days;
+    /// `gate.daily` carries however many the hub has cached (11 on Toby's device, 8 today), so
+    /// 11 × 36 pt + spacing exceeded the 393-pt viewport, the strip's intrinsic width became the
+    /// `ScrollView` content width, and EVERY card on Training was pushed off the leading edge
+    /// with a black gutter on the right. The window is the last seven rows, oldest → newest, so
+    /// the strip reads chronologically (the hub returns newest-first) and can never over-run the
+    /// viewport regardless of how many days the hub sends.
+    nonisolated static let stripDayCount = 7
+
+    nonisolated static func stripWindow(_ daily: [DailyKpiRow]) -> [DailyKpiRow] {
+        let chronological = daily.sorted { $0.date < $1.date }
+        return Array(chronological.suffix(stripDayCount))
+    }
+
     let daily: [DailyKpiRow]
     let selectedDate: String
     let today: String
@@ -55,11 +71,12 @@ public struct TrainingDayStrip: View {
         trainingDayStatus(kcalBurnedActive: row.values["kcal_burned_active"] ?? nil, isFuture: row.date > today)
     }
 
-    private var trainedCount: Int { daily.filter { status($0) == .good }.count }
+    private var windowed: [DailyKpiRow] { Self.stripWindow(daily) }
+    private var trainedCount: Int { windowed.filter { status($0) == .good }.count }
 
     private var days: [WeekStripDay] {
         let symbols = trainingStripCalendar.veryShortWeekdaySymbols
-        return daily.compactMap { row in
+        return Self.stripWindow(daily).compactMap { row in
             guard let d = trainingStripDate(row.date) else { return nil }
             let weekday = trainingStripCalendar.component(.weekday, from: d)
             return WeekStripDay(date: d, initial: symbols[weekday - 1], isToday: row.date == today, marked: status(row) == .good)
@@ -75,7 +92,7 @@ public struct TrainingDayStrip: View {
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
-                Text(daily.isEmpty ? "This week" : "This week · \(trainedCount)/\(daily.count) trained")
+                Text(daily.isEmpty ? "This week" : "This week · \(trainedCount)/\(windowed.count) trained")
                     .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                 if daily.isEmpty {
                     Text("No training data yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
