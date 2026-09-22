@@ -147,6 +147,25 @@ enum L6Fixtures {
         return AnyView(SettingsView(model: SettingsViewModel(store: connectionStore, prefs: prefs, onSaved: { _ in })))
     }
 
+    /// W-B41 (B-41): one fixture per top-level Settings group screen, so the sweep covers the
+    /// new second level and not just the menu. Same in-memory model as `settings()`; the DEBUG
+    /// `developer` group is deliberately NOT registered in the sweep (it never ships).
+    static func settingsGroup(_ group: SettingsGroupId) -> AnyView {
+        guard let prefs = prefStore else { return unavailable("Settings \(group.title)") }
+        let model = SettingsViewModel(store: connectionStore, prefs: prefs, onSaved: { _ in })
+        return AnyView(NavigationStack {
+            GroupSettingsView(group: group, sections: model.sections).environment(model)
+        })
+    }
+
+    static func settingsSync() -> AnyView { settingsGroup(.sync) }
+    static func settingsWidgets() -> AnyView { settingsGroup(.widgets) }
+    static func settingsHome() -> AnyView { settingsGroup(.home) }
+    static func settingsKpis() -> AnyView { settingsGroup(.kpis) }
+    static func settingsHaptics() -> AnyView { settingsGroup(.haptics) }
+    static func settingsHealth() -> AnyView { settingsGroup(.health) }
+    static func settingsAbout() -> AnyView { settingsGroup(.about) }
+
     static func hubConnection() -> AnyView {
         AnyView(ConnectionSheet(store: connectionStore, onSaved: { _ in }))
     }

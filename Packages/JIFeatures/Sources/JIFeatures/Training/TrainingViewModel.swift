@@ -34,7 +34,16 @@ public final class TrainingViewModel {
     private let cache: OfflineCache
     private let strengthStore: StrengthStateStore
     private let now: () -> Date
-    private static let keys = (gate: "training.gate", morning: "training.morning", exercises: "training.exercises")
+    /// B-52: the durable write queue a weekday assignment is written to BEFORE the hub is asked,
+    /// and the drainer that replays it. Optional so previews and the fixture-backed screen sweep
+    /// keep working; when it is absent `assignSession` falls back to the direct PUT — still
+    /// without a rollback, because the optimistic row is persisted either way.
+    private let outbox: Outbox?
+    private let drainer: OutboxDrainer?
+    private static let keys = (
+        gate: "training.gate", morning: "training.morning", exercises: "training.exercises",
+        planSessions: "training.planSessions"
+    )
     private var everSynced = false
     private var neverSyncedObserved = false
     private var dayDetailTask: Task<Void, Never>?
@@ -49,6 +58,19 @@ public final class TrainingViewModel {
     /// failed — the assign sheet reads both so a failed PUT is said out loud, never swallowed.
     public private(set) var pendingSessionAssign: Set<Int> = []
     public private(set) var sessionAssignFailed: Set<Int> = []
+
+    /// B-52: plan-session ids whose weekday is queued in the `Outbox` and NOT yet accepted by the
+    /// hub. This is the honest replacement for B-45's rollback: the assignment stands on screen
+    /// (it is durably queued, it will go out), and every surface that shows the session carries a
+    /// "pending sync" marker until the drainer reports the row delivered.
+    public private(set) var pendingSessionSync: Set<Int> = []
+
+    /// B-52: the plan sessions (id / name / weekday) this screen knows about, cached alongside
+    /// gate / morning / exercises so the week strip renders from disk on a cold, offline launch.
+    /// Derived from the exercise rows on every successful fetch and updated optimistically by
+    /// `assignSession` — it is the id-and-weekday spine the week strip reads, while the exercise
+    /// rows stay the source for which lifts a session contains.
+    public private(set) var planSessions: [PlanSessionOut] = []
 
     /// B-45 (a): the REAL device day this screen is being looked at on — never the hub's
     /// `verdict_date`, which is whatever day `scripts/morning_go.py` last wrote a verdict on.
@@ -85,10 +107,13 @@ public final class TrainingViewModel {
         cache: OfflineCache,
         strengthStore: StrengthStateStore = StrengthStateStore(),
         selectedDate: String? = nil,
+        outbox: Outbox? = nil,
+        drainer: OutboxDrainer? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.provider = provider; self.healthProvider = healthProvider; self.cache = cache
         self.strengthStore = strengthStore; self.now = now
+        self.outbox = outbox; self.drainer = drainer
         self.selectedDate = selectedDate ?? String(now().ISO8601Format().prefix(10))
     }
 
@@ -111,11 +136,13 @@ public final class TrainingViewModel {
     public func load() async {
         phase = .loading
         restoreFromCache()
+        reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
     }
 
     public func refresh() async {
+        reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
     }
@@ -133,6 +160,10 @@ public final class TrainingViewModel {
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; fetchedAt = g.fetchedAt; everSynced = true }
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) { morning = m.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
+        // B-52: the week strip's id/weekday spine comes back with the rest of the cached set, so a
+        // cold launch with no hub still shows which session is trained on which day — including a
+        // weekday assigned while offline and still sitting in the outbox.
+        if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
         if gate != nil { phase = .loaded }
         if gate != nil || morning != nil || !exercises.isEmpty { }
     }
@@ -158,7 +189,28 @@ public final class TrainingViewModel {
 
         if let gv = g.value { gate = gv }
         if let mv = m.value { morning = mv }
-        if let ev = e.value { exercises = ev }
+        if let ev = e.value {
+            exercises = ev
+            // B-52: re-derive the plan-session spine ONLY from a section that actually came from
+            // the hub. `SectionLoader` hands back the cached rows when the fetch failed, and those
+            // rows are exactly the ones whose `weekday` may be older than what this device knows —
+            // deriving from them would quietly undo an offline assignment on every failed refresh.
+            if e.error == nil {
+                let local = planSessions
+                planSessions = Self.mergePendingWeekdays(into: derivePlanSessions(from: ev), pending: pendingSessionSync, previous: local)
+                // …and the exercise rows too: a fetch that lands while a weekday is still queued
+                // must not silently undo it on screen.
+                for id in pendingSessionSync {
+                    guard let kept = planSessions.first(where: { $0.id == id }) else { continue }
+                    applyAssignment(sessionId: kept.id, sessionName: kept.name, weekday: kept.weekday)
+                }
+                persistPlan()
+            } else if planSessions.isEmpty {
+                // An older cache written before this key existed: derive a spine so the week strip
+                // still has ids to mark, without claiming it is the hub's latest word.
+                planSessions = derivePlanSessions(from: ev)
+            }
+        }
         fetchedAt = g.fetchedAt ?? fetchedAt
 
         let sectionErrors = [g.error, m.error, e.error].compactMap { $0 }
@@ -222,27 +274,149 @@ public final class TrainingViewModel {
         pendingUpdates.remove(exerciseId)
     }
 
-    /// B-45 (c): assign a plan session to a weekday (or clear it). Optimistic on `exercises`
-    /// so the Plan list re-labels immediately; a failure rolls the rows back AND records the id
-    /// in `sessionAssignFailed` rather than leaving a lie on screen.
+    /// B-45 (c) / B-52: assign a plan session to a weekday (or clear it) — **outbox first**.
+    ///
+    /// The order is the whole point (Toby, 2026-09-22: "nothing is more stupid than an app that
+    /// doesn't work without internet"). The row goes into the durable `Outbox` BEFORE the hub is
+    /// asked, the optimistic mutation is persisted to the cache on BOTH paths, and an unreachable
+    /// hub no longer rolls the screen back — the assignment stands, marked pending, and the
+    /// drainer (in-tap here, or later via the watchdog / retry scheduler / next launch) delivers
+    /// it. The one case that still reads as a failure is a hub that *refused* this row (4xx, or a
+    /// hub with no such route): retrying that forever would be a lie dressed as patience, so the
+    /// row is retired, the rows go back to the hub's truth, and it is said out loud.
     public func assignSession(sessionId: Int, sessionName: String, weekday: Int?) async {
         sessionAssignFailed.remove(sessionId)
         pendingSessionAssign.insert(sessionId)
-        let previous = exercises
+        defer { pendingSessionAssign.remove(sessionId) }
+
+        let previousExercises = exercises
+        let previousSessions = planSessions
+        applyAssignment(sessionId: sessionId, sessionName: sessionName, weekday: weekday)
+        persistPlan()
+
+        guard let outbox, let drainer else {
+            // No queue wired (previews, fixtures): the direct PUT is all there is. Still no
+            // rollback on an unreachable hub — the optimistic row is already persisted, and
+            // losing the tap would be the worse lie of the two.
+            do { _ = try await provider.updatePlanSessionWeekday(sessionId: sessionId, weekday: weekday) }
+            catch {
+                if isRefusal(error) { rollBack(to: previousExercises, previousSessions, sessionId: sessionId) }
+                else { pendingSessionSync.insert(sessionId) }
+            }
+            return
+        }
+
+        guard let rowId = try? outbox.enqueue(
+            kind: OutboxDrainer.planWeekdayKind,
+            payload: PlanWeekdayBody(sessionId: sessionId, sessionName: sessionName, weekday: weekday)
+        ) else {
+            // The queue itself is unwritable (disk full, DB locked). That is a real failure to
+            // record the intent, not an offline moment, and must not masquerade as pending.
+            rollBack(to: previousExercises, previousSessions, sessionId: sessionId)
+            return
+        }
+        pendingSessionSync.insert(sessionId)
+
+        // Same beat as `WeighInViewModel.submit`: a reachable hub confirms while the sheet is
+        // still up. An unreachable one leaves the row queued and the marker on.
+        let results = await drainer.drainOnce()
+        if case .failure(let error)? = results[rowId], isRefusal(error) {
+            try? outbox.markSent(id: rowId)   // retire a row the hub will never accept
+            rollBack(to: previousExercises, previousSessions, sessionId: sessionId)
+        }
+        reconcilePendingSync()
+    }
+
+    /// B-52: the pending markers ARE the outbox — a `"plan_weekday"` row still queued means "not
+    /// yet accepted". Recomputing from the queue (rather than bookkeeping a set by hand) means a
+    /// drain run by ANY other owner — `HubWatchdog.onReachableAgain`, `OutboxRetryScheduler`, a
+    /// previous launch — clears the marker the next time this screen loads, with no cross-wiring
+    /// between them.
+    public func reconcilePendingSync() {
+        guard let outbox else { return }
+        guard let rows = try? outbox.pending() else { return }
+        var ids = Set<Int>()
+        for row in rows where row.kind == OutboxDrainer.planWeekdayKind {
+            guard let body = try? JSONDecoder().decode(PlanWeekdayBody.self, from: row.payload) else { continue }
+            ids.insert(body.sessionId)
+        }
+        pendingSessionSync = ids
+    }
+
+    /// The hub refused THIS row (4xx other than 401, or an old hub with no such route) — as
+    /// opposed to being unreachable, which is what the outbox exists for.
+    private func isRefusal(_ error: Error) -> Bool {
+        OutboxDrainer.isPermanentRejection(error) || error is PlanSessionUpdateUnavailable
+    }
+
+    private func rollBack(to rows: [Exercise], _ sessions: [PlanSessionOut], sessionId: Int) {
+        exercises = rows
+        planSessions = sessions
+        pendingSessionSync.remove(sessionId)
+        sessionAssignFailed.insert(sessionId)
+        persistPlan()
+    }
+
+    private func persistPlan() {
+        try? cache.put(Self.keys.exercises, exercises)
+        try? cache.put(Self.keys.planSessions, planSessions)
+    }
+
+    /// The optimistic mutation itself, over both the exercise rows (so the Plan list re-labels)
+    /// and the plan-session spine (so the week strip and the cached set agree).
+    private func applyAssignment(sessionId: Int, sessionName: String, weekday: Int?) {
         exercises = exercises.map { row in
             guard row.sessionId == sessionId || (row.sessionId == nil && row.sessionName == sessionName) else { return row }
             var updated = row
             updated.weekday = weekday
             return updated
         }
-        do {
-            _ = try await provider.updatePlanSessionWeekday(sessionId: sessionId, weekday: weekday)
-            try? cache.put(Self.keys.exercises, exercises)
-        } catch {
-            exercises = previous
-            sessionAssignFailed.insert(sessionId)
+        // Match on id first, then on name. The name fallback matters against a hub whose
+        // `/planning/exercises` rows carry no `session_id`: the session then has no spine row of
+        // its own, and an assignment made with a real plan-session id learned elsewhere (the day
+        // detail's `planned_session`) must attach to the existing name rather than add a second
+        // row under it.
+        if let index = planSessions.firstIndex(where: { $0.id == sessionId })
+            ?? planSessions.firstIndex(where: { $0.name == sessionName }) {
+            planSessions[index] = PlanSessionOut(id: sessionId, name: sessionName, weekday: weekday)
+        } else {
+            planSessions.append(PlanSessionOut(id: sessionId, name: sessionName, weekday: weekday))
         }
-        pendingSessionAssign.remove(sessionId)
+    }
+
+    /// First-appearance-order plan sessions carried by a set of exercise rows. Only REAL
+    /// `plan.plan_session` ids enter the spine: a row whose `session_id` the hub withheld (and for
+    /// which no id is otherwise known) is left out entirely rather than standing in its
+    /// `exercise_id`. That fudge is what made B-52 undeliverable — `PUT /planning/plan-sessions/
+    /// {exercise_id}` 404s, the outbox row was then classed a permanent refusal, and the
+    /// assignment was rolled back exactly as B-45 used to do.
+    private func derivePlanSessions(from rows: [Exercise]) -> [PlanSessionOut] {
+        var seen = Set<String>()
+        var out: [PlanSessionOut] = []
+        for row in rows where !seen.contains(row.sessionName) {
+            seen.insert(row.sessionName)
+            // A real plan-session id already known for this name (from the day detail, or from an
+            // assignment) is kept when a re-fetch arrives without one, so re-deriving never throws
+            // the good id away.
+            guard let id = rows.first(where: { $0.sessionName == row.sessionName && $0.sessionId != nil })?.sessionId
+                ?? planSessions.first(where: { $0.name == row.sessionName })?.id
+            else { continue }
+            let weekday = rows.first { $0.sessionName == row.sessionName && $0.weekday != nil }?.weekday
+            out.append(PlanSessionOut(id: id, name: row.sessionName, weekday: weekday))
+        }
+        return out
+    }
+
+    /// Keeps the locally-queued weekday for any session still pending sync, so a refresh that
+    /// re-reads the hub's (older) view does not silently undo what the user assigned offline.
+    private static func mergePendingWeekdays(into fresh: [PlanSessionOut], pending: Set<Int>, previous: [PlanSessionOut]) -> [PlanSessionOut] {
+        guard !pending.isEmpty else { return fresh }
+        return fresh.map { session in
+            guard pending.contains(session.id), let local = previous.first(where: { $0.id == session.id }) else { return session }
+            var kept = session
+            kept.weekday = local.weekday
+            return kept
+        }
     }
 
     private func applyOptimistic(exerciseId: Int, patch: ExerciseUpdate) {

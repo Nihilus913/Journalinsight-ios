@@ -170,9 +170,13 @@ private func makeB45VM(
     _ = vm
 }
 
-@Test @MainActor func aFailedWeekdayAssignmentRollsBackAndIsSaidOutLoud() async throws {
+@Test @MainActor func aRefusedWeekdayAssignmentRollsBackAndIsSaidOutLoud() async throws {
     // The default `TrainingProviding` implementation throws `PlanSessionUpdateUnavailable`, which
     // is exactly what an old hub (L3's route not merged yet) produces.
+    //
+    // B-52 narrowed this to a REFUSAL: a hub that cannot ever take the row still rolls back and
+    // says so. A hub that is merely unreachable no longer does — see
+    // `anOfflineAssignmentStandsIsQueuedAndIsMarkedPending` in `B52OfflineWeekdayTests`.
     let training = TrainingFakeProvider()
     training.exerciseRows = [
         Exercise(exerciseId: 1, sessionName: "Day 1 Full Upper", exerciseName: "Bench", sets: 3,

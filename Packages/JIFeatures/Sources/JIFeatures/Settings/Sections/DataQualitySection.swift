@@ -9,6 +9,7 @@ public struct DataQualitySection: SettingsSection {
     public let title = "Data quality"
     public let systemImage = "checkmark.shield"
     public let sortKey = SettingsSortKey.data + 20
+    public let group = SettingsGroupId.sync
     public init() {}
     public var body: some View { DataQualitySectionRows() }
 }

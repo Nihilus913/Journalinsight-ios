@@ -439,7 +439,18 @@ struct RootTabView: View {
                 } else {
                     ProgressView()
                         .task {
-                            trainingModel = TrainingViewModel(provider: provider, healthProvider: store.provider, cache: env.cache, now: Date.init)
+                            // B-52: the Training tab's weekday assignment is an outbox write —
+                            // the same on-disk queue the weigh-in and gate rows use, with a
+                            // drainer over THIS hub provider so a reachable hub still confirms
+                            // in-tap. `try?`: no queue (unwritable DB) must not cost the tab, it
+                            // only costs offline durability, which `assignSession` says out loud.
+                            let outbox = try? Outbox(db: .onDisk())
+                            trainingModel = TrainingViewModel(
+                                provider: provider, healthProvider: store.provider, cache: env.cache,
+                                outbox: outbox,
+                                drainer: outbox.map { OutboxDrainer(outbox: $0, hub: store.provider) },
+                                now: Date.init
+                            )
                             if let templates = store.provider as? any WorkoutTemplatesProviding {
                                 let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
                                 sendToWatchModel = SendToWatchViewModel(provider: templates, sender: sender, openSettings: {

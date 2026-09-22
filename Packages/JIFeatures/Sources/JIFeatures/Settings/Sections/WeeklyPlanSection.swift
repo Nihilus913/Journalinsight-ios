@@ -10,6 +10,7 @@ public struct WeeklyPlanSection: SettingsSection {
     public let title = "Weekly plan"
     public let systemImage = "calendar"
     public let sortKey = SettingsSortKey.preferences + 30
+    public let group = SettingsGroupId.home
     public init() {}
     public var body: some View { WeeklyPlanSectionRows() }
 }

@@ -9,6 +9,7 @@ public struct LocalMirrorsSection: SettingsSection {
     public let title = "Local data mirrors"
     public let systemImage = "internaldrive"
     public let sortKey = SettingsSortKey.data + 20
+    public let group = SettingsGroupId.sync
     public init() {}
     public var body: some View { LocalMirrorsSectionRows() }
 }
