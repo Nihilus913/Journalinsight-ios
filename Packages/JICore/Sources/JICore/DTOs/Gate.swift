@@ -6,6 +6,25 @@ public struct GateAverages: Codable, Sendable, Equatable {
     public var avgKcal7d, avgProtein7d, avgWeightKg, avgRhrBpm, sleepScore7d, acwr: Double?
     public var avgBodyBattery, avgKcalBurned7d, avgKcalDeficit7d, estWeeklyWeightChangeKg: Double?
     public var trends: [String: String]
+
+
+    // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
+    // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
+    // gets its first letter upper-cased on the join (`avg_kcal_7d` -> `avgKcal7D`). An explicit raw
+    // value must therefore be the MANGLED spelling, never the wire string (verified against a real
+    // `Foundation.JSONDecoder`; `DailyKpiRow`'s custom `init(from:)` below is the existing idiom).
+    // Adding one case obliges us to list every stored property, so the rest are bare cases whose
+    // default raw value already equals what the strategy produces.
+    enum CodingKeys: String, CodingKey {
+        case avgKcal7d = "avgKcal7D"
+        case avgProtein7d = "avgProtein7D"
+        case avgWeightKg, avgRhrBpm
+        case sleepScore7d = "sleepScore7D"
+        case acwr, avgBodyBattery
+        case avgKcalBurned7d = "avgKcalBurned7D"
+        case avgKcalDeficit7d = "avgKcalDeficit7D"
+        case estWeeklyWeightChangeKg, trends
+    }
 }
 
 /// One row of the gate's daily table. Keys stay snake_case on purpose (kpiGate parity — rule metric

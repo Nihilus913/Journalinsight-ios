@@ -28,6 +28,20 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     /// for the REAL day instead. A hub that predates the route still decodes (both nil).
     public var isStale: Bool?
     public var sessionForToday: String?
+
+
+    // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
+    // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
+    // gets its first letter upper-cased on the join (`carbs_3d_avg` -> `carbs3DAvg`). An explicit raw
+    // value must therefore be the MANGLED spelling, never the wire string (verified against a real
+    // `Foundation.JSONDecoder`; `DailyKpiRow`'s custom `init(from:)` below is the existing idiom).
+    // Adding one case obliges us to list every stored property, so the rest are bare cases whose
+    // default raw value already equals what the strategy produces.
+    enum CodingKeys: String, CodingKey {
+        case todayActivities, verdict, verdictDate, experiment
+        case carbs3dAvg = "carbs3DAvg"
+        case carbWatchFloor, hrvSeries, isStale, sessionForToday
+    }
 }
 public struct MorningVerdict: Codable, Sendable, Equatable {
     public var date, verdict: String
