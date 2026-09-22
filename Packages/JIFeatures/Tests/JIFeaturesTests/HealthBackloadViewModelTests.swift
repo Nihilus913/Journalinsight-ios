@@ -129,3 +129,28 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     await model.start()
     #expect(model.screenState == .loaded)
 }
+
+/// B-39: the runner reports progress only AFTER each month chunk (JICore contract), so between a
+/// granted authorization and the first tick the VM must not still say "authorizing" — under a
+/// writer upgrade the first chunk re-walks the whole history and that read as a hang on device.
+@Test @MainActor func backloadLeavesAuthorizingBeforeTheFirstProgressTick() async {
+    final class PhaseProbe: BackloadRunning, @unchecked Sendable {
+        var phaseSeenInRun: HealthBackloadViewModel.Phase?
+        var isRunningSeenInRun: Bool?
+        var vm: HealthBackloadViewModel?
+        func authorize() async throws {}
+        func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {
+            phaseSeenInRun = await vm?.phase
+            isRunningSeenInRun = await vm?.isRunning
+            return BackloadSummary(written: 0, skipped: 0, failed: [])
+        }
+    }
+    let probe = PhaseProbe()
+    let vm = HealthBackloadViewModel(runner: probe)
+    probe.vm = vm
+    await vm.start()
+    #expect(probe.phaseSeenInRun == .starting)
+    #expect(probe.isRunningSeenInRun == true)
+    #expect(vm.phase == .done(BackloadSummary(written: 0, skipped: 0, failed: [])))
+}
+
