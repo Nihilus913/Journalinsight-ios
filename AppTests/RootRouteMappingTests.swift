@@ -23,3 +23,66 @@ import Foundation
     let fromDeepLink = RootRoute.destination(for: .kpiDetail(metric: "rhr"))
     #expect(fromDeepLink == fromChipTap)
 }
+
+// MARK: - B-55 per-tab routing seam (the rapid-tap crash)
+
+@Test func b55PushLandsOnTheOwningTabsStackOnly() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let pushed1 = router.push(.kpiDetail(metric: "hrv"), now: t0)
+    #expect(pushed1)
+    #expect(router.path(for: .today) == [.kpiDetail(metric: "hrv")])
+    for tab in RootTab.allCases where tab != .today { #expect(router.path(for: tab).isEmpty) }
+}
+
+@Test func b55KpiRoutesAndDeepLinksAreOwnedByToday() {
+    #expect(TabRouter.owner(of: .kpiDetail(metric: "rhr")) == .today)
+    #expect(TabRouter.owner(of: .kpiList) == .today)
+    let route = RootRoute.destination(for: .kpiDetail(metric: "rhr"))!
+    #expect(TabRouter.owner(of: route) == .today)
+}
+
+@Test func b55RapidSecondPushInsideOnePushAnimationIsDropped() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let pushed2 = router.push(.kpiDetail(metric: "hrv"), now: t0)
+    #expect(pushed2)
+    // Two different tiles tapped back-to-back: the second must not append inside the same update.
+    let pushed3 = router.push(.kpiDetail(metric: "rhr"), now: t0)
+    #expect(!pushed3)
+    let pushed4 = router.push(.kpiDetail(metric: "rhr"), now: t0.addingTimeInterval(TabRouter.reentryInterval / 2))
+    #expect(!pushed4)
+    #expect(router.path(for: .today) == [.kpiDetail(metric: "hrv")])
+    let pushed5 = router.push(.kpiDetail(metric: "rhr"), now: t0.addingTimeInterval(TabRouter.reentryInterval + 0.01))
+    #expect(pushed5)
+    #expect(router.path(for: .today) == [.kpiDetail(metric: "hrv"), .kpiDetail(metric: "rhr")])
+}
+
+@Test func b55DoubleTapOnTheSameTileNeverStacksTheRouteTwice() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let pushed6 = router.push(.kpiDetail(metric: "hrv"), now: t0)
+    #expect(pushed6)
+    let pushed7 = router.push(.kpiDetail(metric: "hrv"), now: t0.addingTimeInterval(5))
+    #expect(!pushed7)
+    #expect(router.path(for: .today).count == 1)
+}
+
+@Test func b55StackPopIsWrittenBackAndPushWorksAgainAfterward() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    router.push(.kpiDetail(metric: "hrv"), now: t0)
+    router.setPath([], for: .today)                       // system back button
+    #expect(router.path(for: .today).isEmpty)
+    let pushed8 = router.push(.kpiDetail(metric: "hrv"), now: t0.addingTimeInterval(1))
+    #expect(pushed8)
+    #expect(router.path(for: .today) == [.kpiDetail(metric: "hrv")])
+}
+
+@Test func b55ABackwardsClockNeverLocksPushesOut() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    router.push(.kpiDetail(metric: "hrv"), now: t0)
+    let pushed9 = router.push(.kpiDetail(metric: "rhr"), now: t0.addingTimeInterval(-60))
+    #expect(pushed9)
+}

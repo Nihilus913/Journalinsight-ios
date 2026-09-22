@@ -83,7 +83,8 @@ struct RootTabView: View {
     @State private var journalVault: VaultManager?
     @State private var journalModel: JournalViewModel?
     @State private var selectedTab: RootTab = .today
-    @State private var path: [RootRoute] = []
+    /// B-55: one push path PER TAB (see `TabRouter`) — there is no root `NavigationStack`.
+    @State private var router = TabRouter()
     // W7-L3 (P-healthkit-t2-provider): every model above that was built from `store.provider`
     // captured that provider at init, so flipping the debug data-source toggle (Settings → Data
     // source) swapped `ProviderStore.provider` while Today/Recovery/Energy/Nutrition/Training
@@ -112,66 +113,43 @@ struct RootTabView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            // W2a TabTransition fix for the W1 hard cut (CONTEXT-IOS-FOUNDATION.md §Step 4): a
-            // native `TabView` can only ever have ONE Tab's own content mounted at a time, so
-            // content living strictly *inside* a `Tab`'s body can never crossfade with a sibling
-            // Tab's content — there is no frame where both exist to interpolate between. The real
-            // screens instead live in this `TabTransition` layer, drawn *behind* the TabView in the
-            // ZStack; the TabView on top keeps design decision #7's native tab bar chrome (visible,
-            // tappable, safe-area-correct) while its own per-tab content is `Color.clear` with hit
-            // testing disabled, so every tap/scroll/pull-to-refresh above the bar passes straight
-            // through to the real, crossfading content behind it.
-            ZStack {
-                TabTransition(selection: selectedTab, content: tabContent)
-                TabView(selection: $selectedTab) {
-                    ForEach(RootTab.firstLevel) { tab in
-                        Tab(tab.title, systemImage: tab.symbol, value: tab) {
-                            transparentTabContent
-                        }
-                        .accessibilityIdentifier(tab.accessibilityIdentifier)
-                        .accessibilityLabel(tab.title)
+        // B-55: NO root `NavigationStack` around the shell. It used to wrap this whole ZStack with
+        // a bound path while the search-role Tab and More ran their own stacks nested under it —
+        // once Search had been mounted, any root path change (a KPI push or its pop) trapped in
+        // `NavigationColumnState.boundPathChange` (`AnyNavigationPath.Error.comparisonTypeMismatch`),
+        // and push-then-tab-switch looped the nested navigation controllers' inset layout (the
+        // device hang-kill). Each tab now owns its stack (`tabStack`), side by side, never nested.
+        // W2a TabTransition fix for the W1 hard cut (CONTEXT-IOS-FOUNDATION.md §Step 4): a
+        // native `TabView` can only ever have ONE Tab's own content mounted at a time, so
+        // content living strictly *inside* a `Tab`'s body can never crossfade with a sibling
+        // Tab's content — there is no frame where both exist to interpolate between. The real
+        // screens instead live in this `TabTransition` layer, drawn *behind* the TabView in the
+        // ZStack; the TabView on top keeps design decision #7's native tab bar chrome (visible,
+        // tappable, safe-area-correct) while its own per-tab content is `Color.clear` with hit
+        // testing disabled, so every tap/scroll/pull-to-refresh above the bar passes straight
+        // through to the real, crossfading content behind it.
+        ZStack {
+            TabTransition(selection: selectedTab, content: tabContent)
+            TabView(selection: $selectedTab) {
+                ForEach(RootTab.firstLevel) { tab in
+                    Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                        transparentTabContent
                     }
-                    // B-46 device feedback 11: the Journal + `.searchable` live INSIDE the real
-                    // search-role Tab's content (not the pass-through `TabTransition` layer), so
-                    // iOS 27 binds the field to this Tab and the bar morphs into it on selection.
-                    // The pass-through layer renders nothing for `.search` (see `tabContent`).
-                    Tab(value: RootTab.search, role: .search) {
-                        searchTab
-                    }
-                    .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
+                    .accessibilityIdentifier(tab.accessibilityIdentifier)
+                    .accessibilityLabel(tab.title)
                 }
-                .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
+                // B-46 device feedback 11: the Journal + `.searchable` live INSIDE the real
+                // search-role Tab's content (not the pass-through `TabTransition` layer), so
+                // iOS 27 binds the field to this Tab and the bar morphs into it on selection.
+                // The pass-through layer renders nothing for `.search` (see `tabContent`).
+                Tab(value: RootTab.search, role: .search) {
+                    searchTab
+                }
+                .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
             }
-            .background(theme.color(.bg))
-            // W2i: the connection sheet used to be reachable only before a hub was configured or
-            // from the Today error card — once connected, Settings (incl. the Health backload)
-            // had no entry point. Keep it one tap away from every tab.
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    // B-46 device feedback 10 (CRASH, reproduced on the sim — .ips trace
-                    // `NavigationColumnState.boundPathChange(to:environment:)` →
-                    // `swift_unexpectedError`): appending to the ROOT stack's path while a tab
-                    // that owns its own `NavigationStack` (the search Tab's Journal) is on screen
-                    // traps inside SwiftUI's column state. My KPIs is a modal presentation now,
-                    // so it never mutates a path another column is driving.
-                    Button { showKpiList = true } label: { Image(systemName: "list.bullet.rectangle") }
-                        .accessibilityLabel("My KPIs")
-                        .accessibilityIdentifier("root.kpis")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Settings")
-                        .accessibilityIdentifier("root.settings")
-                }
-            }
-            .navigationDestination(for: RootRoute.self) { route in
-                switch route {
-                case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
-                case .kpiList: kpiListDestination
-                }
-            }
+            .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
+        .background(theme.color(.bg))
         // B-33 §8.0: the whole shell renders in the native language; §5: tab/selection tint is
         // the personalization accent resolved for `.native`.
         .jiTheme(.native)
@@ -257,8 +235,53 @@ struct RootTabView: View {
             .allowsHitTesting(false)
     }
 
+    /// B-55: the pass-through layer's content — every content tab inside its own stack.
     @ViewBuilder
     private func tabContent(_ tab: RootTab) -> some View {
+        switch tab {
+        // B-46 item 11: the search Tab owns its own content (and stack) — nothing behind it.
+        case .search: Color.clear
+        default: tabStack(tab) { tabRoot(tab) }
+        }
+    }
+
+    /// B-55: one `NavigationStack` per tab, bound to that tab's slice of `router`, carrying the
+    /// shell chrome (My KPIs + Settings) and the `RootRoute` destinations. Stacks are siblings —
+    /// the only other stacks on screen are the search Tab's and modal sheets', never an ancestor.
+    private func tabStack<Content: View>(_ tab: RootTab, @ViewBuilder content: () -> Content) -> some View {
+        NavigationStack(path: Binding(get: { router.path(for: tab) }, set: { router.setPath($0, for: tab) })) {
+            content()
+                .toolbar { shellToolbar }
+                .navigationDestination(for: RootRoute.self) { route in
+                    switch route {
+                    case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
+                    case .kpiList: kpiListDestination
+                    }
+                }
+        }
+    }
+
+    // W2i: the connection sheet used to be reachable only before a hub was configured or from the
+    // Today error card — once connected, Settings (incl. the Health backload) had no entry point.
+    // Keep it one tap away from every tab.
+    @ToolbarContentBuilder
+    private var shellToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            // B-46 device feedback 10: My KPIs is a modal presentation, never a push (the first
+            // trigger of the B-55 trap; the per-tab stacks above removed the shape underneath it).
+            Button { showKpiList = true } label: { Image(systemName: "list.bullet.rectangle") }
+                .accessibilityLabel("My KPIs")
+                .accessibilityIdentifier("root.kpis")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                .accessibilityLabel("Settings")
+                .accessibilityIdentifier("root.settings")
+        }
+    }
+
+    @ViewBuilder
+    private func tabRoot(_ tab: RootTab) -> some View {
         switch tab {
         case .today: todayTab
         case .journal: journalTab
@@ -267,7 +290,6 @@ struct RootTabView: View {
         case .nutrition: nutritionTab
         case .training: trainingTab
         case .more: moreTab
-        // B-46 item 11: the search Tab owns its own content now — nothing behind it.
         case .search: Color.clear
         }
     }
@@ -311,34 +333,31 @@ struct RootTabView: View {
     // reachable even before a hub connection exists, unlike every W3a tab above.
     @ViewBuilder
     private var journalTab: some View {
-        NavigationStack {
-            if let journalModel {
-                JournalView(model: journalModel)
-            } else {
-                ProgressView()
-                    .task {
-                        let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
-                        let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
-                        guard let db else { return }
-                        journalModel = JournalViewModel(db: db, vault: vault)
-                    }
-            }
+        if let journalModel {
+            JournalView(model: journalModel)
+        } else {
+            ProgressView()
+                .task {
+                    let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+                    let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
+                    guard let db else { return }
+                    journalModel = JournalViewModel(db: db, vault: vault)
+                }
         }
     }
 
     /// B-46 device feedback 1: our own "More" — the two tabs that no longer fit the bar. A plain
     /// inset-grouped list, so the screens behind it are the same `nutritionTab`/`energyTab` views.
     @ViewBuilder
+    /// B-55: rendered inside More's own `tabStack`, so the links push there.
     private var moreTab: some View {
-        NavigationStack {
-            List {
-                NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
-                    .accessibilityIdentifier("more.nutrition")
-                NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
-                    .accessibilityIdentifier("more.energy")
-            }
-            .navigationTitle("More")
+        List {
+            NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
+                .accessibilityIdentifier("more.nutrition")
+            NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
+                .accessibilityIdentifier("more.energy")
         }
+        .navigationTitle("More")
     }
 
     @ViewBuilder
@@ -376,6 +395,7 @@ struct RootTabView: View {
                             Text(tag).tag(tag)
                         }
                     }
+                    .toolbar { shellToolbar }
             } else {
                 ProgressView()
                     .task {
@@ -544,20 +564,20 @@ struct RootTabView: View {
         }
     }
 
+    /// B-55: routed into Today's own stack; a second tap inside one push animation is dropped.
     private func pushKpiDetail(_ metric: String) {
-        let route = RootRoute.kpiDetail(metric: metric)
-        if path.last != route { path.append(route) }
+        router.push(.kpiDetail(metric: metric))
     }
 
     /// Entry point for `JournalInsightApp`'s `.onOpenURL` — resolves a parsed `DeepLink` into a
-    /// tab focus + optional `NavigationPath` push via the pure `RootRoute.destination(for:)`
-    /// mapping seam (`DeepLink.swift`). `.gate` has no detail screen yet, so it only focuses
-    /// Today; `.kpiDetail` pushes the same stub a chip tap would, deduped against the current
-    /// top of stack so re-opening an identical deep link doesn't stack duplicate destinations.
+    /// tab focus + optional push via the pure `RootRoute.destination(for:)` mapping seam
+    /// (`DeepLink.swift`). `.gate` has no detail screen yet, so it only focuses Today;
+    /// `.kpiDetail` pushes the same route a chip tap would onto the route's owning tab (Today),
+    /// deduped against its top of stack and the in-flight push guard (`TabRouter.push`).
     func handle(_ link: DeepLink) {
-        selectedTab = .today
-        guard let route = RootRoute.destination(for: link) else { return }
-        if path.last != route { path.append(route) }
+        guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
+        selectedTab = TabRouter.owner(of: route)
+        router.push(route)
     }
 }
 
