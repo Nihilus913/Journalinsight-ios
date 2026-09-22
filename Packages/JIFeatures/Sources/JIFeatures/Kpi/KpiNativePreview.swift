@@ -73,10 +73,10 @@ struct KpiDetailNativePreview: View {
                 TrendChart(points: Array(L5KpiFixtures.history.suffix(range.days)),
                            tint: theme.color(.info), unit: "ms", range: $range, showAll: nil)
             }
-            JISectionHeader("Target threshold")
+            JISectionHeader(kpiDetailPreviewAlertHeader)
             Surface {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("hrv_weekly_avg >= …").jiFont(.footnote).foregroundStyle(theme.color(.mutedNested))
+                    Text(kpiDetailPreviewThresholdSentence).jiFont(.footnote).foregroundStyle(theme.color(.mutedNested))
                     HStack(spacing: 10) {
                         TextField("Threshold", text: $thresholdText).textFieldStyle(.roundedBorder)
                         Button("Save") {}.buttonStyle(.bordered).tint(theme.color(.info))
@@ -91,3 +91,10 @@ struct KpiDetailNativePreview: View {
         .background(theme.color(.bg))
     }
 }
+
+
+/// B-46 item 4 (fixer): the Gallery's KPI-detail mock renders the SAME copy as the shipped screen
+/// — the sweep PNG showed the raw `hrv_weekly_avg >= …` key long after `KpiDetailView` was fixed.
+/// Exposed as constants so a host test can assert them without rendering SwiftUI.
+nonisolated let kpiDetailPreviewAlertHeader = "Alert"
+nonisolated let kpiDetailPreviewThresholdSentence = kpiThresholdSentence(metricLabel: "HRV", operator: ">=")

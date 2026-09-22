@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import JICore
 import JIPersistence
+import JIDesign
 @testable import JIFeatures
 
 /// W-B46 / L1 — one test per defect Toby found on the device, written from the reproduction on
@@ -229,4 +230,51 @@ private func makeB45VM(
     #expect(planWeekdayName(6) == "Sunday")
     #expect(planWeekdayName(7) == nil)
     #expect(planWeekdayName(nil) == nil)
+}
+
+// MARK: - Item 3 (fixer): the as-of day was COMPUTED but never RENDERED
+
+/// The first fix stopped at the view model: `TodayChip.asOf` said "as of Sep 15" and `TodayGrid`
+/// then built its `StatChip` without it, so the device still showed a week-old HRV as today's.
+/// `todayStatChip(for:action:)` is the single seam the grid now goes through, and this asserts the
+/// field survives it — a regression here fails the suite instead of shipping a silent stale number.
+@Test @MainActor func todayStatChipRendersTheAsOfDayTheChipCarries() {
+    let stale = TodayChip(id: "hrv", label: "HRV", value: 28, unit: "ms", points: [28], sourceMissing: false, asOf: "as of Sep 15")
+    let chip = todayStatChip(for: stale, action: nil)
+    #expect(chip.asOf == "as of Sep 15")
+    #expect(chip.asOfIdentifier == "today.chip.hrv.as-of")
+    // …and VoiceOver says it too, rather than announcing the number bare.
+    #expect(statChipAccessibilityLabel(label: "HRV", numeral: "28", unit: "ms", showsUnit: true,
+                                       sourceMissing: false, asOf: "as of Sep 15").contains("as of Sep 15"))
+
+    // A reading that IS today's stays clean — no dangling "as of" line.
+    let fresh = TodayChip(id: "hrv", label: "HRV", value: 61, unit: "ms", points: [61], sourceMissing: false, asOf: nil)
+    #expect(todayStatChip(for: fresh, action: nil).asOf == nil)
+}
+
+/// The two My-KPI cells under the hero (HRV 28 ms / Resting HR 62 bpm on the device) had no as-of
+/// concept at all. They now read `KpiMetrics.latest`, so the day comes with the number.
+@Test func myKpiCellsCarryTheDayTheirValueWasTakenOn() throws {
+    let days: [RecoveryDay] = [
+        decodeJSON(#"{"date":"2026-09-15","hrv_weekly_avg":28}"#, as: RecoveryDay.self),
+        decodeJSON(#"{"date":"2026-09-22"}"#, as: RecoveryDay.self),
+    ]
+    let latest = try #require(KpiMetrics.latest(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil))
+    #expect(latest.value == 28)
+    let asOf = try #require(kpiAsOfLabel(valueDate: latest.date, today: "2026-09-22"))
+    #expect(asOf.hasPrefix("as of "))
+    let label = todayKpiCellAccessibilityLabel(label: "HRV", value: latest.value, decimals: 0, unit: "ms", asOf: asOf)
+    #expect(label.contains("as of "))
+    // A same-day reading renders (and announces) no as-of line.
+    #expect(todayKpiCellAccessibilityLabel(label: "HRV", value: 61, decimals: 0, unit: "ms", asOf: nil) == "HRV 61 ms")
+    #expect(todayKpiCellAccessibilityLabel(label: "HRV", value: nil, decimals: 0, unit: "ms", asOf: nil) == "HRV, no data yet")
+}
+
+// MARK: - Item 4 (fixer): the Gallery copy of the KPI detail still showed the raw column key
+
+@Test func galleryKpiDetailUsesTheSameThresholdSentenceAsTheShippedScreen() {
+    #expect(kpiDetailPreviewAlertHeader == "Alert")
+    #expect(kpiDetailPreviewThresholdSentence == "Alert when HRV rises above")
+    #expect(!kpiDetailPreviewThresholdSentence.contains("_"))
+    #expect(!kpiDetailPreviewThresholdSentence.contains(">="))
 }
