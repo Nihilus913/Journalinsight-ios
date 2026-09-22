@@ -52,12 +52,20 @@ public struct KpiDetailView: View {
         let unit = model.def.unit
         let text = formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)")
         return Surface {
-            Text(text)
-                .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel(model.def.label)
-                .accessibilityValue(text)
-                .accessibilityIdentifier("kpi-detail-value")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text)
+                    .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
+                    .accessibilityLabel(model.def.label)
+                    .accessibilityValue(text)
+                    .accessibilityIdentifier("kpi-detail-value")
+                // B-46 item 3: a fallback reading is labelled with the day it came from, so an
+                // older number is never presented as today's.
+                if let asOf = model.asOfLabel {
+                    Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("kpi-detail-as-of")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -111,14 +119,20 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var editor: some View {
-        JISectionHeader("Target threshold")
+        // B-46 device feedback 4: the section used to be headed "Target threshold" over the raw
+        // `plan.kpi_target` row ("sleep_score_7d < … [55.00] Save"), which reads as "type your
+        // sleep score in here". The header is now what the rule DOES, and the line above the
+        // field is a sentence in the metric's own words — never the snake_case column key.
+        JISectionHeader("Alert")
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 if let target = model.target {
-                    Text("\(target.metric) \(target.operator) …").jiFont(.footnote).foregroundStyle(theme.color(.mutedNested))
+                    Text(kpiThresholdSentence(metricLabel: model.def.label, operator: target.operator))
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("kpi-detail-threshold-label")
                 }
                 HStack(spacing: 10) {
-                    TextField("Threshold", text: $thresholdText)
+                    TextField(model.def.unit.isEmpty ? "Threshold" : "Threshold (\(model.def.unit))", text: $thresholdText)
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif

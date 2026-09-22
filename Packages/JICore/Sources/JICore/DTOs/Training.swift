@@ -28,12 +28,25 @@ public struct DayExerciseSet: Codable, Sendable, Equatable {
     }
 }
 
+/// B-45 / W-B46 Contract: the `plan.plan_session` row whose `weekday` matches the requested
+/// date — the *planned* session, next to the *logged* sets `TrainingDayDetail` already carried.
+public struct PlannedSession: Codable, Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var name: String
+    public var weekday: Int
+    public init(id: Int, name: String, weekday: Int) { self.id = id; self.name = name; self.weekday = weekday }
+}
+
 public struct TrainingDayDetail: Codable, Sendable, Equatable {
     public var date: String
     public var activities: [DayActivity]
     public var exerciseSets: [DayExerciseSet]
-    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet]) {
+    /// Optional per the Contract: an older hub simply omits it and the day card falls back to
+    /// "logged only" rather than failing to decode the whole response.
+    public var plannedSession: PlannedSession?
+    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet], plannedSession: PlannedSession? = nil) {
         self.date = date; self.activities = activities; self.exerciseSets = exerciseSets
+        self.plannedSession = plannedSession
     }
 }
 
@@ -50,18 +63,28 @@ public struct Exercise: Codable, Sendable, Equatable {
     public var repsTarget: String?
     public var currentWeightKg: Double?
     public var progressionStepKg: Double?
+    /// B-45 / W-B46 Contract: `plan.plan_session.weekday`, Mon = 0 … Sun = 6. Optional twice
+    /// over — the column itself is nullable (an unassigned session) AND an old hub omits the key
+    /// entirely, which must not fail the decode of the whole plan.
+    public var weekday: Int?
+    /// The `plan_session` this exercise belongs to — the id `PUT /planning/plan-sessions/{id}`
+    /// takes. Optional for the same two reasons.
+    public var sessionId: Int?
 
     public init(
         exerciseId: Int, sessionName: String, exerciseName: String, sets: Int?,
-        repsTarget: String?, currentWeightKg: Double?, progressionStepKg: Double?
+        repsTarget: String?, currentWeightKg: Double?, progressionStepKg: Double?,
+        weekday: Int? = nil, sessionId: Int? = nil
     ) {
         self.exerciseId = exerciseId; self.sessionName = sessionName; self.exerciseName = exerciseName
         self.sets = sets; self.repsTarget = repsTarget
         self.currentWeightKg = currentWeightKg; self.progressionStepKg = progressionStepKg
+        self.weekday = weekday; self.sessionId = sessionId
     }
 
     private enum CodingKeys: String, CodingKey {
         case exerciseId, sessionName, exerciseName, sets, repsTarget, currentWeightKg, progressionStepKg
+        case weekday, sessionId
     }
 
     public init(from decoder: Decoder) throws {
@@ -72,6 +95,8 @@ public struct Exercise: Codable, Sendable, Equatable {
         sets = try c.decodeIfPresent(Int.self, forKey: .sets)
         currentWeightKg = try c.decodeIfPresent(Double.self, forKey: .currentWeightKg)
         progressionStepKg = try c.decodeIfPresent(Double.self, forKey: .progressionStepKg)
+        weekday = try c.decodeIfPresent(Int.self, forKey: .weekday)
+        sessionId = try c.decodeIfPresent(Int.self, forKey: .sessionId)
         // The wire value is free text ("6-12", "max", "10/side", "45s") but a few rows are plain
         // numeric JSON (e.g. "12") — try string first (the common case), fall back to a numeric
         // literal turned into its display string, else nil (never throw on a shape we can't use).
@@ -121,4 +146,33 @@ public struct ExerciseUpdateResult: Codable, Sendable, Equatable {
 public nonisolated func parseRepsTarget(_ raw: String?) -> Int? {
     guard let raw else { return nil }
     return Int(raw)
+}
+
+/// `PUT /api/v1/planning/plan-sessions/{id}` body / response (W-B46 Contract). Snake_case on the
+/// wire for the same reason `ExerciseUpdate` is: the provider encodes outgoing bodies with a
+/// plain `JSONEncoder()`.
+public struct PlanSessionWeekdayUpdate: Codable, Sendable, Equatable {
+    public var weekday: Int?
+    public init(weekday: Int?) { self.weekday = weekday }
+}
+
+public struct PlanSessionOut: Codable, Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var name: String
+    public var weekday: Int?
+    public init(id: Int, name: String, weekday: Int?) { self.id = id; self.name = name; self.weekday = weekday }
+}
+
+/// Mon = 0 … Sun = 6 (Python's `date.weekday()`, which is what `plan.plan_session.weekday` holds).
+/// `Calendar`'s `.weekday` component is Sun = 1 … Sat = 7, so the two need converting in one
+/// documented place rather than at every call site.
+public nonisolated func planWeekday(fromCalendarWeekday calendarWeekday: Int) -> Int {
+    (calendarWeekday + 5) % 7
+}
+
+public nonisolated let planWeekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+public nonisolated func planWeekdayName(_ weekday: Int?) -> String? {
+    guard let weekday, planWeekdayNames.indices.contains(weekday) else { return nil }
+    return planWeekdayNames[weekday]
 }

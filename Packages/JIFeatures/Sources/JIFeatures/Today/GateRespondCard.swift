@@ -197,13 +197,17 @@ public nonisolated enum GateRespondCopy {
 /// costs a second confirming tap.
 public struct GateRespondCard: View {
     @Bindable var model: GateRespondViewModel
+    /// B-42: `false` when the card is presented from `VerdictHeroView`'s sheet, whose own compact
+    /// action row already carries the 1–5 feel controls — two live copies of `today.feel.N` on
+    /// screen at once would make the identifier ambiguous for the sim smoke and for VoiceOver.
+    let showsFeelRow: Bool
     @Environment(\.jiTheme) private var theme
     @State private var reasonChoice: String?
     @State private var otherText = ""
-    @State private var undoArmed = false
-    @State private var disarmTask: Task<Void, Never>?
 
-    public init(model: GateRespondViewModel) { self.model = model }
+    public init(model: GateRespondViewModel, showsFeelRow: Bool = true) {
+        self.model = model; self.showsFeelRow = showsFeelRow
+    }
 
     private var overrideReason: String {
         reasonChoice == GateRespondCopy.otherReason ? otherText.trimmingCharacters(in: .whitespacesAndNewlines) : (reasonChoice ?? "")
@@ -222,7 +226,7 @@ public struct GateRespondCard: View {
                     .font(.caption2.weight(.semibold)).foregroundStyle(theme.color(.muted))
 
                 if model.responded {
-                    respondedRow
+                    GateRespondedRow(model: model)
                 } else if model.recommendation == .reduce {
                     overrideControls
                 } else {
@@ -234,48 +238,13 @@ public struct GateRespondCard: View {
                         .accessibilityIdentifier("today.gateRespond.error")
                 }
 
-                SessionFeelRow(model: model)
+                if showsFeelRow { SessionFeelRow(model: model) }
             }
             .padding(.top, 14)
             // Oracle: `hapticSaveSuccess()` once the response actually saved (false → true edge).
             .jiHaptic(.success, trigger: model.responded)
-            .jiHapticCue(.selection, trigger: undoArmed)   // W8-L1 (P-haptics) — oracle GateRespondCard.tsx:95 armUndo() → hapticSelection()
         }
     }
-
-    @ViewBuilder private var respondedRow: some View {
-        HStack {
-            Text("Logged: \(GateRespondCopy.choiceLabels[model.choice ?? .yes] ?? "")")
-                .font(.footnote.bold()).foregroundStyle(theme.color(.info))
-                .accessibilityIdentifier("today.gateRespond.logged")
-            if model.phase == .queued {
-                Text("PENDING SYNC").font(.caption2.bold()).foregroundStyle(theme.color(.reduced))
-                    .accessibilityIdentifier("today.gateRespond.pending")
-            }
-            Spacer()
-            if undoArmed {
-                HStack(spacing: 10) {
-                    Button("Undo?") { confirmUndo() }
-                        .font(.caption.bold()).foregroundStyle(theme.color(.reduced))
-                        .buttonStyle(.pressableScale)
-                        .accessibilityLabel("Confirm undo")
-                        .accessibilityIdentifier("today.gateRespond.undoConfirm")
-                    Button("Keep") { cancelUndo() }
-                        .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
-                        .buttonStyle(.pressableScale)
-                        .accessibilityLabel("Keep this response")
-                        .accessibilityIdentifier("today.gateRespond.undoKeep")
-                }
-            } else {
-                Button("Undo") { armUndo() }
-                    .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
-                    .buttonStyle(.pressableScale)
-                    .accessibilityLabel("Undo this response")
-                    .accessibilityIdentifier("today.gateRespond.undo")
-            }
-        }
-    }
-
     @ViewBuilder private var plainControls: some View {
         HStack(spacing: 10) {
             Button("Yes") { Task { await model.respond(choice: .yes) } }
@@ -345,6 +314,53 @@ public struct GateRespondCard: View {
             .foregroundStyle(theme.color(.text)).font(.footnote.weight(.semibold))
             .accessibilityLabel("Skip")
             .accessibilityIdentifier("today.gateRespond.skip")
+    }
+
+}
+
+/// B-42: the one-liner a answered recommendation collapses to — its own view so both the card and
+/// `VerdictHeroView`'s compact action row show the same row (and the same asymmetric
+/// confirm-on-reversal Undo) without either owning the other's state.
+public struct GateRespondedRow: View {
+    @Bindable var model: GateRespondViewModel
+    @Environment(\.jiTheme) private var theme
+    @State private var undoArmed = false
+    @State private var disarmTask: Task<Void, Never>?
+
+    public init(model: GateRespondViewModel) { self.model = model }
+
+    public var body: some View {
+        HStack {
+            Text("Logged: \(GateRespondCopy.choiceLabels[model.choice ?? .yes] ?? "")")
+                .font(.footnote.bold()).foregroundStyle(theme.color(.info))
+                .accessibilityIdentifier("today.gateRespond.logged")
+            if model.phase == .queued {
+                Text("PENDING SYNC").font(.caption2.bold()).foregroundStyle(theme.color(.reduced))
+                    .accessibilityIdentifier("today.gateRespond.pending")
+            }
+            Spacer()
+            if undoArmed {
+                HStack(spacing: 10) {
+                    Button("Undo?") { confirmUndo() }
+                        .font(.caption.bold()).foregroundStyle(theme.color(.reduced))
+                        .buttonStyle(.pressableScale)
+                        .accessibilityLabel("Confirm undo")
+                        .accessibilityIdentifier("today.gateRespond.undoConfirm")
+                    Button("Keep") { cancelUndo() }
+                        .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
+                        .buttonStyle(.pressableScale)
+                        .accessibilityLabel("Keep this response")
+                        .accessibilityIdentifier("today.gateRespond.undoKeep")
+                }
+            } else {
+                Button("Undo") { armUndo() }
+                    .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
+                    .buttonStyle(.pressableScale)
+                    .accessibilityLabel("Undo this response")
+                    .accessibilityIdentifier("today.gateRespond.undo")
+            }
+        }
+        .jiHapticCue(.selection, trigger: undoArmed)   // W8-L1 (P-haptics) — oracle GateRespondCard.tsx:95 armUndo() → hapticSelection()
     }
 
     private func armUndo() {

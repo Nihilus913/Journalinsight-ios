@@ -35,10 +35,16 @@ public struct TodayView: View {
                     // readiness field (nil when the hub itself has no score yet); a real "source doesn't
                     // support this metric" case awaits W2+'s additional providers.
                     AdaptiveHStack {
-                        VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false, gateRespondModel: gateRespondModel)
+                        VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false,
+                                        sleepScore: chip("sleep")?.value, load: latestAcwr,
+                                        insight: InsightSentence.build(gate: model.gate, morning: model.morning),
+                                        gateRespondModel: gateRespondModel)
                         ringsRow
                     }
                     TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+                    // B-42: Apple Fitness's Trends block, computed client-side over the series
+                    // already cached for this screen — no hub round-trip, no new route.
+                    TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
@@ -61,42 +67,95 @@ public struct TodayView: View {
         .animation(JIMotion.standard, value: model.phase)
     }
 
-    /// §4b: Today gets the hero arc plus exactly two small rings — Sleep score (0–100) and Steps
-    /// against the day's goal. Never HRV / RHR / ACWR (baseline-relative; they stay chips).
+    /// §4b + B-42: the hero's ring trio, then exactly two small rings — no longer hard-wired to
+    /// Sleep/Steps but the user's own first two "My KPIs" (`KpiSelection`, the same `PrefStore`
+    /// selection the KPI list writes), with live values.
+    ///
+    /// A KPI with no bounded scale (HRV, RHR, ACWR, weight, macros — §4b: never a ring, they are
+    /// baseline-relative) renders as a value tile instead of a ring, rather than being forced onto
+    /// an invented 0–100 axis.
     @ViewBuilder
     private var ringsRow: some View {
-        let sleep = model.chips.first { $0.id == "sleep" }
-        let steps = model.chips.first { $0.id == "steps" }
         Surface(level: 1) {
             // A ring pair is fixed-width art: `Columns` drops it to one-up at AX sizes rather than
             // pushing the composition wider (§8.1 "reflows, never clips").
             Columns(minimum: 96, spacing: 16) {
-                ring(label: "Sleep", value: sleep?.value, max: 100, tint: theme.color(.sleep), sourceMissing: sleep?.sourceMissing ?? false)
-                ring(label: "Steps", value: steps?.value, max: todayStepsGoal, tint: theme.color(.reduced), sourceMissing: steps?.sourceMissing ?? false)
+                ForEach(myKpis, id: \.self) { id in
+                    let def = KpiMetrics.def(id)
+                    let latest = kpiLatest(id)
+                    kpiCell(def: def, value: latest?.value,
+                            asOf: kpiAsOfLabel(valueDate: latest?.date, today: todayDateString))
+                }
             }
             .frame(maxWidth: .infinity)
         }
     }
 
+    /// The first two selected "My KPIs", in the user's own rank order. Falls back to the default
+    /// selection when nothing is persisted yet (or no `PrefStore` is wired at this call site).
+    private var myKpis: [KpiMetricId] {
+        let saved = (try? model.tileOrderStore?.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)) ?? nil
+        return Array(KpiSelection.visibleOrder(KpiSelection.reconcile(saved)).prefix(2))
+    }
+
+    /// Live value for a KPI, from the sections Today already holds. Nutrition-sourced KPIs
+    /// (kcal/protein/carbs/fat) read `[]` here — this screen never fetches the nutrition week —
+    /// so they show their "No data yet" state rather than a stale number.
+    private func kpiValue(_ id: KpiMetricId) -> Double? { kpiLatest(id)?.value }
+
+    /// B-46 item 3 (fixer): the value AND the day it was actually taken on, so a week-old HRV is
+    /// never presented as today's reading (the same `KpiMetrics.latest` the KPI detail screen uses).
+    private func kpiLatest(_ id: KpiMetricId) -> (value: Double, date: String)? {
+        KpiMetrics.latest(for: id, recovery: model.recovery, nutrition: [],
+                          dailyRows: model.gate?.daily ?? [], gateAverages: model.gate?.averages)
+    }
+
+    private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
+
+    private func chip(_ id: String) -> TodayChip? { model.chips.first { $0.id == id } }
+
+    /// Newest non-null ACWR — the hero trio's Load ring (`RecoveryDay.acwr`, the same field the
+    /// KPI screen reads).
+    private var latestAcwr: Double? {
+        model.recovery.sorted { $0.date > $1.date }.compactMap(\.acwr).first
+    }
+
     @ViewBuilder
-    private func ring(label: String, value: Double?, max: Double, tint: Color, sourceMissing: Bool) -> some View {
-        VStack(spacing: 6) {
-            if let value, !sourceMissing {
-                ScoreRing(value: value, max: max, tint: tint)
-            } else {
-                // Rule 5: never a zero ring for missing data.
-                ScoreRing(value: 0, max: max, tint: theme.color(.nested))
-                    .accessibilityHidden(true)
-            }
-            Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-            Text(value.map { todayRingValueText($0) } ?? "No data yet")
-                .jiFont(.footnote, weight: .semibold)
-                .foregroundStyle(value == nil ? theme.color(.muted) : theme.color(.text))
+    private func kpiCell(def: KpiMetricDef, value: Double?, asOf: String? = nil) -> some View {
+        Button { onSelectKpi(def.id.rawValue) } label: {
+            VStack(spacing: 6) {
+                if let max = todayKpiRingMax(def.id) {
+                    if let value {
+                        ScoreRing(value: value, max: max, tint: theme.color(todayKpiRingRole(def.id)))
+                    } else {
+                        // Rule 5: never a zero ring for missing data.
+                        ScoreRing(value: 0, max: max, tint: theme.color(.nested)).accessibilityHidden(true)
+                    }
+                }
+                Text(def.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(value.map { $0.formatted(.number.precision(.fractionLength(def.decimals))) } ?? "No data yet")
+                        .jiFont(.footnote, weight: .semibold)
+                        .foregroundStyle(value == nil ? theme.color(.muted) : theme.color(.text))
+                    if value != nil, !def.unit.isEmpty {
+                        Text(def.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    }
+                }
                 .lineLimit(1).minimumScaleFactor(0.6)
+                // B-46 item 3: a fallback reading names its own day — never silently "today".
+                if let asOf {
+                    Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue).as-of")
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.pressableScale)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(value.map { "\(label) \(todayRingValueText($0))" } ?? "\(label), no data yet")
+        .accessibilityLabel(todayKpiCellAccessibilityLabel(label: def.label, value: value, decimals: def.decimals, unit: def.unit, asOf: asOf))
+        .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue)")
     }
 
     private var loading: some View {
@@ -123,6 +182,26 @@ public struct TodayView: View {
     }
 }
 
+/// §4b: a Today ring is only ever drawn for a metric with a real, bounded scale — a 0–100 score or
+/// a count against a goal. Everything else (HRV, RHR, ACWR, weight, macros) is baseline-relative
+/// and stays a number, never a ring. `nil` = "no ring for this KPI".
+public nonisolated func todayKpiRingMax(_ id: KpiMetricId) -> Double? {
+    switch id {
+    case .sleep, .readiness, .bodyBattery: 100
+    case .steps: todayStepsGoal
+    case .hrv, .rhr, .acwr, .weight, .kcal, .protein, .carbs, .fat: nil
+    }
+}
+
+/// The ring tint per KPI — inside the non-reserved set (rule 6 keeps go/danger for the verdict).
+public nonisolated func todayKpiRingRole(_ id: KpiMetricId) -> JIColorRole {
+    switch id {
+    case .sleep: .sleep
+    case .steps: .info
+    default: .reduced
+    }
+}
+
 /// §4b: Steps is a bounded ring only against a goal. The hub carries no per-day step goal yet, so
 /// the ring uses the oracle's default target; a hub-supplied goal replaces this constant when one
 /// lands (P-goals).
@@ -131,4 +210,13 @@ public nonisolated let todayStepsGoal: Double = 8_000
 /// The number under a Today ring — a whole, grouped figure (a 0–100 score or a step count).
 public nonisolated func todayRingValueText(_ value: Double) -> String {
     value.formatted(.number.precision(.fractionLength(0)))
+}
+
+
+/// B-46 item 3 (fixer): the My-KPI cell's VoiceOver sentence, pure so a host test can assert the
+/// as-of day is announced and not merely computed.
+nonisolated func todayKpiCellAccessibilityLabel(label: String, value: Double?, decimals: Int, unit: String, asOf: String?) -> String {
+    guard let value else { return "\(label), no data yet" }
+    let number = value.formatted(.number.precision(.fractionLength(decimals)))
+    return [label, number, unit.isEmpty ? nil : unit, asOf].compactMap { $0 }.joined(separator: " ")
 }

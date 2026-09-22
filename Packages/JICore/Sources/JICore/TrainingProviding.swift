@@ -12,4 +12,20 @@ public protocol TrainingProviding: Sendable {
 
     /// `PATCH /api/v1/planning/exercises/{exercise_id}`
     func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult
+
+    /// `PUT /api/v1/planning/plan-sessions/{id}` (W-B46 Contract, B-45 (c)) — assigns a plan
+    /// session to a weekday (Mon = 0 … Sun = 6) or clears it with `nil`. Defaulted, so a provider
+    /// written before the route existed (fixtures, `MockDataProvider`) still conforms and simply
+    /// reports the feature as unavailable instead of pretending the write landed.
+    func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut
+}
+
+public extension TrainingProviding {
+    func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut {
+        throw PlanSessionUpdateUnavailable()
+    }
+}
+
+public struct PlanSessionUpdateUnavailable: Error, Sendable, Equatable {
+    public init() {}
 }

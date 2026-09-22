@@ -12,19 +12,22 @@ import JIWorkouts
 // the system search field + tag scopes on top). `journal` stays in the vocabulary (and in
 // `tabContent`) but is no longer one of the five — Energy is.
 enum RootTab: Hashable, Identifiable, CaseIterable {
-    case today, journal, recovery, energy, nutrition, training, search
+    case today, journal, recovery, energy, nutrition, training, search, more
 
     var id: Self { self }
 
-    /// The five content tabs the bar shows, in order. Exactly five, so iOS never folds one into
-    /// "More"; the Journal lives in the search-role Tab (`searchTab`).
-    static let firstLevel: [RootTab] = [.today, .recovery, .training, .nutrition, .energy]
+    /// B-46 device feedback 1 (Toby 2026-09-22): iOS 27 gives the bar five slots INCLUDING the
+    /// search role, so five content tabs + search folded Nutrition/Energy into a system "More"
+    /// the app did not control (reproduced on the iPhone 17 Pro sim, `repro-01-today.png`).
+    /// The bar is now four explicit icons — Today · Recovery · Training · More — plus the
+    /// search-role Tab that hosts the Journal; `More` is ours (Nutrition, Energy).
+    static let firstLevel: [RootTab] = [.today, .recovery, .training, .more]
 
     var title: String {
         switch self {
         case .today: "Today"; case .journal: "Journal"; case .recovery: "Recovery"
         case .energy: "Energy"; case .nutrition: "Nutrition"; case .training: "Training"
-        case .search: "Search"
+        case .search: "Search"; case .more: "More"
         }
     }
 
@@ -32,7 +35,7 @@ enum RootTab: Hashable, Identifiable, CaseIterable {
         switch self {
         case .today: "sun.max"; case .journal: "book.closed"; case .recovery: "heart"
         case .energy: "flame"; case .nutrition: "fork.knife"; case .training: "dumbbell"
-        case .search: "magnifyingglass"
+        case .search: "magnifyingglass"; case .more: "ellipsis"
         }
     }
 
@@ -52,6 +55,11 @@ struct RootTabView: View {
     // for the Backup row) the moment the sheet opens and dropped on dismiss so a saved hub
     // config or a changed KPI selection is re-read next time.
     @State private var showSettings = false
+    /// B-46 item 10: "My KPIs" is presented, never pushed — see the toolbar button's comment.
+    @State private var showKpiList = false
+    #if DEBUG
+    @State private var showDataQuality = false
+    #endif
     @State private var settingsModel: SettingsViewModel?
     @State private var todayModel: TodayViewModel?
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
@@ -85,6 +93,24 @@ struct RootTabView: View {
     @State private var providerRevision = 0
     @Environment(\.jiTheme) private var theme
 
+    /// B-46 (L1) dev affordance: `-start-tab <today|recovery|training|nutrition|energy|search|more>`
+    /// and `-push-route kpiList` let a scripted simulator run land on any screen without a tap, so
+    /// the device defects can be reproduced and screenshotted against the live hub. DEBUG only.
+    static func launchArgumentTab(_ arguments: [String] = CommandLine.arguments) -> RootTab? {
+        guard let i = arguments.firstIndex(of: "-start-tab"), arguments.index(after: i) < arguments.endIndex else { return nil }
+        return RootTab.allCases.first { String(describing: $0) == arguments[arguments.index(after: i)] }
+    }
+
+    static func launchArgumentRoute(_ arguments: [String] = CommandLine.arguments) -> RootRoute? {
+        guard let i = arguments.firstIndex(of: "-push-route"), arguments.index(after: i) < arguments.endIndex else { return nil }
+        return arguments[arguments.index(after: i)] == "kpiList" ? RootRoute.kpiList : nil
+    }
+
+    static func launchArgumentPresentsDataQuality(_ arguments: [String] = CommandLine.arguments) -> Bool {
+        guard let i = arguments.firstIndex(of: "-push-route"), arguments.index(after: i) < arguments.endIndex else { return false }
+        return arguments[arguments.index(after: i)] == "dataQuality"
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             // W2a TabTransition fix for the W1 hard cut (CONTEXT-IOS-FOUNDATION.md §Step 4): a
@@ -106,9 +132,12 @@ struct RootTabView: View {
                         .accessibilityIdentifier(tab.accessibilityIdentifier)
                         .accessibilityLabel(tab.title)
                     }
-                    // B-33 §2b.4: the search-role Tab — hosts the Journal (`searchTab`).
+                    // B-46 device feedback 11: the Journal + `.searchable` live INSIDE the real
+                    // search-role Tab's content (not the pass-through `TabTransition` layer), so
+                    // iOS 27 binds the field to this Tab and the bar morphs into it on selection.
+                    // The pass-through layer renders nothing for `.search` (see `tabContent`).
                     Tab(value: RootTab.search, role: .search) {
-                        transparentTabContent
+                        searchTab
                     }
                     .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
                 }
@@ -120,8 +149,15 @@ struct RootTabView: View {
             // had no entry point. Keep it one tap away from every tab.
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { path.append(RootRoute.kpiList) } label: { Image(systemName: "list.bullet.rectangle") }
+                    // B-46 device feedback 10 (CRASH, reproduced on the sim — .ips trace
+                    // `NavigationColumnState.boundPathChange(to:environment:)` →
+                    // `swift_unexpectedError`): appending to the ROOT stack's path while a tab
+                    // that owns its own `NavigationStack` (the search Tab's Journal) is on screen
+                    // traps inside SwiftUI's column state. My KPIs is a modal presentation now,
+                    // so it never mutates a path another column is driving.
+                    Button { showKpiList = true } label: { Image(systemName: "list.bullet.rectangle") }
                         .accessibilityLabel("My KPIs")
+                        .accessibilityIdentifier("root.kpis")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
@@ -146,11 +182,32 @@ struct RootTabView: View {
             invalidateProviderScopedModels()
         }
         .onAppear { if env.needsConnection { showConnection = true } }
+        #if DEBUG
+        .onAppear {
+            if let tab = Self.launchArgumentTab() { selectedTab = tab }
+            if Self.launchArgumentRoute() == .kpiList {
+                Task { try? await Task.sleep(for: .seconds(3)); showKpiList = true }
+            }
+            if Self.launchArgumentPresentsDataQuality() {
+                Task { try? await Task.sleep(for: .seconds(3)); showDataQuality = true }
+            }
+        }
+        #endif
         .onAppear { if let link = pendingDeepLink { handle(link); pendingDeepLink = nil } }
         .onChange(of: pendingDeepLink) { _, link in
             guard let link else { return }
             handle(link)
             pendingDeepLink = nil
+        }
+        #if DEBUG
+        .sheet(isPresented: $showDataQuality) {
+            NavigationStack {
+                if let model = DataQualityAccess.shared.makeViewModel(cache: env.cache) { DataQualityView(model: model) } else { DataQualityUnavailableView() }
+            }
+        }
+        #endif
+        .sheet(isPresented: $showKpiList) {
+            NavigationStack { kpiListDestination.navigationTitle("My KPIs") }
         }
         .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil }) {
             if let settingsModel {
@@ -209,7 +266,9 @@ struct RootTabView: View {
         case .energy: energyTab
         case .nutrition: nutritionTab
         case .training: trainingTab
-        case .search: searchTab
+        case .more: moreTab
+        // B-46 item 11: the search Tab owns its own content now — nothing behind it.
+        case .search: Color.clear
         }
     }
 
@@ -264,6 +323,21 @@ struct RootTabView: View {
                         journalModel = JournalViewModel(db: db, vault: vault)
                     }
             }
+        }
+    }
+
+    /// B-46 device feedback 1: our own "More" — the two tabs that no longer fit the bar. A plain
+    /// inset-grouped list, so the screens behind it are the same `nutritionTab`/`energyTab` views.
+    @ViewBuilder
+    private var moreTab: some View {
+        NavigationStack {
+            List {
+                NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
+                    .accessibilityIdentifier("more.nutrition")
+                NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
+                    .accessibilityIdentifier("more.energy")
+            }
+            .navigationTitle("More")
         }
     }
 

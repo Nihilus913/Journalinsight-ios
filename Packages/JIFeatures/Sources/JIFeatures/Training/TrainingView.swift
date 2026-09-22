@@ -8,6 +8,8 @@ import JIDesign
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
     @State private var showSessionCoach = false
+    /// B-45 (c): the plan session whose weekday the assign sheet is editing; nil = sheet closed.
+    @State private var assigningSession: AssignWeekdaySheet.Session?
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -23,6 +25,14 @@ public struct TrainingView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // B-45 (a): the screen's own date is the REAL device day (mirrors
+                // `TodayView`), so Training never reads as "Monday" because the hub's last
+                // verdict was written on Monday. The hub's `verdict_date` stays where it
+                // belongs — inside the Readiness card, labelled as the verdict's date.
+                Text(model.todayDate.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                    .jiFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("training-date-header")
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -66,6 +76,19 @@ public struct TrainingView: View {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
         }
         #endif
+        // B-45 (c): "Assign to weekday" — one plan session, one weekday, one PUT.
+        .sheet(item: $assigningSession) { session in
+            AssignWeekdaySheet(
+                session: session,
+                isSaving: model.pendingSessionAssign.contains(session.id),
+                didFail: model.sessionAssignFailed.contains(session.id)
+            ) { weekday in
+                Task {
+                    await model.assignSession(sessionId: session.id, sessionName: session.name, weekday: weekday)
+                    if !model.sessionAssignFailed.contains(session.id) { assigningSession = nil }
+                }
+            }
+        }
     }
 
     private var loading: some View {
@@ -93,13 +116,21 @@ public struct TrainingView: View {
             // §8.1: the gate hero and the session-coach entry compose side by side in regular
             // width (Pro Max landscape, Stage Manager) and stack on an iPhone. Same two cards.
             AdaptiveHStack {
-                GateDetailCard(morning: model.morning, gate: model.gate)
+                GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
                 sessionCoachEntry
             }
             JISectionHeader("This day")
-            TrainingDayDetailCard(date: model.selectedDate, detail: model.dayDetail)
+            TrainingDayDetailCard(
+                date: model.selectedDate,
+                detail: model.dayDetail,
+                plannedSession: model.plannedSessionForSelectedDay
+            )
             JISectionHeader("Plan")
-            TrainingWeekStrip(exercises: model.exercises)
+            TrainingWeekStrip(
+                exercises: model.exercises,
+                highlightedWeekday: model.selectedPlanWeekday,
+                onAssign: { assigningSession = $0 }
+            )
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in
                 Task { await model.updateExercise(exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName, patch: patch) }
             }

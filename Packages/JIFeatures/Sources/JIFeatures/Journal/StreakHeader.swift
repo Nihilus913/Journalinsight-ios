@@ -7,20 +7,22 @@ public struct StreakHeader: View {
     let stats: JournalStreak.Stats
     public init(stats: JournalStreak.Stats) { self.stats = stats }
 
+    /// B-46 item 9: no `Surface` of its own — this renders as a row inside a `List` section,
+    /// whose inset-grouped background IS the card. (The Gallery/native previews put it in a
+    /// `Surface` themselves, so nothing loses its card.)
     public var body: some View {
-        Surface {
-            HStack {
-                stat("Current", "\(stats.current)")
+        HStack {
+            stat("Current", "\(stats.current)")
+            Spacer()
+            stat("Best", "\(stats.best)")
+            Spacer()
+            stat("This week", "\(stats.thisWeek)")
+            if let next = stats.nextMilestone {
                 Spacer()
-                stat("Best", "\(stats.best)")
-                Spacer()
-                stat("This week", "\(stats.thisWeek)")
-                if let next = stats.nextMilestone {
-                    Spacer()
-                    stat("Next", "\(next)")
-                }
+                stat("Next", "\(next)")
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func stat(_ label: String, _ value: String) -> some View {

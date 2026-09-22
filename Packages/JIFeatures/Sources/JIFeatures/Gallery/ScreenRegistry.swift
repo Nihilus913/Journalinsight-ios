@@ -27,6 +27,9 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Gate config") { L4Screens.gateConfig() },
         ScreenEntry(name: "Edit today") { L4Screens.editToday() },
 
+        // MARK: W-B46 L2 — B-42 Today components
+        ScreenEntry(name: "Trends card") { AnyView(TrendsCardNativePreview()) },
+
         // MARK: L5 — Training · Nutrition · Energy · KPI · Watch · Widgets (append-only)
         ScreenEntry(name: "Training") { AnyView(TrainingNativePreview()) },
         ScreenEntry(name: "Session coach") { AnyView(SessionCoachNativePreview()) },

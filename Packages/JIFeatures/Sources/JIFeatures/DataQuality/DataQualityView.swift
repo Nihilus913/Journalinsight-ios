@@ -34,7 +34,13 @@ public struct DataQualityView: View {
             }
         }
         .jiNativeFormChrome()
-        .readableColumn()
+        // B-46 item 5: `readableColumn()` puts a hard `frame(maxWidth: 720)` on whatever it wraps.
+        // On a `ScrollView`'s inner `VStack` (every other screen) that is a readable-width cap; on
+        // a `List` it OVERRIDES the list's own width, so at 393 pt the list laid out 720 pt wide
+        // and its rows were clipped away — exactly the "floating card on black, title + subtitle,
+        // no rows" Toby saw. A `List` already handles readable width per platform (§8.2); it does
+        // not need, and must not get, a fixed frame.
+
         .jiTheme(.native)
         // §5: the hand-drawn large title is the system's; the oracle's `ScreenHeader info=…`
         // copy becomes the navigation subtitle, verbatim.

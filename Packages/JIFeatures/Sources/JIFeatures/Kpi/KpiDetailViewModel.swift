@@ -65,7 +65,15 @@ public final class KpiDetailViewModel {
     }
 
     public var def: KpiMetricDef { KpiMetrics.def(metric) }
-    public var value: Double? { KpiMetrics.value(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages) }
+    public var value: Double? { latest?.value }
+    /// B-46 item 3: the latest NON-NULL reading and the day it came from.
+    public var latest: (value: Double, date: String)? {
+        KpiMetrics.latest(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+    }
+    /// "as of Sep 21" when the headline number is not from today; nil when it is (or when the
+    /// value is the weight average, which has no single day).
+    public var asOfLabel: String? { kpiAsOfLabel(valueDate: latest?.date, today: todayDateString) }
+    private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
     public var history: [(date: String, value: Double?)] { KpiMetrics.history(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows) }
 
     public func load() async {

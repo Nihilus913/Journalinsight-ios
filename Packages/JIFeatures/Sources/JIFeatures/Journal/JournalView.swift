@@ -28,7 +28,13 @@ public struct JournalView: View {
             Section { Disclaimer() }
         }
         .jiNativeFormChrome()
-        .readableColumn()
+        // B-46 item 5: `readableColumn()` puts a hard `frame(maxWidth: 720)` on whatever it wraps.
+        // On a `ScrollView`'s inner `VStack` (every other screen) that is a readable-width cap; on
+        // a `List` it OVERRIDES the list's own width, so at 393 pt the list laid out 720 pt wide
+        // and its rows were clipped away — exactly the "floating card on black, title + subtitle,
+        // no rows" Toby saw. A `List` already handles readable width per platform (§8.2); it does
+        // not need, and must not get, a fixed frame.
+
         .jiTheme(.native)
         .navigationTitle("Journal")
         .toolbar {
@@ -51,11 +57,13 @@ public struct JournalView: View {
             .accessibilityIdentifier("journal-new-entry")
     }
 
+    /// B-46 item 9: real Health-style sections — a named header over plain rows — instead of the
+    /// RN-era stack of unlabelled rounded cards the L6 migration carried over verbatim.
     @ViewBuilder
     private var loadedSections: some View {
-        Section { StreakHeader(stats: model.streak) }
-        Section { PromptsCard() }
-        Section { BehaviorCardDeck(store: BehaviorCardDeck.onDiskStore) }
+        Section { StreakHeader(stats: model.streak) } header: { Text("Streak") }
+        Section { PromptsCard() } header: { Text("Today's prompts") }
+        Section { BehaviorCardDeck(store: BehaviorCardDeck.onDiskStore) } header: { Text("Check-in") }
         // §8.1: the calendar composes beside the insights card in regular width and stacks in
         // compact — one layout tree, no second design. The entry rows stay real `List` rows
         // underneath (§2b.2) so the system gives them separators and swipe actions.
@@ -67,6 +75,8 @@ public struct JournalView: View {
                 )
                 InsightsCard(entries: model.entries)
             }
+        } header: {
+            Text("This month")
         }
 
         Section {

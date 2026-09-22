@@ -15,14 +15,36 @@ import Testing
     #expect(tabs.count == 5)
 }
 
-// B-33 §5/§2b.4 (lane L4): the bar is five content tabs + the iOS 27 search role, so Training is
-// a first-level tab and iOS never folds one into "More". Energy keeps its case (it is pushed
-// from the toolbar) but is deliberately not one of the five.
-@Test func firstLevelTabsAreFiveWithTrainingAmongThem() {
-    #expect(RootTab.firstLevel.count == 5)
-    #expect(RootTab.firstLevel.contains(.training))
+// B-46 device feedback 1 (Toby 2026-09-22): iOS 27 counts the search role against the bar's five
+// slots, so five content tabs + search folded two of them into a system "More". The bar is four
+// explicit icons — Today · Recovery · Training · More — plus the search Tab hosting the Journal.
+@Test func firstLevelTabsAreFourIconsEndingInOurOwnMore() {
+    #expect(RootTab.firstLevel == [.today, .recovery, .training, .more])
     #expect(!RootTab.firstLevel.contains(.search))
+    #expect(!RootTab.firstLevel.contains(.nutrition))
     #expect(!RootTab.firstLevel.contains(.energy))
-    #expect(Set(RootTab.firstLevel).count == 5)
     #expect(RootTab.firstLevel.map(\.accessibilityIdentifier).first == "tab.today")
+    #expect(RootTab.more.accessibilityIdentifier == "tab.more")
+}
+
+// Nutrition and Energy keep their cases: `moreTab` links straight to the same screens.
+@Test func moreTabHostsNutritionAndEnergy() {
+    #expect(RootTab.more.title == "More")
+    #expect(RootTab.nutrition.title == "Nutrition")
+    #expect(RootTab.energy.title == "Energy")
+}
+
+// B-46 device feedback 10: no deep link and no toolbar button may map to `.kpiList` as a ROOT
+// path push any more — the crash was `path.append(.kpiList)` from a tab with its own stack.
+@Test func noDeepLinkPushesTheKpiList() {
+    #expect(RootRoute.destination(for: .gate) == nil)
+    #expect(RootRoute.destination(for: .kpiDetail(metric: "hrv")) == .kpiDetail(metric: "hrv"))
+}
+
+@Test func launchArgumentsSelectATabAndTheKpiList() {
+    #expect(RootTabView.launchArgumentTab(["x", "-start-tab", "training"]) == .training)
+    #expect(RootTabView.launchArgumentTab(["x", "-start-tab", "nope"]) == nil)
+    #expect(RootTabView.launchArgumentTab(["x"]) == nil)
+    #expect(RootTabView.launchArgumentRoute(["x", "-push-route", "kpiList"]) == .kpiList)
+    #expect(RootTabView.launchArgumentRoute(["x"]) == nil)
 }

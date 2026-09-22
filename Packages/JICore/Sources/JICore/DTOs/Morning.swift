@@ -21,6 +21,13 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     public var carbs3dAvg: Double?
     public var carbWatchFloor: Double
     public var hrvSeries: [HrvPoint]
+    /// B-45 / W-B46 Contract (L3 adds these to `GET /api/v1/planning/morning`). OPTIONAL on
+    /// purpose: `verdict`/`verdict_date` come from a JSONL log that `scripts/morning_go.py`
+    /// writes, so a day the script did not run serves yesterday's verdict verbatim. `isStale`
+    /// says so, and `sessionForToday` is the session the hub derives from `plan_session.weekday`
+    /// for the REAL day instead. A hub that predates the route still decodes (both nil).
+    public var isStale: Bool?
+    public var sessionForToday: String?
 }
 public struct MorningVerdict: Codable, Sendable, Equatable {
     public var date, verdict: String
