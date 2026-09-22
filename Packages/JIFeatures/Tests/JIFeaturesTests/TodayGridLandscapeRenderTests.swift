@@ -8,13 +8,14 @@ import UIKit
 import JIDesign
 @testable import JIFeatures
 
-/// W9.5-L4 (P-today): rotation evidence without a Simulator.app window (the build host has no
-/// Simulator UI, so `simctl` cannot rotate). Renders the real `TodayGrid` through `ImageRenderer`
-/// at iPhone 18 Pro's landscape content width (874 − 2×59 safe area − 2×20 `TodayView` padding
-/// = 716pt) and portrait width (402 − 40 = 362pt) on the iOS 27 simulator. Asserts the adaptive
-/// column arithmetic those widths resolve to, and — when `JI_LANDSCAPE_SHOT` names a file
-/// (`TEST_RUNNER_JI_LANDSCAPE_SHOT=… xcodebuild test …`) — writes the landscape PNG there as the
-/// card's screenshot artefact.
+/// W9.5-L4 (P-today), updated by W-B47 L2: rotation evidence without a Simulator.app window (the
+/// build host has no Simulator UI, so `simctl` cannot rotate). Renders the real `TodayGrid`
+/// through a `UIHostingController` at iPhone 18 Pro's landscape content width (874 − 2×59 safe
+/// area − 2×20 `TodayView` padding = 716pt) on the iOS 27 simulator. The column contract is now
+/// size-class driven, not width driven (W-B47 Contract: Fitness two-up at compact width), so an
+/// 18 Pro — compact in BOTH orientations — keeps two cards per row when rotated instead of
+/// shattering into four narrow chips. When `JI_LANDSCAPE_SHOT` names a file
+/// (`TEST_RUNNER_JI_LANDSCAPE_SHOT=… xcodebuild test …`) the landscape PNG is written there.
 @Suite struct TodayGridLandscapeRenderTests {
     static let chips: [TodayChip] = [
         TodayChip(id: "hrv", label: "HRV", value: 61, unit: "ms", points: [55, 58, 60, 57, 61, 63, 61], sourceMissing: false),
@@ -28,12 +29,10 @@ import JIDesign
     static let landscapeContentWidth: CGFloat = 874 - 2 * 59 - 2 * 20
     static let portraitContentWidth: CGFloat = 402 - 2 * 20
 
-    @Test @MainActor func landscapeWidthResolvesToThreePlusColumnsAndRenders() throws {
-        let min = todayGridMinimumTileWidth(horizontalSizeClass: .compact)   // an 18 Pro is compact in both orientations
-        let landscapeColumns = todayGridColumnCount(availableWidth: Self.landscapeContentWidth, minimumTileWidth: min)
-        let portraitColumns = todayGridColumnCount(availableWidth: Self.portraitContentWidth, minimumTileWidth: min)
-        #expect(landscapeColumns >= 3)
-        #expect(portraitColumns == 2)
+    @Test @MainActor func landscapeKeepsTheTwoUpCardGridAndRenders() throws {
+        // An 18 Pro is compact in both orientations, so both resolve to the Fitness two-up.
+        #expect(todayCardColumnCount(horizontalSizeClass: .compact, isAccessibilitySize: false) == 2)
+        #expect(Self.landscapeContentWidth > Self.portraitContentWidth)   // the render below is the wide box
 
         // `ImageRenderer` paints a "not allowed" placeholder for UIKit-backed content, so the grid
         // is hosted in a `UIHostingController` at the landscape safe-area box and rendered through

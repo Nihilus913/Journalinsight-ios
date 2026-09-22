@@ -52,38 +52,33 @@ public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> (
 
 /// W5b-L1 (P-data-quality): wires the freshness badge's tap to opening the Data Quality screen
 /// (oracle `DataFreshnessBadge.tsx:33`, `router.push("/data-quality")`). Same pure-seam pattern.
-// MARK: W9.5-L4 (P-today) — rotation: width-driven columns
+// MARK: W-B47 L2 (P-today) — Apple Fitness's 2-up card grid
 
-/// W9.5-L4: the minimum tile width the grid's `.adaptive` columns fit. Compact width (every
-/// iPhone in portrait, non-Max iPhones in landscape) keeps the RN oracle's 2-up on a portrait
-/// phone (≈370pt usable → 2 tiles) yet lets an 18 Pro landscape (≈720pt usable) fill 4;
-/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6 —
-/// B-33 §8.5 caps that growth at 160 so the four summary tiles still make one row inside the
-/// 720 pt `readableColumn()` at 956 pt — 680 pt of content after the 20 pt gutters (200 left
-/// them 3-up with a widow on the next row).
-public nonisolated func todayGridMinimumTileWidth(horizontalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
-    switch horizontalSizeClass {
-    case .regular: 160
-    default: 150
-    }
-}
-
-/// W9.5-L4: the `LazyVGrid` columns for the tile grid — one `.adaptive(minimum:)` item (the
-/// `GateRespondCard.swift` override-chip pattern) so rotation re-flows the count instead of
-/// stretching 2 fixed columns across a landscape width.
-public nonisolated func todayGridColumns(horizontalSizeClass: UserInterfaceSizeClass?) -> [GridItem] {
-    [GridItem(.adaptive(minimum: todayGridMinimumTileWidth(horizontalSizeClass: horizontalSizeClass)), spacing: todayGridSpacing)]
-}
-
-/// Inter-tile spacing shared by the columns and the rows.
+/// Inter-tile spacing shared by the columns and the rows. 12 pt is what the Fitness Summary
+/// reference measures between its two half-width cards (`docs/design/references/
+/// 2026-09-22-apple-fitness-summary.png`: cards at x≈16 and x≈207 of a 402 pt screen).
 public nonisolated let todayGridSpacing: CGFloat = 12
 
-/// W9.5-L4: how many tiles `.adaptive(minimum:)` fits in `availableWidth` — the same arithmetic
-/// SwiftUI's adaptive layout runs (`n` tiles + `n−1` gaps), floored at 1 so a width narrower than
-/// one tile still lays out. Pure, so the rotation contract is unit-testable without a window.
-public nonisolated func todayGridColumnCount(availableWidth: CGFloat, minimumTileWidth: CGFloat, spacing: CGFloat = todayGridSpacing) -> Int {
-    guard minimumTileWidth > 0 else { return 1 }
-    return max(1, Int(((availableWidth + spacing) / (minimumTileWidth + spacing)).rounded(.down)))
+/// W-B47 Contract: the KPI tiles are Fitness-style `SummaryCard`s **two-up at compact width,
+/// three-up at regular** — a deliberate replacement of W9.5-L4's width-driven `.adaptive`
+/// columns, which let a landscape phone shatter the row into 4 narrow chips. An accessibility
+/// Dynamic Type size drops the grid to one column instead: a 20 pt card title at AX5 cannot
+/// share a 393 pt screen with a neighbour without truncating, and B-33 §8.1 is "reflows, never
+/// clips". Pure, so the whole contract is unit-testable without a window.
+public nonisolated func todayCardColumnCount(horizontalSizeClass: UserInterfaceSizeClass?,
+                                             isAccessibilitySize: Bool) -> Int {
+    if isAccessibilitySize { return 1 }
+    return horizontalSizeClass == .regular ? 3 : 2
+}
+
+/// The `LazyVGrid` columns for the card grid — equal-width `.flexible()` items so the two cards
+/// are exactly half the content width each (Fitness), never re-flowed by their content.
+/// `.top` alignment: a card with an as-of line is taller than its neighbour, and the default
+/// centre alignment would offset the shorter one.
+public nonisolated func todayCardGridColumns(horizontalSizeClass: UserInterfaceSizeClass?,
+                                             isAccessibilitySize: Bool) -> [GridItem] {
+    let count = todayCardColumnCount(horizontalSizeClass: horizontalSizeClass, isAccessibilitySize: isAccessibilitySize)
+    return Array(repeating: GridItem(.flexible(), spacing: todayGridSpacing, alignment: .top), count: count)
 }
 
 public nonisolated func dataFreshnessBadgeTapAction(onOpenDataQuality: @escaping () -> Void) -> () -> Void {
@@ -132,9 +127,14 @@ public struct TodayGrid: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.jiTheme) private var theme
 
-    /// B-33 §8.1: the bespoke `LazyVGrid`/rotation maths is JIDesign's `Columns` now; the pure
-    /// `todayGridMinimumTileWidth` seam (and its tests) stays as the size-class floor it feeds.
-    private var tileMinimum: CGFloat { todayGridMinimumTileWidth(horizontalSizeClass: horizontalSizeClass) }
+    /// W-B47: an accessibility Dynamic Type size collapses the grid to one column (see
+    /// `todayCardColumnCount`).
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var gridColumns: [GridItem] {
+        todayCardGridColumns(horizontalSizeClass: horizontalSizeClass,
+                             isAccessibilitySize: dynamicTypeSize.isAccessibilitySize)
+    }
 
     public init(
         chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void,
@@ -158,7 +158,7 @@ public struct TodayGrid: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             DataFreshnessBadge(info: freshness, onTap: dataFreshnessBadgeTapAction(onOpenDataQuality: { showDataQuality = true }))
-            Columns(minimum: tileMinimum, spacing: todayGridSpacing) {
+            LazyVGrid(columns: gridColumns, spacing: todayGridSpacing) {
                 ForEach(orderedChips) { chip in
                     tile(for: chip)
                 }
@@ -210,7 +210,11 @@ public struct TodayGrid: View {
 
     @ViewBuilder
     private func tile(for chip: TodayChip) -> some View {
-        todayStatChip(for: chip, action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
+        let spec = todaySummaryCardSpec(for: chip)
+        SummaryCard(icon: spec.icon, tint: theme.color(spec.tintRole), title: spec.title,
+                    value: spec.value, unit: spec.unit, timestamp: spec.timestamp,
+                    sparkline: spec.sparkline, sourceMissing: spec.sourceMissing,
+                    action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
             // Label is the RN oracle's StatChip default (`${label} — open detail`), verbatim.
             .accessibilityLabel(chip.asOf.map { "\(chip.label) — open detail, \($0)" } ?? "\(chip.label) — open detail")
             .accessibilityIdentifier("today.chip.\(chip.id)")
@@ -262,12 +266,71 @@ struct TodayTileDropDelegate: DropDelegate {
 #endif
 
 
-/// B-46 item 3 (fixer): the ONE place a `TodayChip` becomes a `StatChip`, so every field the model
-/// computes — `asOf` above all — is provably threaded through. The first fix computed "as of Sep 15"
-/// in the view model and then dropped it here, which is exactly what `todayStatChipCarriesAsOf…`
-/// now guards.
-func todayStatChip(for chip: TodayChip, action: (() -> Void)?) -> StatChip {
-    StatChip(label: chip.label, value: chip.value, unit: chip.unit, points: chip.points,
-             sourceMissing: chip.sourceMissing, asOf: chip.asOf,
-             asOfIdentifier: "today.chip.\(chip.id).as-of", action: action)
+// MARK: - Chip -> Fitness summary card
+
+/// W-B47 L2: everything a Today tile hands `SummaryCard`, as a plain value. `SummaryCard`'s own
+/// stored properties are internal to JIDesign (and that file belongs to L1), so this spec — not
+/// the view — is the seam a host test can read. It keeps B-46 item 3's guarantee intact: the
+/// as-of day the view model computed is provably threaded through to the card's timestamp line.
+public nonisolated struct TodaySummaryCardSpec: Equatable, Sendable {
+    public let icon: String
+    public let tintRole: JIColorRole
+    public let title: String
+    /// `nil` = no data yet / source missing — `SummaryCard` renders its own muted em dash.
+    public let value: String?
+    public let unit: String?
+    /// B-46 item 3: "as of Sep 15" when the reading is a fallback from an earlier day, else `nil`.
+    public let timestamp: String?
+    public let sparkline: [Double?]
+    public let sourceMissing: Bool
+}
+
+/// The SF Symbol per Today KPI — chip ids are `KpiMetricId` raw values. A metric with no bespoke
+/// symbol falls back to the neutral chart glyph rather than an invented one.
+public nonisolated func todayCardIcon(_ kpiId: String) -> String {
+    switch kpiId {
+    case "hrv": "waveform.path.ecg"
+    case "rhr": "heart.fill"
+    case "sleep": "bed.double.fill"
+    case "steps": "figure.walk"
+    case "body_battery": "battery.75percent"
+    case "readiness": "bolt.heart.fill"
+    case "acwr": "dumbbell.fill"
+    case "weight": "scalemass.fill"
+    case "kcal": "flame.fill"
+    case "protein", "carbs", "fat": "fork.knife"
+    default: "chart.line.uptrend.xyaxis"
+    }
+}
+
+/// W-B47 INTEGRATE SEAM (one line): L1 lands `metricTintRole(_:)` in `JIDesign/MetricTint.swift`.
+/// Until the two lane branches merge, every Today card takes the neutral info tint; integrate
+/// replaces this function's single body line with `metricTintRole(kpiId)` and nothing else moves.
+public nonisolated func todayCardTintRole(_ kpiId: String) -> JIColorRole {
+    .info   // INTEGRATE: -> metricTintRole(kpiId)
+}
+
+/// The card's big numeral, formatted exactly as the `StatChip` it replaces did (whole numbers
+/// stay whole, anything else gets one decimal). `nil` when there is nothing to show — rule 5:
+/// never a fabricated zero, and never a bare dash with a dangling unit.
+public nonisolated func todayCardValueText(_ value: Double?, sourceMissing: Bool) -> String? {
+    guard !sourceMissing, let value else { return nil }
+    return value.formatted(.number.precision(.fractionLength(value.rounded() == value ? 0 : 1)))
+}
+
+/// B-46 item 3 (fixer), carried forward: the ONE place a `TodayChip` becomes a Today card, so
+/// every field the model computes — `asOf` above all — is provably threaded through. The first
+/// fix computed "as of Sep 15" in the view model and then dropped it here.
+public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummaryCardSpec {
+    let value = todayCardValueText(chip.value, sourceMissing: chip.sourceMissing)
+    return TodaySummaryCardSpec(
+        icon: todayCardIcon(chip.id),
+        tintRole: todayCardTintRole(chip.id),
+        title: chip.label,
+        value: value,
+        unit: value == nil ? nil : chip.unit,
+        timestamp: chip.sourceMissing ? nil : chip.asOf,
+        sparkline: chip.points,
+        sourceMissing: chip.sourceMissing
+    )
 }
