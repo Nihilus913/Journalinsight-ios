@@ -10,6 +10,8 @@ public struct TodayView: View {
     /// gate's recommendation (the App supplies outbox + decision log); `nil` = no card, as before.
     private let makeGateRespondModel: (GateRecommendation) -> GateRespondViewModel?
     @State private var gateRespondModel: GateRespondViewModel?
+    /// B-57 §6: the Day summary line re-opens this morning's Coach, read-only.
+    @State private var showMorningReview = false
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch and no model rebuild while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
@@ -30,21 +32,33 @@ public struct TodayView: View {
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
                     .accessibilityLabel("No data yet — run a sync on the hub.")
                 case .loaded:
-                    // §8.1: hero + drivers compose side by side in regular width and stack in compact.
-                    // readinessMissing: false — W1 has only the hub provider, which always carries a
-                    // readiness field (nil when the hub itself has no score yet); a real "source doesn't
-                    // support this metric" case awaits W2+'s additional providers.
-                    AdaptiveHStack {
-                        VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false,
-                                        sleepScore: chip("sleep")?.value, load: latestAcwr,
-                                        insight: InsightSentence.build(gate: model.gate, morning: model.morning),
-                                        gateRespondModel: gateRespondModel)
-                        ringsRow
+                    // B-57 §2: Decide → Coach → Day, advanced only by what the user does and kept
+                    // per verdict date (`TodayViewModel.morningState`).
+                    switch model.morningState {
+                    case .decide:
+                        DecideView(verdict: model.verdict, readiness: model.readiness,
+                                   syncing: model.morning?.verdict == nil,
+                                   gateRespondModel: gateRespondModel) { model.morningEvent(.gateResponded) }
+                    case .coach:
+                        CoachView(content: coachContent, verdict: model.verdict) { model.morningEvent(.coachAcknowledged) }
+                    case .day:
+                        MorningSummaryLine(verdict: model.verdict, readiness: model.readiness) { showMorningReview = true }
+                        // §8.1: hero + drivers compose side by side in regular width and stack in compact.
+                        // readinessMissing: false — W1 has only the hub provider, which always carries a
+                        // readiness field (nil when the hub itself has no score yet); a real "source doesn't
+                        // support this metric" case awaits W2+'s additional providers.
+                        AdaptiveHStack {
+                            VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false,
+                                            sleepScore: chip("sleep")?.value, load: latestAcwr,
+                                            insight: InsightSentence.build(gate: model.gate, morning: model.morning),
+                                            gateRespondModel: gateRespondModel, showsRespondRow: false)
+                            ringsRow
+                        }
+                        TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+                        // B-42: Apple Fitness's Trends block, computed client-side over the series
+                        // already cached for this screen — no hub round-trip, no new route.
+                        TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
                     }
-                    TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
-                    // B-42: Apple Fitness's Trends block, computed client-side over the series
-                    // already cached for this screen — no hub round-trip, no new route.
-                    TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
@@ -65,6 +79,30 @@ public struct TodayView: View {
             gateRespondModel = recommendation.flatMap(makeGateRespondModel)
         }
         .animation(JIMotion.standard, value: model.phase)
+        .animation(JIMotion.standard, value: model.morningState)
+        .sheet(isPresented: $showMorningReview) {
+            NavigationStack {
+                ScrollView {
+                    CoachView(content: coachContent, verdict: model.verdict, readOnly: true) {}
+                        .padding(.horizontal, 20).padding(.bottom, 24)
+                }
+                .background(theme.color(.bg))
+                .navigationTitle("This morning")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showMorningReview = false }
+                            .accessibilityIdentifier("today.morning.review.done")
+                    }
+                }
+            }
+            .jiTheme(theme)
+            .presentationDetents([.medium])
+        }
+    }
+
+    /// B-57 §2 Coach: why the verdict + the one change, built from the DTOs this screen already holds.
+    private var coachContent: CoachContent {
+        CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery)
     }
 
     /// §4b + B-42: the hero's ring trio, then exactly two small rings — no longer hard-wired to
