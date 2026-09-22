@@ -32,6 +32,8 @@ public struct HealthBackloadSection: View {
             EmptyView()
         case .authorizing:
             HStack { ProgressView(); Text("Requesting Health access…") }
+        case .starting:
+            HStack { ProgressView(); Text("Health access granted · writing the first month…") }
         case .running(let monthIndex, let monthCount, let written, let skipped):
             VStack(alignment: .leading, spacing: 4) {
                 HStack { ProgressView(); Text("Month \(monthIndex) of \(monthCount)") }

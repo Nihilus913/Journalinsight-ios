@@ -163,13 +163,13 @@
 		AA32214326886B2F6938D0AC /* ProviderSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSelection.swift; sourceTree = "<group>"; };
 		B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictGlance.swift; sourceTree = "<group>"; };
 		B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentTests.swift; sourceTree = "<group>"; };
-		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE1DEEDD9B02F9398A695569 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C279DB8F1219367F06DA75E4 /* SettingsEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsEntryTests.swift; sourceTree = "<group>"; };
 		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloorTests.swift; sourceTree = "<group>"; };
 		D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiWidget.swift; sourceTree = "<group>"; };
 		D84B36CD13034CA6AB211274 /* JournalTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTabTests.swift; sourceTree = "<group>"; };
@@ -508,14 +508,9 @@
 						ProvisioningStyle = Automatic;
 					};
 					2386FC5B4492C9D335F7EB74 = {
-						DevelopmentTeam = BCBJFS59L9;
 						ProvisioningStyle = Automatic;
 					};
 					31A8FEE0BE14DE32BED01344 = {
-						DevelopmentTeam = BCBJFS59L9;
-						ProvisioningStyle = Automatic;
-					};
-					BC6F7ABA57B0B1A90E8A2220 = {
 						DevelopmentTeam = BCBJFS59L9;
 						ProvisioningStyle = Automatic;
 					};
@@ -675,6 +670,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				DEVELOPMENT_TEAM = BCBJFS59L9;
 				INFOPLIST_FILE = Widgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -728,13 +724,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/JournalInsight.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BCBJFS59L9;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -832,13 +831,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/JournalInsight.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BCBJFS59L9;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = toby913.JournalInsight;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -950,6 +952,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				DEVELOPMENT_TEAM = BCBJFS59L9;
 				INFOPLIST_FILE = Widgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

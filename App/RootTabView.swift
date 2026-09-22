@@ -185,6 +185,10 @@ struct RootTabView: View {
     /// NOT drop `settingsModel`: the data-source toggle lives inside that sheet, so rebuilding it
     /// mid-flip would tear down the row the user just tapped.
     private func invalidateProviderScopedModels() {
+        // Settings owns the HealthBackloadViewModel whose backloader was built on the PREVIOUS
+        // HubClient — without this reset a backload after a hub-URL change still hits the old host
+        // (device 2026-09-20: "network error" against a working hub).
+        settingsModel = nil
         todayModel = nil
         recoveryModel = nil
         energyModel = nil
