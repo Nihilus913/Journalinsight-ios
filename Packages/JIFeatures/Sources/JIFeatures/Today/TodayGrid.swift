@@ -307,7 +307,7 @@ public nonisolated func todayCardIcon(_ kpiId: String) -> String {
 /// Until the two lane branches merge, every Today card takes the neutral info tint; integrate
 /// replaces this function's single body line with `metricTintRole(kpiId)` and nothing else moves.
 public nonisolated func todayCardTintRole(_ kpiId: String) -> JIColorRole {
-    .info   // INTEGRATE: -> metricTintRole(kpiId)
+    metricTintRole(kpiId)
 }
 
 /// The card's big numeral, formatted exactly as the `StatChip` it replaces did (whole numbers

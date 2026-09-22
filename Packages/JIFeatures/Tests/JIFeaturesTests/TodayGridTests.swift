@@ -129,9 +129,8 @@ import JIPersistence
     #expect(todayCardValueText(61, sourceMissing: true) == nil)
 }
 
-/// W-B47 integrate seam: ONE function stubs L1's `metricTintRole(_:)`. Until the branches merge
-/// every card takes the neutral info tint — asserted so the stub cannot silently outlive integrate.
-@Test func theMetricTintSeamIsASingleStubbedFunction() {
+/// W-B47 integrate: the seam now forwards to L1's `metricTintRole(_:)` — no more neutral stub.
+@Test func theMetricTintSeamForwardsToMetricTintRole() {
     #expect(todayCardTintRole("hrv") == .info)
-    #expect(todayCardTintRole("steps") == .info)
+    #expect(todayCardTintRole("steps") == .go)
 }
