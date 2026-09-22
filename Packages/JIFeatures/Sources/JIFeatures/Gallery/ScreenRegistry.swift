@@ -55,6 +55,16 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Goals") { L6Fixtures.goals() },
         ScreenEntry(name: "Goals setup") { L6Fixtures.goalsSetup() },
         ScreenEntry(name: "Settings") { L6Fixtures.settings() },
+
+        // MARK: W-B41 L1 — B-41 Settings group sub-screens (the DEBUG `developer` group is
+        // excluded on purpose: it is not compiled into a Release build).
+        ScreenEntry(name: "Settings sync") { L6Fixtures.settingsSync() },
+        ScreenEntry(name: "Settings widgets") { L6Fixtures.settingsWidgets() },
+        ScreenEntry(name: "Settings home") { L6Fixtures.settingsHome() },
+        ScreenEntry(name: "Settings KPIs") { L6Fixtures.settingsKpis() },
+        ScreenEntry(name: "Settings haptics") { L6Fixtures.settingsHaptics() },
+        ScreenEntry(name: "Settings health") { L6Fixtures.settingsHealth() },
+        ScreenEntry(name: "Settings about") { L6Fixtures.settingsAbout() },
         ScreenEntry(name: "Hub connection") { L6Fixtures.hubConnection() },
         ScreenEntry(name: "Appearance") { L6Fixtures.appearance() },
         ScreenEntry(name: "Backup") { L6Fixtures.backup() },

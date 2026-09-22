@@ -4,8 +4,10 @@ import JIDesign
 // W5a-L0 (P-settings seam). FROZEN after L0. The Settings screen is a section registry: this
 // view only iterates `model.sections` (see `SettingsSection.swift`); every later lane adds its
 // own `Sections/<Area>Section.swift` + one registry line and never touches this file.
-// Mirrors `mobile/app/settings.tsx`: header info, then Connection / Preferences / Data /
-// Advanced. Presented as a sheet from the `RootTabView` gear ("Done" = RN's `DoneButton`).
+// W-B41 (B-41): the screen is now the TOP LEVEL of a two-level menu — one `NavigationLink` per
+// `SettingsGroupId`, each pushing a `GroupSettingsView` that renders that group's registry
+// sections. Section bodies moved, never rewritten. Presented as a sheet from the `RootTabView`
+// gear ("Done" = RN's `DoneButton`).
 public struct SettingsView: View {
     @Environment(\.jiTheme) private var theme
     private let model: SettingsViewModel
@@ -21,9 +23,15 @@ public struct SettingsView: View {
                 } footer: {
                     Text("Connect to your HealthTraining hub to replace the built-in sample data.")
                 }
-                ForEach(model.sections, id: \.id) { section in
-                    AnyView(section.body)
-                        .accessibilityIdentifier("settings.section.\(section.id)")
+                ForEach(SettingsGroupId.allCases, id: \.rawValue) { group in
+                    NavigationLink {
+                        GroupSettingsView(group: group, sections: model.sections)
+                            .environment(model)
+                    } label: {
+                        Label(group.title, systemImage: group.systemImage)
+                    }
+                    .accessibilityLabel(group.title)
+                    .accessibilityIdentifier("settings.group.\(group.rawValue)")
                 }
             }
             .environment(model)
@@ -62,6 +70,7 @@ struct PreferencesLinksSection: SettingsSection {
     let title = SettingsGroup.preferences.title
     let systemImage = "slider.horizontal.3"
     let sortKey = SettingsSortKey.preferences
+    let group = SettingsGroupId.kpis
     var body: some View { PreferencesLinksRows() }
 }
 
@@ -100,6 +109,7 @@ struct DataLinksSection: SettingsSection {
     let title = SettingsGroup.data.title
     let systemImage = "externaldrive"
     let sortKey = SettingsSortKey.data
+    let group = SettingsGroupId.sync
     var body: some View { DataLinksRows() }
 }
 

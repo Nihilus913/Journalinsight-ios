@@ -18,7 +18,16 @@ public protocol SettingsSection {
     /// Position in the screen. Use the `SettingsSortKey` bands so a lane's section lands in the
     /// RN group it belongs to (Connection → Preferences → Data → Advanced, `settings.tsx`).
     var sortKey: Int { get }
+    /// W-B41 (B-41): which top-level Settings menu screen this section is pushed onto. The
+    /// default derives it from the `sortKey` band, so a section file that has not been
+    /// reassigned yet still compiles and lands somewhere sane; every shipped section overrides
+    /// it with one explicit line.
+    var group: SettingsGroupId { get }
     @ViewBuilder var body: Body { get }
+}
+
+public extension SettingsSection {
+    var group: SettingsGroupId { SettingsGroupId(sortKey: sortKey) }
 }
 
 /// RN `settings.tsx` groups (its four `SectionLabel`s). A `sortKey` picks the band; within a
@@ -54,10 +63,80 @@ public nonisolated enum SettingsGroup: String, CaseIterable, Sendable, Equatable
     }
 }
 
+/// W-B41 (B-41) — the two-level Settings menu. One case per top-level row in `SettingsView`;
+/// each pushes a `GroupSettingsView` rendering exactly the registry sections whose `group` is
+/// this case. Toby 2026-09-22: "looks dumb, not enough sub menus" · "everything that pertains
+/// to data sync" goes under Sync & hub. `SettingsGroup`/`SettingsSortKey` stay for the RN-era
+/// band ordering (still the within-group order), they just no longer draw the screen.
+// `nonisolated`: pure values, read from nonisolated tests.
+public nonisolated enum SettingsGroupId: String, CaseIterable, Sendable, Equatable {
+    case sync
+    case widgets
+    case home
+    case kpis
+    case haptics
+    case health
+    case about
+    #if DEBUG
+    /// DEBUG only — `ProviderSection`'s data-source switch must never ship to the phone.
+    case developer
+    #endif
+
+    public var title: String {
+        switch self {
+        case .sync: "Sync & hub"
+        case .widgets: "Widgets"
+        case .home: "Home & Today layout"
+        case .kpis: "KPIs & alerts"
+        case .haptics: "Haptics & notifications"
+        case .health: "Health access"
+        case .about: "About & version"
+        #if DEBUG
+        case .developer: "Developer"
+        #endif
+        }
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .sync: "arrow.triangle.2.circlepath"
+        case .widgets: "square.grid.2x2"
+        case .home: "house"
+        case .kpis: "chart.bar"
+        case .haptics: "bell"
+        case .health: "heart"
+        case .about: "info.circle"
+        #if DEBUG
+        case .developer: "hammer"
+        #endif
+        }
+    }
+
+    /// The row a group with no sections yet shows, so the menu shape is visible before the
+    /// feature lands (rule 5: never a silently missing row).
+    public var placeholder: String? {
+        switch self {
+        case .widgets: "Widgets arrive with B-34/B-36"
+        default: nil
+        }
+    }
+
+    /// Fallback for a section that has not set `group` explicitly — the old RN bands.
+    public init(sortKey: Int) {
+        switch SettingsGroup(sortKey: sortKey) {
+        case .connection: self = .sync
+        case .preferences: self = .home
+        case .data: self = .sync
+        case .advanced: self = .about
+        }
+    }
+}
+
 /// The ONE fixed array. Each later lane appends exactly one line (`<Area>Section()`); nothing
 /// else in this file changes. `SettingsView` orders by `sortKey`, never by position here.
 public enum SettingsRegistry {
-    public static let sections: [any SettingsSection] = [
+    public static let sections: [any SettingsSection] = {
+        var sections: [any SettingsSection] = [
         HubSection(),
         HealthSection(),
         PreferencesLinksSection(),
@@ -65,7 +144,6 @@ public enum SettingsRegistry {
         AppearanceSection(),
         RemindersSection(),
         EditTodaySection(),
-        ProviderSection(),
         VersionSection(),
         DataQualitySection(),
         GateConfigSection(),
@@ -73,5 +151,12 @@ public enum SettingsRegistry {
         WeeklyPlanSection(),
         ExportSection(),
         HapticsSection(),
-    ]
+        ]
+        // W-B41: the data-source switch is a developer tool — it is not compiled into a Release
+        // build at all, which is what keeps the `developer` group off Toby's phone.
+        #if DEBUG
+        sections.append(ProviderSection())
+        #endif
+        return sections
+    }()
 }

@@ -11,6 +11,7 @@ public struct RemindersSection: SettingsSection {
     public let title = "Reminders"
     public let systemImage = "bell"
     public let sortKey = SettingsSortKey.data + 10
+    public let group = SettingsGroupId.haptics
     public init() {}
     public var body: some View { RemindersSectionRows() }
 }

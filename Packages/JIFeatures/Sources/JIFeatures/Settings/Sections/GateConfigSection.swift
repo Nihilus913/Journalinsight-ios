@@ -11,6 +11,7 @@ public struct GateConfigSection: SettingsSection {
     public let title = "Gate config"
     public let systemImage = "slider.horizontal.3"
     public let sortKey = SettingsSortKey.preferences + 20
+    public let group = SettingsGroupId.kpis
     public init() {}
     public var body: some View { GateConfigSectionRows() }
 }

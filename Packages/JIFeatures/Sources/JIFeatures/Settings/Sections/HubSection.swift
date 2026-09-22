@@ -12,6 +12,7 @@ public struct HubSection: SettingsSection {
     public let title = SettingsGroup.connection.title
     public let systemImage = "server.rack"
     public let sortKey = SettingsSortKey.connection
+    public let group = SettingsGroupId.sync
     public init() {}
     public var body: some View { HubSectionRows() }
 }

@@ -88,27 +88,27 @@ public final class ProviderSwitch {
     }
 }
 
-/// W7-L3 (P-healthkit-t2-provider): the debug-only data-source switch, in the Connection band
-/// next to the hub fields it competes with. Ships as an empty section in release builds — T2 is
+/// W7-L3 (P-healthkit-t2-provider): the debug-only data-source switch. W-B41 moved it into its
+/// own `developer` group — and since that group is `#if DEBUG` only, the section type itself is
+/// no longer compiled into a Release build (it used to ship as an empty section). `ProviderSwitch`
+/// above is NOT gated: `App/ProviderSelection.swift` installs it in every configuration. T2 stays
 /// gated off until the Apple-vs-Garmin overnight-equivalence proof (spec risk table L276).
+#if DEBUG
 public struct ProviderSection: SettingsSection {
     public static let sectionId = "l3.provider"
     public let id = Self.sectionId
     public let title = "Data source"
     public let systemImage = "antenna.radiowaves.left.and.right"
     public let sortKey = SettingsSortKey.connection + 60
+    // W-B41: DEBUG-only group — this section is not registered in a Release build.
+    public let group = SettingsGroupId.developer
     public init() {}
 
     public var body: some View {
-        #if DEBUG
         ProviderSectionRows(providerSwitch: ProviderSwitch.shared)
-        #else
-        EmptyView()
-        #endif
     }
 }
 
-#if DEBUG
 private struct ProviderSectionRows: View {
     @Environment(\.jiTheme) private var theme
     @Bindable var providerSwitch: ProviderSwitch

@@ -10,6 +10,7 @@ public struct HealthSection: SettingsSection {
     public let title = "Apple Health"
     public let systemImage = "heart.text.square"
     public let sortKey = SettingsSortKey.connection + 10
+    public let group = SettingsGroupId.health
     public init() {}
     public var body: some View { HealthSectionRows() }
 }
