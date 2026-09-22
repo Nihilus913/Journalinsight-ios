@@ -1,13 +1,17 @@
 import SwiftUI
 
+/// The card (B-33 §2): an inset grouped cell — the radius comes from the level, never the
+/// caller. Phase C removed the `radius:` parameter with the classic language that honoured it.
 public struct Surface<Content: View>: View {
-    private let level: Int, radius: CGFloat, padding: CGFloat, content: Content
-    public init(level: Int = 1, radius: CGFloat = JIRadius.card, padding: CGFloat = 16, @ViewBuilder content: () -> Content) {
-        self.level = level; self.radius = radius; self.padding = padding; self.content = content()
+    private let level: Int, padding: CGFloat, content: Content
+    @Environment(\.jiTheme) private var theme
+    public init(level: Int = 1, padding: CGFloat = 16, @ViewBuilder content: () -> Content) {
+        self.level = level; self.padding = padding; self.content = content()
     }
-    private var fill: Color { switch level { case 2: JIColor.surface2; case 3: JIColor.surface3; default: JIColor.surface } }
+    private var style: (fill: JIColorRole, radius: JIRadiusRole) { surfaceStyle(level: level, theme: theme) }
+    private var cornerRadius: CGFloat { theme.radius(style.radius) }
     public var body: some View {
         content.padding(padding)
-            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(theme.color(style.fill), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }

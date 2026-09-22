@@ -38,7 +38,7 @@ public final class AppearanceViewModel {
     public var preferredColorScheme: ColorScheme? { prefs.mode.preferredColorScheme }
     /// ThemeProvider.tsx `colors.uiAccent` on the fixed rung (iOS has no Material You → always fixed).
     public var uiAccentHex: UInt32 { prefs.accentKey.hex }
-    public var uiAccent: Color { prefs.accentKey.color }
+    public var uiAccent: Color { prefs.accentKey.color(for: .native) }
     /// nil = Dynamic Type untouched ("Auto").
     public var dynamicTypeSize: DynamicTypeSize? { prefs.fontScalePreset.dynamicTypeSize }
 

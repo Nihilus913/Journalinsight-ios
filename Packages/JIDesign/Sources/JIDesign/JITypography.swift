@@ -109,6 +109,30 @@ public nonisolated enum JITypography {
     /// Default weight per token: numerals are bold like the oracle's numeral face; text is regular.
     public static func defaultWeight(_ token: Token) -> Font.Weight { token.isNumeral ? .bold : .regular }
 
+    // MARK: B-33 §3 — native language
+
+    /// The SF text style a text token renders as under `.native` (no custom sizes: the system
+    /// curve owns the size). Numeral tokens are listed for completeness but never use this —
+    /// they keep the sized rounded + tabular path.
+    public static func nativeTextStyle(_ token: Token) -> Font.TextStyle {
+        switch token {
+        case .micro: .caption2
+        case .caption: .caption
+        case .label, .footnote: .footnote
+        case .bodySmall, .subheadline: .subheadline
+        case .body: .body
+        case .title, .emoji: .title2
+        case .statValue: .headline
+        case .numeralSmall, .numeralCompact, .numeralMedium, .numeralLarge, .numeralGauge, .numeralHero, .numeralDisplay: .largeTitle
+        }
+    }
+
+    /// Native weights: numerals semibold below 40 pt, bold from 40 pt; titles bold; text regular.
+    public static func nativeWeight(_ token: Token) -> Font.Weight {
+        if token.isNumeral { return size(token) >= 40 ? .bold : .semibold }
+        return token == .title ? .bold : .regular
+    }
+
     // MARK: numeralLineHeight — port of tokens.ts `NUMERAL_LINE_HEIGHT_RATIO` / `numeralLineHeight`
 
     /// tokens.ts `NUMERAL_LINE_HEIGHT_RATIO` (R2.3 hotfix: the numeral face's ascent/descent run
@@ -133,23 +157,33 @@ public nonisolated enum JITypography {
 /// `@ScaledMetric` case).
 public struct JITypographyModifier: ViewModifier {
     @ScaledMetric private var scaledSize: CGFloat
+    @Environment(\.jiTheme) private var theme
     private let token: JITypography.Token
-    private let weight: Font.Weight
+    private let explicitWeight: Font.Weight?
     private let design: Font.Design
 
     public init(token: JITypography.Token, weight: Font.Weight?, design: Font.Design = .default) {
         self.token = token
-        self.weight = weight ?? JITypography.defaultWeight(token)
+        self.explicitWeight = weight
         self.design = design
         _scaledSize = ScaledMetric(wrappedValue: JITypography.size(token), relativeTo: JITypography.textStyle(token))
     }
 
+    private var weight: Font.Weight {
+        explicitWeight ?? (theme == .native ? JITypography.nativeWeight(token) : JITypography.defaultWeight(token))
+    }
+
     public func body(content: Content) -> some View {
-        let font = JITypography.font(token, scaledSize: scaledSize, weight: weight, design: design)
-        if token.isNumeral {
-            content.font(font).frame(minHeight: JITypography.numeralLineHeight(scaledSize), alignment: .leading)
+        if theme == .native, !token.isNumeral {
+            // §3: text styles only — the system curve owns the size.
+            content.font(.system(JITypography.nativeTextStyle(token), design: design, weight: weight))
         } else {
-            content.font(font)
+            let font = JITypography.font(token, scaledSize: scaledSize, weight: weight, design: design)
+            if token.isNumeral {
+                content.font(font).frame(minHeight: JITypography.numeralLineHeight(scaledSize), alignment: .leading)
+            } else {
+                content.font(font)
+            }
         }
     }
 }

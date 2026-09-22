@@ -73,6 +73,7 @@ public nonisolated struct DataFreshnessInfo: Sendable, Equatable {
 /// Neutral/muted throughout — this is a fact, not a verdict, so no verdict colour here (rule 6).
 /// A nil `onTap` renders the line without a tap target instead of a row that goes nowhere.
 public struct DataFreshnessBadge: View {
+    @Environment(\.jiTheme) private var theme
     private let info: DataFreshnessInfo?
     private let now: Date
     private let onTap: (() -> Void)?
@@ -97,12 +98,12 @@ public struct DataFreshnessBadge: View {
     public var body: some View {
         Button { onTap?() } label: {
             HStack {
-                Text(leadingText).font(.caption2).foregroundStyle(JIColor.muted)
+                Text(leadingText).jiFont(.micro).foregroundStyle(theme.color(.muted))
                 Spacer(minLength: 8)
                 if let trailingText {
-                    Text(trailingText).font(.caption2).foregroundStyle(JIColor.muted)
+                    Text(trailingText).jiFont(.micro).foregroundStyle(theme.color(.muted))
                 }
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(JIColor.mutedNested)
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(theme.color(.mutedNested))
             }
             .contentShape(Rectangle())
         }

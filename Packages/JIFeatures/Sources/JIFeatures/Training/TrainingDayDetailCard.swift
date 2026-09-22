@@ -9,6 +9,7 @@ import JIDesign
 public struct TrainingDayDetailCard: View {
     let date: String
     let detail: TrainingDayDetail?
+    @Environment(\.jiTheme) private var theme
     public init(date: String, detail: TrainingDayDetail?) { self.date = date; self.detail = detail }
 
     private struct SetGroup: Identifiable { let id: String; let label: String; let sets: [DayExerciseSet] }
@@ -29,30 +30,32 @@ public struct TrainingDayDetailCard: View {
         let isEmpty = activities.isEmpty && groups.isEmpty
         Surface {
             VStack(alignment: .leading, spacing: 10) {
-                Text(formattedDate).font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                Text(formattedDate).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("training-day-detail-date")
                 if isEmpty {
-                    Text("No training logged for this day yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("No training logged for this day yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("training-day-detail-empty")
                 } else {
-                    ForEach(activities, id: \.activityId) { activity in
-                        HStack {
-                            Text(activity.name ?? activity.type).font(.subheadline.weight(.semibold)).foregroundStyle(JIColor.text)
-                                .accessibilityLabel(activity.name ?? activity.type)
-                            Spacer()
-                            if let duration = activity.durationSec { Text("\(Int(duration / 60)) min").font(.footnote).foregroundStyle(JIColor.muted).accessibilityLabel("\(Int(duration / 60)) minutes") }
+                    // §2b.2: activities are 44-pt inset-grouped rows, hairline-separated.
+                    ForEach(Array(activities.enumerated()), id: \.element.activityId) { idx, activity in
+                        JIRow(title: activity.name ?? activity.type, systemImage: "figure.run", tint: theme.color(.info)) {
+                            if let duration = activity.durationSec {
+                                Text("\(Int(duration / 60)) min").accessibilityLabel("\(Int(duration / 60)) minutes")
+                            }
                         }
+                        .accessibilityLabel(activity.name ?? activity.type)
+                        if idx != activities.count - 1 { Divider().overlay(theme.color(.hairlineNested)) }
                     }
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 4) {
                             Text("\(group.label) — \(group.sets.count) set\(group.sets.count == 1 ? "" : "s")")
-                                .font(.footnote.weight(.bold)).foregroundStyle(JIColor.text)
+                                .jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
                             ForEach(Array(group.sets.enumerated()), id: \.offset) { idx, set in
                                 HStack {
-                                    Text("Set \(set.setNumber ?? idx + 1)").font(.caption).foregroundStyle(JIColor.muted)
+                                    Text("Set \(set.setNumber ?? idx + 1)").jiFont(.caption).foregroundStyle(theme.color(.muted))
                                     Spacer()
-                                    Text(setSummary(set)).font(.caption.weight(.semibold)).foregroundStyle(JIColor.text)
+                                    Text(setSummary(set)).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.text))
                                         .accessibilityLabel("Set \(set.setNumber ?? idx + 1)")
                                         .accessibilityValue(setSummary(set))
                                 }

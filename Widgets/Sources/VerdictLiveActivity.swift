@@ -9,11 +9,13 @@ import WidgetKit
 /// it has no App-Group or Keychain dependency beyond what `LiveActivityController`
 /// already fed it.
 struct VerdictLiveActivity: Widget {
+    private let theme = widgetTheme
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: VerdictActivityAttributes.self) { context in
             VerdictActivityLockScreenView(state: context.state)
-                .activityBackgroundTint(JIColor.bg)
-                .activitySystemActionForegroundColor(JIColor.text)
+                .activityBackgroundTint(theme.color(.bg))
+                .activitySystemActionForegroundColor(theme.color(.text))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -25,13 +27,13 @@ struct VerdictLiveActivity: Widget {
                     if let readiness = context.state.readiness {
                         Text("\(Int(readiness.rounded()))")
                             .font(.headline)
-                            .foregroundStyle(JIColor.text)
+                            .foregroundStyle(theme.color(.text))
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.verdictSession)
                         .font(.caption)
-                        .foregroundStyle(JIColor.muted)
+                        .foregroundStyle(theme.color(.muted))
                 }
             } compactLeading: {
                 Circle().fill(tone(context.state.verdictTone)).frame(width: 10, height: 10)
@@ -49,13 +51,13 @@ struct VerdictLiveActivity: Widget {
     }
 
     private func tone(_ raw: String) -> Color {
-        JIColor.color(for: verdictTone(from: raw))
+        widgetToneColor(verdictTone(from: raw))
     }
 }
 
 /// `HubSnapshot.verdictTone` round-trips as a raw string (Foundation-only
 /// DTO, see JISnapshot); this maps it back to `JICore.VerdictTone` for
-/// `JIColor.color(for:)`. Unknown/future values fall back to `.muted`
+/// `widgetToneColor(_:)`. Unknown/future values fall back to `.muted`
 /// rather than crashing the extension.
 func verdictTone(from raw: String) -> VerdictTone {
     switch raw {
@@ -68,29 +70,30 @@ func verdictTone(from raw: String) -> VerdictTone {
 
 private struct VerdictActivityLockScreenView: View {
     let state: VerdictActivityAttributes.ContentState
+    private let theme = widgetTheme
 
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(JIColor.color(for: verdictTone(from: state.verdictTone)))
+                .fill(widgetToneColor(verdictTone(from: state.verdictTone)))
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.verdictWord)
                     .font(.headline)
-                    .foregroundStyle(JIColor.text)
+                    .foregroundStyle(theme.color(.text))
                 Text(state.verdictSession)
                     .font(.caption)
-                    .foregroundStyle(JIColor.muted)
+                    .foregroundStyle(theme.color(.muted))
             }
             Spacer()
             if let readiness = state.readiness {
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("\(Int(readiness.rounded()))")
                         .font(.title2.bold())
-                        .foregroundStyle(JIColor.text)
+                        .foregroundStyle(theme.color(.text))
                     Text("readiness")
                         .font(.caption2)
-                        .foregroundStyle(JIColor.muted)
+                        .foregroundStyle(theme.color(.muted))
                 }
             }
         }

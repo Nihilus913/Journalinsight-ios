@@ -197,6 +197,7 @@ public nonisolated enum GateRespondCopy {
 /// costs a second confirming tap.
 public struct GateRespondCard: View {
     @Bindable var model: GateRespondViewModel
+    @Environment(\.jiTheme) private var theme
     @State private var reasonChoice: String?
     @State private var otherText = ""
     @State private var undoArmed = false
@@ -216,9 +217,9 @@ public struct GateRespondCard: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Divider().overlay(JIColor.hairlineNested)
+                Divider().overlay(theme.color(.hairlineNested))
                 Text("RESPOND TO THIS RECOMMENDATION")
-                    .font(.caption2.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .font(.caption2.weight(.semibold)).foregroundStyle(theme.color(.muted))
 
                 if model.responded {
                     respondedRow
@@ -229,7 +230,7 @@ public struct GateRespondCard: View {
                 }
 
                 if let message = model.errorMessage {
-                    Text("\(message) — try again.").font(.caption).foregroundStyle(JIColor.danger)
+                    Text("\(message) — try again.").font(.caption).foregroundStyle(theme.color(.danger))
                         .accessibilityIdentifier("today.gateRespond.error")
                 }
 
@@ -245,29 +246,29 @@ public struct GateRespondCard: View {
     @ViewBuilder private var respondedRow: some View {
         HStack {
             Text("Logged: \(GateRespondCopy.choiceLabels[model.choice ?? .yes] ?? "")")
-                .font(.footnote.bold()).foregroundStyle(JIColor.info)
+                .font(.footnote.bold()).foregroundStyle(theme.color(.info))
                 .accessibilityIdentifier("today.gateRespond.logged")
             if model.phase == .queued {
-                Text("PENDING SYNC").font(.caption2.bold()).foregroundStyle(JIColor.reduced)
+                Text("PENDING SYNC").font(.caption2.bold()).foregroundStyle(theme.color(.reduced))
                     .accessibilityIdentifier("today.gateRespond.pending")
             }
             Spacer()
             if undoArmed {
                 HStack(spacing: 10) {
                     Button("Undo?") { confirmUndo() }
-                        .font(.caption.bold()).foregroundStyle(JIColor.reduced)
+                        .font(.caption.bold()).foregroundStyle(theme.color(.reduced))
                         .buttonStyle(.pressableScale)
                         .accessibilityLabel("Confirm undo")
                         .accessibilityIdentifier("today.gateRespond.undoConfirm")
                     Button("Keep") { cancelUndo() }
-                        .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                        .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
                         .buttonStyle(.pressableScale)
                         .accessibilityLabel("Keep this response")
                         .accessibilityIdentifier("today.gateRespond.undoKeep")
                 }
             } else {
                 Button("Undo") { armUndo() }
-                    .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
                     .buttonStyle(.pressableScale)
                     .accessibilityLabel("Undo this response")
                     .accessibilityIdentifier("today.gateRespond.undo")
@@ -281,8 +282,8 @@ public struct GateRespondCard: View {
                 .buttonStyle(.pressableScale)
                 .disabled(busy)
                 .padding(.horizontal, 16).padding(.vertical, 9)
-                .background(JIColor.info, in: RoundedRectangle(cornerRadius: 10))
-                .foregroundStyle(JIColor.bg).font(.footnote.bold())
+                .background(theme.color(.info), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+                .foregroundStyle(theme.color(.bg)).font(.footnote.bold())
                 .accessibilityLabel("Yes, generate plan")
                 .accessibilityIdentifier("today.gateRespond.yes")
             skipButton
@@ -291,7 +292,7 @@ public struct GateRespondCard: View {
 
     @ViewBuilder private var overrideControls: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Override reason").font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+            Text("Override reason").font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
             // A wrapping row of chips; `FlowLayout` isn't in JIDesign, so a simple VStack of
             // HStacks would fix the column count — a ViewThatFits-free `LazyVGrid` keeps it fluid.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -300,11 +301,11 @@ public struct GateRespondCard: View {
                     Button(reason) { reasonChoice = reason }
                         .buttonStyle(.pressableScale)
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(selected ? JIColor.reduced : JIColor.text)
+                        .foregroundStyle(selected ? theme.color(.reduced) : theme.color(.text))
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(selected ? JIColor.reduced.opacity(0.18) : JIColor.control, in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? JIColor.reduced : .clear))
+                        .background(selected ? theme.color(.reduced).opacity(0.18) : theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+                        .overlay(RoundedRectangle(cornerRadius: theme.radius(.control)).stroke(selected ? theme.color(.reduced) : .clear))
                         .accessibilityLabel(reason)
                         .accessibilityAddTraits(selected ? [.isSelected] : [])
                         .accessibilityIdentifier("today.gateRespond.reason.\(reason)")
@@ -314,8 +315,8 @@ public struct GateRespondCard: View {
                 TextField("Say why (required)", text: $otherText)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(JIColor.control, in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(JIColor.text).font(.footnote)
+                    .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+                    .foregroundStyle(theme.color(.text)).font(.footnote)
                     .accessibilityLabel("Override reason, free text")
                     .accessibilityIdentifier("today.gateRespond.reasonText")
             }
@@ -326,8 +327,8 @@ public struct GateRespondCard: View {
                 .buttonStyle(.pressableScale)
                 .disabled(busy || !overrideReady)
                 .padding(.horizontal, 16).padding(.vertical, 9)
-                .background(JIColor.reduced, in: RoundedRectangle(cornerRadius: 10))
-                .foregroundStyle(JIColor.bg).font(.footnote.bold())
+                .background(theme.color(.reduced), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+                .foregroundStyle(theme.color(.bg)).font(.footnote.bold())
                 .accessibilityLabel("Override and generate plan")
                 .accessibilityIdentifier("today.gateRespond.override")
                 skipButton
@@ -340,8 +341,8 @@ public struct GateRespondCard: View {
             .buttonStyle(.pressableScale)
             .disabled(busy)
             .padding(.horizontal, 16).padding(.vertical, 9)
-            .background(JIColor.control, in: RoundedRectangle(cornerRadius: 10))
-            .foregroundStyle(JIColor.text).font(.footnote.weight(.semibold))
+            .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+            .foregroundStyle(theme.color(.text)).font(.footnote.weight(.semibold))
             .accessibilityLabel("Skip")
             .accessibilityIdentifier("today.gateRespond.skip")
     }
@@ -369,10 +370,11 @@ public struct GateRespondCard: View {
 /// Oracle `SessionFeelInput.tsx` — the 1–5 row RN mounts in the same `VerdictHero`.
 struct SessionFeelRow: View {
     @Bindable var model: GateRespondViewModel
+    @Environment(\.jiTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("HOW DID IT FEEL?").font(.caption2.weight(.semibold)).foregroundStyle(JIColor.muted)
+            Text("HOW DID IT FEEL?").font(.caption2.weight(.semibold)).foregroundStyle(theme.color(.muted))
             HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { score in
                     let selected = model.feelScore == score
@@ -380,8 +382,8 @@ struct SessionFeelRow: View {
                         .buttonStyle(.pressableScale)
                         .disabled(model.feelPhase == .submitting)
                         .frame(width: 30, height: 30)
-                        .background(selected ? JIColor.info : JIColor.surface2, in: Circle())
-                        .foregroundStyle(selected ? JIColor.bg : JIColor.text)
+                        .background(selected ? theme.color(.info) : theme.color(.surface2), in: Circle())
+                        .foregroundStyle(selected ? theme.color(.bg) : theme.color(.text))
                         .font(.caption.bold())
                         .accessibilityLabel("Feel \(score)")
                         .accessibilityAddTraits(selected ? [.isSelected] : [])
@@ -389,11 +391,11 @@ struct SessionFeelRow: View {
                 }
             }
             if let score = model.feelScore, model.feelPhase == .logged || model.feelPhase == .queued {
-                Text("Logged \(score)/5").font(.caption).foregroundStyle(JIColor.info)
+                Text("Logged \(score)/5").font(.caption).foregroundStyle(theme.color(.info))
                     .accessibilityIdentifier("today.feel.logged")
             }
             if let message = model.feelErrorMessage {
-                Text("\(message) — try again.").font(.caption).foregroundStyle(JIColor.danger)
+                Text("\(message) — try again.").font(.caption).foregroundStyle(theme.color(.danger))
                     .accessibilityIdentifier("today.feel.error")
             }
         }

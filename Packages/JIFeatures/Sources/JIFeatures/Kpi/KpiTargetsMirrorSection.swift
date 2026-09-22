@@ -8,27 +8,26 @@ import JIDesign
 /// header comment.
 public struct KpiTargetsMirrorSection: View {
     let targets: [KpiTarget]
+    @Environment(\.jiTheme) private var theme
     public init(targets: [KpiTarget]) { self.targets = targets }
 
     public var body: some View {
-        Surface(level: 2) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("KPI TARGETS").font(.caption.bold()).foregroundStyle(JIColor.muted)
+        Surface(padding: 16) {
+            VStack(alignment: .leading, spacing: 0) {
                 if targets.isEmpty {
                     Text("Nothing mirrored yet — open KPIs once while online.")
-                        .font(.footnote).foregroundStyle(JIColor.muted)
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    VStack(spacing: 6) {
-                        ForEach(targets) { target in
-                            HStack {
-                                Text(target.metric).font(.footnote.bold()).foregroundStyle(JIColor.text)
-                                Spacer()
-                                Text(rule(for: target)).font(.footnote).foregroundStyle(JIColor.muted)
-                                    .accessibilityLabel("\(target.metric) target")
-                                    .accessibilityValue(rule(for: target))
-                                    .accessibilityIdentifier("kpi-target-\(target.metric)")
-                            }
+                    // §2b.2: one 44-pt inset-grouped row per mirrored gate rule.
+                    ForEach(Array(targets.enumerated()), id: \.element.id) { idx, target in
+                        JIRow(title: target.metric, systemImage: "target", tint: theme.color(.info)) {
+                            Text(rule(for: target))
                         }
+                        .accessibilityLabel("\(target.metric) target")
+                        .accessibilityValue(rule(for: target))
+                        .accessibilityIdentifier("kpi-target-\(target.metric)")
+                        if idx != targets.count - 1 { Divider().overlay(theme.color(.hairlineNested)).padding(.leading, 40) }
                     }
                 }
             }

@@ -6,6 +6,7 @@ import JIDesign
 /// +/- progress steppers and delete. `today` is injected (not `Date()`) so previews/tests are
 /// deterministic — mirrors the oracle's own `todayISODate()` call site, just passed in here.
 public struct GoalCard: View {
+    @Environment(\.jiTheme) private var theme
     let goal: Goal
     let today: String
     let onStep: (Double) -> Void
@@ -19,70 +20,53 @@ public struct GoalCard: View {
 
     private var status: GoalStatus { goalStatus(targetDate: goal.targetDate, progress: goal.progress, today: today) }
 
-    private var borderColor: Color {
-        switch status {
-        case .overdue: JIColor.danger
-        case .complete: JIColor.go
-        case .onTrack: JIColor.nested
-        }
-    }
-
     private var badge: (String, Color)? {
         switch status {
-        case .overdue: ("Overdue", JIColor.danger)
-        case .complete: ("Complete", JIColor.go)
+        case .overdue: ("Overdue", theme.color(.danger))
+        case .complete: ("Complete", theme.color(.go))
         case .onTrack: nil
         }
     }
 
+    /// §2b.2: one inset-grouped row — the status colour moved from a drawn border to the native
+    /// `ProgressView` tint + a tinted badge, delete is a swipe action, and the two ±10 % taps are
+    /// a system `Stepper` (they were an unlabelled +/- pair).
     public var body: some View {
-        Surface {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(goal.title).font(.subheadline.bold()).foregroundStyle(JIColor.text)
-                        HStack(spacing: 6) {
-                            if let targetDate = goal.targetDate {
-                                Text("Target \(targetDate)").font(.caption).foregroundStyle(JIColor.muted)
-                            }
-                            if let badge {
-                                Text(badge.0).font(.caption2.bold()).foregroundStyle(badge.1)
-                                    .accessibilityLabel("\(goal.title) status: \(badge.0)")
-                                    .accessibilityIdentifier("goal-card-status")
-                            }
-                        }
-                    }
-                    Spacer()
-                    Button(action: onDelete) {
-                        Image(systemName: "xmark").foregroundStyle(JIColor.danger)
-                    }
-                    .accessibilityLabel("Delete \(goal.title)")
-                    .accessibilityIdentifier("goal-card-delete")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(goal.title).jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
+                Spacer(minLength: 8)
+                if let badge {
+                    Text(badge.0).jiFont(.micro, weight: .bold).foregroundStyle(badge.1)
+                        .accessibilityLabel("\(goal.title) status: \(badge.0)")
+                        .accessibilityIdentifier("goal-card-status")
                 }
+            }
+            if let targetDate = goal.targetDate {
+                Text("Target \(targetDate)").jiFont(.caption).foregroundStyle(theme.color(.muted))
+            }
 
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(JIColor.muted.opacity(0.3))
-                        Capsule()
-                            .fill(status == .overdue ? JIColor.danger : JIColor.go)
-                            .frame(width: geo.size.width * clampProgress(goal.progress))
-                    }
-                }
-                .frame(height: 4)
+            // §8.1: no fixed geometry — the system bar takes the row's width, whatever it is.
+            ProgressView(value: clampProgress(goal.progress))
+                .tint(status == .overdue ? theme.color(.danger) : theme.color(.go))
                 .accessibilityLabel("Progress")
                 .accessibilityValue(formatPercent(goal.progress))
 
-                HStack {
-                    Text(formatPercent(goal.progress)).font(.caption.bold()).foregroundStyle(JIColor.text)
-                    Spacer()
-                    Button { onStep(-Self.step) } label: { Image(systemName: "minus") }
-                        .accessibilityLabel("Decrease progress")
-                        .accessibilityIdentifier("goal-card-decrease")
-                    Button { onStep(Self.step) } label: { Image(systemName: "plus") }
-                        .accessibilityLabel("Increase progress")
-                        .accessibilityIdentifier("goal-card-increase")
-                }
+            Stepper(formatPercent(goal.progress)) {
+                onStep(Self.step)
+            } onDecrement: {
+                onStep(-Self.step)
             }
+            .accessibilityLabel("\(goal.title) progress")
+            .accessibilityValue(formatPercent(goal.progress))
+            .accessibilityIdentifier("goal-card-progress-stepper")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
+        .swipeActions(edge: .trailing) {
+            Button("Delete", role: .destructive, action: onDelete)
+                .accessibilityLabel("Delete \(goal.title)")
+                .accessibilityIdentifier("goal-card-delete")
         }
     }
 }

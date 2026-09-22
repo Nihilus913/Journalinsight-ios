@@ -6,31 +6,27 @@ import JIDesign
 /// `goal_targets_mirror` local-first copy `GoalsSetupViewModel.save` keeps in sync). Rule 5: every
 /// value that could be missing renders "—", never 0.
 public struct GoalTargetsMirrorSection: View {
+    @Environment(\.jiTheme) private var theme
     let goals: Goals
 
     public init(goals: Goals) { self.goals = goals }
 
+    /// §2b.2: a real `List` section of 44-pt rows — callers place it straight into a `List`.
     public var body: some View {
-        Surface(level: 2) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Current targets").font(.caption.bold()).foregroundStyle(JIColor.muted).textCase(.uppercase)
-                    .accessibilityIdentifier("goal-targets-mirror-heading")
-                row("Weight", String(format: "%.1f kg", goals.weight.targetKg))
-                row("Bench", goals.strength.first { $0.exercise == "bench" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
-                row("Row", goals.strength.first { $0.exercise == "row" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
-                row("Steps/day", goals.stepsDaily.map(String.init) ?? "—")
-                row("Kcal", goals.nutrition.kcalGoal.map { "\(Int($0))" } ?? "—")
-            }
+        Section {
+            row("Weight", String(format: "%.1f kg", goals.weight.targetKg))
+            row("Bench", goals.strength.first { $0.exercise == "bench" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
+            row("Row", goals.strength.first { $0.exercise == "row" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
+            row("Steps/day", goals.stepsDaily.map(String.init) ?? "—")
+            row("Kcal", goals.nutrition.kcalGoal.map { "\(Int($0))" } ?? "—")
+        } header: {
+            Text("Current targets").accessibilityIdentifier("goal-targets-mirror-heading")
         }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label).font(.footnote).foregroundStyle(JIColor.text)
-            Spacer()
-            Text(value).font(.footnote.weight(.semibold)).foregroundStyle(JIColor.text)
-                .accessibilityLabel("\(label), \(value)")
-                .accessibilityIdentifier("goal-target-\(label)")
-        }
+        JIRow(title: label) { Text(value).jiFont(.footnote, weight: .semibold) }
+            .accessibilityLabel("\(label), \(value)")
+            .accessibilityIdentifier("goal-target-\(label)")
     }
 }

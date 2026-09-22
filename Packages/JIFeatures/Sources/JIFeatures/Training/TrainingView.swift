@@ -8,6 +8,10 @@ import JIDesign
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
     @State private var showSessionCoach = false
+    /// B-33: a screen root's own token reads resolve to the theme it installs below —
+    /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
+    /// `\.jiTheme` here would see the presenter's value rather than this screen's.
+    private let theme = JITheme.native
     #if canImport(WorkoutKit)
     // B-37-L3 (P-workouts): the app wires `\.sendToWatchModel`; nil (previews, tests, no hub) hides
     // the toolbar button. Environment-routed so `init(model:)` stays the frozen contract.
@@ -19,19 +23,23 @@ public struct TrainingView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
-                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(JIColor.muted) }
+                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
                         .accessibilityIdentifier("training-empty")
                 case .loaded: loaded
                 }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
         }
-        .background(JIColor.bg)
+        .background(theme.color(.bg))
+        .jiTheme(.native)
+        // §5: the hand-drawn large title becomes the system one, so scroll-edge and the
+        // large-title collapse come from the navigation stack instead of a `VStack` header.
+        .navigationTitle("Training")
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
@@ -60,11 +68,6 @@ public struct TrainingView: View {
         #endif
     }
 
-    private var header: some View {
-        Text("Training").font(.largeTitle.bold()).foregroundStyle(JIColor.text)
-            .accessibilityAddTraits(.isHeader)
-    }
-
     private var loading: some View {
         Surface {
             VStack(alignment: .leading, spacing: 12) { SkeletonBlock(height: 90); SkeletonBlock(height: 60); SkeletonBlock(height: 160) }
@@ -74,9 +77,9 @@ public struct TrainingView: View {
     private func errorCard(_ msg: String) -> some View {
         Surface {
             VStack(alignment: .leading, spacing: 12) {
-                Text(msg).foregroundStyle(JIColor.text)
+                Text(msg).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("training-error")
-                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(JIColor.info)
+                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(theme.color(.info))
                     .accessibilityLabel("Retry")
                     .accessibilityIdentifier("training-retry")
             }
@@ -86,9 +89,16 @@ public struct TrainingView: View {
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
             TrainingDayStrip(daily: model.gate?.daily ?? [], selectedDate: model.selectedDate, onSelect: model.selectDate)
-            GateDetailCard(morning: model.morning, gate: model.gate)
-            sessionCoachEntry
+            JISectionHeader("Readiness")
+            // §8.1: the gate hero and the session-coach entry compose side by side in regular
+            // width (Pro Max landscape, Stage Manager) and stack on an iPhone. Same two cards.
+            AdaptiveHStack {
+                GateDetailCard(morning: model.morning, gate: model.gate)
+                sessionCoachEntry
+            }
+            JISectionHeader("This day")
             TrainingDayDetailCard(date: model.selectedDate, detail: model.dayDetail)
+            JISectionHeader("Plan")
             TrainingWeekStrip(exercises: model.exercises)
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in
                 Task { await model.updateExercise(exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName, patch: patch) }
@@ -102,11 +112,11 @@ public struct TrainingView: View {
             Surface {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("LIVE SESSION COACH").font(.caption2.weight(.semibold)).foregroundStyle(JIColor.muted)
-                        Text("Session coach").font(.subheadline.weight(.bold)).foregroundStyle(JIColor.text)
+                        Text("LIVE SESSION COACH").jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        Text("Session coach").jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(JIColor.muted)
+                    Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted))
                 }
             }
         }

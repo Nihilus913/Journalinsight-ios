@@ -26,25 +26,27 @@ public struct DriverBar: Identifiable, Sendable, Equatable {
 /// source-missing copy rather than drawing a zero-width bar with no explanation.
 public struct DriverBars: View {
     let drivers: [DriverBar]
+    @Environment(\.jiTheme) private var theme
 
     public init(drivers: [DriverBar]) {
         self.drivers = drivers
     }
 
-    /// Never the reserved verdict green (`JIColor.go`) — driver bars are neutral, always.
-    static let barColor = JIColor.mutedNested
+    /// Never the reserved verdict green (`.go`) — driver bars are neutral, always. A ROLE, not a
+    /// `Color`: the active theme resolves it in `body` (B-33 Phase C).
+    nonisolated static let barRole: JIColorRole = .mutedNested
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(drivers) { driver in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(driver.label).font(.caption).foregroundStyle(JIColor.muted).lineLimit(1)
+                    Text(driver.label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(JIColor.surface3).frame(height: 6)
+                            Capsule().fill(theme.color(.surface3)).frame(height: 6)
                             if !driver.sourceMissing, let value = driver.value {
                                 Capsule()
-                                    .fill(Self.barColor)
+                                    .fill(theme.color(Self.barRole))
                                     .frame(width: g.size.width * CGFloat(min(max(value, 0), 1)), height: 6)
                             }
                         }

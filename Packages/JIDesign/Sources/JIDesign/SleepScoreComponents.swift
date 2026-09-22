@@ -10,6 +10,10 @@ public struct SleepScoreComponent: Identifiable, Equatable, Sendable {
 /// score/band itself — NEUTRAL (`mutedNested`) always, never the reserved verdict green.
 public struct SleepScoreComponents: View {
     let components: [SleepScoreComponent], sourceMissing: Bool
+    @Environment(\.jiTheme) private var theme
+    /// Neutral, always — never the reserved verdict green. A role; the theme resolves it.
+    nonisolated public static let barRole: JIColorRole = .mutedNested
+
     public init(components: [SleepScoreComponent], sourceMissing: Bool = false) {
         self.components = components; self.sourceMissing = sourceMissing
     }
@@ -19,15 +23,15 @@ public struct SleepScoreComponents: View {
             ForEach(components) { component in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text(component.label).font(.caption).foregroundStyle(JIColor.muted)
+                        Text(component.label).font(.caption).foregroundStyle(theme.color(.muted))
                         Spacer()
-                        Text(valueText(component.value)).font(.caption).foregroundStyle(JIColor.text)
+                        Text(valueText(component.value)).font(.caption).foregroundStyle(theme.color(.text))
                     }
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(JIColor.surface3)
+                            Capsule().fill(theme.color(.surface3))
                             if let value = component.value, !sourceMissing {
-                                Capsule().fill(JIColor.mutedNested)
+                                Capsule().fill(theme.color(Self.barRole))
                                     .frame(width: g.size.width * CGFloat(min(max(value, 0), 100) / 100))
                             }
                         }

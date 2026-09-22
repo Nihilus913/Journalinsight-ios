@@ -17,76 +17,74 @@ nonisolated public func trainingDayStatus(kcalBurnedActive: Double?, isFuture: B
     return kcalBurnedActive >= sessionKcalFloor ? .good : .miss
 }
 
+/// The gregorian/UTC calendar every ISO-date helper on this screen shares — the hub's dates are
+/// UTC day keys, so `Calendar.current` would shift a day either side of midnight.
+nonisolated let trainingStripCalendar: Calendar = {
+    var c = Calendar(identifier: .gregorian)
+    c.timeZone = TimeZone(identifier: "UTC") ?? .current
+    return c
+}()
+
+nonisolated func trainingStripDate(_ iso: String) -> Date? {
+    let parts = iso.split(separator: "-").compactMap { Int($0) }
+    guard parts.count == 3 else { return nil }
+    return trainingStripCalendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+}
+
+nonisolated func trainingStripISO(_ date: Date) -> String {
+    let c = trainingStripCalendar.dateComponents([.year, .month, .day], from: date)
+    return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+}
+
 /// Top-of-screen day navigator (oracle: `TrainingDayStrip.tsx`). Reads `gate.daily` — already
-/// fetched for `GateDetailCard` — rather than firing a separate request.
+/// fetched for `GateDetailCard` — rather than firing a separate request. B-33 §2b.4: renders as
+/// the Fitness calendar strip (`WeekStrip`), so the day chips, today's fill and the activity ring
+/// come from JIDesign instead of a bespoke horizontal `ScrollView`.
 public struct TrainingDayStrip: View {
     let daily: [DailyKpiRow]
     let selectedDate: String
     let today: String
     let onSelect: (String) -> Void
+    @Environment(\.jiTheme) private var theme
 
     public init(daily: [DailyKpiRow], selectedDate: String, today: String = String(Date().ISO8601Format().prefix(10)), onSelect: @escaping (String) -> Void) {
         self.daily = daily; self.selectedDate = selectedDate; self.today = today; self.onSelect = onSelect
     }
 
-    private var trainedCount: Int {
-        daily.filter { trainingDayStatus(kcalBurnedActive: $0.values["kcal_burned_active"] ?? nil, isFuture: $0.date > today) == .good }.count
+    private func status(_ row: DailyKpiRow) -> TrainingDayStatus {
+        trainingDayStatus(kcalBurnedActive: row.values["kcal_burned_active"] ?? nil, isFuture: row.date > today)
+    }
+
+    private var trainedCount: Int { daily.filter { status($0) == .good }.count }
+
+    private var days: [WeekStripDay] {
+        let symbols = trainingStripCalendar.veryShortWeekdaySymbols
+        return daily.compactMap { row in
+            guard let d = trainingStripDate(row.date) else { return nil }
+            let weekday = trainingStripCalendar.component(.weekday, from: d)
+            return WeekStripDay(date: d, initial: symbols[weekday - 1], isToday: row.date == today, marked: status(row) == .good)
+        }
+    }
+
+    /// `WeekStrip` selects by `Date`; the screen's contract is the ISO day key. A tap on a day the
+    /// strip doesn't know (nil) is ignored rather than clearing the selection.
+    private var selection: Binding<Date?> {
+        Binding(get: { trainingStripDate(selectedDate) }, set: { if let d = $0 { onSelect(trainingStripISO(d)) } })
     }
 
     public var body: some View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 Text(daily.isEmpty ? "This week" : "This week · \(trainedCount)/\(daily.count) trained")
-                    .font(.caption.weight(.semibold)).foregroundStyle(JIColor.muted)
+                    .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                 if daily.isEmpty {
-                    Text("No training data yet.").font(.footnote).foregroundStyle(JIColor.muted)
+                    Text("No training data yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(daily, id: \.date) { row in dayCell(row) }
-                        }
-                    }
+                    WeekStrip(days: days, tint: theme.color(.info), selected: selection)
+                        .accessibilityIdentifier("training-day-strip")
                 }
             }
         }
         .jiHapticCue(.selection, on: selectedDate)   // W8-L1 (P-haptics) — oracle DayStrip.tsx:126 `if (!selected) hapticSelection()`: a re-tap of the selected day is no edge
-    }
-
-    private func dayCell(_ row: DailyKpiRow) -> some View {
-        let status = trainingDayStatus(kcalBurnedActive: row.values["kcal_burned_active"] ?? nil, isFuture: row.date > today)
-        let selected = row.date == selectedDate
-        return Button { onSelect(row.date) } label: {
-            VStack(spacing: 4) {
-                Text(dow(row.date)).font(.caption2).foregroundStyle(JIColor.muted)
-                Text(String(row.date.suffix(2)))
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(row.date == today ? JIColor.info : JIColor.text)
-                Circle().fill(dotColor(status)).frame(width: 6, height: 6)
-            }
-            .padding(8)
-            .background(selected ? JIColor.surface3 : Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .buttonStyle(.pressableScale)
-        .accessibilityLabel("\(row.date)\(row.date == today ? ", today" : "")")
-        .accessibilityValue(status == .good ? "trained" : status == .miss ? "not trained" : status == .future ? "upcoming" : "no data")
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .accessibilityIdentifier("training-day-\(row.date)")
-    }
-
-    private func dotColor(_ status: TrainingDayStatus) -> Color {
-        switch status {
-        case .good: JIColor.go
-        case .miss: JIColor.danger
-        case .neutral, .future: JIColor.mutedNested
-        }
-    }
-
-    private func dow(_ date: String) -> String {
-        let parts = date.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return "" }
-        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC") ?? .current
-        guard let d = cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) else { return "" }
-        let symbols = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
-        return symbols[cal.component(.weekday, from: d) - 1]
     }
 }

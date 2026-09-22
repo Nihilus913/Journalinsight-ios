@@ -23,6 +23,7 @@ public nonisolated func moodValence(_ mood: Mood) -> Double { moodValenceTable[m
 /// `selection` is optional — clearing it (tap the already-selected mood again) is how RN lets a
 /// mood be left unset on an entry.
 public struct MoodPicker: View {
+    @Environment(\.jiTheme) private var theme
     @Binding var selection: Mood?
     public init(selection: Binding<Mood?>) { self._selection = selection }
 
@@ -36,7 +37,7 @@ public struct MoodPicker: View {
                         .jiFont(.title)
                         .padding(8)
                         .background(
-                            Circle().fill(selection == mood ? JIColor.info.opacity(0.25) : Color.clear)
+                            Circle().fill(selection == mood ? theme.color(.info).opacity(0.25) : Color.clear)
                         )
                 }
                 .buttonStyle(.pressableScale)

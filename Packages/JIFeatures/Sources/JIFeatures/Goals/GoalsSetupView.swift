@@ -8,6 +8,7 @@ import JIDesign
 /// rule as the RN oracle's own `useRef` guard) so a background refresh never fights an in-progress
 /// edit. CLAUDE.md rule 5: while loading (no seed yet) the form shows "Loading…", never zeros.
 public struct GoalsSetupView: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: GoalsSetupViewModel
 
     @State private var hydrated = false
@@ -35,96 +36,79 @@ public struct GoalsSetupView: View {
     private var canSave: Bool { dateValid && model.phase != .saving }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if !hydrated {
-                    Text("Loading…").font(.footnote).foregroundStyle(JIColor.muted)
-                } else {
-                    Surface {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionTitle("Weight")
-                            Stepper("Target weight: \(weightTarget, specifier: "%.1f") kg", value: $weightTarget, in: 30...400, step: 0.5)
-                                .accessibilityIdentifier("goals-setup-weight-target")
-                            Text("Target date (optional)").font(.caption).foregroundStyle(JIColor.muted)
-                            TextField("YYYY-MM-DD", text: $weightDate)
-                                .accessibilityLabel("Target date (optional)")
-                                .accessibilityIdentifier("goals-setup-weight-date")
-                                #if os(iOS)
-                                .textInputAutocapitalization(.never)
-                                #endif
-                                .autocorrectionDisabled()
-                            if !dateValid {
-                                Text("Use YYYY-MM-DD, or leave blank.").font(.caption2).foregroundStyle(JIColor.danger)
-                            }
-                        }
-                    }
+        List {
+            if !hydrated {
+                Section { Text("Loading…").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+            } else {
+                Section {
+                    Stepper("Target weight: \(weightTarget, specifier: "%.1f") kg", value: $weightTarget, in: 30...400, step: 0.5)
+                        .accessibilityIdentifier("goals-setup-weight-target")
+                    TextField("YYYY-MM-DD", text: $weightDate)
+                        .accessibilityLabel("Target date (optional)")
+                        .accessibilityIdentifier("goals-setup-weight-date")
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Weight")
+                } footer: {
+                    Text(dateValid ? "Target date is optional." : "Use YYYY-MM-DD, or leave blank.")
+                        .foregroundStyle(dateValid ? theme.color(.muted) : theme.color(.danger))
+                }
 
-                    Surface {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionTitle("Strength")
-                            Stepper("Bench press: \(benchTarget, specifier: "%.1f") kg", value: $benchTarget, in: 0...500, step: 2.5)
-                                .accessibilityIdentifier("goals-setup-bench-target")
-                            Stepper("Bent-over row: \(rowTarget, specifier: "%.1f") kg", value: $rowTarget, in: 0...500, step: 2.5)
-                                .accessibilityIdentifier("goals-setup-row-target")
-                        }
-                    }
+                Section("Strength") {
+                    Stepper("Bench press: \(benchTarget, specifier: "%.1f") kg", value: $benchTarget, in: 0...500, step: 2.5)
+                        .accessibilityIdentifier("goals-setup-bench-target")
+                    Stepper("Bent-over row: \(rowTarget, specifier: "%.1f") kg", value: $rowTarget, in: 0...500, step: 2.5)
+                        .accessibilityIdentifier("goals-setup-row-target")
+                }
 
-                    Surface {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionTitle("Activity")
-                            Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
-                                .accessibilityIdentifier("goals-setup-steps-daily")
-                        }
-                    }
+                Section("Activity") {
+                    Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
+                        .accessibilityIdentifier("goals-setup-steps-daily")
+                }
 
-                    Surface {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionTitle("Nutrition")
-                            Stepper("Calories: \(Int(kcalGoal)) kcal", value: $kcalGoal, in: 1000...6000, step: 50)
-                                .accessibilityIdentifier("goals-setup-kcal")
-                            Stepper("Protein: \(Int(proteinG)) g", value: $proteinG, in: 0...400, step: 5)
-                                .accessibilityIdentifier("goals-setup-protein")
-                            Stepper("Carbs: \(Int(carbsG)) g", value: $carbsG, in: 0...600, step: 5)
-                                .accessibilityIdentifier("goals-setup-carbs")
-                            Stepper("Fat: \(Int(fatG)) g", value: $fatG, in: 0...300, step: 5)
-                                .accessibilityIdentifier("goals-setup-fat")
-                        }
-                    }
+                Section("Nutrition") {
+                    Stepper("Calories: \(Int(kcalGoal)) kcal", value: $kcalGoal, in: 1000...6000, step: 50)
+                        .accessibilityIdentifier("goals-setup-kcal")
+                    Stepper("Protein: \(Int(proteinG)) g", value: $proteinG, in: 0...400, step: 5)
+                        .accessibilityIdentifier("goals-setup-protein")
+                    Stepper("Carbs: \(Int(carbsG)) g", value: $carbsG, in: 0...600, step: 5)
+                        .accessibilityIdentifier("goals-setup-carbs")
+                    Stepper("Fat: \(Int(fatG)) g", value: $fatG, in: 0...300, step: 5)
+                        .accessibilityIdentifier("goals-setup-fat")
+                }
 
+                Section {
                     Button(action: save) {
-                        Text(model.phase == .saving ? "Saving…" : "Save goals")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                        Text(model.phase == .saving ? "Saving…" : "Save goals").frame(maxWidth: .infinity)
                     }
                     .disabled(!canSave)
-                    .buttonStyle(.borderedProminent)
                     .accessibilityLabel("Save goals")
                     .accessibilityIdentifier("goals-setup-save")
-
+                } footer: {
                     if case .error = model.phase {
-                        Text("Couldn't save — try again.").font(.caption).foregroundStyle(JIColor.danger)
-                    }
-                    if let savedAt = model.savedAt, model.phase == .loaded {
+                        Text("Couldn't save — try again.").foregroundStyle(theme.color(.danger))
+                    } else if let savedAt = model.savedAt, model.phase == .loaded {
                         Text("Saved \(savedAt.formatted(date: .omitted, time: .shortened)).")
-                            .font(.caption).foregroundStyle(JIColor.muted)
-                    }
-
-                    if let mirror = model.goals {
-                        GoalTargetsMirrorSection(goals: mirror)
                     }
                 }
+
+                if let mirror = model.goals {
+                    GoalTargetsMirrorSection(goals: mirror)
+                }
             }
-            .padding(16)
         }
+        .jiNativeFormChrome()
+        .readableColumn()
+        .jiTheme(.native)
+        .navigationTitle("Goals setup")
         .task {
             await model.load()
             seedIfNeeded()
         }
         .onChange(of: model.goals) { _, _ in seedIfNeeded() }
-    }
-
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text).font(.caption.bold()).foregroundStyle(JIColor.muted).textCase(.uppercase)
     }
 
     private func seedIfNeeded() {

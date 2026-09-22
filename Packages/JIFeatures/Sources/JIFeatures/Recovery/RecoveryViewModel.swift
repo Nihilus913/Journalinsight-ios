@@ -145,3 +145,30 @@ public final class RecoveryViewModel {
         }
     }
 }
+
+// MARK: - B-33 §8.5 fixture
+
+public extension RecoveryViewModel {
+    /// A loaded Recovery for `ScreenRegistry`/the screenshot sweep. `nil` only when an in-memory
+    /// SQLite file cannot be opened. Never used by the app.
+    static func fixture() -> RecoveryViewModel? {
+        guard let cache = NativeFixtureStore.cache else { return nil }
+        let model = RecoveryViewModel(provider: MockDataProvider(), cache: cache)
+        model.days = (0..<7).map { i in
+            RecoveryDay(
+                date: "2026-09-\(15 + i)",
+                sleepScore: [78, 81, 74, 88, 83, 79, 85][i],
+                sleepDurationSec: [25_200, 26_400, 23_400, 28_200, 27_000, 25_800, 27_600][i],
+                rhrBpm: [54, 53, 55, 52, 53, 54, 52][i],
+                bodyBatteryAvg: [61, 64, 58, 70, 66, 62, 68][i],
+                readinessScore: [68, 71, 64, 79, 74, 70, 76][i],
+                acwr: [1.02, 1.05, 1.11, 0.97, 1.01, 1.08, 1.04][i],
+                hrvWeeklyAvg: [48, 50, 47, 53, 51, 49, 52][i]
+            )
+        }
+        model.fetchedAt = Date(timeIntervalSince1970: 1_789_992_000)
+        model.phase = .loaded
+        model.hasLiveResult = true
+        return model
+    }
+}

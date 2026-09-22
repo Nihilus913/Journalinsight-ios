@@ -14,3 +14,15 @@ import Testing
     let tabs: Set<RootTab> = [.today, .recovery, .energy, .nutrition, .training]
     #expect(tabs.count == 5)
 }
+
+// B-33 §5/§2b.4 (lane L4): the bar is five content tabs + the iOS 27 search role, so Training is
+// a first-level tab and iOS never folds one into "More". Energy keeps its case (it is pushed
+// from the toolbar) but is deliberately not one of the five.
+@Test func firstLevelTabsAreFiveWithTrainingAmongThem() {
+    #expect(RootTab.firstLevel.count == 5)
+    #expect(RootTab.firstLevel.contains(.training))
+    #expect(!RootTab.firstLevel.contains(.search))
+    #expect(!RootTab.firstLevel.contains(.energy))
+    #expect(Set(RootTab.firstLevel).count == 5)
+    #expect(RootTab.firstLevel.map(\.accessibilityIdentifier).first == "tab.today")
+}

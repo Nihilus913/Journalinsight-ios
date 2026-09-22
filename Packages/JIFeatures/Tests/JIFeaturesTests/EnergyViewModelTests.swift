@@ -86,10 +86,15 @@ nonisolated struct EnergyEmptyProvider: EnergyProviding {
 }
 
 @Test @MainActor func deficitColorNeverUsesReservedVerdictGreen() {
-    #expect(EnergyFormat.deficitColor(nil, class: nil) == JIColor.muted)
-    #expect(EnergyFormat.deficitColor(-100, class: "surplus") == JIColor.muted)
-    #expect(EnergyFormat.deficitColor(600, class: "dangerous") == JIColor.danger)
-    #expect(EnergyFormat.deficitColor(400, class: "aggressive") == JIColor.reduced)
-    #expect(EnergyFormat.deficitColor(150, class: "mild") == JIColor.info)
-    #expect(![JIColor.go].contains(EnergyFormat.deficitColor(600, class: "dangerous")))
+    // B-33: the roles are unchanged; only their resolution is theme-scoped, so rule 6 holds in
+    // both languages — never `go`, whatever the theme resolves it to.
+    for theme in JITheme.allCases {
+        #expect(EnergyFormat.deficitColor(nil, class: nil, theme: theme) == theme.color(.muted))
+        #expect(EnergyFormat.deficitColor(-100, class: "surplus", theme: theme) == theme.color(.muted))
+        #expect(EnergyFormat.deficitColor(600, class: "dangerous", theme: theme) == theme.color(.danger))
+        #expect(EnergyFormat.deficitColor(400, class: "aggressive", theme: theme) == theme.color(.reduced))
+        #expect(EnergyFormat.deficitColor(400, class: "aggressive", theme: theme) != theme.color(.go))
+    }
+    #expect(EnergyFormat.deficitColor(150, class: "mild", theme: .native) == JITheme.native.color(.info))
+    #expect(EnergyFormat.deficitColor(600, class: "dangerous", theme: .native) != JITheme.native.color(.go))
 }

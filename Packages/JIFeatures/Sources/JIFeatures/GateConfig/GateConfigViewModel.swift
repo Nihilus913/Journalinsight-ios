@@ -217,3 +217,16 @@ public final class GateConfigViewModel {
         }
     }
 }
+
+// MARK: - B-33 §8.5 fixture
+
+public extension GateConfigViewModel {
+    /// The local-override editor over an empty in-memory `PrefStore`, for `ScreenRegistry`/the
+    /// screenshot sweep. `nil` only when an in-memory SQLite file cannot be opened.
+    static func fixture() -> GateConfigViewModel? {
+        guard let prefs = NativeFixtureStore.prefs else { return nil }
+        let model = GateConfigViewModel(targetsProvider: nil, prefStore: prefs)
+        model.loadLocal()
+        return model
+    }
+}

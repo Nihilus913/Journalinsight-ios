@@ -57,10 +57,13 @@ public nonisolated func mindTileTapAction(onOpenMind: @escaping () -> Void) -> (
 /// W9.5-L4: the minimum tile width the grid's `.adaptive` columns fit. Compact width (every
 /// iPhone in portrait, non-Max iPhones in landscape) keeps the RN oracle's 2-up on a portrait
 /// phone (≈370pt usable → 2 tiles) yet lets an 18 Pro landscape (≈720pt usable) fill 4;
-/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6.
+/// regular width (iPad, Max landscape) grows the tile so a 10" pane doesn't shatter into 6 —
+/// B-33 §8.5 caps that growth at 160 so the four summary tiles still make one row inside the
+/// 720 pt `readableColumn()` at 956 pt — 680 pt of content after the 20 pt gutters (200 left
+/// them 3-up with a widow on the next row).
 public nonisolated func todayGridMinimumTileWidth(horizontalSizeClass: UserInterfaceSizeClass?) -> CGFloat {
     switch horizontalSizeClass {
-    case .regular: 200
+    case .regular: 160
     default: 150
     }
 }
@@ -127,8 +130,11 @@ public struct TodayGrid: View {
     /// W9.5-L4 (P-today): rotation — the size class picks the minimum tile width; the column
     /// count then follows the available width (2 portrait phone, 3+ landscape / iPad).
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.jiTheme) private var theme
 
-    private var columns: [GridItem] { todayGridColumns(horizontalSizeClass: horizontalSizeClass) }
+    /// B-33 §8.1: the bespoke `LazyVGrid`/rotation maths is JIDesign's `Columns` now; the pure
+    /// `todayGridMinimumTileWidth` seam (and its tests) stays as the size-class floor it feeds.
+    private var tileMinimum: CGFloat { todayGridMinimumTileWidth(horizontalSizeClass: horizontalSizeClass) }
 
     public init(
         chips: [TodayChip], prefs: PrefStore?, onSelectKpi: @escaping (String) -> Void,
@@ -152,7 +158,7 @@ public struct TodayGrid: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             DataFreshnessBadge(info: freshness, onTap: dataFreshnessBadgeTapAction(onOpenDataQuality: { showDataQuality = true }))
-            LazyVGrid(columns: columns, spacing: todayGridSpacing) {
+            Columns(minimum: tileMinimum, spacing: todayGridSpacing) {
                 ForEach(orderedChips) { chip in
                     tile(for: chip)
                 }
@@ -183,16 +189,16 @@ public struct TodayGrid: View {
             Surface(level: 2, padding: 12) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("MIND").font(.caption.bold()).foregroundStyle(JIColor.mutedNested)
+                        Text("MIND").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.mutedNested))
                         if let checkin = mindTodayCheckin {
                             Text("Checked in · stress \(checkin.stress)/5 · energy \(checkin.energy)/5")
-                                .font(.footnote).foregroundStyle(JIColor.text)
+                                .jiFont(.footnote).foregroundStyle(theme.color(.text))
                         } else {
-                            Text("How are you today?").font(.subheadline.bold()).foregroundStyle(JIColor.text)
+                            Text("How are you today?").jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
                         }
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(JIColor.mutedNested)
+                    Image(systemName: "chevron.right").foregroundStyle(theme.color(.mutedNested))
                 }
             }
         }

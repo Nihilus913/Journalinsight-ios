@@ -7,8 +7,37 @@ import JIPersistence
 import JIVault
 import JIWorkouts
 
-enum RootTab: Hashable {
-    case today, journal, recovery, energy, nutrition, training
+// B-33 §2b.4/§5 + close-out (Toby 2026-09-22 "all in one line"): the bar is five content tabs +
+// the iOS 27 search role, and the search-role Tab HOSTS the whole Journal (the entries list with
+// the system search field + tag scopes on top). `journal` stays in the vocabulary (and in
+// `tabContent`) but is no longer one of the five — Energy is.
+enum RootTab: Hashable, Identifiable, CaseIterable {
+    case today, journal, recovery, energy, nutrition, training, search
+
+    var id: Self { self }
+
+    /// The five content tabs the bar shows, in order. Exactly five, so iOS never folds one into
+    /// "More"; the Journal lives in the search-role Tab (`searchTab`).
+    static let firstLevel: [RootTab] = [.today, .recovery, .training, .nutrition, .energy]
+
+    var title: String {
+        switch self {
+        case .today: "Today"; case .journal: "Journal"; case .recovery: "Recovery"
+        case .energy: "Energy"; case .nutrition: "Nutrition"; case .training: "Training"
+        case .search: "Search"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .today: "sun.max"; case .journal: "book.closed"; case .recovery: "heart"
+        case .energy: "flame"; case .nutrition: "fork.knife"; case .training: "dumbbell"
+        case .search: "magnifyingglass"
+        }
+    }
+
+    /// `tab.today`, `tab.search`, … — the identifiers the UI smoke and AppTests use.
+    var accessibilityIdentifier: String { "tab.\(String(describing: self))" }
 }
 
 struct RootTabView: View {
@@ -54,6 +83,7 @@ struct RootTabView: View {
     // change — the toggle AND a hub reconnect — and this is the single site that invalidates the
     // cache; each tab's `.task` then rebuilds its model against the provider now in the store.
     @State private var providerRevision = 0
+    @Environment(\.jiTheme) private var theme
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -69,39 +99,22 @@ struct RootTabView: View {
             ZStack {
                 TabTransition(selection: selectedTab, content: tabContent)
                 TabView(selection: $selectedTab) {
-                    Tab("Today", systemImage: "sun.max", value: RootTab.today) {
+                    ForEach(RootTab.firstLevel) { tab in
+                        Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                            transparentTabContent
+                        }
+                        .accessibilityIdentifier(tab.accessibilityIdentifier)
+                        .accessibilityLabel(tab.title)
+                    }
+                    // B-33 §2b.4: the search-role Tab — hosts the Journal (`searchTab`).
+                    Tab(value: RootTab.search, role: .search) {
                         transparentTabContent
                     }
-                    .accessibilityIdentifier("tab.today")
-                    .accessibilityLabel("Today")
-                    Tab("Journal", systemImage: "book.closed", value: RootTab.journal) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.journal")
-                    .accessibilityLabel("Journal")
-                    Tab("Recovery", systemImage: "heart", value: RootTab.recovery) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.recovery")
-                    .accessibilityLabel("Recovery")
-                    Tab("Energy", systemImage: "flame", value: RootTab.energy) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.energy")
-                    .accessibilityLabel("Energy")
-                    Tab("Nutrition", systemImage: "fork.knife", value: RootTab.nutrition) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.nutrition")
-                    .accessibilityLabel("Nutrition")
-                    Tab("Training", systemImage: "dumbbell", value: RootTab.training) {
-                        transparentTabContent
-                    }
-                    .accessibilityIdentifier("tab.training")
-                    .accessibilityLabel("Training")
+                    .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
                 }
+                .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
             }
-            .background(JIColor.bg)
+            .background(theme.color(.bg))
             // W2i: the connection sheet used to be reachable only before a hub was configured or
             // from the Today error card — once connected, Settings (incl. the Health backload)
             // had no entry point. Keep it one tap away from every tab.
@@ -123,6 +136,10 @@ struct RootTabView: View {
                 }
             }
         }
+        // B-33 §8.0: the whole shell renders in the native language; §5: tab/selection tint is
+        // the personalization accent resolved for `.native`.
+        .jiTheme(.native)
+        .tint(AccentKey.default.color(for: .native))
         .onChange(of: ProviderSwitch.shared.revision) { _, revision in
             guard revision != providerRevision else { return }
             providerRevision = revision
@@ -192,6 +209,7 @@ struct RootTabView: View {
         case .energy: energyTab
         case .nutrition: nutritionTab
         case .training: trainingTab
+        case .search: searchTab
         }
     }
 
@@ -263,6 +281,36 @@ struct RootTabView: View {
             }
         } else {
             connectionPrompt
+        }
+    }
+
+    /// B-33 §2b.4 + close-out: the search-role Tab hosts the WHOLE Journal — `JournalView` with the
+    /// system search field and the tag scopes on top (the chrome `JournalSearchView` documents),
+    /// bound straight to `JournalViewModel.filters` so typing filters the entry rows in place.
+    /// On-device only, no hub gate (same as the old Journal tab).
+    @ViewBuilder
+    private var searchTab: some View {
+        NavigationStack {
+            if let journalModel {
+                JournalView(model: journalModel)
+                    .searchable(text: Binding(get: { journalModel.filters.query }, set: { journalModel.filters.query = $0 }), prompt: "Search entries")
+                    .searchScopes(Binding(
+                        get: { journalModel.filters.tag ?? JournalSearchView.allScope },
+                        set: { journalModel.filters.tag = $0 == JournalSearchView.allScope ? nil : $0 }
+                    )) {
+                        ForEach([JournalSearchView.allScope] + journalModel.allTags, id: \.self) { tag in
+                            Text(tag).tag(tag)
+                        }
+                    }
+            } else {
+                ProgressView()
+                    .task {
+                        let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+                        let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
+                        guard let db else { return }
+                        journalModel = JournalViewModel(db: db, vault: vault)
+                    }
+            }
         }
     }
 

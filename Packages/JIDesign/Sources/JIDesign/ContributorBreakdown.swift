@@ -23,6 +23,11 @@ public nonisolated func rankedContributors(_ contributors: [ReadinessContributor
 /// score/band itself — NEUTRAL (`mutedNested`) always, never the reserved verdict green.
 public struct ContributorBreakdown: View {
     let contributors: [ReadinessContributor]
+    @Environment(\.jiTheme) private var theme
+
+    /// Neutral, always — never the reserved verdict green. A role; the theme resolves it.
+    nonisolated public static let barRole: JIColorRole = .mutedNested
+
     public init(contributors: [ReadinessContributor]) { self.contributors = contributors }
 
     public var body: some View {
@@ -32,15 +37,15 @@ public struct ContributorBreakdown: View {
             ForEach(ranked) { c in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text(c.label).font(.caption).foregroundStyle(JIColor.muted)
+                        Text(c.label).font(.caption).foregroundStyle(theme.color(.muted))
                         Spacer()
-                        Text(valueText(c.value)).font(.caption).foregroundStyle(JIColor.text)
+                        Text(valueText(c.value)).font(.caption).foregroundStyle(theme.color(.text))
                     }
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(JIColor.surface3)
+                            Capsule().fill(theme.color(.surface3))
                             if maxMagnitude > 0 {
-                                Capsule().fill(JIColor.mutedNested)
+                                Capsule().fill(theme.color(Self.barRole))
                                     .frame(width: g.size.width * CGFloat(abs(c.magnitude) / maxMagnitude))
                             }
                         }

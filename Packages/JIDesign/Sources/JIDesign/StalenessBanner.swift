@@ -6,6 +6,7 @@ import SwiftUI
 public struct StalenessBanner: View {
     let fetchedAt: Date?, hubReachable: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.jiTheme) private var theme
     public init(fetchedAt: Date?, hubReachable: Bool) { self.fetchedAt = fetchedAt; self.hubReachable = hubReachable }
     public var body: some View {
         if !hubReachable, let fetchedAt {
@@ -14,9 +15,9 @@ public struct StalenessBanner: View {
                     .accessibilityLabel("Hub unreachable")
                 Text("Showing data from \(fetchedAt.formatted(date: .omitted, time: .shortened)) — hub unreachable")
             }
-            .font(.footnote).foregroundStyle(JIColor.text)
+            .font(.footnote).foregroundStyle(theme.color(.text))
             .padding(10).frame(maxWidth: .infinity)
-            .background(JIColor.surface3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(theme.color(.surface3), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .accessibilityIdentifier("staleness-banner")
             .transition(reduceMotion ? AnyTransition.opacity : .move(edge: .top).combined(with: .opacity))
         }

@@ -1,3 +1,6 @@
+// F3: UIKit does not exist on the macOS host the package tests run on — the whole suite is a
+// UIKit rendering harness, so it compiles on the UIKit platforms only.
+#if canImport(UIKit)
 import Foundation
 import SwiftUI
 import Testing
@@ -40,7 +43,7 @@ import JIDesign
             .padding(.horizontal, 20)
             .environment(\.horizontalSizeClass, .compact)
             .frame(width: size.width, height: size.height, alignment: .top)
-            .background(JIColor.bg)
+            .background(JITheme.native.color(.bg))
         let host = UIHostingController(rootView: grid)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = host
@@ -64,3 +67,5 @@ import JIDesign
         }
     }
 }
+
+#endif

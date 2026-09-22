@@ -164,31 +164,29 @@ private struct HapticsSectionRows: View {
 }
 
 struct HapticsRows: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: HapticsViewModel
 
     var body: some View {
         Toggle(isOn: Binding(get: { model.enabled }, set: { model.setEnabled($0) })) {
             SettingsLinkLabel(title: "Haptics", subtitle: model.subtitle)
         }
-        .tint(JIColor.info)
+        .tint(theme.color(.info))
         .accessibilityLabel(model.enabled ? "Haptics On" : "Haptics Off")
         .accessibilityIdentifier("settings.haptics.enabled")
 
         HStack(spacing: 10) {
             HapticIntensitySlider(model: model)
+            // §2b/§5: the hand-drawn pill is the system bordered button.
             Button("Feel it") { model.feelIt() }
-                .buttonStyle(.pressableScale)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(JIColor.text)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(JIColor.surface2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .buttonStyle(.bordered)
                 .accessibilityLabel("Feel it")
                 .accessibilityIdentifier("settings.haptics.feelIt")
         }
         .onAppear { model.refresh() }
 
         if let saveError = model.saveError {
-            Text(saveError).font(.caption).foregroundStyle(JIColor.danger)
+            Text(saveError).jiFont(.caption).foregroundStyle(theme.color(.danger))
                 .accessibilityIdentifier("settings.haptics.error")
         }
     }
@@ -198,6 +196,7 @@ struct HapticsRows: View {
 /// TICK feedback is quantized to the detents (`dragTo`), the value is not. Dimmed (not disabled)
 /// while the master switch is Off.
 struct HapticIntensitySlider: View {
+    @Environment(\.jiTheme) private var theme
     @Bindable var model: HapticsViewModel
 
     var body: some View {
@@ -207,7 +206,7 @@ struct HapticIntensitySlider: View {
             step: 1,
             onEditingChanged: { editing in if !editing { model.commit(Double(model.intensity)) } }
         )
-        .tint(JIColor.info)
+        .tint(theme.color(.info))
         .opacity(model.enabled ? 1 : 0.45)
         .frame(minHeight: 48)
         .overlay(alignment: .center) { detentTicks }
@@ -228,7 +227,7 @@ struct HapticIntensitySlider: View {
     private var detentTicks: some View {
         GeometryReader { geo in
             ForEach(JIHapticIntensity.detents, id: \.self) { d in
-                Rectangle().fill(JIColor.bg.opacity(0.5))
+                Rectangle().fill(theme.color(.bg).opacity(0.5))
                     .frame(width: 2, height: 8)
                     .position(x: geo.size.width * CGFloat(d) / 100, y: geo.size.height / 2)
             }

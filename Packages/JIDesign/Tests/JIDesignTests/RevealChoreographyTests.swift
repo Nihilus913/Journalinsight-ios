@@ -9,6 +9,8 @@ import Testing
 @Test func revealIsHiddenBeforeAppearAndShownAfter() {
     #expect(revealOpacity(revealed: false) == 0)
     #expect(revealOpacity(revealed: true) == 1)
+    // Close-out defect 2: with `\.jiRevealAnimations` off the fade is skipped — final opacity at once.
+    #expect(revealOpacity(revealed: false, animations: false) == 1)
 }
 
 @Test func reduceMotionSuppressesTheRevealOffsetButNotTheFade() {

@@ -7,6 +7,7 @@ import JIDesign
 /// pick up the athletic gate's prescriptive (GO/RED-colored, imperative) styling. `mindSnapshot()`
 /// derives the headline/description purely from today's check-in and never emits a verdict word.
 public struct MindSnapshotCard: View {
+    @Environment(\.jiTheme) private var theme
     let checkin: CheckIn?
 
     public init(checkin: CheckIn?) { self.checkin = checkin }
@@ -15,9 +16,9 @@ public struct MindSnapshotCard: View {
         let snap = mindSnapshot(checkin)
         Surface(level: 1, padding: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("MIND · TODAY").font(.caption.bold()).foregroundStyle(JIColor.muted)
-                Text(snap.headline).jiFont(.title, weight: .heavy).foregroundStyle(JIColor.text)
-                Text(snap.description).font(.subheadline).foregroundStyle(JIColor.muted)
+                Text("MIND · TODAY").font(.caption.bold()).foregroundStyle(theme.color(.muted))
+                Text(snap.headline).jiFont(.title, weight: .heavy).foregroundStyle(theme.color(.text))
+                Text(snap.description).font(.subheadline).foregroundStyle(theme.color(.muted))
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)

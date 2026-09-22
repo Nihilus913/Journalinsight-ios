@@ -55,60 +55,60 @@ public final class LocalMirrorsViewModel {
 }
 
 public struct LocalMirrorsView: View {
+    @Environment(\.jiTheme) private var theme
     @State private var model: LocalMirrorsViewModel
     @Environment(\.dismiss) private var dismiss
 
     public init(model: LocalMirrorsViewModel) { _model = State(initialValue: model) }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        List {
+            Section {
+                EmptyView()
+            } footer: {
                 // Oracle `ScreenHeader info=…`, verbatim.
                 Text("What this device has mirrored locally for goals, KPI targets, challenges, and gate decisions — the hub stays the source of truth until F5d.")
-                    .font(.footnote).foregroundStyle(JIColor.muted)
                     .accessibilityIdentifier("localMirrors.info")
+            }
 
-                if let goals = model.goals {
-                    GoalTargetsMirrorSection(goals: goals)
-                } else {
-                    unavailable("GOAL TARGETS", "Nothing mirrored yet — open Goals once while online.", id: "goalTargets")
-                }
+            if let goals = model.goals {
+                GoalTargetsMirrorSection(goals: goals)
+            } else {
+                unavailable("Goal targets", "Nothing mirrored yet — open Goals once while online.", id: "goalTargets")
+            }
 
-                KpiTargetsMirrorSection(targets: model.targets)
+            Section { KpiTargetsMirrorSection(targets: model.targets) }
 
-                if let challengesModel = model.challengesModel {
-                    ChallengesMirrorSection(model: challengesModel, onEdit: { _ in })
-                } else {
-                    unavailable("CHALLENGES", "Nothing mirrored yet — open Challenges once while online.", id: "challenges")
-                }
+            if let challengesModel = model.challengesModel {
+                ChallengesMirrorSection(model: challengesModel, onEdit: { _ in })
+            } else {
+                unavailable("Challenges", "Nothing mirrored yet — open Challenges once while online.", id: "challenges")
+            }
 
-                DecisionLogSection(entries: model.decisions)
+            DecisionLogSection(entries: model.decisions)
 
+            Section {
                 Button("Done") { dismiss() }
-                    .buttonStyle(.pressableScale)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(JIColor.info, in: RoundedRectangle(cornerRadius: JIRadius.card))
-                    .foregroundStyle(JIColor.bg).font(.body.bold())
                     .accessibilityLabel("Done")
                     .accessibilityIdentifier("localMirrors.done")
             }
-            .padding(16)
-            .frame(maxWidth: 900)
-            .frame(maxWidth: .infinity)
         }
-        .background(JIColor.bg)
+        .jiNativeFormChrome()
+        .readableColumn()
+        .jiTheme(.native)
         .navigationTitle("Local data mirrors")
         .task { await model.load() }
     }
 
     private func unavailable(_ title: String, _ message: String, id: String) -> some View {
-        Surface(level: 2) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(title).font(.caption.bold()).foregroundStyle(JIColor.muted)
-                Text(message).font(.footnote).foregroundStyle(JIColor.muted)
-            }
+        Section {
+            Text(message).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                .accessibilityIdentifier("localMirrors.\(id).unavailable")
+        } header: {
+            Text(title)
         }
-        .accessibilityIdentifier("localMirrors.\(id).unavailable")
     }
 }
+
+

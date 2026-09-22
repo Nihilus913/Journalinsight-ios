@@ -20,37 +20,41 @@ struct KpiWidget: Widget {
 
 private struct KpiWidgetView: View {
     let snapshot: HubSnapshot?
+    private let theme = widgetTheme
 
     var body: some View {
         if let snapshot, !snapshot.kpis.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("My KPIs")
-                    .font(.caption.bold())
-                    .foregroundStyle(JIColor.muted)
+                    .jiFont(.caption, weight: .bold)
+                    .foregroundStyle(theme.color(.muted))
+                // §4b: no ring here — HRV / RHR / weight are baseline-relative, not bounded.
                 ForEach(snapshot.kpis.prefix(3), id: \.label) { kpi in
                     HStack {
                         Text(kpi.label)
-                            .font(.caption)
-                            .foregroundStyle(JIColor.text)
+                            .jiFont(.caption)
+                            .foregroundStyle(theme.color(.text))
                         Spacer()
                         Text(formatted(kpi))
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(JIColor.text)
+                            .jiNumeral(.numeralSmall)
+                            .foregroundStyle(theme.color(.text))
                     }
                 }
             }
-            .containerBackground(JIColor.bg, for: .widget)
+            .jiTheme(.native)
+            .containerBackground(theme.color(.bg), for: .widget)
         } else {
             // Honest empty state — never a bare "0" row (CLAUDE.md rule 5).
             VStack(alignment: .leading, spacing: 4) {
                 Text("My KPIs")
-                    .font(.caption.bold())
-                    .foregroundStyle(JIColor.muted)
+                    .jiFont(.caption, weight: .bold)
+                    .foregroundStyle(theme.color(.muted))
                 Text("No data yet")
-                    .font(.caption)
-                    .foregroundStyle(JIColor.muted)
+                    .jiFont(.caption)
+                    .foregroundStyle(theme.color(.muted))
             }
-            .containerBackground(JIColor.bg, for: .widget)
+            .jiTheme(.native)
+            .containerBackground(theme.color(.bg), for: .widget)
         }
     }
 

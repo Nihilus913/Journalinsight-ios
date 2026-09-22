@@ -6,6 +6,7 @@ import JIDesign
 /// No file-access entitlement is needed: `.fileExporter`/`.fileImporter` use
 /// the system document picker, same as RN's share-sheet-based export.
 public struct BackupView: View {
+    @Environment(\.jiTheme) private var theme
     @State private var model: BackupViewModel
     @State private var showImporter = false
 
@@ -20,7 +21,7 @@ public struct BackupView: View {
                     .accessibilityIdentifier("backup-export")
                     .accessibilityHint("Opens the system save sheet for the backup file.")
                 if let error = model.exportError {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+                    Text(error).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                         .accessibilityIdentifier("backup-export-error")
                 }
             }
@@ -31,6 +32,7 @@ public struct BackupView: View {
                 importStageView
             }
         }
+        .jiTheme(.native)
         .navigationTitle("Backup & restore")
         .fileExporter(
             isPresented: $model.showExporter,
@@ -58,10 +60,10 @@ public struct BackupView: View {
             HStack { Text("Restoring…"); Spacer(); ProgressView() }
                 .accessibilityIdentifier("backup-restoring")
         case .restored(let count):
-            Text("Restored \(count) tables.").foregroundStyle(JIColor.info)
+            Text("Restored \(count) tables.").foregroundStyle(theme.color(.info))
                 .accessibilityIdentifier("backup-restored")
         case .failure(let message):
-            Text(message).font(.footnote).foregroundStyle(.red)
+            Text(message).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                 .accessibilityIdentifier("backup-restore-error")
         }
     }
