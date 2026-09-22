@@ -72,6 +72,9 @@ public struct TrendRow: View {
     }
 
     public var direction: JITrendDirection { trendDirection(recent: recent, baseline: baseline) }
+    /// A row with nothing to show is muted, like Apple's "-/-" rows — the metric's colour is for
+    /// rows that actually carry a figure.
+    private var valueTint: Color { recent == nil && baseline == nil ? theme.color(.muted) : tint }
 
     public var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -85,10 +88,10 @@ public struct TrendRow: View {
                     .lineLimit(1).minimumScaleFactor(0.7)
                 HStack(spacing: 4) {
                     Text(trendValueText(recent: recent, baseline: baseline, unit: unit, decimals: decimals))
-                        .jiFont(.caption, weight: .semibold).foregroundStyle(tint)
+                        .jiFont(.caption, weight: .semibold).foregroundStyle(valueTint)
                         .lineLimit(1).minimumScaleFactor(0.6)
                     Image(systemName: direction.symbolName)
-                        .font(.caption2.weight(.bold)).foregroundStyle(tint)
+                        .font(.caption2.weight(.bold)).foregroundStyle(valueTint)
                 }
             }
             Spacer(minLength: 0)
