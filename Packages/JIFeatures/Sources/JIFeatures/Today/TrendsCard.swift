@@ -99,3 +99,39 @@ public struct TrendsCard: View {
         .accessibilityIdentifier("today.trends")
     }
 }
+
+/// §8.5 registry entry "Trends card" — the shipping card over a fixed series, so the sweep renders
+/// the same pixels on every run (no hub, no disk, no async load).
+struct TrendsCardNativePreview: View {
+    private static let recovery: [RecoveryDay] = (0..<28).map { i in
+        let day: Int = i % 7
+        let sleep: Double = [78, 81, 74, 88, 83, 79, 85][day]
+        let rhr: Double = [54, 53, 55, 52, 53, 54, 52][day]
+        let battery: Double = [61, 64, 58, 70, 66, 62, 68][day]
+        let readiness: Double = [68, 71, 64, 79, 74, 70, 76][day]
+        let acwr: Double = [1.02, 1.05, 1.11, 0.97, 1.01, 1.08, 1.04][day]
+        let hrv: Double = [48, 50, 47, 53, 51, 49, 52][day] + Double(i) * 0.1
+        return RecoveryDay(
+            date: String(format: "2026-09-%02d", i + 1),
+            sleepScore: sleep,
+            sleepDurationSec: 25_200,
+            rhrBpm: rhr,
+            bodyBatteryAvg: battery,
+            readinessScore: readiness,
+            acwr: acwr,
+            hrvWeeklyAvg: hrv
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            JISectionHeader("Today")
+            TrendsCard(trends: todayTrends(recovery: Self.recovery, daily: []))
+        }
+        .padding(.horizontal, 20).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(JITheme.native.color(.bg))
+        .jiTheme(.native)
+        .environment(\.jiOffscreenRender, true)
+    }
+}
