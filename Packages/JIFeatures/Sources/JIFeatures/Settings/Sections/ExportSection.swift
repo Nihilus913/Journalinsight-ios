@@ -17,6 +17,7 @@ public struct ExportSection: SettingsSection {
     public let title = "Export"
     public let systemImage = "square.and.arrow.up"
     public let sortKey = SettingsSortKey.data + 5
+    public let group = SettingsGroupId.sync
     public init() {}
     public var body: some View { ExportSectionRows() }
 }

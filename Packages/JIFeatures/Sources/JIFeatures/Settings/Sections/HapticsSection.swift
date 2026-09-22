@@ -142,6 +142,7 @@ public struct HapticsSection: SettingsSection {
     public let title = "Haptics"
     public let systemImage = "iphone.radiowaves.left.and.right"
     public let sortKey = SettingsSortKey.preferences + 25
+    public let group = SettingsGroupId.haptics
     public init() {}
     public var body: some View { HapticsSectionRows() }
 }

@@ -9,6 +9,7 @@ public struct AppearanceSection: SettingsSection {
     public let title = "Appearance"
     public let systemImage = "paintpalette"
     public let sortKey = SettingsSortKey.preferences + 20
+    public let group = SettingsGroupId.home
     public init() {}
     public var body: some View { AppearanceSectionRows() }
 }

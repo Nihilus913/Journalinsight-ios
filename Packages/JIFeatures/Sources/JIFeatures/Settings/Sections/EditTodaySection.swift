@@ -8,6 +8,7 @@ public struct EditTodaySection: SettingsSection {
     public let title = "Edit Today"
     public let systemImage = "square.grid.2x2"
     public let sortKey = SettingsSortKey.preferences + 10
+    public let group = SettingsGroupId.home
     public init() {}
     public var body: some View { EditTodaySectionRows() }
 }

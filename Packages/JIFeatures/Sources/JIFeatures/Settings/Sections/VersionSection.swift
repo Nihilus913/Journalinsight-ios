@@ -11,6 +11,7 @@ public struct VersionSection: SettingsSection {
     public let title = "About & version"
     public let systemImage = "info.circle"
     public let sortKey = SettingsSortKey.advanced + 50
+    public let group = SettingsGroupId.about
     public init() {}
     public var body: some View { VersionSectionRows() }
 }
