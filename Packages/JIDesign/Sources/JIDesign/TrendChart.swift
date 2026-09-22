@@ -40,7 +40,12 @@ public struct TrendChart: View {
     let points: [TrendPoint], tint: Color, unit: String?, showAll: (() -> Void)?
     @Binding var range: TrendRange
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
+
+    /// F2: how many date labels the x-axis asks for. Four fit at the default sizes; at an
+    /// accessibility size each label is ~3× wider, so four of them truncate to "3 A…".
+    private var xAxisLabelCount: Int { typeSize.isAccessibilitySize ? 2 : 4 }
 
     public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?) {
         self.points = points; self.tint = tint; self.unit = unit; self._range = range; self.showAll = showAll
@@ -61,12 +66,15 @@ public struct TrendChart: View {
                     RuleMark(y: .value("Average", avg))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(theme.color(.muted))
-                        .annotation(position: .top, alignment: .trailing) {
+                        // F2: leading, so the label never lands under the trailing y-axis labels.
+                        .annotation(position: .top, alignment: .leading) {
                             Text("avg \(avg.formatted(.number.precision(.fractionLength(0))))").jiFont(.micro).foregroundStyle(theme.color(.muted))
                         }
                 }
             }
             .chartYAxis { AxisMarks(position: .trailing) }
+            // F2: fewer date labels, so none of them truncates ("3 A…") at AX3 / 440 pt.
+            .chartXAxis { AxisMarks(values: .automatic(desiredCount: xAxisLabelCount)) }
             .frame(minHeight: chartHeight)
             .overlay {
                 if shown.isEmpty {
