@@ -19,14 +19,20 @@ nonisolated public func orderedSessionNames(_ exercises: [Exercise]) -> [String]
 /// Which plan session a week-strip row stands for: the id the assign sheet writes with, and the
 /// weekday it currently shows. A pure helper so the precedence — cached spine first (it is the one
 /// place an offline, still-queued assignment and a real `session_id` are recorded), exercise rows
-/// second, the `exercise_id` fudge last — is testable without rendering.
+/// second — is testable without rendering.
+///
+/// The id is OPTIONAL on purpose. `PUT /planning/plan-sessions/{id}` takes a `plan.plan_session`
+/// id and 404s on anything else, so standing in an `exercise_id` (the former fallback) produced a
+/// tap that could never be delivered — the assignment was queued against an id the hub does not
+/// have and was refused forever. A hub that does not tell us the real `session_id` gets no assign
+/// affordance at all, which is the honest state: `nil` means "this row cannot be assigned yet".
 nonisolated public func weekStripSession(
     named name: String, exercises: [Exercise], planSessions: [PlanSessionOut]
-) -> (id: Int, weekday: Int?) {
+) -> (id: Int?, weekday: Int?) {
     let rows = exercises.filter { $0.sessionName == name }
     let cached = planSessions.first { $0.name == name }
     return (
-        id: cached?.id ?? rows.first?.sessionId ?? rows.first?.exerciseId ?? 0,
+        id: cached?.id ?? rows.first?.sessionId,
         weekday: cached?.weekday ?? rows.compactMap(\.weekday).first
     )
 }
@@ -86,7 +92,7 @@ public struct TrainingWeekStrip: View {
         let (sessionId, weekday) = weekStripSession(named: name, exercises: exercises, planSessions: planSessions)
         let dayLabel = planWeekdayName(weekday) ?? "Not assigned"
         let isToday = weekday != nil && weekday == highlightedWeekday
-        let isPending = pendingSync.contains(sessionId)
+        let isPending = sessionId.map { pendingSync.contains($0) } ?? false
         let row = JIRow(
             title: name,
             subtitle: "\(dayLabel) · \(lifts.joined(separator: ", "))",
@@ -97,7 +103,7 @@ public struct TrainingWeekStrip: View {
                 // B-52: the assignment stands on screen even though the hub hasn't taken it yet —
                 // this marker is what stops that from being a lie. It clears when the drainer
                 // reports the row delivered.
-                if isPending {
+                if isPending, let sessionId {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("training.session.\(sessionId).pendingSync")
@@ -110,7 +116,9 @@ public struct TrainingWeekStrip: View {
         .accessibilityValue("\(dayLabel), \(lifts.joined(separator: ", "))\(isPending ? ", waiting to sync" : "")")
         .accessibilityIdentifier("training-week-session-\(name)")
 
-        if let onAssign {
+        // No real plan-session id (an old hub that omits `session_id`) means no assign
+        // affordance: a tap would enqueue a write the hub can only 404.
+        if let onAssign, let sessionId {
             Button {
                 onAssign(AssignWeekdaySheet.Session(id: sessionId, name: name, weekday: weekday))
             } label: {

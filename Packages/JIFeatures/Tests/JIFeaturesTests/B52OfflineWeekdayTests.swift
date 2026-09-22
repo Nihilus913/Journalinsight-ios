@@ -284,10 +284,11 @@ private func makeVM(
         Exercise(exerciseId: 19, sessionName: "Day 1 Full Upper", exerciseName: "Bench", sets: 3,
                  repsTarget: "8", currentWeightKg: 50, progressionStepKg: 2.5, weekday: 0, sessionId: nil),
     ]
-    // The live hub's `/planning/exercises` carries no `session_id`, so without a spine the row can
-    // only offer the `exercise_id` — which the PUT route 404s on.
+    // A hub that withholds `session_id` leaves the row with NO assignable id. It must never fall
+    // back to the `exercise_id` (19): `PUT /planning/plan-sessions/19` 404s, so the tap would
+    // queue a write the hub can only refuse.
     let bare = weekStripSession(named: "Day 1 Full Upper", exercises: rows, planSessions: [])
-    #expect(bare.id == 19)
+    #expect(bare.id == nil)
     #expect(bare.weekday == 0)
 
     // With the spine (real id 1, and a weekday queued offline) both come from it.
@@ -297,6 +298,39 @@ private func makeVM(
     )
     #expect(spined.id == 1)
     #expect(spined.weekday == 3)
+}
+
+/// The blocking B-52 defect: the id the assign sheet PUTs must be a `plan.plan_session` id, never
+/// an `exercise_id`. With the hub serving `session_id` (it now does — `GET /planning/exercises`
+/// selects `se.session_id`), the spine carries it and the row is assignable; withheld, the row
+/// offers no id at all rather than one the PUT route 404s on.
+@Test @MainActor func theStripAssignsWithTheHubsRealPlanSessionIdAndNeverTheExerciseId() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let hub = PlanWeekdayFakeProvider()
+    hub.rows = [
+        Exercise(exerciseId: 19, sessionName: "Day 1 Full Upper", exerciseName: "Bench", sets: 3,
+                 repsTarget: "8", currentWeightKg: 50, progressionStepKg: 2.5, weekday: 0, sessionId: 1),
+        Exercise(exerciseId: 25, sessionName: "Day 2 Full Upper", exerciseName: "Row", sets: 3,
+                 repsTarget: "8", currentWeightKg: 50, progressionStepKg: 2.5, weekday: 2, sessionId: 2),
+    ]
+    let vm = makeVM(training: hub, cache: cache, outbox: nil)
+    await vm.load()
+
+    #expect(vm.planSessions.map(\.id) == [1, 2])
+    #expect(!vm.planSessions.map(\.id).contains(19))
+    #expect(weekStripSession(named: "Day 1 Full Upper", exercises: vm.exercises, planSessions: vm.planSessions).id == 1)
+    #expect(weekStripSession(named: "Day 2 Full Upper", exercises: vm.exercises, planSessions: vm.planSessions).id == 2)
+
+    // …and a hub that withholds it contributes no spine row, so nothing fabricates id 19.
+    let cache2 = OfflineCache(db: try AppDatabase.inMemory())
+    let old = PlanWeekdayFakeProvider()
+    old.rows = hub.rows.map { row in
+        var r = row; r.sessionId = nil; return r
+    }
+    let vm2 = makeVM(training: old, cache: cache2, outbox: nil)
+    await vm2.load()
+    #expect(vm2.planSessions.isEmpty)
+    #expect(weekStripSession(named: "Day 1 Full Upper", exercises: vm2.exercises, planSessions: vm2.planSessions).id == nil)
 }
 
 @Test @MainActor func anOfflineAssignmentMakesTheStripRowPointAtTheRealSessionId() async throws {
@@ -310,7 +344,7 @@ private func makeVM(
     hub.weekdayError = HubError.network("offline")
     let vm = makeVM(training: hub, cache: cache, outbox: outbox)
     await vm.load()
-    #expect(weekStripSession(named: "Day 1 Full Upper", exercises: vm.exercises, planSessions: vm.planSessions).id == 19)
+    #expect(weekStripSession(named: "Day 1 Full Upper", exercises: vm.exercises, planSessions: vm.planSessions).id == nil)
 
     // Assigned with the REAL plan-session id (the day detail's `planned_session`): the spine row
     // is corrected in place, not duplicated, so the marker and the next PUT use id 1.
@@ -319,5 +353,5 @@ private func makeVM(
     let resolved = weekStripSession(named: "Day 1 Full Upper", exercises: vm.exercises, planSessions: vm.planSessions)
     #expect(resolved.id == 1)
     #expect(resolved.weekday == 3)
-    #expect(vm.pendingSessionSync.contains(resolved.id))
+    #expect(resolved.id.map { vm.pendingSessionSync.contains($0) } == true)
 }

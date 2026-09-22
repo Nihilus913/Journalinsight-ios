@@ -371,11 +371,11 @@ public final class TrainingViewModel {
             updated.weekday = weekday
             return updated
         }
-        // Match on id first, then on name. The name fallback matters on the live hub, whose
-        // `/planning/exercises` rows carry NO `session_id` (checked 2026-09-22): the derived spine
-        // then holds the week strip's `exercise_id` fudge for that session, and an assignment made
-        // with the real plan-session id (from the day detail's `planned_session`) must correct it
-        // rather than add a second row under the same name.
+        // Match on id first, then on name. The name fallback matters against a hub whose
+        // `/planning/exercises` rows carry no `session_id`: the session then has no spine row of
+        // its own, and an assignment made with a real plan-session id learned elsewhere (the day
+        // detail's `planned_session`) must attach to the existing name rather than add a second
+        // row under it.
         if let index = planSessions.firstIndex(where: { $0.id == sessionId })
             ?? planSessions.firstIndex(where: { $0.name == sessionName }) {
             planSessions[index] = PlanSessionOut(id: sessionId, name: sessionName, weekday: weekday)
@@ -384,20 +384,23 @@ public final class TrainingViewModel {
         }
     }
 
-    /// First-appearance-order plan sessions carried by a set of exercise rows. A row without a
-    /// `session_id` (old hub) falls back to its own `exercise_id`, exactly as the week strip's tap
-    /// target does — one fudge, in one place, rather than two that can disagree.
+    /// First-appearance-order plan sessions carried by a set of exercise rows. Only REAL
+    /// `plan.plan_session` ids enter the spine: a row whose `session_id` the hub withheld (and for
+    /// which no id is otherwise known) is left out entirely rather than standing in its
+    /// `exercise_id`. That fudge is what made B-52 undeliverable — `PUT /planning/plan-sessions/
+    /// {exercise_id}` 404s, the outbox row was then classed a permanent refusal, and the
+    /// assignment was rolled back exactly as B-45 used to do.
     private func derivePlanSessions(from rows: [Exercise]) -> [PlanSessionOut] {
         var seen = Set<String>()
         var out: [PlanSessionOut] = []
         for row in rows where !seen.contains(row.sessionName) {
             seen.insert(row.sessionName)
             // A real plan-session id already known for this name (from the day detail, or from an
-            // assignment) outranks the `exercise_id` fallback — the hub's exercise rows may carry
-            // no `session_id` at all, and re-deriving must not throw the good id away.
-            let id = rows.first { $0.sessionName == row.sessionName && $0.sessionId != nil }?.sessionId
-                ?? planSessions.first { $0.name == row.sessionName }?.id
-                ?? row.exerciseId
+            // assignment) is kept when a re-fetch arrives without one, so re-deriving never throws
+            // the good id away.
+            guard let id = rows.first(where: { $0.sessionName == row.sessionName && $0.sessionId != nil })?.sessionId
+                ?? planSessions.first(where: { $0.name == row.sessionName })?.id
+            else { continue }
             let weekday = rows.first { $0.sessionName == row.sessionName && $0.weekday != nil }?.weekday
             out.append(PlanSessionOut(id: id, name: row.sessionName, weekday: weekday))
         }
