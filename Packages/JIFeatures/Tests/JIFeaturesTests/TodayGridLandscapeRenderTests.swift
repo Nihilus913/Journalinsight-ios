@@ -1,3 +1,6 @@
+// F3: UIKit does not exist on the macOS host the package tests run on — the whole suite is a
+// UIKit rendering harness, so it compiles on the UIKit platforms only.
+#if canImport(UIKit)
 import Foundation
 import SwiftUI
 import Testing
@@ -64,3 +67,5 @@ import JIDesign
         }
     }
 }
+
+#endif

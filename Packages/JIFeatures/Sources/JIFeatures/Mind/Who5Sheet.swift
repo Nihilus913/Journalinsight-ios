@@ -38,7 +38,10 @@ public struct Who5Sheet: View {
                         }
                         // §8.2: five responses per item is too long for a menu label to fit at
                         // AX sizes — the Form idiom for a long option set is a pushed list.
+                        // F3: `.navigationLink` does not exist on the macOS package-test host.
+                        #if os(iOS) || os(watchOS) || os(visionOS)
                         .pickerStyle(.navigationLink)
+                        #endif
                         .accessibilityLabel(item)
                     }
                 }

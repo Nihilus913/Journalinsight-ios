@@ -56,7 +56,7 @@ public struct SendToWatchSheet: View {
             statusSection
         }
         #if os(iOS)
-        .listStyle(.insetGrouped)
+        .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
         #endif
     }
 

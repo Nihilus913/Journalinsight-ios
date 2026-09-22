@@ -28,7 +28,7 @@ public struct GateConfigView: View {
             serverSection
         }
         // §5: a `Form` keeps the system grouped background and the inset-grouped cells.
-        .listStyle(.insetGrouped)
+        .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
         .navigationTitle("Gate config")
         .task { if !offscreen { await model.load() } }
     }

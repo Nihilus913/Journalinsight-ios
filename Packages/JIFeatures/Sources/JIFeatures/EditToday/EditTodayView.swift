@@ -26,7 +26,7 @@ public struct EditTodayView: View {
             }
         }
         // §5: the grouped background and inset-grouped cells come from the system.
-        .listStyle(.insetGrouped)
+        .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
         .navigationTitle("Edit Today")
         .onAppear { model.load() }
     }
