@@ -30,6 +30,22 @@ extension HubClientTests {
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer t0k")
     }
 
+    /// B-52: the drainer replays a queued `plan_weekday` row through the NARROW
+    /// `PlanSessionWeekdayProviding` protocol, not through `TrainingProviding`. If this provider
+    /// ever stopped conforming, `OutboxDrainer(hub:)`'s `as?` would silently resolve to `nil` and
+    /// every queued weekday would sit undelivered forever with no error anywhere — so the
+    /// conformance itself is asserted, and the PUT is exercised through that protocol's seam.
+    @Test func planSessionWeekdayIsDeliverableThroughTheOutboxProtocol() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/planning/plan-sessions/7"] = (200, Data(#"{"id":7,"name":"Day 1 Full Upper","weekday":3}"#.utf8))
+        let provider: any PlanSessionWeekdayProviding = configuredProvider()
+        let out = try await provider.updatePlanSessionWeekday(sessionId: 7, weekday: 3)
+        #expect(out.id == 7)
+        #expect(out.weekday == 3)
+        #expect(StubURLProtocol.lastRequest?.httpMethod == "PUT")
+        #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/plan-sessions/7")
+    }
+
     @Test func exercisesDecodesContractFixture() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.responses["/api/v1/planning/exercises"] = (200, Data("""

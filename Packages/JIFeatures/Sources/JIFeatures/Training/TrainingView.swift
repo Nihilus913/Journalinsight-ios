@@ -129,6 +129,8 @@ public struct TrainingView: View {
             TrainingWeekStrip(
                 exercises: model.exercises,
                 highlightedWeekday: model.selectedPlanWeekday,
+                planSessions: model.planSessions,
+                pendingSync: model.pendingSessionSync,
                 onAssign: { assigningSession = $0 }
             )
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in
