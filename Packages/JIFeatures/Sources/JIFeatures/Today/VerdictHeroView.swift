@@ -109,6 +109,12 @@ public struct VerdictHeroView: View {
 
     // MARK: - Insight sentence (the verdict word, demoted to its tinted lead)
 
+    /// The session line is only its own row when it would say something new: the insight
+    /// sentence's fallback tier already ends in the session ("GO — full session."), and two copies
+    /// of the same phrase is what made the old hero feel like a billboard. `today.verdict.session`
+    /// stays addressable either way — it moves up to the group when the row is folded in.
+    private var showsSessionRow: Bool { !verdict.session.isEmpty && !line.rest.contains(verdict.session) }
+
     @ViewBuilder private var insightSentence: some View {
         VStack(alignment: .leading, spacing: 4) {
             (Text(line.lead).foregroundStyle(theme.color(verdictColorRole(verdict.tone))).fontWeight(.bold)
@@ -117,12 +123,13 @@ public struct VerdictHeroView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("today.verdict.word")
                 .jiReveal()
-            if !verdict.session.isEmpty {
+            if showsSessionRow {
                 Text(verdict.session).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("today.verdict.session")
                     .jiReveal()
             }
         }
+        .accessibilityIdentifier(showsSessionRow ? "today.verdict.group" : "today.verdict.session")
     }
 
     // MARK: - Challenges link + the one compact action row
