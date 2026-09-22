@@ -7,17 +7,18 @@ import JIPersistence
 import JIVault
 import JIWorkouts
 
-// B-33 §2b.4/§5: the bar is five content tabs + the iOS 27 search role. `energy` stays in the
-// vocabulary (and in `tabContent`) but is no longer one of the five — it is pushed from the
-// toolbar, next to My KPIs, so Training is a first-level tab instead of living in iOS "More".
+// B-33 §2b.4/§5 + close-out (Toby 2026-09-22 "all in one line"): the bar is five content tabs +
+// the iOS 27 search role, and the search-role Tab HOSTS the whole Journal (the entries list with
+// the system search field + tag scopes on top). `journal` stays in the vocabulary (and in
+// `tabContent`) but is no longer one of the five — Energy is.
 enum RootTab: Hashable, Identifiable, CaseIterable {
     case today, journal, recovery, energy, nutrition, training, search
 
     var id: Self { self }
 
     /// The five content tabs the bar shows, in order. Exactly five, so iOS never folds one into
-    /// "More" — that is why `energy` is reachable from the toolbar instead (§5).
-    static let firstLevel: [RootTab] = [.today, .recovery, .training, .nutrition, .journal]
+    /// "More"; the Journal lives in the search-role Tab (`searchTab`).
+    static let firstLevel: [RootTab] = [.today, .recovery, .training, .nutrition, .energy]
 
     var title: String {
         switch self {
@@ -82,10 +83,6 @@ struct RootTabView: View {
     // change — the toggle AND a hub reconnect — and this is the single site that invalidates the
     // cache; each tab's `.task` then rebuilds its model against the provider now in the store.
     @State private var providerRevision = 0
-    // B-33 §5: Energy left the five-tab bar; it is pushed from the toolbar instead.
-    @State private var showEnergy = false
-    // B-33 §2b.4: the search-role Tab's query, owned here so it survives tab switches.
-    @State private var journalSearchQuery = ""
     @Environment(\.jiTheme) private var theme
 
     var body: some View {
@@ -109,8 +106,7 @@ struct RootTabView: View {
                         .accessibilityIdentifier(tab.accessibilityIdentifier)
                         .accessibilityLabel(tab.title)
                     }
-                    // B-33 Contract: the search-role Tab references `JournalSearchView` by name;
-                    // L6 owns the real screen (`Journal/JournalSearchView.swift`).
+                    // B-33 §2b.4: the search-role Tab — hosts the Journal (`searchTab`).
                     Tab(value: RootTab.search, role: .search) {
                         transparentTabContent
                     }
@@ -123,11 +119,6 @@ struct RootTabView: View {
             // from the Today error card — once connected, Settings (incl. the Health backload)
             // had no entry point. Keep it one tap away from every tab.
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showEnergy = true } label: { Image(systemName: "flame") }
-                        .accessibilityLabel("Energy")
-                        .accessibilityIdentifier("root.energy")
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { path.append(RootRoute.kpiList) } label: { Image(systemName: "list.bullet.rectangle") }
                         .accessibilityLabel("My KPIs")
@@ -138,7 +129,6 @@ struct RootTabView: View {
                         .accessibilityIdentifier("root.settings")
                 }
             }
-            .navigationDestination(isPresented: $showEnergy) { energyTab }
             .navigationDestination(for: RootRoute.self) { route in
                 switch route {
                 case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
@@ -294,19 +284,33 @@ struct RootTabView: View {
         }
     }
 
-    /// B-33 Contract: `JournalSearchView(scopes:query:)` — public, owned by L6. Scopes are the
-    /// Journal's tag capsules (§2b.4); nil model = no tags yet, never a crash.
+    /// B-33 §2b.4 + close-out: the search-role Tab hosts the WHOLE Journal — `JournalView` with the
+    /// system search field and the tag scopes on top (the chrome `JournalSearchView` documents),
+    /// bound straight to `JournalViewModel.filters` so typing filters the entry rows in place.
+    /// On-device only, no hub gate (same as the old Journal tab).
     @ViewBuilder
     private var searchTab: some View {
         NavigationStack {
-            JournalSearchView(scopes: journalModel?.allTags ?? [], query: $journalSearchQuery)
-        }
-        .task {
-            guard journalModel == nil else { return }
-            let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
-            let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
-            guard let db else { return }
-            journalModel = JournalViewModel(db: db, vault: vault)
+            if let journalModel {
+                JournalView(model: journalModel)
+                    .searchable(text: Binding(get: { journalModel.filters.query }, set: { journalModel.filters.query = $0 }), prompt: "Search entries")
+                    .searchScopes(Binding(
+                        get: { journalModel.filters.tag ?? JournalSearchView.allScope },
+                        set: { journalModel.filters.tag = $0 == JournalSearchView.allScope ? nil : $0 }
+                    )) {
+                        ForEach([JournalSearchView.allScope] + journalModel.allTags, id: \.self) { tag in
+                            Text(tag).tag(tag)
+                        }
+                    }
+            } else {
+                ProgressView()
+                    .task {
+                        let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
+                        let vault = journalVault ?? { let v = VaultManager(keychain: SecureKeychainService()); journalVault = v; return v }()
+                        guard let db else { return }
+                        journalModel = JournalViewModel(db: db, vault: vault)
+                    }
+            }
         }
     }
 

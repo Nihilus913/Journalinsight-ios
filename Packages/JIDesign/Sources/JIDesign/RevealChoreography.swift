@@ -9,7 +9,10 @@ import SwiftUI
 /// per rule 4 — no scale/translation when Reduce Motion is on).
 /// Pre-reveal opacity: `0` while hidden, `1` once revealed — identical in both
 /// motion states (Reduce Motion only suppresses the *offset*, never the fade).
-public nonisolated func revealOpacity(revealed: Bool) -> Double { revealed ? 1 : 0 }
+/// `animations: false` (`\.jiRevealAnimations` off — the snapshot sweep) is always `1`: an
+/// off-screen render captures the frame before `onAppear` has run, so the verdict word came out
+/// invisible in the B-33 sweep (close-out defect 2).
+public nonisolated func revealOpacity(revealed: Bool, animations: Bool = true) -> Double { (revealed || !animations) ? 1 : 0 }
 
 /// Pre-reveal vertical offset. Reduce Motion suppresses it unconditionally (opacity-only
 /// fallback, rule 4 — no scale/translation while Reduce Motion is on).
@@ -20,6 +23,7 @@ public nonisolated func revealOffsetY(revealed: Bool, reduceMotion: Bool, offset
 public struct RevealChoreography: ViewModifier {
     @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.jiRevealAnimations) private var animations
     let offset: CGFloat
 
     /// - Parameter offset: the pre-reveal vertical offset in points, applied only
@@ -30,9 +34,9 @@ public struct RevealChoreography: ViewModifier {
 
     public func body(content: Content) -> some View {
         content
-            .opacity(revealOpacity(revealed: revealed))
-            .offset(y: revealOffsetY(revealed: revealed, reduceMotion: reduceMotion, offset: offset))
-            .onAppear { withAnimation(reduceMotion ? nil : JIMotion.reveal) { revealed = true } }
+            .opacity(revealOpacity(revealed: revealed, animations: animations))
+            .offset(y: revealOffsetY(revealed: revealed || !animations, reduceMotion: reduceMotion, offset: offset))
+            .onAppear { withAnimation((reduceMotion || !animations) ? nil : JIMotion.reveal) { revealed = true } }
             .onDisappear { revealed = false }
     }
 }
