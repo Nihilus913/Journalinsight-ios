@@ -75,13 +75,10 @@ import JICore
         #expect(s.contains("swap intervals for easy Z2 30-40min"))
     }
 
-    /// DEFECT NOTE (found here, pre-existing, NOT this lane's file): `MorningResponse.carbs3dAvg`
-    /// never decodes from the hub. `JSON.decoder` uses `.convertFromSnakeCase`, which turns the
-    /// wire key `carbs_3d_avg` into `carbs3DAvg` (capital D) — no property matches, so the value is
-    /// silently nil. The same bite hits `GateAverages.avgKcal7d` / `avgProtein7d` / `sleepScore7d`
-    /// (`avg_kcal_7d` -> `avgKcal7D`), which is why the gate-rationale contributors render empty.
-    /// The branch itself is therefore asserted on the pure helper; the DTO fix belongs to whoever
-    /// owns `JICore/DTOs/{Morning,Gate}.swift`.
+    /// W-B47 L2: the DEFECT NOTE that used to sit here is closed. `carbs_3d_avg` decoded to nil
+    /// under `.convertFromSnakeCase` (wire key mangled to `carbs3DAvg` before `CodingKeys`
+    /// matching); `MorningResponse` now carries an explicit `CodingKeys` in the mangled spelling,
+    /// so the branch is asserted end to end through the real decoder, not only on the helper.
     @Test func glycogenWatchFiresWhenTheCarbFloorIsBreached() {
         let s = InsightSentence.carbWatch(carbs3dAvg: 100, floor: 120)
         #expect(s?.lowercased().contains("glycogen watch") == true)
@@ -90,6 +87,15 @@ import JICore
         #expect(s?.contains("120g") == true)
         #expect(InsightSentence.carbWatch(carbs3dAvg: 150, floor: 120) == nil)
         #expect(InsightSentence.carbWatch(carbs3dAvg: nil, floor: 120) == nil)
+    }
+
+    /// B-48 regression, end to end: a hub body whose `carbs_3d_avg` is under the floor now reaches
+    /// the glycogen-watch branch of `build` — before the DTO fix it fell straight through.
+    @Test func glycogenWatchBranchFiresFromADecodedHubBody() {
+        let s = InsightSentence.build(gate: gate(), morning: morning(carbs3d: 100, floor: 120))
+        #expect(s.lowercased().contains("glycogen watch"))
+        #expect(s.contains("100g"))
+        #expect(s.contains("120g"))
     }
 
     @Test func safetyTierOutranksTheBiggestLeverTier() {
@@ -111,11 +117,20 @@ import JICore
 
     @Test func proteinGapVsTheTwoGramsPerKgGoalIsSurfacedWhenMeaningful() {
         // goal = 80 * 2.0 = 160 g, gap = 40 g >= the 10 g noise floor
-        // Pure helper, for the same decoding reason as `glycogenWatchFires...` above.
         let s = InsightSentence.proteinGap(avgProtein7d: 120, avgWeightKg: 80)
         #expect(s?.contains("Protein is running 40g under your 160g target") == true)
         #expect(InsightSentence.proteinGap(avgProtein7d: 155, avgWeightKg: 80) == nil)   // 5 g gap = noise
         #expect(InsightSentence.proteinGap(avgProtein7d: 120, avgWeightKg: 0) == nil)
+    }
+
+    /// B-48 regression, end to end: the protein-gap branch was permanently dead because
+    /// `avg_protein_7d` decoded to nil. With `GateAverages`'s explicit `CodingKeys` it fires from a
+    /// real decoded hub body — the branch `build` reaches, not just the helper.
+    @Test func proteinGapBranchFiresFromADecodedHubBody() {
+        let g = gate(averages: #"{"avg_protein_7d": 120, "avg_weight_kg": 80, "trends": {}}"#)
+        #expect(g.averages.avgProtein7d == 120)
+        let s = InsightSentence.build(gate: g, morning: morning())
+        #expect(s.contains("Protein is running 40g under your 160g target"))
     }
 
     @Test func aSmallProteinGapIsNoiseAndFallsThroughToTheWeightTrend() {

@@ -74,33 +74,64 @@ import JIPersistence
     #expect(opened == 2)
 }
 
-// W9.5-L4 (P-today): rotation — the grid's columns are width-driven (`.adaptive(minimum:)`)
-// with the minimum tile width picked per size class, so landscape / iPad get 3+ columns while
-// a portrait phone keeps the RN oracle's 2.
-@Test func todayGridColumnsAreAdaptiveNotFixed() {
-    let compact = todayGridColumns(horizontalSizeClass: .compact)
-    let regular = todayGridColumns(horizontalSizeClass: .regular)
-    let unknown = todayGridColumns(horizontalSizeClass: nil)
-    #expect(compact.count == 1)
-    #expect(regular.count == 1)
-    #expect(unknown.count == 1)
-    if case .adaptive(let min, _) = compact[0].size { #expect(min == todayGridMinimumTileWidth(horizontalSizeClass: .compact)) } else { Issue.record("compact columns must be .adaptive") }
-    if case .adaptive(let min, _) = regular[0].size { #expect(min == todayGridMinimumTileWidth(horizontalSizeClass: .regular)) } else { Issue.record("regular columns must be .adaptive") }
+// W-B47 L2 (P-today): the Fitness 2-up card grid replaces W9.5-L4's width-driven `.adaptive`
+// columns. Two columns at compact width, three at regular, one at an accessibility type size.
+@Test func todayCardGridIsTwoUpCompactAndThreeUpRegular() {
+    #expect(todayCardColumnCount(horizontalSizeClass: .compact, isAccessibilitySize: false) == 2)
+    #expect(todayCardColumnCount(horizontalSizeClass: nil, isAccessibilitySize: false) == 2)
+    #expect(todayCardColumnCount(horizontalSizeClass: .regular, isAccessibilitySize: false) == 3)
 }
 
-@Test func todayGridColumnCountGrowsWithWidth() {
-    let min = todayGridMinimumTileWidth(horizontalSizeClass: .compact)
-    // iPhone 18 Pro portrait: 402pt − 2×16 padding.
-    #expect(todayGridColumnCount(availableWidth: 402 - 32, minimumTileWidth: min) == 2)
-    // iPhone SE-class portrait.
-    #expect(todayGridColumnCount(availableWidth: 375 - 32, minimumTileWidth: min) == 2)
-    // iPhone 18 Pro landscape: 874pt − 2×59 safe area − 2×16 padding.
-    #expect(todayGridColumnCount(availableWidth: 874 - 118 - 32, minimumTileWidth: min) >= 3)
-    // Regular width (iPad / Max landscape) still lands on 3+.
-    let regularMin = todayGridMinimumTileWidth(horizontalSizeClass: .regular)
-    #expect(todayGridColumnCount(availableWidth: 820 - 32, minimumTileWidth: regularMin) >= 3)
-    // B-33 §8.5: four summary columns at 956 pt — the readable column is 720 pt wide there.
-    #expect(todayGridColumnCount(availableWidth: 720 - 40, minimumTileWidth: regularMin) == 4)
-    // Never zero, even when the width is narrower than one tile.
-    #expect(todayGridColumnCount(availableWidth: 100, minimumTileWidth: min) == 1)
+/// B-33 §8.1 "reflows, never clips": a 20 pt bold card title cannot share a 393 pt screen at an
+/// accessibility size, so the grid drops to one column rather than truncating both titles.
+@Test func anAccessibilityTypeSizeCollapsesTheCardGridToOneColumn() {
+    #expect(todayCardColumnCount(horizontalSizeClass: .compact, isAccessibilitySize: true) == 1)
+    #expect(todayCardColumnCount(horizontalSizeClass: .regular, isAccessibilitySize: true) == 1)
+}
+
+@Test func todayCardGridColumnsAreEqualWidthFlexibleItems() {
+    let compact = todayCardGridColumns(horizontalSizeClass: .compact, isAccessibilitySize: false)
+    let regular = todayCardGridColumns(horizontalSizeClass: .regular, isAccessibilitySize: false)
+    let ax = todayCardGridColumns(horizontalSizeClass: .compact, isAccessibilitySize: true)
+    #expect(compact.count == 2)
+    #expect(regular.count == 3)
+    #expect(ax.count == 1)
+    for item in compact + regular + ax {
+        if case .flexible = item.size {} else { Issue.record("Today cards must be equal-width .flexible columns, not .adaptive") }
+        #expect(item.spacing == todayGridSpacing)
+    }
+}
+
+// MARK: - chip -> Fitness summary card
+
+@Test func everyTodayChipMapsToACardWithAnIconATintAndAFormattedValue() {
+    let hrv = todaySummaryCardSpec(for: TodayChip(id: "hrv", label: "HRV", value: 61, unit: "ms", points: [58, 61], sourceMissing: false))
+    #expect(hrv.icon == "waveform.path.ecg")
+    #expect(hrv.title == "HRV")
+    #expect(hrv.value == "61")
+    #expect(hrv.unit == "ms")
+    #expect(hrv.sparkline == [58, 61])
+
+    // One decimal only when the number actually has one (the StatChip rule, carried over).
+    #expect(todayCardValueText(7.4, sourceMissing: false) == "7.4")
+    // Grouping is the current locale's job — assert the precision rule, not a literal separator.
+    #expect(todayCardValueText(8420, sourceMissing: false) == 8420.0.formatted(.number.precision(.fractionLength(0))))
+}
+
+/// Rule 5: a source that cannot produce this metric shows the shared copy, never a zero and never
+/// a bare dash with a dangling unit.
+@Test func aSourceMissingChipCarriesNoValueAndNoUnit() {
+    let spec = todaySummaryCardSpec(for: TodayChip(id: "hrv", label: "HRV", value: nil, unit: "ms", points: [], sourceMissing: true))
+    #expect(spec.value == nil)
+    #expect(spec.unit == nil)
+    #expect(spec.sourceMissing)
+    #expect(spec.timestamp == nil)
+    #expect(todayCardValueText(61, sourceMissing: true) == nil)
+}
+
+/// W-B47 integrate seam: ONE function stubs L1's `metricTintRole(_:)`. Until the branches merge
+/// every card takes the neutral info tint — asserted so the stub cannot silently outlive integrate.
+@Test func theMetricTintSeamIsASingleStubbedFunction() {
+    #expect(todayCardTintRole("hrv") == .info)
+    #expect(todayCardTintRole("steps") == .info)
 }

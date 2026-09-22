@@ -235,21 +235,23 @@ private func makeB45VM(
 // MARK: - Item 3 (fixer): the as-of day was COMPUTED but never RENDERED
 
 /// The first fix stopped at the view model: `TodayChip.asOf` said "as of Sep 15" and `TodayGrid`
-/// then built its `StatChip` without it, so the device still showed a week-old HRV as today's.
-/// `todayStatChip(for:action:)` is the single seam the grid now goes through, and this asserts the
-/// field survives it — a regression here fails the suite instead of shipping a silent stale number.
-@Test @MainActor func todayStatChipRendersTheAsOfDayTheChipCarries() {
+/// then built its tile without it, so the device still showed a week-old HRV as today's.
+/// W-B47 L2 swapped the tile from `StatChip` to Fitness's `SummaryCard`; `todaySummaryCardSpec(for:)`
+/// is the single seam the grid now goes through, and this asserts the field survives it — a
+/// regression here fails the suite instead of shipping a silent stale number.
+@Test func todayCardRendersTheAsOfDayTheChipCarries() {
     let stale = TodayChip(id: "hrv", label: "HRV", value: 28, unit: "ms", points: [28], sourceMissing: false, asOf: "as of Sep 15")
-    let chip = todayStatChip(for: stale, action: nil)
-    #expect(chip.asOf == "as of Sep 15")
-    #expect(chip.asOfIdentifier == "today.chip.hrv.as-of")
+    let spec = todaySummaryCardSpec(for: stale)
+    #expect(spec.timestamp == "as of Sep 15")
+    #expect(spec.value == "28")
+    #expect(spec.unit == "ms")
     // …and VoiceOver says it too, rather than announcing the number bare.
-    #expect(statChipAccessibilityLabel(label: "HRV", numeral: "28", unit: "ms", showsUnit: true,
-                                       sourceMissing: false, asOf: "as of Sep 15").contains("as of Sep 15"))
+    #expect(summaryCardAccessibilityLabel(title: spec.title, value: spec.value, unit: spec.unit,
+                                          timestamp: spec.timestamp, sourceMissing: false).contains("as of Sep 15"))
 
     // A reading that IS today's stays clean — no dangling "as of" line.
     let fresh = TodayChip(id: "hrv", label: "HRV", value: 61, unit: "ms", points: [61], sourceMissing: false, asOf: nil)
-    #expect(todayStatChip(for: fresh, action: nil).asOf == nil)
+    #expect(todaySummaryCardSpec(for: fresh).timestamp == nil)
 }
 
 /// The two My-KPI cells under the hero (HRV 28 ms / Resting HR 62 bpm on the device) had no as-of

@@ -51,6 +51,22 @@ public struct EnergyReport: Codable, Sendable, Equatable {
         self.goalIntakeKcal = goalIntakeKcal; self.goalProteinG = goalProteinG; self.goalFatG = goalFatG
         self.goalCarbsG = goalCarbsG; self.energyAvail = energyAvail; self.eaWarning = eaWarning
     }
+
+    // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
+    // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
+    // gets its first letter upper-cased on the join (`avg_deficit_raw_7d` -> `avgDeficitRaw7D`). An
+    // explicit raw value must therefore be the MANGLED spelling, never the wire string (verified
+    // against a real `Foundation.JSONDecoder`). Adding one case obliges us to list every stored
+    // property, so the rest are bare cases whose default raw value already equals what the
+    // strategy produces.
+    enum CodingKeys: String, CodingKey {
+        case days
+        case avgDeficitRaw7d = "avgDeficitRaw7D"
+        case avgDeficitCorrected7d = "avgDeficitCorrected7D"
+        case avgDeficitPct7d = "avgDeficitPct7D"
+        case trackingDays, compliant, complianceWarning, tdeeEmpirical
+        case goalIntakeKcal, goalProteinG, goalFatG, goalCarbsG, energyAvail, eaWarning
+    }
 }
 
 /// `mobile/src/data/types.ts::WeightGoal/StrengthGoal/NutritionGoal/Goals`. `weightGoal.targetKg`
