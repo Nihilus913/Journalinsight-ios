@@ -16,9 +16,11 @@ import JIDesign
     #expect(AccentKey.fuchsia.color(for: .native) == Color.pink)
 }
 
-/// B-33 phase B: no surface renders classic any more, so the accent resolves to the system
-/// tint for either case; `hex` stays only as the persisted value. Phase C drops `.classic`.
-@Test func classicAccentAlsoResolvesToTheSystemTint() {
-    #expect(AccentKey.emerald.color(for: .classic) == AccentKey.emerald.color(for: .native))
+/// Phase C: one language left, so `color(for:)` is the system tint for every theme value.
+/// `hex` survives only as the persisted prefs value and must not drift.
+@Test func accentHexStaysThePersistedValue() {
+    for theme in JITheme.allCases {
+        #expect(AccentKey.emerald.color(for: theme) == AccentKey.emerald.nativeColor)
+    }
     #expect(AccentKey.emerald.hex == 0x4ade80)
 }

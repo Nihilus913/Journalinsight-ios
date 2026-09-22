@@ -1,16 +1,17 @@
 import SwiftUI
 
-/// B-33 §8.0: which visual language a screen renders in. `.classic` = the RN-era tokens (every
-/// existing screen, the app-root default); `.native` = the iOS 27 system-semantic language.
-/// A screen opts in with `.jiTheme(.native)` on its root view; sheets inherit their presenter's
-/// value unless they set their own. `nonisolated`: pure value (JIDesign is MainActor by default).
+/// B-33 §8.0: which visual language a screen renders in. Phase C (2026-09-22) deleted the
+/// RN-era `.classic` language, so `.native` (the iOS 27 system-semantic one) is the only case
+/// left and the environment default. The enum stays so the `~40 .jiTheme(.native)` call sites,
+/// `ScreenRegistry` entries and the app root keep reading as an explicit opt-in.
+/// `nonisolated`: pure value (JIDesign is MainActor by default).
 public nonisolated enum JITheme: String, Sendable, CaseIterable, Codable, Equatable {
-    case classic, native
+    case native
 }
 
 public extension EnvironmentValues {
-    /// The active theme. Default `.classic` — see `docs/THEME_STATUS.md` (HT) for who is native.
-    @Entry var jiTheme: JITheme = .classic
+    /// The active theme. Always `.native` since Phase C — see `docs/THEME_STATUS.md` (HT).
+    @Entry var jiTheme: JITheme = .native
 }
 
 public extension View {
@@ -31,8 +32,8 @@ public extension View {
     func jiRevealAnimations(_ on: Bool) -> some View { environment(\.jiRevealAnimations, on) }
 }
 
-/// Every neutral / semantic colour a screen may ask for. Mirrors the `JIColor` statics one to one
-/// so a migration is a rename (`JIColor.muted` → `theme.color(.muted)`).
+/// Every neutral / semantic colour a screen may ask for. The ONLY way to name a colour since
+/// Phase C: there are no colour statics left to reach for.
 public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
     case bg, surface, surface2, surface3, nested, control
     case text, muted, mutedNested
@@ -42,10 +43,9 @@ public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
 }
 
 public extension JITheme {
-    /// MainActor (reads the `JIColor` statics): call from `body` or a `@MainActor` test.
+    /// MainActor (reads the platform's semantic colours): call from `body` or a `@MainActor` test.
     func color(_ role: JIColorRole) -> Color {
         switch self {
-        case .classic: JIColor.classic(role)
         case .native: JINativePalette.color(role)
         }
     }
@@ -56,23 +56,21 @@ public nonisolated enum JIRadiusRole: Sendable, CaseIterable, Equatable { case h
 public nonisolated extension JITheme {
     /// §2: native hero = card = 26, nested 18 (concentric 26 − 8 padding), control 12.
     func radius(_ role: JIRadiusRole) -> CGFloat {
-        switch (self, role) {
-        case (.classic, .hero): JIRadius.hero
-        case (.classic, .card): JIRadius.card
-        case (.classic, .nested): 12
-        case (.classic, .control): 8
-        case (.native, .hero), (.native, .card): 26
-        case (.native, .nested): 18
-        case (.native, .control): 12
+        switch role {
+        case .hero, .card: 26
+        case .nested: 18
+        case .control: 12
         }
     }
 }
 
-/// `Surface(level:)` → fill role + radius role. Classic keeps `default:` → surface (CONTEXT §7).
+/// `Surface(level:)` → fill role + radius role. Any unknown level falls back to the card
+/// surface (CONTEXT §7). `theme` is kept in the signature: the mapping is a theme concern and
+/// every call site already has one to hand.
 public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole) {
     switch level {
     case 2: (.surface2, .nested)
-    case 3: (theme == .native ? .control : .surface3, .control)
+    case 3: (.control, .control)
     default: (.surface, .card)
     }
 }

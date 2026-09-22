@@ -43,7 +43,7 @@ import JIDesign
             .padding(.horizontal, 20)
             .environment(\.horizontalSizeClass, .compact)
             .frame(width: size.width, height: size.height, alignment: .top)
-            .background(JIColor.bg)
+            .background(JITheme.native.color(.bg))
         let host = UIHostingController(rootView: grid)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = host

@@ -95,6 +95,6 @@ nonisolated struct EnergyEmptyProvider: EnergyProviding {
         #expect(EnergyFormat.deficitColor(400, class: "aggressive", theme: theme) == theme.color(.reduced))
         #expect(EnergyFormat.deficitColor(400, class: "aggressive", theme: theme) != theme.color(.go))
     }
-    #expect(EnergyFormat.deficitColor(150, class: "mild", theme: .classic) == JIColor.info)
-    #expect(![JIColor.go].contains(EnergyFormat.deficitColor(600, class: "dangerous", theme: .classic)))
+    #expect(EnergyFormat.deficitColor(150, class: "mild", theme: .native) == JITheme.native.color(.info))
+    #expect(EnergyFormat.deficitColor(600, class: "dangerous", theme: .native) != JITheme.native.color(.go))
 }

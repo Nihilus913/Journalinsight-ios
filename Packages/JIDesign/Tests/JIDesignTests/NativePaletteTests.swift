@@ -1,6 +1,9 @@
 import SwiftUI
 import Testing
 @testable import JIDesign
+#if os(iOS) || os(tvOS) || os(visionOS)
+import UIKit
+#endif
 
 private func rgb(_ color: Color, _ scheme: ColorScheme) -> (Double, Double, Double) {
     var env = EnvironmentValues()
@@ -11,14 +14,6 @@ private func rgb(_ color: Color, _ scheme: ColorScheme) -> (Double, Double, Doub
 
 @MainActor
 struct NativePaletteTests {
-    @Test func classicRolesAreTheExistingStatics() {
-        // Regression: classic must stay byte-identical (CONTEXT §7 hex table).
-        let (r, g, b) = rgb(JITheme.classic.color(.bg), .dark)
-        #expect(abs(r - 11.0 / 255) < 0.002 && abs(g - 15.0 / 255) < 0.002 && abs(b - 20.0 / 255) < 0.002)
-        #expect(JITheme.classic.color(.go) == JIColor.go)
-        #expect(JITheme.classic.color(.hairlineOuter) == JIColor.hairlineOuter)
-    }
-
     @Test func nativeNeutralsAreDynamic() {
         // System-semantic colours differ between light and dark; a hex would not.
         let dark = rgb(JITheme.native.color(.text), .dark)
@@ -26,11 +21,7 @@ struct NativePaletteTests {
         #expect(dark != light)
     }
 
-    @Test func nativeBackgroundIsNotTheClassicHex() {
-        #expect(rgb(JITheme.native.color(.bg), .dark) != rgb(JITheme.classic.color(.bg), .dark))
-    }
-
-    @Test func everyRoleResolvesInBothThemes() {
+    @Test func everyRoleResolvesInBothSchemes() {
         for theme in JITheme.allCases {
             for role in JIColorRole.allCases {
                 _ = rgb(theme.color(role), .dark)
@@ -38,6 +29,28 @@ struct NativePaletteTests {
             }
         }
     }
+
+    /// Spec §6 — semantic identity, not a hex table: each role IS the platform's semantic colour,
+    /// so it keeps following the system (light/dark, increased contrast, future OS tweaks).
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    @Test(arguments: [
+        (JIColorRole.bg, UIColor.systemGroupedBackground),
+        (.surface, .secondarySystemGroupedBackground),
+        (.surface2, .tertiarySystemGroupedBackground),
+        (.text, .label),
+        (.muted, .secondaryLabel),
+        (.mutedNested, .tertiaryLabel),
+        (.hairlineOuter, .separator),
+        (.go, .systemGreen),
+        (.reduced, .systemOrange),
+        (.danger, .systemRed),
+        (.info, .systemBlue),
+        (.sleep, .systemPurple),
+    ])
+    func nativeRoleIsTheSystemSemanticColour(role: JIColorRole, expected: UIColor) {
+        #expect(JITheme.native.color(role) == Color(uiColor: expected))
+    }
+    #endif
 
     #if os(macOS)
     @Test func nativeBackgroundIsTheSystemSemanticOnMac() {

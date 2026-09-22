@@ -2,11 +2,12 @@ import SwiftUI
 import Testing
 @testable import JIDesign
 
-// B-33 §8.0 — the per-screen theme switch. Default is classic so the 37 old screens never change.
+// B-33 §8.0 — the per-screen theme switch. Phase C removed `.classic`, so `.native` is the
+// only language and the environment default.
 @MainActor
 struct JIThemeTests {
-    @Test func defaultThemeIsClassic() {
-        #expect(EnvironmentValues().jiTheme == .classic)
+    @Test func defaultThemeIsNative() {
+        #expect(EnvironmentValues().jiTheme == .native)
     }
 
     @Test func themeCanBeSetOnTheEnvironment() {
@@ -23,8 +24,8 @@ struct JIThemeTests {
         #expect(env.jiRevealAnimations == false)
     }
 
-    @Test func rawValuesAreStable() {
-        // Persisted nowhere yet, but B-40b screens hard-code `.native`; keep the names.
-        #expect(JITheme.allCases.map(\.rawValue) == ["classic", "native"])
+    @Test func nativeIsTheOnlyLanguage() {
+        // Persisted nowhere, but ~40 screens hard-code `.native`; keep the name.
+        #expect(JITheme.allCases.map(\.rawValue) == ["native"])
     }
 }

@@ -118,7 +118,7 @@ public struct EnergyHero: View {
     }
 
     private func chip(label: String, value: String) -> some View {
-        Surface(level: 2, radius: 12, padding: 10) {
+        Surface(level: 2, padding: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.muted)).lineLimit(1)
                 Text(value).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(1)

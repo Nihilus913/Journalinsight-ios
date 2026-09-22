@@ -10,7 +10,7 @@ public struct TrainingView: View {
     @State private var showSessionCoach = false
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
-    /// `\.jiTheme` here would still see the app root's `.classic`.
+    /// `\.jiTheme` here would see the presenter's value rather than this screen's.
     private let theme = JITheme.native
     #if canImport(WorkoutKit)
     // B-37-L3 (P-workouts): the app wires `\.sendToWatchModel`; nil (previews, tests, no hub) hides
