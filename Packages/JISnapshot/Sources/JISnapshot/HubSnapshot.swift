@@ -1,15 +1,21 @@
 import Foundation
+import JICore
 
 /// A compact "My KPIs" entry: label, optional value, optional unit.
 /// A fresh Codable+Sendable projection rather than a reuse of JICore's
 /// `DailyKpiRow` — that type shapes a date + a values dictionary, not a
 /// single labeled metric, so it doesn't fit the widget's row shape.
 public struct SnapshotKPI: Codable, Equatable, Sendable {
+    /// W-B34 (B-36): stable KPI identity so a configured widget can find "the KPI the user picked"
+    /// without matching on label text. Optional so snapshots stored before W-B34 still decode;
+    /// Today's chip projection (`kpis`) may leave it nil.
+    public var id: KpiMetricId?
     public var label: String
     public var value: Double?
     public var unit: String?
 
-    public init(label: String, value: Double?, unit: String?) {
+    public init(id: KpiMetricId? = nil, label: String, value: Double?, unit: String?) {
+        self.id = id
         self.label = label
         self.value = value
         self.unit = unit
@@ -38,6 +44,10 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
     /// Top-N "My KPIs" for the widget face.
     public var kpis: [SnapshotKPI]
 
+    /// W-B34 (B-36): one entry per `KpiMetricId.allCases` (latest non-nil value, or nil) for the
+    /// configurable KPI widget. Optional so snapshots stored before W-B34 still decode (nil).
+    public var allKpis: [SnapshotKPI]?
+
     /// When this snapshot was produced by the app/extension.
     public var fetchedAt: Date
     /// Last known hub sync time, if any.
@@ -50,6 +60,7 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
         verdictDate: String?,
         readiness: Double?,
         kpis: [SnapshotKPI],
+        allKpis: [SnapshotKPI]? = nil,
         fetchedAt: Date,
         lastSync: Date?
     ) {
@@ -59,7 +70,14 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
         self.verdictDate = verdictDate
         self.readiness = readiness
         self.kpis = kpis
+        self.allKpis = allKpis
         self.fetchedAt = fetchedAt
         self.lastSync = lastSync
+    }
+
+    /// W-B34 (B-36): the snapshot entry for one KPI — `allKpis` first, then Today's `kpis`, matched
+    /// by `id` (never by label). nil when neither carries it (e.g. a pre-W-B34 snapshot).
+    public func kpi(_ id: KpiMetricId) -> SnapshotKPI? {
+        allKpis?.first { $0.id == id } ?? kpis.first { $0.id == id }
     }
 }

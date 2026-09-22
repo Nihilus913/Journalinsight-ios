@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 
 /// W3b-L2 — "My KPIs" selection: which of the 12 `KpiMetricId`s show on the list's preview /
 /// widget, and in what order. Ported from the oracle's `src/kpi/kpiSelectionPrefs.ts`, but

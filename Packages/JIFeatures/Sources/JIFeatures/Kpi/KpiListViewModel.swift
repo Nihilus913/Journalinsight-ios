@@ -45,7 +45,11 @@ public final class KpiListViewModel {
     private let targetsProvider: any KpiTargetsProviding
     private let prefStore: PrefStore
     private let cache: OfflineCache
-    private static let keys = (recovery: "kpi.recovery", nutrition: "kpi.nutrition", gate: "kpi.gate", targets: "kpi.targets")
+    /// W-B34 L1: the `OfflineCache` key the last-fetched `[NutritionDailyRow]` lives under —
+    /// public so `AppEnvironment.publishSnapshot` can fill the widget snapshot's nutrition KPIs
+    /// from cache (never a new fetch).
+    public nonisolated static let nutritionCacheKey = "kpi.nutrition"
+    private static let keys = (recovery: "kpi.recovery", nutrition: nutritionCacheKey, gate: "kpi.gate", targets: "kpi.targets")
 
     public init(
         healthProvider: any HealthDataProvider,

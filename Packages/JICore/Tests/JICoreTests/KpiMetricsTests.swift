@@ -1,7 +1,6 @@
 import Foundation
 import Testing
-import JICore
-@testable import JIFeatures
+@testable import JICore
 
 @Test func everyKpiMetricIdHasExactlyOneDef() {
     for id in KpiMetricId.allCases {
