@@ -94,6 +94,16 @@ struct NativeFixtureUnavailable: View {
         return AnyView(NativeScreenPreview { TodayView(model: model, onOpenConnection: {}) })
     }
 
+    // B-57: the three morning faces, each over the same loaded fixture pinned to one state.
+    static func todayDecide() -> AnyView { todayMorning(.decide, screen: "Today decide") }
+    static func todayCoach() -> AnyView { todayMorning(.coach, screen: "Today coach") }
+    static func todayDay() -> AnyView { todayMorning(.day, screen: "Today day") }
+
+    private static func todayMorning(_ state: TodayMorningState, screen: String) -> AnyView {
+        guard let model = TodayViewModel.fixture(morningState: state) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }
+        return AnyView(NativeScreenPreview { TodayView(model: model, onOpenConnection: {}) })
+    }
+
     static func recovery() -> AnyView {
         guard let model = RecoveryViewModel.fixture() else { return AnyView(NativeFixtureUnavailable(screen: "Recovery")) }
         return AnyView(NativeScreenPreview { RecoveryView(model: model) })
