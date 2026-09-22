@@ -62,10 +62,15 @@ public struct RecoveryView: View {
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let staleDate = staleVerdictBanner {
+                // B-46 item 7: the staleness banner used to hug its text and read narrower
+                // than every card under it. `Surface` sizes to its content and is frozen, so the
+                // width is asserted here, exactly like `StalenessBanner` already does.
                 Surface(level: 2) {
                     Text("Showing recovery from \(staleDate) — no newer sync yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityLabel("Showing recovery from \(staleDate) — no newer sync yet.")
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .accessibilityIdentifier("recovery.staleBanner")
             }
             // §8.1: hero + its one small ring compose side by side in regular width, stack in compact.
             // §4b: Recovery = hero arc + Sleep ring only — never HRV / RHR / ACWR.
@@ -81,12 +86,15 @@ public struct RecoveryView: View {
                         Spacer()
                     }
                 }
+                .frame(maxWidth: .infinity)
                 VStack(alignment: .leading, spacing: 16) {
                     sleepRing
                     SleepCard(durationSec: model.latestSleepDurationSec, score: model.latestSleepScore)
+                        .frame(maxWidth: .infinity)
                         .accessibilityLabel("Sleep — open detail")
                         .accessibilityIdentifier("recovery.sleepCard")
                 }
+                .frame(maxWidth: .infinity)
             }
             section("Sleep components") {
                 SleepScoreComponents(components: sleepComponents)

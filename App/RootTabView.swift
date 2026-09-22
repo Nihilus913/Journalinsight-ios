@@ -57,6 +57,9 @@ struct RootTabView: View {
     @State private var showSettings = false
     /// B-46 item 10: "My KPIs" is presented, never pushed — see the toolbar button's comment.
     @State private var showKpiList = false
+    #if DEBUG
+    @State private var showDataQuality = false
+    #endif
     @State private var settingsModel: SettingsViewModel?
     @State private var todayModel: TodayViewModel?
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
@@ -101,6 +104,11 @@ struct RootTabView: View {
     static func launchArgumentRoute(_ arguments: [String] = CommandLine.arguments) -> RootRoute? {
         guard let i = arguments.firstIndex(of: "-push-route"), arguments.index(after: i) < arguments.endIndex else { return nil }
         return arguments[arguments.index(after: i)] == "kpiList" ? RootRoute.kpiList : nil
+    }
+
+    static func launchArgumentPresentsDataQuality(_ arguments: [String] = CommandLine.arguments) -> Bool {
+        guard let i = arguments.firstIndex(of: "-push-route"), arguments.index(after: i) < arguments.endIndex else { return false }
+        return arguments[arguments.index(after: i)] == "dataQuality"
     }
 
     var body: some View {
@@ -180,6 +188,9 @@ struct RootTabView: View {
             if Self.launchArgumentRoute() == .kpiList {
                 Task { try? await Task.sleep(for: .seconds(3)); showKpiList = true }
             }
+            if Self.launchArgumentPresentsDataQuality() {
+                Task { try? await Task.sleep(for: .seconds(3)); showDataQuality = true }
+            }
         }
         #endif
         .onAppear { if let link = pendingDeepLink { handle(link); pendingDeepLink = nil } }
@@ -188,6 +199,13 @@ struct RootTabView: View {
             handle(link)
             pendingDeepLink = nil
         }
+        #if DEBUG
+        .sheet(isPresented: $showDataQuality) {
+            NavigationStack {
+                if let model = DataQualityAccess.shared.makeViewModel(cache: env.cache) { DataQualityView(model: model) } else { DataQualityUnavailableView() }
+            }
+        }
+        #endif
         .sheet(isPresented: $showKpiList) {
             NavigationStack { kpiListDestination.navigationTitle("My KPIs") }
         }

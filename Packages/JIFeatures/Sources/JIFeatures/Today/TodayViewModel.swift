@@ -6,6 +6,16 @@ import JIDesign
 
 nonisolated public struct TodayChip: Identifiable, Equatable, Sendable {
     public let id: String, label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool
+    /// B-46 device feedback 3: "as of Sep 21" when `value` is a fallback from an earlier day
+    /// (Garmin hasn't synced since the 18th, so today's row carries a nil HRV/RHR) — nil when the
+    /// value IS today's. Explicit init with a default so existing construction sites are
+    /// unchanged; the chip view renders it under the number.
+    public let asOf: String?
+
+    public init(id: String, label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool, asOf: String? = nil) {
+        self.id = id; self.label = label; self.value = value; self.unit = unit
+        self.points = points; self.sourceMissing = sourceMissing; self.asOf = asOf
+    }
 }
 
 nonisolated public struct ResolvedTodayRow: Sendable { public let row: DailyKpiRow?; public let stale: Bool }
@@ -91,11 +101,25 @@ public final class TodayViewModel {
     /// "newest non-null value per metric" resolution, as opposed to picking a single newest ROW and
     /// reading every field off it (a null field on the newest row would otherwise blank every metric).
     private func newestNonNullValue<T>(_ rows: [T], date: (T) -> String, value: (T) -> Double?) -> Double? {
+        newestNonNull(rows, date: date, value: value)?.value
+    }
+
+    /// B-46 device feedback 3: the newest non-null reading AND the day it came from, so a chip
+    /// can say "as of Sep 21" rather than presenting an older number as today's.
+    private func newestNonNull<T>(_ rows: [T], date: (T) -> String, value: (T) -> Double?) -> (value: Double, date: String)? {
         for row in rows.sorted(by: { date($0) > date($1) }) {
-            if let v = value(row) { return v }
+            if let v = value(row) { return (v, date(row)) }
         }
         return nil
     }
+
+    private func chip(_ id: String, _ label: String, unit: String?, points: [Double?], sourceMissing: Bool, latest: (value: Double, date: String)?) -> TodayChip {
+        TodayChip(
+            id: id, label: label, value: latest?.value, unit: unit, points: points, sourceMissing: sourceMissing,
+            asOf: kpiAsOfLabel(valueDate: latest?.date, today: todayDateString)
+        )
+    }
+
     public var readiness: Double? { newestNonNullValue(recovery, date: \.date, value: \.readinessScore) }
 
     public var chips: [TodayChip] {
@@ -107,12 +131,16 @@ public final class TodayViewModel {
         // PARITY-1: steps mirrors RN VerdictHero.tsx:312-323 — newest non-null `values["steps"]` over
         // date-sorted `gate.daily`. `resolveTodayRow` stays reserved for the future W2 kcal/protein
         // ring: it skips null-food rows on purpose, which lands on the wrong date for steps.
-        let steps = newestNonNullValue(daily, date: \.date, value: { $0.values["steps"] ?? nil })
+        let steps = newestNonNull(daily, date: \.date, value: { $0.values["steps"] ?? nil })
         return [
-            TodayChip(id: "hrv", label: "HRV", value: newestNonNullValue(hrvSeries, date: \.date, value: \.hrvWeeklyAvg), unit: "ms", points: chron.map(\.hrvWeeklyAvg), sourceMissing: !caps.contains(.hrvRMSSD)),
-            TodayChip(id: "rhr", label: "RHR", value: newestNonNullValue(recovery, date: \.date, value: \.rhrBpm), unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false),
-            TodayChip(id: "sleep", label: "Sleep", value: newestNonNullValue(recovery, date: \.date, value: \.sleepScore), unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore)),
-            TodayChip(id: "steps", label: "Steps", value: steps, unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false),
+            chip("hrv", "HRV", unit: "ms", points: chron.map(\.hrvWeeklyAvg), sourceMissing: !caps.contains(.hrvRMSSD),
+                 latest: newestNonNull(hrvSeries, date: \.date, value: \.hrvWeeklyAvg)),
+            chip("rhr", "RHR", unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false,
+                 latest: newestNonNull(recovery, date: \.date, value: \.rhrBpm)),
+            chip("sleep", "Sleep", unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore),
+                 latest: newestNonNull(recovery, date: \.date, value: \.sleepScore)),
+            chip("steps", "Steps", unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false,
+                 latest: steps),
         ]
     }
 

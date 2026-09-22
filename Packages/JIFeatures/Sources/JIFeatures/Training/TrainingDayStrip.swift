@@ -101,6 +101,7 @@ public struct TrainingDayStrip: View {
                         .accessibilityIdentifier("training-day-strip")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)   // B-46 item 7: cards share one width
         }
         .jiHapticCue(.selection, on: selectedDate)   // W8-L1 (P-haptics) — oracle DayStrip.tsx:126 `if (!selected) hapticSelection()`: a re-tap of the selected day is no edge
     }

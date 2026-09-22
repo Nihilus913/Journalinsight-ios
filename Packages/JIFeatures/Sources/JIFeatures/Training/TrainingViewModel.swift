@@ -45,6 +45,40 @@ public final class TrainingViewModel {
     public private(set) var updateFailed: Set<Int> = []
     public private(set) var pendingUpdates: Set<Int> = []
 
+    /// B-45 (c): plan-session ids with a weekday write in flight, and the ids whose last write
+    /// failed — the assign sheet reads both so a failed PUT is said out loud, never swallowed.
+    public private(set) var pendingSessionAssign: Set<Int> = []
+    public private(set) var sessionAssignFailed: Set<Int> = []
+
+    /// B-45 (a): the REAL device day this screen is being looked at on — never the hub's
+    /// `verdict_date`, which is whatever day `scripts/morning_go.py` last wrote a verdict on.
+    public var todayDate: Date { now() }
+
+    /// B-45 (d): true when the hub says its verdict is stale, or (old hub, `isStale` absent) when
+    /// the verdict's own date is not today. The screen then stops presenting the verdict's
+    /// session as "today's".
+    public var verdictIsStale: Bool {
+        if let flag = morning?.isStale { return flag }
+        guard let verdictDate = morning?.verdictDate else { return false }
+        return verdictDate < todayDateString
+    }
+
+    /// The session planned for the SELECTED day. The hub's `planned_session` on the day detail is
+    /// the source of truth (it joins `plan_session.weekday` server-side); a hub without the field
+    /// falls back to the weekday carried on the plan rows themselves, and only then to nothing.
+    public var plannedSessionForSelectedDay: PlannedSession? {
+        if let planned = dayDetail?.plannedSession, dayDetail?.date == selectedDate { return planned }
+        guard let weekday = selectedPlanWeekday else { return nil }
+        guard let row = exercises.first(where: { $0.weekday == weekday }) else { return nil }
+        return PlannedSession(id: row.sessionId ?? row.exerciseId, name: row.sessionName, weekday: weekday)
+    }
+
+    /// Mon = 0 … Sun = 6 for `selectedDate`, computed in the same UTC calendar the day keys use.
+    public var selectedPlanWeekday: Int? {
+        guard let date = trainingStripDate(selectedDate) else { return nil }
+        return planWeekday(fromCalendarWeekday: trainingStripCalendar.component(.weekday, from: date))
+    }
+
     public init(
         provider: any TrainingProviding,
         healthProvider: any HealthDataProvider,
@@ -72,7 +106,7 @@ public final class TrainingViewModel {
         }
     }
 
-    private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    public var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
     public func load() async {
         phase = .loading
@@ -186,6 +220,29 @@ public final class TrainingViewModel {
             updateFailed.insert(exerciseId)
         }
         pendingUpdates.remove(exerciseId)
+    }
+
+    /// B-45 (c): assign a plan session to a weekday (or clear it). Optimistic on `exercises`
+    /// so the Plan list re-labels immediately; a failure rolls the rows back AND records the id
+    /// in `sessionAssignFailed` rather than leaving a lie on screen.
+    public func assignSession(sessionId: Int, sessionName: String, weekday: Int?) async {
+        sessionAssignFailed.remove(sessionId)
+        pendingSessionAssign.insert(sessionId)
+        let previous = exercises
+        exercises = exercises.map { row in
+            guard row.sessionId == sessionId || (row.sessionId == nil && row.sessionName == sessionName) else { return row }
+            var updated = row
+            updated.weekday = weekday
+            return updated
+        }
+        do {
+            _ = try await provider.updatePlanSessionWeekday(sessionId: sessionId, weekday: weekday)
+            try? cache.put(Self.keys.exercises, exercises)
+        } catch {
+            exercises = previous
+            sessionAssignFailed.insert(sessionId)
+        }
+        pendingSessionAssign.remove(sessionId)
     }
 
     private func applyOptimistic(exerciseId: Int, patch: ExerciseUpdate) {
