@@ -56,6 +56,22 @@ final class AppEnvironment {
     /// itself) so background delivery keeps firing for the app's lifetime.
     private(set) var healthKitUploader: HealthKitUploader?
     private var healthKitObservers: [HKObserverQuery] = []
+    /// B-65: guards `foregroundHealthUpload()` so a foreground bounce mid-upload doesn't stack runs.
+    private var uploadInFlight = false
+
+    /// B-65: uploads Apple Health on every foreground so last night's RMSSD + sleep segments reach
+    /// the hub as soon as the app opens (background delivery alone can lag hours). Detached at
+    /// `.utility`; a second call while one runs is a no-op. No uploader (no connection) or
+    /// `-no-healthkit` (scripted sim runs) → nothing. Never prompts: `syncAll` only reads.
+    func foregroundHealthUpload() {
+        guard !uploadInFlight, let uploader = healthKitUploader,
+              !CommandLine.arguments.contains("-no-healthkit") else { return }
+        uploadInFlight = true
+        Task.detached(priority: .utility) { [weak self] in
+            await uploader.syncAll()
+            await MainActor.run { self?.uploadInFlight = false }
+        }
+    }
 
     /// W2d (L1): three-state read-permission model over the real `HKHealthStore`. Hub-independent,
     /// so it lives from `init` — `ConnectionSheet`'s "Apple Watch (read)" section (L3) is driven

@@ -19,6 +19,8 @@ public struct HealthBackloadSection: View {
                 .foregroundStyle(theme.color(.muted))
             LabeledContent("Last synced day", value: model.lastSyncedDay ?? "never")
                 .font(.footnote)
+            LabeledContent("Last Apple upload", value: model.lastAppleUpload ?? "never")
+                .font(.footnote)
             statusRow
             Button("Backload to Apple Health") { Task { await model.start() } }
                 .disabled(model.isRunning)

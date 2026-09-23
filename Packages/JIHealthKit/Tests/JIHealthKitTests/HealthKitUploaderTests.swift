@@ -119,6 +119,28 @@ struct HealthKitUploaderTests {
         #expect(abs(since.timeIntervalSince(now) + Double(HealthKitUploader.firstSyncDays) * 86_400) < 1)
     }
 
+    // MARK: - B-65 last upload instant
+
+    @Test func successfulPostRecordsLastUploadInstant() async throws {
+        UploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        store.enqueue(HKAnchoredPage(samples: [makeSample(count: 12, start: Date(timeIntervalSince1970: 1_758_000_000))], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try await uploader(store: store, defaults: defaults).sync(spec, now: Date(timeIntervalSince1970: 1_758_100_000))
+        let raw = try #require(defaults.string(forKey: HealthKitUploader.lastSuccessKey))
+        #expect(HealthKitUploader.lastSuccessKey == "hk.upload.lastSuccess")
+        #expect(ISO8601DateFormatter().date(from: raw) != nil)
+    }
+
+    @Test func emptyPageDoesNotTouchLastUpload() async throws {
+        let store = FakeHealthStoreReader()
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try await uploader(store: store, defaults: defaults).sync(spec)
+        #expect(defaults.string(forKey: "hk.upload.lastSuccess") == nil)
+    }
+
     @Test func requestAuthorizationThrowsWhenHealthDataUnavailable() async {
         let store = FakeHealthStoreReader()
         store.isHealthDataAvailable = false

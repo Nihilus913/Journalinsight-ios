@@ -274,6 +274,9 @@ public final class HealthKitUploader: Sendable {
     public nonisolated static let firstSyncDays = 120
     /// Page size for the anchored query; a full page means "there may be more" and loops.
     public nonisolated static let pageLimit = 2_000
+    /// App-Group key holding the instant (ISO-8601, UTC) of the last 2xx upload POST (B-65).
+    /// Settings shows it as "Last Apple upload HH:mm"; JIFeatures duplicates the literal.
+    public nonisolated static let lastSuccessKey = "hk.upload.lastSuccess"
 
     /// Fetches anchored pages for one metric, maps each, POSTs it and advances the anchor per
     /// page. `@concurrent`: runs off the caller's actor — under `NonisolatedNonsendingByDefault`
@@ -292,6 +295,7 @@ public final class HealthKitUploader: Sendable {
                 let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
                 let response: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
                 _ = response // status/rows_loaded not currently surfaced further; kept for future logging
+                anchorDefaults?.set(ISO8601DateFormatter().string(from: Date()), forKey: Self.lastSuccessKey)
                 uploaded += points.count
             }
             writeAnchor(page.newAnchor, key: spec.anchorKey)
