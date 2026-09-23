@@ -46,6 +46,10 @@ public final class HealthBackloadViewModel {
     public private(set) var lastSyncedDay: String?
     private static let cursorKey = "hk.backload.cursor"          // mid-run resume point
     private static let lastCompletedKey = "hk.backload.lastCompletedDay" // set when a run finishes
+    private static let lastUploadKey = "hk.upload.lastSuccess"   // written by JIHealthKit's uploader
+    private let timeZone: TimeZone
+    /// B-65: local `HH:mm` of the uploader's last successful POST, `nil` = never (row shows "never").
+    public private(set) var lastAppleUpload: String?
 
     /// Default range: hub has Garmin (dso_key = 2) since 2025-05-27 (wave card §Why/what) through today.
     /// `hrvPrefs` is the App-Group suite the writer's cursor lives in (the name is historical —
@@ -55,17 +59,30 @@ public final class HealthBackloadViewModel {
     public init(
         runner: any BackloadRunning,
         now: @escaping () -> Date = Date.init,
-        hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")
+        hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
+        timeZone: TimeZone = .current
     ) {
         self.runner = runner
         self.now = now
         self.hrvPrefs = hrvPrefs
+        self.timeZone = timeZone
         self.lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey) ?? hrvPrefs?.string(forKey: Self.lastCompletedKey)
+        self.lastAppleUpload = readLastAppleUpload()
     }
 
-    /// Re-reads the writer's cursor (called after every progress tick and at the end of a run).
+    /// Re-reads the writer's cursor (called after every progress tick and at the end of a run)
+    /// and the uploader's last-success instant.
     public func refreshLastSyncedDay() {
         lastSyncedDay = hrvPrefs?.string(forKey: Self.cursorKey) ?? hrvPrefs?.string(forKey: Self.lastCompletedKey)
+        lastAppleUpload = readLastAppleUpload()
+    }
+
+    private func readLastAppleUpload() -> String? {
+        guard let raw = hrvPrefs?.string(forKey: Self.lastUploadKey),
+              let date = ISO8601DateFormatter().date(from: raw) else { return nil }
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = timeZone; f.dateFormat = "HH:mm"
+        return f.string(from: date)
     }
 
     public var defaultRange: BackloadRange {

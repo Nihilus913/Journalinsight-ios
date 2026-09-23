@@ -61,7 +61,7 @@ private final class CompletionBox: @unchecked Sendable {
     func mark() { lock.withLock { _completed = true } }
 }
 
-struct HealthKitUploaderTests {
+@Suite(.serialized) struct HealthKitUploaderTests {
     private let stepsType = HKQuantityType(.stepCount)
 
     private func hub() -> HubClient {
@@ -119,6 +119,28 @@ struct HealthKitUploaderTests {
         #expect(abs(since.timeIntervalSince(now) + Double(HealthKitUploader.firstSyncDays) * 86_400) < 1)
     }
 
+    // MARK: - B-65 last upload instant
+
+    @Test func successfulPostRecordsLastUploadInstant() async throws {
+        UploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        store.enqueue(HKAnchoredPage(samples: [makeSample(count: 12, start: Date(timeIntervalSince1970: 1_758_000_000))], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try await uploader(store: store, defaults: defaults).sync(spec, now: Date(timeIntervalSince1970: 1_758_100_000))
+        let raw = try #require(defaults.string(forKey: HealthKitUploader.lastSuccessKey))
+        #expect(HealthKitUploader.lastSuccessKey == "hk.upload.lastSuccess")
+        #expect(ISO8601DateFormatter().date(from: raw) != nil)
+    }
+
+    @Test func emptyPageDoesNotTouchLastUpload() async throws {
+        let store = FakeHealthStoreReader()
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try await uploader(store: store, defaults: defaults).sync(spec)
+        #expect(defaults.string(forKey: "hk.upload.lastSuccess") == nil)
+    }
+
     @Test func requestAuthorizationThrowsWhenHealthDataUnavailable() async {
         let store = FakeHealthStoreReader()
         store.isHealthDataAvailable = false
@@ -140,7 +162,10 @@ struct HealthKitUploaderTests {
         let store = FakeHealthStoreReader()
         let sample = makeSample(count: 50, start: Date())
         store.enqueue(HKAnchoredPage(samples: [sample], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
-        _ = try await uploader(store: store).startBackgroundDelivery()
+        // Retain the uploader: the observer closure captures it `[weak self]` (as the app's
+        // AppEnvironment retains it), so a temporary would be gone before the handler fires.
+        let sut = uploader(store: store)
+        _ = try await sut.startBackgroundDelivery()
 
         let handler = try #require(store.observerHandlers[stepsType.identifier])
         let completedBox = CompletionBox()
@@ -149,6 +174,63 @@ struct HealthKitUploaderTests {
         try await Task.sleep(nanoseconds: 200_000_000)
         #expect(completedBox.completed)
         #expect(UploadCapturingURLProtocol.requestCount == 1)
+        withExtendedLifetime(sut) {}
+    }
+    // MARK: - B-65 sleep segments
+
+    private func sleepSample(_ value: HKCategoryValueSleepAnalysis, _ start: Date, minutes: Double) -> HKCategorySample {
+        HKCategorySample(type: HKCategoryType(.sleepAnalysis), value: value.rawValue, start: start, end: start.addingTimeInterval(minutes * 60))
+    }
+
+    @Test func sleepAnalysisMergesAsleepStagesIntoSegments() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!           // 22:00 local
+        let s: [HKSample] = [
+            sleepSample(.asleepCore, t0, minutes: 60),
+            sleepSample(.asleepDeep, t0.addingTimeInterval(3600), minutes: 60),   // touches → merge
+            sleepSample(.awake, t0.addingTimeInterval(7200), minutes: 20),       // never a segment
+            sleepSample(.asleepREM, t0.addingTimeInterval(8400), minutes: 60),
+        ]
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })(s)
+        #expect(points.count == 1)
+        #expect(points[0].sleepSegments?.count == 2)
+        #expect(points[0].sleepSegments?[0].start == "2026-09-22 22:00:00 +0200")
+        #expect(points[0].sleepSegments?[0].end == "2026-09-23 00:00:00 +0200")
+        #expect(points[0].sleepSegments?[1].start == "2026-09-23 00:20:00 +0200")
+        #expect(points[0].sleepSegments?[1].end == "2026-09-23 01:20:00 +0200")
+    }
+
+    @Test func sleepAnalysisSplitsAnAfternoonNapFromTheEveningSleep() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let nap = ISO8601DateFormatter().date(from: "2026-09-22T12:00:00Z")!          // 14:00 local
+        let evening = ISO8601DateFormatter().date(from: "2026-09-22T20:30:00Z")!      // 22:30 local
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })([
+            sleepSample(.asleepCore, nap, minutes: 30),
+            sleepSample(.asleepCore, evening, minutes: 60),                              // ends 23:30 on the 22nd
+        ])
+        let ends = Set(points.compactMap(\.sleepEnd))
+        #expect(ends == ["2026-09-22 14:30:00 +0200", "2026-09-22 23:30:00 +0200"])
+        #expect(points.count == 2)
+    }
+
+    @Test func sleepAnalysisWithOnlyInBedHasNoSegments() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })([sleepSample(.inBed, t0, minutes: 480)])
+        #expect(points.count == 1)
+        #expect(points[0].sleepSegments == nil)
+    }
+
+    @Test func sleepAnalysisMergesWithinSixtySecondsButNotBeyond() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!
+        let s: [HKSample] = [
+            sleepSample(.asleepCore, t0, minutes: 60),
+            sleepSample(.asleepCore, t0.addingTimeInterval(3600 + 60), minutes: 60),    // 60 s gap → merge
+            sleepSample(.asleepCore, t0.addingTimeInterval(7260 + 61), minutes: 60),    // 61 s gap → new segment
+        ]
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })(s)
+        #expect(points[0].sleepSegments?.count == 2)
     }
 }
 #endif

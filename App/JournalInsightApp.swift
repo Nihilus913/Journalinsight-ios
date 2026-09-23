@@ -117,6 +117,7 @@ struct JournalInsightApp: App {
                         watchdog = makeWatchdog()
                         watchdog?.start()
                         outboxRetry.startForeground()
+                        env.foregroundHealthUpload() // B-65: last night reaches the hub on open
                     } else {
                         watchdog?.stop()
                         watchdog = nil

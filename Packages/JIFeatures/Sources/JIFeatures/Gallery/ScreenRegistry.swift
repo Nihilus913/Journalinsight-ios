@@ -33,6 +33,8 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today day") { L4Screens.todayDay() },
         // W-B57b L2 — Decide's Adjust sheet (verdict override: choice + reason)
         ScreenEntry(name: "Today adjust") { L4Screens.todayAdjust() },
+        // W-B65 LC — Decide on an Apple Watch night (hrv band, 7 h sleep, daytime-HRV context arc)
+        ScreenEntry(name: "Today decide Apple") { L4Screens.todayDecideApple() },
 
         // MARK: W-B46 L2 — B-42 Today components
         ScreenEntry(name: "Trends card") { AnyView(TrendsCardNativePreview()) },

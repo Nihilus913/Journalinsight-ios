@@ -84,3 +84,24 @@ private let morningBase = #"""
     let o = try await MockDataProvider().setVerdictOverride(date: "2026-09-23", choice: .rest, reason: "")
     #expect(o.choice == .rest && o.session == "Rest — walks only" && o.reason == nil && o.date == "2026-09-23")
 }
+
+// B-65 — daytime HRV arrives as a `context` arc (shown, never gating).
+@Test func contextStatusDecodes() throws {
+    let s = try JSONDecoder().decode(GateSignalStatus.self, from: Data("\"context\"".utf8))
+    #expect(s == .context)
+}
+
+@Test func unknownStatusStillDecodesAsMissing() throws {
+    let s = try JSONDecoder().decode(GateSignalStatus.self, from: Data("\"weird\"".utf8))
+    #expect(s == .missing)
+}
+
+@Test func appleNightHrvDayContextArcDecodes() throws {
+    let json = Data(#"""
+    {"key":"hrv_day","label":"HRV (day)","value":31,"unit":"ms","threshold":0,"direction":"min","scale_min":0,"scale_max":80,"status":"context","note":"weekday — dosed"}
+    """#.utf8)
+    let s = try JSON.decoder.decode(GateSignal.self, from: json)
+    #expect(s.status == .context)
+    #expect(s.value == 31)
+    #expect(s.note == "weekday — dosed")
+}

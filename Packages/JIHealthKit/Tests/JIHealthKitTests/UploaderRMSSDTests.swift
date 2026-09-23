@@ -77,21 +77,31 @@ final class RMSSDUploadCapturingURLProtocol: URLProtocol, @unchecked Sendable {
 
     @Test func factoryUsesTheFrozenWireNameAndMilliseconds() throws {
         guard let type = HKReadKind.hrvRMSSD.sampleType else { return } // pre-27 host: nothing to assert
-        let made = HKMetricSpec.hrvRMSSDDayAverage(sampleType: type)
+        let made = HKMetricSpec.hrvRMSSDPerReading(sampleType: type)
         let spec = try #require(made)
         #expect(spec.metricName == HAEMetricName.heartRateVariabilityRMSSD)
         #expect(spec.metricName == "heart_rate_variability_rmssd")
         #expect(spec.units == "ms")
         #expect(spec.sampleType == type)
+        #expect(spec.anchorVersion == 2) // B-65: fresh anchor → one 120-day re-send per reading
+    }
+
+    @Test func anchorVersionTwoUsesAFreshKey() {
+        let type = HKReadKind.stepCount.sampleType!
+        let v1 = HKMetricSpec(sampleType: type, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        let v2 = HKMetricSpec(sampleType: type, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, anchorVersion: 2, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        #expect(v1.anchorVersion == 1)
+        #expect(v1.anchorKey == "hk.upload.anchor.\(type.identifier)") // version 1 key unchanged
+        #expect(v2.anchorKey == "hk.upload.anchor.\(type.identifier).v2")
     }
 
     @Test func factoryReturnsNilWhenTheTypeIsUnavailable() {
-        #expect(HKMetricSpec.hrvRMSSDDayAverage(sampleType: nil) == nil)
+        #expect(HKMetricSpec.hrvRMSSDPerReading(sampleType: nil) == nil)
     }
 
     @Test func factoryDefaultsToHKReadKindResolution() {
         // Consumes `HKReadKind.hrvRMSSD` — the factory must agree with the flag on this host.
-        #expect((HKMetricSpec.hrvRMSSDDayAverage() != nil) == HKReadKind.hrvRMSSDTypeAvailable)
+        #expect((HKMetricSpec.hrvRMSSDPerReading() != nil) == HKReadKind.hrvRMSSDTypeAvailable)
     }
 
     @Test func appendingNativeRMSSDLeavesTheListUnchangedWhenUnavailable() {
@@ -140,31 +150,32 @@ final class RMSSDUploadCapturingURLProtocol: URLProtocol, @unchecked Sendable {
 
     // MARK: - End-to-end through the uploader
 
-    @Test func fakeRMSSDSampleReachesTheEnvelopeAsADayAverageInMs() async throws {
+    @Test func rmssdIsSentPerReadingWithItsTimestamp() async throws {
         guard let type = HKReadKind.hrvRMSSD.sampleType as? HKQuantityType else { return }
         RMSSDUploadCapturingURLProtocol.reset()
         let store = FakeHealthStoreReader()
         let zone = zurich
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = zone
-        let night = cal.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 4, minute: 0))!
-        store.enqueue(HKAnchoredPage(samples: [rmssdSample(type, ms: 42, at: night), rmssdSample(type, ms: 46, at: night.addingTimeInterval(600))], deletedObjectIDs: [], newAnchor: HKQueryAnchor(fromValue: 7)), for: type)
+        let night = cal.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 2, minute: 10))!
+        let afternoon = cal.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 14, minute: 0))!
+        store.enqueue(HKAnchoredPage(samples: [rmssdSample(type, ms: 42, at: night), rmssdSample(type, ms: 30, at: afternoon)], deletedObjectIDs: [], newAnchor: HKQueryAnchor(fromValue: 7)), for: type)
 
-        let made = HKMetricSpec.hrvRMSSDDayAverage(sampleType: type, timeZone: { zone })
+        let made = HKMetricSpec.hrvRMSSDPerReading(sampleType: type, timeZone: { zone })
         let spec = try #require(made)
         let uploader = HealthKitUploader(store: store, hub: hub(), specs: [spec], defaults: nil)
         let count = try await uploader.sync(spec)
 
-        #expect(count == 1)
+        #expect(count == 2)
         #expect(RMSSDUploadCapturingURLProtocol.requestCount == 1)
         let metrics = try decodeMetrics(RMSSDUploadCapturingURLProtocol.requestBodies[0])
         #expect(metrics.count == 1)
         #expect(metrics[0]["name"] as? String == "heart_rate_variability_rmssd")
         #expect(metrics[0]["units"] as? String == "ms")
         let points = try #require(metrics[0]["data"] as? [[String: Any]])
-        #expect(points.count == 1)
-        #expect(points[0]["qty"] as? Double == 44)
-        #expect(points[0]["date"] as? String == "2026-09-20 00:00:00 +0200")
+        #expect(points.count == 2)
+        #expect(points.map { $0["date"] as? String } == ["2026-09-20 02:10:00 +0200", "2026-09-20 14:00:00 +0200"])
+        #expect(points.map { $0["qty"] as? Double } == [42, 30])
     }
 
     @Test func unavailableTypeLeavesTheEnvelopeUnchangedAndNothingThrows() async throws {

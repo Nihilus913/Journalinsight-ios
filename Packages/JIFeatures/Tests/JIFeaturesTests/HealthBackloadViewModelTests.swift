@@ -154,3 +154,25 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     #expect(vm.phase == .done(BackloadSummary(written: 0, skipped: 0, failed: [])))
 }
 
+
+// MARK: - B-65 "Last Apple upload"
+
+@Test @MainActor func lastAppleUploadFormatsLocalTime() {
+    let d = UserDefaults(suiteName: "test.\(UUID())")!
+    d.set("2026-09-23T03:12:00Z", forKey: "hk.upload.lastSuccess")
+    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: d, timeZone: TimeZone(identifier: "Europe/Zurich")!)
+    #expect(vm.lastAppleUpload == "05:12")
+}
+
+@Test @MainActor func lastAppleUploadNilWhenNeverUploaded() {
+    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: UserDefaults(suiteName: "test.\(UUID())")!)
+    #expect(vm.lastAppleUpload == nil)
+}
+
+@Test @MainActor func lastAppleUploadRefreshesWithTheCursor() {
+    let d = UserDefaults(suiteName: "test.\(UUID())")!
+    let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), hrvPrefs: d, timeZone: TimeZone(identifier: "Europe/Zurich")!)
+    d.set("2026-09-23T20:00:00Z", forKey: "hk.upload.lastSuccess")
+    vm.refreshLastSyncedDay()
+    #expect(vm.lastAppleUpload == "22:00")
+}

@@ -17,15 +17,23 @@ public struct HKMetricSpec: Sendable {
     /// page (not one sample at a time) so a metric like `sleep_analysis`, whose wire shape is one
     /// point per NIGHT built from several category samples, can aggregate.
     public let mapSamples: @Sendable ([HKSample]) -> [HAEDataPoint]
-    /// `hk.upload.anchor.<type>` — the App-Group `UserDefaults` key this metric's `HKQueryAnchor`
-    /// persists under, so a killed/resumed app resumes without re-uploading.
-    public var anchorKey: String { "hk.upload.anchor.\(sampleType.identifier)" }
+    /// Anchor generation (B-65). Bumping it gives the metric a fresh anchor key, i.e. one full
+    /// `firstSyncDays` re-send — how a wire-shape change back-fills the hub's baseline window.
+    public let anchorVersion: Int
+    /// `hk.upload.anchor.<type>` (version 1) or `hk.upload.anchor.<type>.v<n>` (n ≥ 2) — the
+    /// App-Group `UserDefaults` key this metric's `HKQueryAnchor` persists under, so a
+    /// killed/resumed app resumes without re-uploading.
+    public var anchorKey: String {
+        anchorVersion <= 1 ? "hk.upload.anchor.\(sampleType.identifier)"
+                           : "hk.upload.anchor.\(sampleType.identifier).v\(anchorVersion)"
+    }
 
-    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
+    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, anchorVersion: Int = 1, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
         self.sampleType = sampleType
         self.metricName = metricName
         self.units = units
         self.backgroundFrequency = backgroundFrequency
+        self.anchorVersion = anchorVersion
         self.mapSamples = mapSamples
     }
 }
@@ -51,10 +59,10 @@ public enum HKSampleMapping {
     }
 
     /// One HAE point per LOCAL DAY: the arithmetic mean of that day's quantity samples, converted
-    /// to `unit` and dated at the day's local midnight. Used by the native-RMSSD metric (B-5),
-    /// whose hub column is a day average (`hae_bridge.py` averages `heart_rate_variability`
-    /// points the same way) — sending one point per sample would push per-reading noise over the
-    /// wire. Ordered by date so the envelope is deterministic. Non-quantity samples are skipped.
+    /// to `unit` and dated at the day's local midnight. Was the native-RMSSD mapping until B-65
+    /// (RMSSD now goes per reading, see `hrvRMSSDPerReading`); kept as a generic builder, no app
+    /// caller today. Ordered by date so the envelope is deterministic. Non-quantity samples are
+    /// skipped.
     public static func dayAverage(unit: HKUnit, timeZone: @escaping @Sendable () -> TimeZone = { .current }) -> @Sendable ([HKSample]) -> [HAEDataPoint] {
         { samples in
             let zone = timeZone()
@@ -84,11 +92,13 @@ public enum HKSampleMapping {
     }
 
     /// `sleep_analysis`: one point per night. Groups `inBed`/asleep-stage category samples by the
-    /// calendar day of their END time (a night ending the morning of day D belongs to D, matching
+    /// wake day of their END time, 18:00 cutoff (a night ending the morning of day D belongs to D, matching
     /// how the contract's per-night `sleepEnd` is read), sums each stage's duration in hours, and
     /// emits `sleepEnd` = the night's latest sample end. `core` carries both `asleepCore` and the
     /// legacy `asleepUnspecified` value (pre-stage-tracking devices/writers, e.g. this app's own
-    /// v1 backload marker) since neither distinguishes further stages.
+    /// v1 backload marker) since neither distinguishes further stages. B-65: each point also
+    /// carries `sleepSegments` — the night's asleep stages merged when overlapping or touching
+    /// (gap ≤ 60 s); `awake`/`inBed` never form a segment; `nil` when the night has none.
     public static func sleepAnalysis(timeZone: @escaping @Sendable () -> TimeZone = { .current }) -> @Sendable ([HKSample]) -> [HAEDataPoint] {
         { samples in
             let categories = samples.compactMap { $0 as? HKCategorySample }
@@ -96,7 +106,12 @@ public enum HKSampleMapping {
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = timeZone()
             for sample in categories {
-                let night = cal.startOfDay(for: sample.endDate)
+                // B-65: wake-day attribution with an 18:00 local cutoff — a sample ending at or
+                // after 18:00 belongs to the NEXT day's night. Grouping by the plain end-day split
+                // every night that crossed midnight into two points (the pre-midnight chunk landed
+                // on D-1 and, via the hub's last-writer-wins sleep row, could overwrite D-1's
+                // real night). Afternoon naps (ending before 18:00) stay on their own day.
+                let night = cal.startOfDay(for: sample.endDate.addingTimeInterval(6 * 3600))
                 byNight[night, default: []].append(sample)
             }
             return byNight.map { _, night in
@@ -113,11 +128,23 @@ public enum HKSampleMapping {
                     default: break // inBed and any future case: not a stage total, ignored here
                     }
                 }
+                let asleepValues: Set<Int> = [HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                                              HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+                var merged: [(Date, Date)] = []
+                for s in night.filter({ asleepValues.contains($0.value) }).sorted(by: { $0.startDate < $1.startDate }) {
+                    if let last = merged.last, s.startDate.timeIntervalSince(last.1) <= 60 {
+                        merged[merged.count - 1].1 = max(last.1, s.endDate)
+                    } else {
+                        merged.append((s.startDate, s.endDate))
+                    }
+                }
+                let segments = merged.map { HAESleepSegment(start: HAEDate.format($0.0, timeZone: timeZone()), end: HAEDate.format($0.1, timeZone: timeZone())) }
                 return HAEDataPoint(
                     date: HAEDate.format(latestEnd, timeZone: timeZone()),
                     source: night.first?.sourceRevision.source.name,
                     sleepEnd: HAEDate.format(latestEnd, timeZone: timeZone()),
-                    deep: deep, core: core, rem: rem, awake: awake, asleep: asleepTotal
+                    deep: deep, core: core, rem: rem, awake: awake, asleep: asleepTotal,
+                    sleepSegments: segments.isEmpty ? nil : segments
                 )
             }
         }
@@ -131,10 +158,11 @@ public enum HKSampleMapping {
 /// uploader's spec list — and therefore the outgoing envelope — is simply unchanged.
 extension HKMetricSpec {
     /// The `heart_rate_variability_rmssd` metric spec, or `nil` when the RMSSD type is
-    /// unavailable on this OS. Day-average in milliseconds, matching the hub's column
-    /// (`core.daily_vitals.hrv_rmssd_ms`, dso_key 4) — the wire name is the frozen
-    /// `HAEMetricName.heartRateVariabilityRMSSD`.
-    public static func hrvRMSSDDayAverage(
+    /// unavailable on this OS. One point per reading in milliseconds, dated with the reading's
+    /// own timestamp (B-65) — the hub classifies overnight vs daytime readings against the
+    /// night's sleep segments. `anchorVersion: 2` = one 120-day re-send of the per-reading
+    /// history for the 28-night baseline. Wire name = frozen `HAEMetricName.heartRateVariabilityRMSSD`.
+    public static func hrvRMSSDPerReading(
         sampleType: HKSampleType? = HKReadKind.hrvRMSSD.sampleType,
         backgroundFrequency: HKUpdateFrequency = .hourly,
         timeZone: @escaping @Sendable () -> TimeZone = { .current }
@@ -145,7 +173,8 @@ extension HKMetricSpec {
             metricName: HAEMetricName.heartRateVariabilityRMSSD,
             units: "ms",
             backgroundFrequency: backgroundFrequency,
-            mapSamples: HKSampleMapping.dayAverage(unit: .secondUnit(with: .milli), timeZone: timeZone)
+            anchorVersion: 2,
+            mapSamples: HKSampleMapping.perSample(unit: .secondUnit(with: .milli), timeZone: timeZone)
         )
     }
 }
@@ -159,7 +188,7 @@ extension Array where Element == HKMetricSpec {
         backgroundFrequency: HKUpdateFrequency = .hourly,
         timeZone: @escaping @Sendable () -> TimeZone = { .current }
     ) -> [HKMetricSpec] {
-        guard let spec = HKMetricSpec.hrvRMSSDDayAverage(sampleType: sampleType, backgroundFrequency: backgroundFrequency, timeZone: timeZone) else { return self }
+        guard let spec = HKMetricSpec.hrvRMSSDPerReading(sampleType: sampleType, backgroundFrequency: backgroundFrequency, timeZone: timeZone) else { return self }
         return self + [spec]
     }
 }
@@ -245,6 +274,9 @@ public final class HealthKitUploader: Sendable {
     public nonisolated static let firstSyncDays = 120
     /// Page size for the anchored query; a full page means "there may be more" and loops.
     public nonisolated static let pageLimit = 2_000
+    /// App-Group key holding the instant (ISO-8601, UTC) of the last 2xx upload POST (B-65).
+    /// Settings shows it as "Last Apple upload HH:mm"; JIFeatures duplicates the literal.
+    public nonisolated static let lastSuccessKey = "hk.upload.lastSuccess"
 
     /// Fetches anchored pages for one metric, maps each, POSTs it and advances the anchor per
     /// page. `@concurrent`: runs off the caller's actor — under `NonisolatedNonsendingByDefault`
@@ -263,6 +295,7 @@ public final class HealthKitUploader: Sendable {
                 let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
                 let response: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
                 _ = response // status/rows_loaded not currently surfaced further; kept for future logging
+                anchorDefaults?.set(ISO8601DateFormatter().string(from: Date()), forKey: Self.lastSuccessKey)
                 uploaded += points.count
             }
             writeAnchor(page.newAnchor, key: spec.anchorKey)

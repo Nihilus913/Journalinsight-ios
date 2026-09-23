@@ -280,10 +280,10 @@ public extension TodayViewModel {
 
     /// B-57: the same loaded Today pinned to one morning state (Decide / Coach / Day) for the
     /// gallery. Fixtures never persist — the state is set directly.
-    static func fixture(morningState: TodayMorningState) -> TodayViewModel? {
+    static func fixture(morningState: TodayMorningState, morningJSON: String? = nil) -> TodayViewModel? {
         guard let cache = NativeFixtureStore.cache else { return nil }
         let model = TodayViewModel(provider: MockDataProvider(), cache: cache)
-        model.morning = NativeFixtureStore.decode(fixtureMorningJSON, as: MorningResponse.self)
+        model.morning = NativeFixtureStore.decode(morningJSON ?? fixtureMorningJSON, as: MorningResponse.self)
         model.gate = NativeFixtureStore.decode(fixtureGateJSON, as: GateResponse.self)
         model.recovery = (0..<7).map { i in
             RecoveryDay(
@@ -317,6 +317,18 @@ let fixtureMorningJSON = """
  {"date":"2026-09-17","hrv_weekly_avg":47,"rhr_bpm":55},{"date":"2026-09-18","hrv_weekly_avg":53,"rhr_bpm":52},
  {"date":"2026-09-19","hrv_weekly_avg":51,"rhr_bpm":53},{"date":"2026-09-20","hrv_weekly_avg":49,"rhr_bpm":54},
  {"date":"2026-09-21","hrv_weekly_avg":52,"rhr_bpm":52}]}
+"""
+
+/// B-65: an Apple Watch night — the hub's three Apple arcs (`hrv` 7-day band, `sleep_h` 7 h floor,
+/// `hrv_day` context) in place of the Garmin four.
+let fixtureMorningAppleJSON = """
+{"today_activities":[],"verdict":"MODIFIED (sleep < 7 h) — Easy Z2 30–40 min","verdict_date":"2026-09-23","carb_watch_floor":180,"carbs_3d_avg":214,
+ "session_for_today":"Full Upper",
+ "gate_signals":[
+  {"key":"hrv","label":"HRV (7-day)","value":46,"unit":"ms","threshold":41,"direction":"min","scale_min":0,"scale_max":80,"status":"pass","note":"band 41–52 ms"},
+  {"key":"sleep_h","label":"Sleep time","value":6.6,"unit":"h","threshold":7.0,"direction":"min","scale_min":0,"scale_max":10,"status":"amber","note":"6.6 h — under 7.0"},
+  {"key":"hrv_day","label":"HRV (day)","value":31,"unit":"ms","threshold":0,"direction":"min","scale_min":0,"scale_max":80,"status":"context","note":"weekday — dosed"}],
+ "hrv_series":[]}
 """
 
 let fixtureGateJSON = """

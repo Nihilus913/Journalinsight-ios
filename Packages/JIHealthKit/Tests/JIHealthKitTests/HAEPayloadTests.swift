@@ -39,4 +39,19 @@ struct HAEPayloadTests {
         #expect(obj["deep"] as? Double == 1.5)
         #expect(obj["qty"] == nil)
     }
+
+    @Test func sleepSegmentsEncodeWithCamelCaseKeys() throws {
+        let p = HAEDataPoint(date: "2026-09-23 05:00:00 +0200", sleepEnd: "2026-09-23 05:00:00 +0200",
+                             asleep: 7, sleepSegments: [HAESleepSegment(start: "2026-09-22 22:00:00 +0200", end: "2026-09-23 05:00:00 +0200")])
+        let json = String(decoding: try JSONEncoder().encode(p), as: UTF8.self)
+        #expect(json.contains("\"sleepSegments\":[{"))
+        #expect(json.contains("\"start\":\"2026-09-22 22:00:00 +0200\""))
+        #expect(!json.contains("sleep_segments"))
+    }
+
+    @Test func sleepSegmentsOmittedWhenNil() throws {
+        let p = HAEDataPoint(date: "2026-09-23 05:00:00 +0200", qty: 1)
+        let json = String(decoding: try JSONEncoder().encode(p), as: UTF8.self)
+        #expect(!json.contains("sleepSegments"))
+    }
 }
