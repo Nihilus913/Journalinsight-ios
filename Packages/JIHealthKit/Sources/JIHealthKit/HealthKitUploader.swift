@@ -228,6 +228,7 @@ public final class HealthKitUploader: Sendable {
     /// Runs every configured metric once (e.g. a manual "sync now" or the initial post-connect
     /// sync); errors are per-metric so one failing upload doesn't block the rest.
     @discardableResult
+    @concurrent
     public func syncAll() async -> [String: Result<Int, Error>] {
         var results: [String: Result<Int, Error>] = [:]
         for spec in specs {
@@ -239,24 +240,35 @@ public final class HealthKitUploader: Sendable {
 
     /// Fetches the anchored page for one metric, maps it, and — only when there's at least one
     /// mapped point — POSTs it and advances the anchor. Returns the number of points uploaded.
+    /// First-sync window: a type with no anchor yet uploads only this many days back — enough
+    /// for the 120-day per-source baselines (B-20/B-65) without pulling years of samples.
+    public nonisolated static let firstSyncDays = 120
+    /// Page size for the anchored query; a full page means "there may be more" and loops.
+    public nonisolated static let pageLimit = 2_000
+
+    /// Fetches anchored pages for one metric, maps each, POSTs it and advances the anchor per
+    /// page. `@concurrent`: runs off the caller's actor — under `NonisolatedNonsendingByDefault`
+    /// a plain `async` func inherits the MainActor of the Connect button, and mapping a large
+    /// history there froze the app (2026-09-23). Returns the number of points uploaded.
     @discardableResult
-    func sync(_ spec: HKMetricSpec) async throws -> Int {
-        let anchor = readAnchor(spec.anchorKey)
-        let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, limit: HKObjectQueryNoLimit)
-        guard !page.samples.isEmpty else {
+    @concurrent
+    func sync(_ spec: HKMetricSpec, now: Date = Date()) async throws -> Int {
+        var anchor = readAnchor(spec.anchorKey)
+        let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
+        var uploaded = 0
+        while true {
+            let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, since: since, limit: Self.pageLimit)
+            let points = page.samples.isEmpty ? [] : spec.mapSamples(page.samples)
+            if !points.isEmpty {
+                let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
+                let response: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
+                _ = response // status/rows_loaded not currently surfaced further; kept for future logging
+                uploaded += points.count
+            }
             writeAnchor(page.newAnchor, key: spec.anchorKey)
-            return 0
+            anchor = page.newAnchor
+            guard page.samples.count >= Self.pageLimit else { return uploaded }
         }
-        let points = spec.mapSamples(page.samples)
-        guard !points.isEmpty else {
-            writeAnchor(page.newAnchor, key: spec.anchorKey)
-            return 0
-        }
-        let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
-        let response: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
-        _ = response // status/rows_loaded not currently surfaced further; kept for future logging
-        writeAnchor(page.newAnchor, key: spec.anchorKey)
-        return points.count
     }
 
     // MARK: - Anchor persistence

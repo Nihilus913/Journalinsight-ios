@@ -31,7 +31,10 @@ final class FakeHealthStoreReader: HealthStoreReading, @unchecked Sendable {
         requestedReadTypes = types
     }
 
-    func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, limit: Int) async throws -> HKAnchoredPage {
+    var sinceSeen: [String: [Date?]] = [:]
+
+    func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, since: Date?, limit: Int) async throws -> HKAnchoredPage {
+        sinceSeen[sampleType.identifier, default: []].append(since)
         anchorsSeen[sampleType.identifier, default: []].append(anchor)
         guard var queue = pages[sampleType.identifier], !queue.isEmpty else {
             return HKAnchoredPage(samples: [], deletedObjectIDs: [], newAnchor: anchor)
