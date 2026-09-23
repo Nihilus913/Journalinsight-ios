@@ -28,6 +28,8 @@ public struct HAEMetric: Encodable, Sendable, Equatable {
 /// `hae_bridge.py` branches on `name` to know which fields to read. Property names here are the
 /// exact wire keys (including the camelCase `sleepEnd`) — `HubClient.post` must encode this type
 /// WITHOUT `.convertToSnakeCase` (see its doc comment) or `sleepEnd` would corrupt to `sleep_end`.
+/// `sleep_analysis` also carries `sleepSegments` (B-65) — the merged asleep intervals the hub uses
+/// to tell overnight from daytime RMSSD. `nil` optionals are omitted from the JSON, never nulled.
 public struct HAEDataPoint: Encodable, Sendable, Equatable {
     public var date: String
     public var qty: Double?
@@ -38,16 +40,28 @@ public struct HAEDataPoint: Encodable, Sendable, Equatable {
     public var rem: Double?
     public var awake: Double?
     public var asleep: Double?
+    public var sleepSegments: [HAESleepSegment]?
 
     public init(
         date: String, qty: Double? = nil, source: String? = nil,
         sleepEnd: String? = nil, deep: Double? = nil, core: Double? = nil,
-        rem: Double? = nil, awake: Double? = nil, asleep: Double? = nil
+        rem: Double? = nil, awake: Double? = nil, asleep: Double? = nil,
+        sleepSegments: [HAESleepSegment]? = nil
     ) {
         self.date = date; self.qty = qty; self.source = source
         self.sleepEnd = sleepEnd; self.deep = deep; self.core = core
         self.rem = rem; self.awake = awake; self.asleep = asleep
+        self.sleepSegments = sleepSegments
     }
+}
+
+/// One merged asleep interval of a night (B-65): asleep stages sorted by start and merged when
+/// they overlap or touch (gap ≤ 60 s); `awake`/`inBed` never form segments. Dates use the
+/// `HAEDate.format` shape. Wire keys `start`/`end`.
+public struct HAESleepSegment: Encodable, Sendable, Equatable {
+    public var start: String
+    public var end: String
+    public init(start: String, end: String) { self.start = start; self.end = end }
 }
 
 /// Hub response to a successful upload (frozen contract note); `422` bodies decode to `HubError`

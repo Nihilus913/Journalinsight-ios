@@ -150,5 +150,61 @@ struct HealthKitUploaderTests {
         #expect(completedBox.completed)
         #expect(UploadCapturingURLProtocol.requestCount == 1)
     }
+    // MARK: - B-65 sleep segments
+
+    private func sleepSample(_ value: HKCategoryValueSleepAnalysis, _ start: Date, minutes: Double) -> HKCategorySample {
+        HKCategorySample(type: HKCategoryType(.sleepAnalysis), value: value.rawValue, start: start, end: start.addingTimeInterval(minutes * 60))
+    }
+
+    @Test func sleepAnalysisMergesAsleepStagesIntoSegments() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!           // 22:00 local
+        let s: [HKSample] = [
+            sleepSample(.asleepCore, t0, minutes: 60),
+            sleepSample(.asleepDeep, t0.addingTimeInterval(3600), minutes: 60),   // touches → merge
+            sleepSample(.awake, t0.addingTimeInterval(7200), minutes: 20),       // never a segment
+            sleepSample(.asleepREM, t0.addingTimeInterval(8400), minutes: 60),
+        ]
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })(s)
+        #expect(points.count == 1)
+        #expect(points[0].sleepSegments?.count == 2)
+        #expect(points[0].sleepSegments?[0].start == "2026-09-22 22:00:00 +0200")
+        #expect(points[0].sleepSegments?[0].end == "2026-09-23 00:00:00 +0200")
+        #expect(points[0].sleepSegments?[1].start == "2026-09-23 00:20:00 +0200")
+        #expect(points[0].sleepSegments?[1].end == "2026-09-23 01:20:00 +0200")
+    }
+
+    @Test func sleepAnalysisSplitsAnAfternoonNapFromTheEveningSleep() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let nap = ISO8601DateFormatter().date(from: "2026-09-22T12:00:00Z")!          // 14:00 local
+        let evening = ISO8601DateFormatter().date(from: "2026-09-22T20:30:00Z")!      // 22:30 local
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })([
+            sleepSample(.asleepCore, nap, minutes: 30),
+            sleepSample(.asleepCore, evening, minutes: 60),                              // ends 23:30 on the 22nd
+        ])
+        let ends = Set(points.compactMap(\.sleepEnd))
+        #expect(ends == ["2026-09-22 14:30:00 +0200", "2026-09-22 23:30:00 +0200"])
+        #expect(points.count == 2)
+    }
+
+    @Test func sleepAnalysisWithOnlyInBedHasNoSegments() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })([sleepSample(.inBed, t0, minutes: 480)])
+        #expect(points.count == 1)
+        #expect(points[0].sleepSegments == nil)
+    }
+
+    @Test func sleepAnalysisMergesWithinSixtySecondsButNotBeyond() {
+        let tz = TimeZone(identifier: "Europe/Zurich")!
+        let t0 = ISO8601DateFormatter().date(from: "2026-09-22T20:00:00Z")!
+        let s: [HKSample] = [
+            sleepSample(.asleepCore, t0, minutes: 60),
+            sleepSample(.asleepCore, t0.addingTimeInterval(3600 + 60), minutes: 60),    // 60 s gap → merge
+            sleepSample(.asleepCore, t0.addingTimeInterval(7260 + 61), minutes: 60),    // 61 s gap → new segment
+        ]
+        let points = HKSampleMapping.sleepAnalysis(timeZone: { tz })(s)
+        #expect(points[0].sleepSegments?.count == 2)
+    }
 }
 #endif

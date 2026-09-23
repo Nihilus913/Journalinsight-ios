@@ -224,7 +224,9 @@ final class AppEnvironment {
         // hrv_rmssd_ms stayed empty for the Apple Watch — the metric the Apple gate (B-65) needs.
         return specs.compactMap { kind, metricName, units, mapSamples in
             guard let sampleType = kind.sampleType else { return nil }
-            return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, mapSamples: mapSamples)
+            // B-65: v2 = one 120-day re-send so the hub gets sleep segments for the whole baseline window.
+            let anchorVersion = kind == .sleepAnalysis ? 2 : 1
+            return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, anchorVersion: anchorVersion, mapSamples: mapSamples)
         }.appendingNativeRMSSD()
     }
 
