@@ -28,7 +28,12 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     /// for the REAL day instead. A hub that predates the route still decodes (both nil).
     public var isStale: Bool?
     public var sessionForToday: String?
-
+    /// W-B57b (B-61) — the four `morning_go.evaluate` inputs behind `verdict` (sleep, HRV, RHR,
+    /// sleep time), as stored with the verdict for `verdictDate`. OPTIONAL: nil from a hub that
+    /// predates the field or for a verdict row written before migration 048.
+    public var gateSignals: [GateSignal]?
+    /// W-B57b (B-62) — the user's override of the verdict for `verdictDate`, nil when none.
+    public var verdictOverride: VerdictOverride?
 
     // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
     // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
@@ -41,6 +46,7 @@ public struct MorningResponse: Codable, Sendable, Equatable {
         case todayActivities, verdict, verdictDate, experiment
         case carbs3dAvg = "carbs3DAvg"
         case carbWatchFloor, hrvSeries, isStale, sessionForToday
+        case gateSignals, verdictOverride
     }
 }
 public struct MorningVerdict: Codable, Sendable, Equatable {

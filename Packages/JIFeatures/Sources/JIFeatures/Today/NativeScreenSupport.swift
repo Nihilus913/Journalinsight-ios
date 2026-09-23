@@ -29,8 +29,15 @@ public struct ScreenScroll<Content: View>: View {
 
     public var body: some View {
         if offscreen {
-            VStack(spacing: 0) { content; Spacer(minLength: 0) }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // Pinned to the cell and clipped from the TOP: a screen taller than the cell used to
+            // overflow symmetrically (the sweep showed its middle), and a bottom overlay (W-B57b
+            // Coach card) sat off-cell. Now the cell shows what a phone shows before scrolling.
+            GeometryReader { g in
+                VStack(spacing: 0) { content; Spacer(minLength: 0) }
+                    .frame(width: g.size.width, alignment: .top)
+                    .frame(height: g.size.height, alignment: .top)
+                    .clipped()
+            }
         } else {
             // `.refreshable` at the call site lands on this `ScrollView` through the environment.
             ScrollView { content }
@@ -101,7 +108,31 @@ struct NativeFixtureUnavailable: View {
 
     private static func todayMorning(_ state: TodayMorningState, screen: String) -> AnyView {
         guard let model = TodayViewModel.fixture(morningState: state) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }
-        return AnyView(NativeScreenPreview { TodayView(model: model, onOpenConnection: {}) })
+        // W-B57b: an override model over the in-memory store, so Decide shows Go AND Adjust.
+        return AnyView(NativeScreenPreview {
+            TodayView(model: model, onOpenConnection: {})
+                .environment(\.verdictOverrideModel, fixtureOverrideModel())
+        })
+    }
+
+    /// W-B57b (B-62): the Adjust sheet's form over the Decide fixture's verdict, a choice and a
+    /// reason already picked so the sweep shows the selected state.
+    static func todayAdjust() -> AnyView {
+        guard let morning = TodayViewModel.fixture(morningState: .decide)?.morning else {
+            return AnyView(NativeFixtureUnavailable(screen: "Today adjust"))
+        }
+        return AnyView(NativeScreenPreview {
+            ScreenScroll {
+                VerdictAdjustForm(verdict: verdictParts(morning.verdict), sessionForToday: morning.sessionForToday,
+                                  model: fixtureOverrideModel(), initialChoice: .full,
+                                  initialReason: GateRespondCopy.overrideReasons.first) { _, _ in }
+                    .padding(20)
+            }
+        })
+    }
+
+    private static func fixtureOverrideModel() -> VerdictOverrideViewModel? {
+        NativeFixtureStore.database.map { VerdictOverrideViewModel(provider: MockDataProvider(), outbox: Outbox(db: $0)) }
     }
 
     static func recovery() -> AnyView {

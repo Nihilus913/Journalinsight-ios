@@ -31,6 +31,8 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today decide") { L4Screens.todayDecide() },
         ScreenEntry(name: "Today coach") { L4Screens.todayCoach() },
         ScreenEntry(name: "Today day") { L4Screens.todayDay() },
+        // W-B57b L2 — Decide's Adjust sheet (verdict override: choice + reason)
+        ScreenEntry(name: "Today adjust") { L4Screens.todayAdjust() },
 
         // MARK: W-B46 L2 — B-42 Today components
         ScreenEntry(name: "Trends card") { AnyView(TrendsCardNativePreview()) },

@@ -13,6 +13,8 @@ public struct GateRationaleView: View {
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
+    /// W-B57b: the weekly gate answer card's model (see `EnvironmentValues.gateRespondModel`).
+    @Environment(\.gateRespondModel) private var respondModel
 
     public init(model: GateRationaleViewModel) { self.model = model }
 
@@ -40,6 +42,13 @@ public struct GateRationaleView: View {
                         contributorsCard
                         suggestionsCard
                         decisionTrailCard
+                    }
+                    // W-B57b (§9): the WEEKLY gate response left Today — it lives here, at the
+                    // bottom of the rationale, built by Today's `makeGateRespondModel` path and
+                    // handed down through `\.gateRespondModel` (nil = no card, as before).
+                    if let respondModel {
+                        GateRespondCard(model: respondModel, showsFeelRow: false)
+                            .accessibilityIdentifier("gateRationale.weeklyRespond")
                     }
                 }
             }
@@ -237,12 +246,27 @@ extension EnvironmentValues {
     /// idiom as `VerdictHeroView.challengesModel`, routed through the environment so the entry site
     /// costs exactly one line and cannot collide with the other lane editing that file).
     @Entry public var gateRationaleModel: GateRationaleViewModel?
+    /// W-B57b (§9): the weekly gate's answer model, set by `TodayView` (which builds it through
+    /// the App's `makeGateRespondModel`) so the rationale screen can show the respond card.
+    @Entry public var gateRespondModel: GateRespondViewModel?
+    /// W-B57b (B-62): Decide's verdict-override write model, built once by the App next to
+    /// `gateRationaleModel`; nil = Go just advances and Adjust is hidden.
+    @Entry public var verdictOverrideModel: VerdictOverrideViewModel?
+}
+
+/// The rationale screen as every Today entry pushes it: the respond model is re-injected
+/// explicitly, because a `navigationDestination` is not guaranteed to inherit the environment of
+/// the view that declared it.
+@MainActor
+func gateRationaleScreen(model: GateRationaleViewModel, respondModel: GateRespondViewModel?) -> some View {
+    GateRationaleView(model: model).environment(\.gateRespondModel, respondModel)
 }
 
 /// Makes the whole verdict hero the tap target into the rationale — the oracle's `VerdictCard`
 /// `onPress` covers the entire card, with `accessibilityLabel="Readiness verdict details"`.
 struct GateRationaleDestination: ViewModifier {
     @Environment(\.gateRationaleModel) private var model
+    @Environment(\.gateRespondModel) private var respondModel
     @State private var showRationale = false
 
     func body(content: Content) -> some View {
@@ -253,7 +277,7 @@ struct GateRationaleDestination: ViewModifier {
                 .accessibilityIdentifier("today.verdict.rationale")
                 // Attached locally so this never needs the enclosing NavigationStack's own
                 // `navigationDestination(for:)` — same rationale as the challenges link above it.
-                .navigationDestination(isPresented: $showRationale) { GateRationaleView(model: model) }
+                .navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: model, respondModel: respondModel) }
         } else {
             content
         }
