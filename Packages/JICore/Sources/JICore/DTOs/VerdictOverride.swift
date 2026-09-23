@@ -48,8 +48,9 @@ public enum GateSignalDirection: String, Codable, Sendable, Equatable {
 
 /// An unknown status from a newer hub decodes as `.missing` (muted) rather than failing the whole
 /// morning payload — a signal we cannot classify must never be painted as a pass.
+/// `context` (B-65): shown, muted, never gating (daytime HRV).
 public enum GateSignalStatus: String, Codable, Sendable, Equatable {
-    case pass, amber, red, missing
+    case pass, amber, red, missing, context
     public init(from decoder: Decoder) throws {
         self = GateSignalStatus(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .missing
     }

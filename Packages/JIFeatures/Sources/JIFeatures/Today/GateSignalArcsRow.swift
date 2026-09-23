@@ -29,7 +29,19 @@ public nonisolated func gateSignalColorRole(_ status: GateSignalStatus) -> JICol
     case .amber: .reduced
     case .red: .danger
     case .missing: .nested
+    // B-65: context (daytime HRV) — muted, never green (rule 6), but visible on the track.
+    case .context: .muted
     }
+}
+
+/// B-65: `false` for a `context` arc — it is shown but never counts toward pass/amber/red.
+public nonisolated func gateSignalIsGating(_ s: GateSignal) -> Bool { s.status != .context }
+
+/// B-65: the hub's note under a `context` arc (e.g. weekday = dosed proxy); `nil` otherwise —
+/// gating arcs keep their existing look (the rationale screen carries their notes).
+public nonisolated func gateSignalNoteText(_ s: GateSignal) -> String? {
+    guard s.status == .context, let note = s.note, !note.isEmpty else { return nil }
+    return note
 }
 
 /// "—" for a missing value (rule 5); sleep time keeps one decimal (6.0 h is the threshold).
@@ -42,6 +54,9 @@ public nonisolated func gateSignalAccessibilityLabel(_ s: GateSignal) -> String 
     let thr = s.threshold.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0)))
     guard s.value != nil else { return "\(s.label), not synced yet, threshold \(thr)" }
     let value = [gateSignalValueText(s), s.unit.isEmpty ? nil : s.unit].compactMap { $0 }.joined(separator: " ")
+    if s.status == .context {
+        return ["\(s.label) \(value), context only", gateSignalNoteText(s)].compactMap { $0 }.joined(separator: ", ")
+    }
     return "\(s.label) \(value), \(s.status.rawValue), threshold \(thr)"
 }
 
@@ -98,7 +113,7 @@ struct GateSignalArc: View {
                 if let f = gateSignalFraction(signal), f > 0 {
                     arc(to: f).stroke(tint, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
                 }
-                thresholdTick
+                if signal.status != .context { thresholdTick } // context never gates → no threshold
                 Text(gateSignalValueText(signal))
                     .jiFont(.footnote, weight: .semibold)
                     .foregroundStyle(signal.value == nil ? theme.color(.muted) : theme.color(.text))
@@ -107,6 +122,10 @@ struct GateSignalArc: View {
             .frame(width: width, height: width / 2 + stroke / 2)
             Text(signal.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
                 .lineLimit(1).minimumScaleFactor(0.7)
+            if let note = gateSignalNoteText(signal) {
+                Text(note).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.7)
+            }
         }
         .frame(maxWidth: .infinity)
     }

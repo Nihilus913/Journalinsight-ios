@@ -105,9 +105,11 @@ struct NativeFixtureUnavailable: View {
     static func todayDecide() -> AnyView { todayMorning(.decide, screen: "Today decide") }
     static func todayCoach() -> AnyView { todayMorning(.coach, screen: "Today coach") }
     static func todayDay() -> AnyView { todayMorning(.day, screen: "Today day") }
+    /// B-65: Decide on an Apple Watch night — shows the muted `context` arc (daytime HRV).
+    static func todayDecideApple() -> AnyView { todayMorning(.decide, screen: "Today decide Apple", morningJSON: fixtureMorningAppleJSON) }
 
-    private static func todayMorning(_ state: TodayMorningState, screen: String) -> AnyView {
-        guard let model = TodayViewModel.fixture(morningState: state) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }
+    private static func todayMorning(_ state: TodayMorningState, screen: String, morningJSON: String? = nil) -> AnyView {
+        guard let model = TodayViewModel.fixture(morningState: state, morningJSON: morningJSON) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }
         // W-B57b: an override model over the in-memory store, so Decide shows Go AND Adjust.
         return AnyView(NativeScreenPreview {
             TodayView(model: model, onOpenConnection: {})

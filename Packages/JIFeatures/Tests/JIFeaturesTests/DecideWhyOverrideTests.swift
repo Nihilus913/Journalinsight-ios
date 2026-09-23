@@ -114,6 +114,45 @@ import JIPersistence
         #expect(signals.filter { $0.status == .amber }.count == 1)
     }
 
+    // MARK: B-65 context arc (daytime HRV — shown, muted, never gating)
+
+    @Test func contextArcIsMutedNeverGreenAndShowsItsValueAndNote() {
+        let s = GateSignal(key: "hrv_day", label: "HRV (day)", value: 31, unit: "ms", threshold: 0, direction: .min,
+                           scaleMin: 0, scaleMax: 80, status: .context, note: "weekday — dosed")
+        #expect(gateSignalColorRole(.context) == .muted)
+        #expect(gateSignalColorRole(.context) != .go)
+        #expect(gateSignalValueText(s) == "31")
+        #expect(gateSignalFraction(s) != nil)           // the value is drawn, unlike a missing arc
+        #expect(gateSignalNoteText(s) == "weekday — dosed")
+        #expect(gateSignalAccessibilityLabel(s) == "HRV (day) 31 ms, context only, weekday — dosed")
+    }
+
+    @Test func noteIsShownOnlyForContextArcs() {
+        let amber = GateSignal(key: "hrv", label: "HRV", value: 24, unit: "ms", threshold: 27, direction: .min,
+                               scaleMin: 0, scaleMax: 80, status: .amber, note: "hrv 24 — under 27")
+        #expect(gateSignalNoteText(amber) == nil)
+    }
+
+    @Test func contextArcDoesNotCountTowardPassOrAmberTallies() {
+        let signals = [
+            signal("hrv", 40, thr: 35, max: 80, status: .pass),
+            signal("sleep_h", 6.5, thr: 7, max: 10, status: .amber),
+            signal("hrv_day", 31, thr: 0, max: 80, status: .context),
+        ]
+        let gating = signals.filter(gateSignalIsGating)
+        #expect(gating.map(\.key) == ["hrv", "sleep_h"])
+        #expect(gating.filter { $0.status == .pass }.count == 1)
+        #expect(gating.filter { $0.status == .amber }.count == 1)
+    }
+
+    @Test @MainActor func appleDecideFixtureHasThreeArcsWithOneContext() throws {
+        let morning = try #require(TodayViewModel.fixture(morningState: .decide, morningJSON: fixtureMorningAppleJSON)?.morning)
+        let signals = try #require(morning.gateSignals)
+        #expect(signals.map(\.key) == ["hrv", "sleep_h", "hrv_day"])
+        #expect(signals.filter { $0.status == .context }.count == 1)
+        #expect(ScreenRegistry.entries.map(\.name).contains("Today decide Apple"))
+    }
+
     @Test func registryHasTheAdjustSheet() {
         #expect(ScreenRegistry.entries.map(\.name).contains("Today adjust"))
     }
