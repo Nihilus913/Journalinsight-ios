@@ -171,7 +171,9 @@ final class AppEnvironment {
                     if let observers = try? await uploader.startBackgroundDelivery() {
                         await MainActor.run { self.healthKitObservers = observers }
                     }
-                    await uploader.syncAll()
+                    // Never awaited here: the first sync can take minutes on a deep history, and the
+                    // permission sheet's caller must return at once (2026-09-23 connect hang).
+                    Task.detached(priority: .background) { await uploader.syncAll() }
                 }
                 return status
             }

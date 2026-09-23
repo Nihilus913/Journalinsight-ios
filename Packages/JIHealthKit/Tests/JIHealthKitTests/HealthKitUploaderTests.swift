@@ -108,6 +108,17 @@ struct HealthKitUploaderTests {
         #expect(UploadCapturingURLProtocol.requestCount == 0) // never POSTs an empty batch
     }
 
+    /// 2026-09-23 connect hang: the first sync of a type (no anchor) must be bounded to
+    /// `firstSyncDays`, never the whole store.
+    @Test func firstSyncIsBoundedToTheBaselineWindow() async throws {
+        let store = FakeHealthStoreReader()
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        _ = try await uploader(store: store).sync(spec, now: now)
+        let since = try #require(store.sinceSeen[stepsType.identifier]?.first ?? nil)
+        #expect(abs(since.timeIntervalSince(now) + Double(HealthKitUploader.firstSyncDays) * 86_400) < 1)
+    }
+
     @Test func requestAuthorizationThrowsWhenHealthDataUnavailable() async {
         let store = FakeHealthStoreReader()
         store.isHealthDataAvailable = false

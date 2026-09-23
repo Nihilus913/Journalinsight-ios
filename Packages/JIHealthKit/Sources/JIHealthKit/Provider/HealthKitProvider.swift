@@ -98,9 +98,11 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
         try require(.recovery)
         try requireHealthData()
         let window = HKSampleWindow(windowDays: windowDays, now: now(), calendar: calendar)
-        let rhr = try await samples(for: .restingHeartRate)
-        let hrv: [HKSample] = if let kind = hrvKind { try await samples(for: kind) } else { [] }
-        let sleep = capabilities.contains(.sleepSummary) ? try await samples(for: .sleepAnalysis) : []
+        // One day of slack before the window: a night's sleep starts the evening before its day.
+        let since = window.start.addingTimeInterval(-86_400)
+        let rhr = try await samples(for: .restingHeartRate, since: since)
+        let hrv: [HKSample] = if let kind = hrvKind { try await samples(for: kind, since: since) } else { [] }
+        let sleep = capabilities.contains(.sleepSummary) ? try await samples(for: .sleepAnalysis, since: since) : []
         return HKRecoveryAssembler.days(window: window, restingHeartRate: rhr, hrv: hrv, sleep: sleep)
     }
 
@@ -143,9 +145,12 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     /// window on every call, so a resumed anchor would return an empty second page and the screen
     /// would go blank. The returned anchor is still kept (see `anchors`) for the incremental path
     /// and so `syncStatus()` has a real timestamp.
-    private func samples(for kind: HKReadKind) async throws -> [HKSample] {
+    /// `since` bounds the read to the window (2026-09-23: an unbounded read of years of samples on
+    /// the caller's MainActor froze the app once "read from watch" was switched on).
+    @concurrent
+    private func samples(for kind: HKReadKind, since: Date) async throws -> [HKSample] {
         guard let type = kind.sampleType else { return [] }
-        let page = try await store.anchoredSamples(sampleType: type, anchor: nil, limit: HKObjectQueryNoLimit)
+        let page = try await store.anchoredSamples(sampleType: type, anchor: nil, since: since, limit: HKObjectQueryNoLimit)
         lock.withLock {
             if let newAnchor = page.newAnchor { anchors[type.identifier] = newAnchor }
             lastAnchorFetch = now()

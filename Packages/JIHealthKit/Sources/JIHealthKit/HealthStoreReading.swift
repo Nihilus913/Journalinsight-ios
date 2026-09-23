@@ -12,7 +12,10 @@ public protocol HealthStoreReading: Sendable {
     /// One page of an `HKAnchoredObjectQuery`: samples new/updated since `anchor` (`nil` = from
     /// the beginning), objects deleted since `anchor`, and the anchor to persist for the next
     /// call. Re-running with the same anchor and no new HealthKit data returns an empty page.
-    func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, limit: Int) async throws -> HKAnchoredPage
+    /// `since` bounds the query to samples starting on/after that date (nil = no bound). The
+    /// uploader passes it on the FIRST sync of a type (no anchor) so a years-deep history is
+    /// never pulled into memory at once (2026-09-23 connect hang).
+    func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, since: Date?, limit: Int) async throws -> HKAnchoredPage
     func enableBackgroundDelivery(for type: HKSampleType, frequency: HKUpdateFrequency) async throws
     func disableBackgroundDelivery(for type: HKSampleType) async throws
     /// Registers an `HKObserverQuery` for `type`. `handler` is invoked on every HealthKit-
@@ -47,9 +50,10 @@ public final class RealHealthStoreReader: HealthStoreReading, @unchecked Sendabl
         try await store.requestAuthorization(toShare: [], read: types)
     }
 
-    public func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, limit: Int = HKObjectQueryNoLimit) async throws -> HKAnchoredPage {
-        try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(type: sampleType, predicate: nil, anchor: anchor, limit: limit) { _, samples, deleted, newAnchor, error in
+    public func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, since: Date? = nil, limit: Int = HKObjectQueryNoLimit) async throws -> HKAnchoredPage {
+        let predicate = since.map { HKQuery.predicateForSamples(withStart: $0, end: nil, options: .strictStartDate) }
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: limit) { _, samples, deleted, newAnchor, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
