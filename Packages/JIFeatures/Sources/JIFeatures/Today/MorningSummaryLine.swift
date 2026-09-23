@@ -12,15 +12,18 @@ public nonisolated func morningSummaryText(verdict: VerdictParts, readiness: Dou
         .joined(separator: " · ")
 }
 
-/// B-57 §6: the Day view's top line; tap re-opens the morning's Coach read-only.
+/// B-57 §6/§9: the Day view's top line; tap re-opens the morning's Coach overlay read-only.
+/// W-B57b: `verdict` is the effective one (`effectiveVerdictParts`); `caption` is its
+/// "was MODIFIED · <reason>" line when the user overrode the verdict.
 public struct MorningSummaryLine: View {
     let verdict: VerdictParts
     let readiness: Double?
+    let caption: String?
     let onTap: () -> Void
     @Environment(\.jiTheme) private var theme
 
-    public init(verdict: VerdictParts, readiness: Double?, onTap: @escaping () -> Void) {
-        self.verdict = verdict; self.readiness = readiness; self.onTap = onTap
+    public init(verdict: VerdictParts, readiness: Double?, caption: String? = nil, onTap: @escaping () -> Void) {
+        self.verdict = verdict; self.readiness = readiness; self.caption = caption; self.onTap = onTap
     }
 
     private var rest: String {
@@ -31,10 +34,15 @@ public struct MorningSummaryLine: View {
     public var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
-                (Text(verdict.word).foregroundStyle(theme.color(verdictColorRole(verdict.tone)))
-                 + Text(rest).foregroundStyle(theme.color(.text)))
-                    .jiFont(.footnote, weight: .semibold)
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 2) {
+                    (Text(verdict.word).foregroundStyle(theme.color(verdictColorRole(verdict.tone)))
+                     + Text(rest).foregroundStyle(theme.color(.text)))
+                        .jiFont(.footnote, weight: .semibold)
+                        .lineLimit(2)
+                    if let caption {
+                        Text(caption).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(2)
+                    }
+                }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted))
                     .accessibilityHidden(true)
@@ -43,7 +51,7 @@ public struct MorningSummaryLine: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.pressableScale)
-        .accessibilityLabel("This morning: \(morningSummaryText(verdict: verdict, readiness: readiness)). Open the morning review")
+        .accessibilityLabel("This morning: \(morningSummaryText(verdict: verdict, readiness: readiness))\(caption.map { ", \($0)" } ?? ""). Open the morning review")
         .accessibilityIdentifier("today.morning.summary")
     }
 }
