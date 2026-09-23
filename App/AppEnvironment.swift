@@ -208,7 +208,7 @@ final class AppEnvironment {
     /// vocabulary) instead of constructing `HKQuantityTypeIdentifier`s here a second time, so the
     /// upload set can never drift from the permission set. A kind whose type doesn't resolve on
     /// this OS (`sampleType == nil`) is skipped rather than crashed on. Still the W2d upload
-    /// subset — no RMSSD/body-comp/workout upload, the hub has no HAE metric for those.
+    /// subset plus native RMSSD (appended below) — no body-comp/workout upload.
     private static var healthKitUploadSpecs: [HKMetricSpec] {
         let specs: [(HKReadKind, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.stepCount, HAEMetricName.stepCount, "count", HKSampleMapping.perSample(unit: .count())),
@@ -219,10 +219,13 @@ final class AppEnvironment {
             (.sleepAnalysis, HAEMetricName.sleepAnalysis, "hr", HKSampleMapping.sleepAnalysis()),
             (.bodyMass, HAEMetricName.weightBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
         ]
+        // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested
+        // (`appendingNativeRMSSD`, UploaderRMSSDTests) but never wired here, so the hub's
+        // hrv_rmssd_ms stayed empty for the Apple Watch — the metric the Apple gate (B-65) needs.
         return specs.compactMap { kind, metricName, units, mapSamples in
             guard let sampleType = kind.sampleType else { return nil }
             return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, mapSamples: mapSamples)
-        }
+        }.appendingNativeRMSSD()
     }
 
     /// P-snapshot-wiring (W2c-L1): wires both hub-backed view models' `onSectionUpdate` hooks
