@@ -10,6 +10,10 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case gateRespond(GateRespondResult)
     case sessionFeel(FeelResult)
     case planWeekday(PlanSessionOut)
+    /// W-B57b: a queued verdict override the hub has now stored.
+    case verdictOverride(VerdictOverride)
+    /// W-B57b: a queued override undo the hub has now applied.
+    case verdictOverrideCleared
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -29,6 +33,7 @@ public final class OutboxDrainer {
     private let weighIn: (any WeighInProviding)?
     private let gateRespond: (any GateRespondProviding)?
     private let planWeekday: (any PlanSessionWeekdayProviding)?
+    private let verdictOverride: (any VerdictOverrideProviding)?
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -46,12 +51,14 @@ public final class OutboxDrainer {
         outbox: Outbox,
         weighIn: (any WeighInProviding)?,
         gateRespond: (any GateRespondProviding)?,
-        planWeekday: (any PlanSessionWeekdayProviding)? = nil
+        planWeekday: (any PlanSessionWeekdayProviding)? = nil,
+        verdictOverride: (any VerdictOverrideProviding)? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
         self.gateRespond = gateRespond
         self.planWeekday = planWeekday
+        self.verdictOverride = verdictOverride
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -61,7 +68,8 @@ public final class OutboxDrainer {
             outbox: outbox,
             weighIn: provider,
             gateRespond: provider as? any GateRespondProviding,
-            planWeekday: provider as? any PlanSessionWeekdayProviding
+            planWeekday: provider as? any PlanSessionWeekdayProviding,
+            verdictOverride: provider as? any VerdictOverrideProviding
         )
     }
 
@@ -71,7 +79,8 @@ public final class OutboxDrainer {
             outbox: outbox,
             weighIn: hub as? any WeighInProviding,
             gateRespond: hub as? any GateRespondProviding,
-            planWeekday: hub as? any PlanSessionWeekdayProviding
+            planWeekday: hub as? any PlanSessionWeekdayProviding,
+            verdictOverride: hub as? any VerdictOverrideProviding
         )
     }
 
@@ -83,7 +92,12 @@ public final class OutboxDrainer {
     /// and the Contract pins this one as `plan_weekday`; changing either spelling later would
     /// orphan rows already queued on the phone, so neither is "tidied".
     public nonisolated static let planWeekdayKind = "plan_weekday"
-    public nonisolated static let knownKinds: Set<String> = [weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind]
+    /// W-B57b: the morning-verdict override and its undo (`VerdictOverrideViewModel`).
+    public nonisolated static let verdictOverrideKind = VerdictOverrideViewModel.verdictOverrideKind
+    public nonisolated static let verdictOverrideClearKind = VerdictOverrideViewModel.verdictOverrideClearKind
+    public nonisolated static let knownKinds: Set<String> = [
+        weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
+    ]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
     public var drainableKinds: Set<String> {
@@ -91,6 +105,7 @@ public final class OutboxDrainer {
         if weighIn != nil { kinds.insert(Self.weighInKind) }
         if gateRespond != nil { kinds.insert(Self.gateRespondKind); kinds.insert(Self.sessionFeelKind) }
         if planWeekday != nil { kinds.insert(Self.planWeekdayKind) }
+        if verdictOverride != nil { kinds.insert(Self.verdictOverrideKind); kinds.insert(Self.verdictOverrideClearKind) }
         return kinds
     }
 
@@ -152,6 +167,17 @@ public final class OutboxDrainer {
                 guard let planWeekday, let body = try? JSONDecoder().decode(PlanWeekdayBody.self, from: row.payload) else { continue }
                 await attempt(row: row, describe: Self.describePlanWeekday, into: &results) {
                     .planWeekday(try await planWeekday.updatePlanSessionWeekday(sessionId: body.sessionId, weekday: body.weekday))
+                }
+            case Self.verdictOverrideKind:
+                guard let verdictOverride, let body = try? JSONDecoder().decode(VerdictOverrideBody.self, from: row.payload) else { continue }
+                await attempt(row: row, describe: VerdictOverrideViewModel.describe, into: &results) {
+                    .verdictOverride(try await verdictOverride.setVerdictOverride(date: body.date, choice: body.choice, reason: body.reason))
+                }
+            case Self.verdictOverrideClearKind:
+                guard let verdictOverride, let body = try? JSONDecoder().decode(VerdictOverrideClearBody.self, from: row.payload) else { continue }
+                await attempt(row: row, describe: VerdictOverrideViewModel.describe, into: &results) {
+                    do { try await verdictOverride.clearVerdictOverride(date: body.date) } catch HubError.http(status: 404, detail: _) {}
+                    return .verdictOverrideCleared
                 }
             default:
                 continue
