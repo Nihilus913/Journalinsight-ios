@@ -59,7 +59,7 @@ public struct GateSignalArcsRow: View {
     public init(signals: [GateSignal]) { self.signals = signals }
 
     public var body: some View {
-        let row = Columns(minimum: 72, spacing: 10) {
+        let row = Columns(minimum: 58, spacing: 8) {
             ForEach(signals) { s in
                 Button { if rationaleModel != nil { showRationale = true } } label: {
                     GateSignalArc(signal: s)
@@ -86,8 +86,8 @@ public struct GateSignalArcsRow: View {
 /// One half-arc: `Circle().trim` like `ReadinessArcGauge`'s geometry (9 o'clock → 3 o'clock).
 struct GateSignalArc: View {
     let signal: GateSignal
-    @ScaledMetric(relativeTo: .caption) private var width: CGFloat = 64
-    @ScaledMetric(relativeTo: .caption) private var stroke: CGFloat = 7
+    @ScaledMetric(relativeTo: .caption) private var width: CGFloat = 56
+    @ScaledMetric(relativeTo: .caption) private var stroke: CGFloat = 6
     @Environment(\.jiTheme) private var theme
 
     var body: some View {

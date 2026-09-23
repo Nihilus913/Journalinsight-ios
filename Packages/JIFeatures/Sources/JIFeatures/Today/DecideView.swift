@@ -68,6 +68,13 @@ public func decideSubmit(model: VerdictOverrideViewModel, date: String, choice: 
                             optimisticSession: localOverrideSession(choice: choice, parts: parts, sessionForToday: sessionForToday))
 }
 
+/// Decide's big word without RN's parenthetical ("MODIFIED (HRV low)" → "MODIFIED"), which never
+/// fits the ring; the reason is carried by the arcs (or the reason line when there are none).
+public nonisolated func decideWord(_ parts: VerdictParts) -> String {
+    let bare = parts.word.replacing(/\(.*\)/, with: "").trimmingCharacters(in: .whitespaces)
+    return bare.isEmpty ? parts.word : bare
+}
+
 // MARK: - View
 
 /// B-57 §2 + §9 Decide: the (effective) verdict word + session, ONE readiness ring, the row of
@@ -110,7 +117,8 @@ public struct DecideView: View {
                     ScoreRing(value: readiness ?? 0, max: 100,
                               tint: readiness == nil ? theme.color(.nested) : theme.color(verdictColorRole(shown.tone)), size: 160)
                     VStack(spacing: 4) {
-                        Text(syncing ? "Syncing…" : shown.word)
+                        // The bare word: the parenthetical ("(HRV low)") is what the arcs below show.
+                        Text(syncing ? "Syncing…" : decideWord(shown))
                             .jiNumeral(.numeralHero)
                             .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                             .lineLimit(1).minimumScaleFactor(0.4)
@@ -236,13 +244,13 @@ public struct VerdictAdjustForm: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            JISectionHeader("Today I'll do").padding(.leading, -16)
+            formLabel("Today I'll do")
             VStack(spacing: 8) {
                 ForEach(adjustChoices(parts: verdict, sessionForToday: sessionForToday)) { option in
                     choiceRow(option)
                 }
             }
-            JISectionHeader("Why").padding(.leading, -16)
+            formLabel("Why")
             VStack(spacing: 6) {
                 ForEach(GateRespondCopy.overrideReasons, id: \.self) { r in reasonRow(r) }
             }
@@ -265,6 +273,11 @@ public struct VerdictAdjustForm: View {
             .accessibilityIdentifier("today.decide.adjust.save")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func formLabel(_ text: String) -> some View {
+        Text(text).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func choiceRow(_ option: AdjustChoice) -> some View {

@@ -29,8 +29,15 @@ public struct ScreenScroll<Content: View>: View {
 
     public var body: some View {
         if offscreen {
-            VStack(spacing: 0) { content; Spacer(minLength: 0) }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // Pinned to the cell and clipped from the TOP: a screen taller than the cell used to
+            // overflow symmetrically (the sweep showed its middle), and a bottom overlay (W-B57b
+            // Coach card) sat off-cell. Now the cell shows what a phone shows before scrolling.
+            GeometryReader { g in
+                VStack(spacing: 0) { content; Spacer(minLength: 0) }
+                    .frame(width: g.size.width, alignment: .top)
+                    .frame(height: g.size.height, alignment: .top)
+                    .clipped()
+            }
         } else {
             // `.refreshable` at the call site lands on this `ScrollView` through the environment.
             ScrollView { content }
