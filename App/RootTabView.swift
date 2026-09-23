@@ -65,6 +65,8 @@ struct RootTabView: View {
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
     // and routed through the environment (`GateRationaleView` reads `\.gateRationaleModel`; nil = inert).
     @State private var gateRationaleModel: GateRationaleViewModel?
+    // W-B57b (B-62): Decide's verdict-override write model, built beside `gateRationaleModel`.
+    @State private var verdictOverrideModel: VerdictOverrideViewModel?
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
     @State private var sendToWatchModel: SendToWatchViewModel?
     @State private var recoveryModel: RecoveryViewModel?
@@ -305,12 +307,18 @@ struct RootTabView: View {
                     makeGateRespondModel: { recommendation in makeGateRespondModel(recommendation, provider: store.provider) }
                 )
                 .environment(\.gateRationaleModel, gateRationaleModel)
+                .environment(\.verdictOverrideModel, verdictOverrideModel)
             } else {
                 ProgressView()
                     .task {
                         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
                         env.bind(today: todayModel, recovery: recoveryModel)
                         gateRationaleModel = GateRationaleViewModel(provider: store.provider)
+                        // Outbox on the same on-disk database the drainer reads (see makeGateRespondModel).
+                        if let p = store.provider as? any VerdictOverrideProviding,
+                           let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }() {
+                            verdictOverrideModel = VerdictOverrideViewModel(provider: p, outbox: Outbox(db: db))
+                        }
                     }
             }
         } else {

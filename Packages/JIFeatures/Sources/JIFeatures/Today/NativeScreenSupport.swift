@@ -101,7 +101,31 @@ struct NativeFixtureUnavailable: View {
 
     private static func todayMorning(_ state: TodayMorningState, screen: String) -> AnyView {
         guard let model = TodayViewModel.fixture(morningState: state) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }
-        return AnyView(NativeScreenPreview { TodayView(model: model, onOpenConnection: {}) })
+        // W-B57b: an override model over the in-memory store, so Decide shows Go AND Adjust.
+        return AnyView(NativeScreenPreview {
+            TodayView(model: model, onOpenConnection: {})
+                .environment(\.verdictOverrideModel, fixtureOverrideModel())
+        })
+    }
+
+    /// W-B57b (B-62): the Adjust sheet's form over the Decide fixture's verdict, a choice and a
+    /// reason already picked so the sweep shows the selected state.
+    static func todayAdjust() -> AnyView {
+        guard let morning = TodayViewModel.fixture(morningState: .decide)?.morning else {
+            return AnyView(NativeFixtureUnavailable(screen: "Today adjust"))
+        }
+        return AnyView(NativeScreenPreview {
+            ScreenScroll {
+                VerdictAdjustForm(verdict: verdictParts(morning.verdict), sessionForToday: morning.sessionForToday,
+                                  model: fixtureOverrideModel(), initialChoice: .full,
+                                  initialReason: GateRespondCopy.overrideReasons.first) { _, _ in }
+                    .padding(20)
+            }
+        })
+    }
+
+    private static func fixtureOverrideModel() -> VerdictOverrideViewModel? {
+        NativeFixtureStore.database.map { VerdictOverrideViewModel(provider: MockDataProvider(), outbox: Outbox(db: $0)) }
     }
 
     static func recovery() -> AnyView {

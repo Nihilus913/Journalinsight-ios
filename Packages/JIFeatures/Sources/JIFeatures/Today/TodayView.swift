@@ -10,8 +10,10 @@ public struct TodayView: View {
     /// gate's recommendation (the App supplies outbox + decision log); `nil` = no card, as before.
     private let makeGateRespondModel: (GateRecommendation) -> GateRespondViewModel?
     @State private var gateRespondModel: GateRespondViewModel?
-    /// B-57 §6: the Day summary line re-opens this morning's Coach, read-only.
+    /// B-57 §6/§9: the Day summary line re-opens this morning's Coach overlay, read-only.
     @State private var showMorningReview = false
+    /// W-B57b (B-62): Decide's Go / Adjust write, built by the App (nil = Go just advances).
+    @Environment(\.verdictOverrideModel) private var verdictOverrideModel
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch and no model rebuild while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
@@ -38,26 +40,14 @@ public struct TodayView: View {
                     case .decide:
                         DecideView(verdict: model.verdict, readiness: model.readiness,
                                    syncing: model.morning?.verdict == nil,
-                                   gateRespondModel: gateRespondModel) { model.morningEvent(.gateResponded) }
-                    case .coach:
-                        CoachView(content: coachContent, verdict: model.verdict) { model.morningEvent(.coachAcknowledged) }
-                    case .day:
-                        MorningSummaryLine(verdict: model.verdict, readiness: model.readiness) { showMorningReview = true }
-                        // §8.1: hero + drivers compose side by side in regular width and stack in compact.
-                        // readinessMissing: false — W1 has only the hub provider, which always carries a
-                        // readiness field (nil when the hub itself has no score yet); a real "source doesn't
-                        // support this metric" case awaits W2+'s additional providers.
-                        AdaptiveHStack {
-                            VerdictHeroView(verdict: model.verdict, readiness: model.readiness, readinessMissing: false,
-                                            sleepScore: chip("sleep")?.value, load: latestAcwr,
-                                            insight: InsightSentence.build(gate: model.gate, morning: model.morning),
-                                            gateRespondModel: gateRespondModel, showsRespondRow: false)
-                            ringsRow
-                        }
-                        TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
-                        // B-42: Apple Fitness's Trends block, computed client-side over the series
-                        // already cached for this screen — no hub round-trip, no new route.
-                        TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
+                                   gateSignals: model.morning?.gateSignals,
+                                   verdictDate: model.verdictDate,
+                                   sessionForToday: model.morning?.sessionForToday,
+                                   override: currentOverride,
+                                   overrideModel: verdictOverrideModel) { model.morningEvent(.gateResponded) }
+                    case .coach, .day:
+                        // §9: Coach is the Day view plus a bottom overlay card (below), not a step.
+                        dayContent
                     }
                 }
             }
@@ -80,27 +70,64 @@ public struct TodayView: View {
         }
         .animation(JIMotion.standard, value: model.phase)
         .animation(JIMotion.standard, value: model.morningState)
-        .sheet(isPresented: $showMorningReview) {
-            NavigationStack {
-                ScrollView {
-                    CoachView(content: coachContent, verdict: model.verdict, readOnly: true) {}
-                        .padding(.horizontal, 20).padding(.bottom, 24)
+        // §9 Coach overlay: in the morning flow ✕ / swipe-down = `coachAcknowledged`; re-opened
+        // from the summary line it is read-only (dismiss only closes it, nothing advances).
+        .overlay(alignment: .bottom) {
+            if model.phase == .loaded, model.morningState == .coach || showMorningReview {
+                CoachOverlayCard(change: coachContent.change) {
+                    if model.morningState == .coach { model.morningEvent(.coachAcknowledged) }
+                    showMorningReview = false
                 }
-                .background(theme.color(.bg))
-                .navigationTitle("This morning")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showMorningReview = false }
-                            .accessibilityIdentifier("today.morning.review.done")
-                    }
-                }
+                .padding(.horizontal, 16).padding(.bottom, 12)
+                .readableColumn()
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .jiTheme(theme)
-            .presentationDetents([.medium])
+        }
+        .animation(JIMotion.standard, value: showMorningReview)
+        .environment(\.gateRespondModel, gateRespondModel)
+        .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
+            // A fresher `/morning` re-seeds the device's view of the call — except while this
+            // device's own write is only queued and the hub has not seen it yet.
+            guard let verdictOverrideModel else { return }
+            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
         }
     }
 
-    /// B-57 §2 Coach: why the verdict + the one change, built from the DTOs this screen already holds.
+    /// W-B57b (B-62): the call in effect for the verdict date — this device's latest write, else
+    /// the hub's row from `/morning`.
+    private var currentOverride: VerdictOverride? {
+        overrideForVerdictDate(verdictOverrideModel?.current ?? model.morning?.verdictOverride, verdictDate: model.verdictDate)
+    }
+
+    /// The verdict as the user decided it (`effectiveVerdict`) — what Day and the summary line show.
+    private var shownVerdict: VerdictParts { effectiveVerdictParts(parts: model.verdict, override: currentOverride) }
+
+    @ViewBuilder
+    private var dayContent: some View {
+        MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
+                           caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption }) {
+            showMorningReview = true
+        }
+        // §8.1: hero + drivers compose side by side in regular width and stack in compact.
+        // readinessMissing: false — W1 has only the hub provider, which always carries a
+        // readiness field (nil when the hub itself has no score yet); a real "source doesn't
+        // support this metric" case awaits W2+'s additional providers.
+        AdaptiveHStack {
+            VerdictHeroView(verdict: shownVerdict, readiness: model.readiness, readinessMissing: false,
+                            sleepScore: chip("sleep")?.value, load: latestAcwr,
+                            insight: InsightSentence.build(gate: model.gate, morning: model.morning),
+                            gateRespondModel: gateRespondModel, showsRespondRow: false)
+            ringsRow
+        }
+        TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+        // B-42: Apple Fitness's Trends block, computed client-side over the series
+        // already cached for this screen — no hub round-trip, no new route.
+        TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
+        // Room so the Coach overlay never covers the last card.
+        if model.morningState == .coach || showMorningReview { Color.clear.frame(height: 140).accessibilityHidden(true) }
+    }
+
+    /// B-57 §9 Coach: the one change for today, built from the DTOs this screen already holds.
     private var coachContent: CoachContent {
         CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery)
     }

@@ -306,7 +306,13 @@ public extension TodayViewModel {
 }
 
 let fixtureMorningJSON = """
-{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
+{"today_activities":[],"verdict":"MODIFIED (HRV low) — Easy Z2 30–40 min","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
+ "session_for_today":"Full Upper",
+ "gate_signals":[
+  {"key":"sleep","label":"Sleep","value":81,"unit":"","threshold":70,"direction":"min","scale_min":0,"scale_max":100,"status":"pass","note":null},
+  {"key":"hrv","label":"HRV","value":24,"unit":"ms","threshold":27,"direction":"min","scale_min":0,"scale_max":80,"status":"amber","note":"hrv 24 — under 27"},
+  {"key":"rhr","label":"RHR","value":52,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass","note":null},
+  {"key":"sleep_h","label":"Sleep time","value":7.3,"unit":"h","threshold":6.0,"direction":"min","scale_min":0,"scale_max":10,"status":"pass","note":null}],
  "hrv_series":[{"date":"2026-09-15","hrv_weekly_avg":48,"rhr_bpm":54},{"date":"2026-09-16","hrv_weekly_avg":50,"rhr_bpm":53},
  {"date":"2026-09-17","hrv_weekly_avg":47,"rhr_bpm":55},{"date":"2026-09-18","hrv_weekly_avg":53,"rhr_bpm":52},
  {"date":"2026-09-19","hrv_weekly_avg":51,"rhr_bpm":53},{"date":"2026-09-20","hrv_weekly_avg":49,"rhr_bpm":54},
