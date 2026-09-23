@@ -61,7 +61,7 @@ private final class CompletionBox: @unchecked Sendable {
     func mark() { lock.withLock { _completed = true } }
 }
 
-struct HealthKitUploaderTests {
+@Suite(.serialized) struct HealthKitUploaderTests {
     private let stepsType = HKQuantityType(.stepCount)
 
     private func hub() -> HubClient {
@@ -162,7 +162,10 @@ struct HealthKitUploaderTests {
         let store = FakeHealthStoreReader()
         let sample = makeSample(count: 50, start: Date())
         store.enqueue(HKAnchoredPage(samples: [sample], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
-        _ = try await uploader(store: store).startBackgroundDelivery()
+        // Retain the uploader: the observer closure captures it `[weak self]` (as the app's
+        // AppEnvironment retains it), so a temporary would be gone before the handler fires.
+        let sut = uploader(store: store)
+        _ = try await sut.startBackgroundDelivery()
 
         let handler = try #require(store.observerHandlers[stepsType.identifier])
         let completedBox = CompletionBox()
@@ -171,6 +174,7 @@ struct HealthKitUploaderTests {
         try await Task.sleep(nanoseconds: 200_000_000)
         #expect(completedBox.completed)
         #expect(UploadCapturingURLProtocol.requestCount == 1)
+        withExtendedLifetime(sut) {}
     }
     // MARK: - B-65 sleep segments
 
