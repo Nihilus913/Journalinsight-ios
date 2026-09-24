@@ -5,7 +5,8 @@ import JIPersistence
 // W5a-L3 (P-edit-today). Port of `mobile/src/components/TodayTileRegistry.tsx` (labels) +
 // `mobile/src/data/todayTilePrefs.ts` (the pure prefs ops). RN's tile set (streak, mind, weight,
 // kcal_ring, strength, week_strip) maps onto the Swift Today's customizable set: the four
-// `TodayChip`s `TodayViewModel.chips` renders (hrv/rhr/sleep/steps, fixed ids). The verdict hero,
+// `TodayChip`s `TodayViewModel.chips` renders (hrv/rhr/sleep/steps, fixed ids) plus the B-57 board's
+// Load/Protein/Calories/Weight (`TodayViewModel.squareChips`). The verdict hero,
 // the EA gated tile and the Mind tile are NOT in this registry — RN forbids removing/reordering
 // the verdict ("the screen's job") and the other two aren't in `TodayGrid`'s order array.
 //
@@ -17,9 +18,10 @@ import JIPersistence
 public nonisolated let todayTileHiddenKey = "today.tileHidden"
 
 public nonisolated enum TodayTileRegistry {
-    /// Every `TodayChip.id` in `TodayViewModel.chips` order (= RN `DEFAULT_TODAY_TILE_ORDER`,
-    /// "default = current composition"). Tests pin this against a live view model.
-    public static let ids: [String] = ["hrv", "rhr", "sleep", "steps"]
+    /// Every `TodayChip.id` in `TodayViewModel.squareChips` order: Today's four grid chips (= RN
+    /// `DEFAULT_TODAY_TILE_ORDER`) then the B-57 board's Load, Protein, Calories, Weight (ids are
+    /// `KpiMetricId` raw values, so a tap lands on the same KPI). Tests pin this against a live VM.
+    public static let ids: [String] = ["hrv", "rhr", "sleep", "steps", "acwr", "protein", "kcal", "weight"]
 
     /// RN `TODAY_TILE_LABELS` — `TodayChip.label` for each id.
     public static func label(for id: String) -> String {
@@ -28,7 +30,20 @@ public nonisolated enum TodayTileRegistry {
         case "rhr": "RHR"
         case "sleep": "Sleep"
         case "steps": "Steps"
+        case "acwr": "Load"
+        case "protein": "Protein"
+        case "kcal": "Calories"
+        case "weight": "Weight"
         default: id
+        }
+    }
+
+    /// Decimals the square prints (board: Weight 80.2 kg; ACWR is a two-place ratio).
+    public static func decimals(for id: String) -> Int {
+        switch id {
+        case "weight": 1
+        case "acwr": 2
+        default: 0
         }
     }
 
@@ -39,6 +54,10 @@ public nonisolated enum TodayTileRegistry {
         case "rhr": "heart"
         case "sleep": "moon"
         case "steps": "figure.walk"
+        case "acwr": "bolt"
+        case "protein": "fork.knife"
+        case "kcal": "flame"
+        case "weight": "scalemass"
         default: "square"
         }
     }
@@ -128,7 +147,7 @@ public nonisolated func editTodaySquare(_ id: String, chips: [TodayChip], badge:
     let chip = chips.first { $0.id == id }
     let value = chip?.value
     return JISquareItem(id: id, label: TodayTileRegistry.label(for: id), systemImage: TodayTileRegistry.systemImage(for: id),
-                        tint: metricTintRole(id), value: value, unit: chip?.unit,
+                        tint: metricTintRole(id), value: value, decimals: TodayTileRegistry.decimals(for: id), unit: chip?.unit,
                         status: value == nil ? .missing(chip?.sourceMissing == true ? .notInHealthYet : .noData) : nil,
                         badge: badge)
 }
@@ -138,6 +157,8 @@ public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs, chips: [T
 public nonisolated func editTodayHiddenItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {
     prefs.hidden.map { editTodaySquare($0, chips: chips, badge: .add) }
 }
+/// Board: the dashed "+ Add" square always closes the grid; it restores a square only when one is hidden.
+public nonisolated func editTodayCanAdd(_ prefs: TodayTilePrefs) -> Bool { !prefs.hidden.isEmpty }
 public nonisolated func editTodayCountText(_ prefs: TodayTilePrefs) -> String {
     "\(visibleTodayTileOrder(prefs).count) of \(prefs.order.count)"
 }

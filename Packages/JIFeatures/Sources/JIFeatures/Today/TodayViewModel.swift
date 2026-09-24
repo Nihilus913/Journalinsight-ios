@@ -152,6 +152,31 @@ public final class TodayViewModel {
         ]
     }
 
+    /// B-57 W1 EditToday board: Today's four chips plus the squares the board adds — Load (newest
+    /// ACWR), Protein and Calories (today's food row, or the latest real one with its "as of" day,
+    /// `resolveTodayRow`), Weight (newest `weight_kg`). Nil stays nil: the square says why.
+    /// `chips` itself is unchanged, so Today's grid and the widget snapshot keep their four.
+    public var squareChips: [TodayChip] {
+        let daily = gate?.daily ?? []
+        let food = resolveTodayRow(daily).row
+        func foodValue(_ key: String) -> (value: Double, date: String)? {
+            guard let food, let v = food.values[key] ?? nil else { return nil }
+            return (v, food.date)
+        }
+        let sortedRec = recovery.sorted { $0.date < $1.date }.suffix(7)
+        let sortedDaily = daily.sorted { $0.date < $1.date }.suffix(7)
+        return chips + [
+            chip("acwr", "Load", unit: nil, points: sortedRec.map(\.acwr), sourceMissing: false,
+                 latest: newestNonNull(recovery, date: \.date, value: \.acwr)),
+            chip("protein", "Protein", unit: "g", points: sortedDaily.map { $0.values["protein_g"] ?? nil }, sourceMissing: false,
+                 latest: foodValue("protein_g")),
+            chip("kcal", "Calories", unit: "kcal", points: sortedDaily.map { $0.values["kcal_consumed"] ?? nil }, sourceMissing: false,
+                 latest: foodValue("kcal_consumed")),
+            chip("weight", "Weight", unit: "kg", points: sortedDaily.map { $0.values["weight_kg"] ?? nil }, sourceMissing: false,
+                 latest: newestNonNull(daily, date: \.date, value: { $0.values["weight_kg"] ?? nil })),
+        ]
+    }
+
     public func load() async {
         phase = .loading
         restoreFromCache()

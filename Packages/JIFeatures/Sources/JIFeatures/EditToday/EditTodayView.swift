@@ -38,7 +38,8 @@ public struct EditTodayView: View {
                 SquareGrid(items: editTodayVisibleItems(model.prefs, chips: model.chips), editing: true,
                            onBadge: { model.setHidden($0, hide: true) },
                            onMove: { model.moveSquare($0, before: $1) },
-                           onAdd: model.prefs.hidden.first.map { first in { model.setHidden(first, hide: false) } })
+                           onAdd: { if let first = model.prefs.hidden.first { model.setHidden(first, hide: false) } },
+                           canAdd: editTodayCanAdd(model.prefs))
                 if !model.prefs.hidden.isEmpty {
                     Text("Add a square").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
                     SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), onBadge: { model.setHidden($0, hide: false) })

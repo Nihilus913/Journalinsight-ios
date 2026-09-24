@@ -5,9 +5,22 @@ import Charts
 /// (it is the categorical x value — a weekday over ≤ 7 nights is).
 public nonisolated struct NormalBarPoint: Identifiable, Sendable, Equatable {
     public let id: String, label: String, value: Double?, isLatest: Bool
-    public init(id: String, label: String, value: Double?, isLatest: Bool) {
-        self.id = id; self.label = label; self.value = value; self.isLatest = isLatest
+    /// Why `value` is nil — the word the empty slot shows under its "—" (rule 5).
+    public let missingReason: JIMissingReason
+    public init(id: String, label: String, value: Double?, isLatest: Bool, missingReason: JIMissingReason = .noData) {
+        self.id = id; self.label = label; self.value = value; self.isLatest = isLatest; self.missingReason = missingReason
     }
+}
+
+/// What a slot prints above its bar: the number, or "—" plus the reason word for a missing night.
+public nonisolated struct NormalBarSlotText: Sendable, Equatable {
+    public let value: String, reason: String?
+    public init(value: String, reason: String?) { self.value = value; self.reason = reason }
+}
+
+public nonisolated func normalBarSlotText(_ p: NormalBarPoint, decimals: Int) -> NormalBarSlotText {
+    guard let v = p.value else { return NormalBarSlotText(value: "—", reason: p.missingReason.rawValue) }
+    return NormalBarSlotText(value: jiNumber(v, decimals), reason: nil)
 }
 
 public nonisolated enum NormalBandPosition: Sendable, Equatable { case below, inside, above }
@@ -40,7 +53,7 @@ public nonisolated func normalBarChartYMax(points: [NormalBarPoint], normal: Clo
 public nonisolated func normalBarChartAccessibilityLabel(points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String?, decimals: Int) -> String {
     let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
     return points.map { p in
-        guard let v = p.value else { return "\(p.label) no data" }
+        guard let v = p.value else { return p.missingReason == .noData ? "\(p.label) no data" : "\(p.label) — \(p.missingReason.rawValue)" }
         let word = normalBandWord(normalBandPosition(v, normal: normal)).map { " \($0.lowercased())" } ?? ""
         return "\(p.label) \(jiNumber(v, decimals))\(u)\(word)"
     }.joined(separator: ", ")
@@ -50,6 +63,13 @@ public struct NormalBarChart: View {
     let points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String?, decimals: Int
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 150
+    /// The chart's width, so a missing night's reason word wraps inside its own slot instead of
+    /// running over its neighbours ("Not in Health yet" spanned two nights).
+    @State private var chartWidth: CGFloat = 0
+    private var slotWidth: CGFloat? {
+        guard chartWidth > 0, !points.isEmpty else { return nil }
+        return max(24, chartWidth / CGFloat(points.count) - 2)
+    }
 
     public init(points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String? = nil, decimals: Int = 0) {
         self.points = points; self.normal = normal; self.unit = unit; self.decimals = decimals
@@ -66,13 +86,30 @@ public struct NormalBarChart: View {
                 Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
             } else {
                 Chart(points) { p in
+                    let slot = normalBarSlotText(p, decimals: decimals)
                     if let v = p.value {
                         BarMark(x: .value("Night", p.label), y: .value("Value", v), width: .ratio(0.5))
                             .foregroundStyle(theme.color(barRole(p)))
                             .cornerRadius(6)
                             .annotation(position: .top) {
-                                Text(jiNumber(v, decimals)).jiFont(.caption, weight: p.isLatest ? .bold : .regular)
+                                Text(slot.value).jiFont(.caption, weight: p.isLatest ? .bold : .regular)
                                     .foregroundStyle(p.isLatest ? theme.color(barRole(p)) : theme.color(.muted))
+                            }
+                    } else {
+                        // A missing night keeps its slot: a visible "—" and the reason word, never a gap.
+                        BarMark(x: .value("Night", p.label), y: .value("Value", 0), width: .ratio(0.5))
+                            .foregroundStyle(.clear)
+                            .annotation(position: .top, spacing: 2) {
+                                VStack(spacing: 0) {
+                                    Text(slot.value).jiFont(.caption, weight: .semibold)
+                                    if let reason = slot.reason {
+                                        Text(reason).jiFont(.micro).multilineTextAlignment(.center)
+                                            .lineLimit(3).minimumScaleFactor(0.7)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                                .frame(width: slotWidth)
+                                .foregroundStyle(theme.color(.muted))
                             }
                     }
                 }
@@ -92,6 +129,7 @@ public struct NormalBarChart: View {
                     }
                 }
                 .frame(height: chartHeight)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chartWidth = $0 }
                 if let latest = points.last(where: \.isLatest),
                    let word = normalBandWord(normalBandPosition(latest.value, normal: normal)) {
                     Text("\(latest.label) · \(word)").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.reduced))

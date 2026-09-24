@@ -35,6 +35,16 @@ struct NormalBarChartTests {
                 == "Tue 29 ms, Wed no data, Thu 25 ms below your normal")
     }
 
+    /// Verifier W-B57-W1: a missing night is a visible "—" plus a reason word in its slot,
+    /// not an empty gap that only VoiceOver explains.
+    @Test func missingNightShowsADashAndAReasonWord() {
+        #expect(normalBarSlotText(nights[0], decimals: 0) == NormalBarSlotText(value: "29", reason: nil))
+        #expect(normalBarSlotText(nights[1], decimals: 0) == NormalBarSlotText(value: "—", reason: "No data"))
+        let syncing = NormalBarPoint(id: "x", label: "Mon", value: nil, isLatest: false, missingReason: .notInHealthYet)
+        #expect(normalBarSlotText(syncing, decimals: 0) == NormalBarSlotText(value: "—", reason: "Not in Health yet"))
+        #expect(normalBarChartAccessibilityLabel(points: [syncing], normal: nil, unit: "ms", decimals: 0) == "Mon — Not in Health yet")
+    }
+
     @Test @MainActor func renders() {
         expectRenders("NormalBarChart band", height: 220) { NormalBarChart(points: nights, normal: 27...30, unit: "ms") }
         expectRenders("NormalBarChart calibrating", height: 220) { NormalBarChart(points: nights, normal: nil, unit: "ms") }

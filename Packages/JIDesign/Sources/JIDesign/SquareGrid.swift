@@ -60,11 +60,14 @@ public nonisolated func squareBadgeActionLabel(_ item: JISquareItem) -> String? 
 public struct SquareGrid: View {
     let items: [JISquareItem], editing: Bool, columns: Int
     let onTap: ((String) -> Void)?, onBadge: ((String) -> Void)?, onMove: ((String, String) -> Void)?, onAdd: (() -> Void)?
+    /// False = the dashed "Add" square still closes the grid (board) but is inert — nothing to add.
+    let canAdd: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(items: [JISquareItem], editing: Bool = false, columns: Int = 3, onTap: ((String) -> Void)? = nil, onBadge: ((String) -> Void)? = nil,
-                onMove: ((String, String) -> Void)? = nil, onAdd: (() -> Void)? = nil) {
+                onMove: ((String, String) -> Void)? = nil, onAdd: (() -> Void)? = nil, canAdd: Bool = true) {
         self.items = items; self.editing = editing; self.columns = columns; self.onTap = onTap; self.onBadge = onBadge; self.onMove = onMove; self.onAdd = onAdd
+        self.canAdd = canAdd
     }
 
     public var body: some View {
@@ -75,7 +78,7 @@ public struct SquareGrid: View {
                 square(item)
             }
             if editing, let onAdd {
-                AddSquare(action: onAdd)
+                AddSquare(action: onAdd, enabled: canAdd)
             }
         }
     }
@@ -183,6 +186,7 @@ struct MetricSquare: View {
 /// The dashed "Add" square that closes an editing grid.
 struct AddSquare: View {
     let action: () -> Void
+    var enabled = true
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var minSide: CGFloat = 104
     var body: some View {
@@ -197,7 +201,9 @@ struct AddSquare: View {
                 .strokeBorder(theme.color(.mutedNested), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
         }
         .buttonStyle(.pressableScale)
+        .disabled(!enabled)
         .accessibilityLabel("Add a square")
+        .accessibilityHint(enabled ? "" : "Every square is already on Today")
         .accessibilityIdentifier("square.add")
     }
 }
