@@ -23,19 +23,4 @@ extension MockDataProvider: NutritionProviding {
         try loadNutritionFixture("nutrition_daily_week", as: NutritionReportResponse.self).days
     }
 
-    /// No hub to actually write to — echoes the posted body back as a synthesized `LogFoodResult`
-    /// (previews only; view-model tests exercising the 409/502 UI contract use their own fake
-    /// `NutritionProviding`, not this mock).
-    public func logFood(_ body: LogFoodBody) async throws -> LogFoodResult {
-        // A template body carries no `items` (the server expands it) — echo one synthetic line
-        // so preview/test callers driving the template flow still see a logged item, same as a
-        // manual `items` list would.
-        let items = body.items ?? (body.template.map { [LogFoodItemInput(name: $0, kcal: 0)] } ?? [])
-        let logged = items.enumerated().map { i, item in
-            LoggedFoodItem(itemId: "mock-\(i)", name: item.name, meal: body.meal?.rawValue, kcal: item.kcal, proteinG: item.proteinG, carbsG: item.carbsG, fatG: item.fatG)
-        }
-        return LogFoodResult(logged: logged, date: body.date ?? "2026-09-17")
-    }
-
-    public func deleteLogItem(itemId: String, date: String?) async throws {}
 }

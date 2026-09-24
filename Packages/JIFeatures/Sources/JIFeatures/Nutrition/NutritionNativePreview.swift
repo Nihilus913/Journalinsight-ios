@@ -6,8 +6,6 @@ import JIDesign
 struct L5NutritionFixtureProvider: NutritionProviding {
     func nutritionDay(date: String) async throws -> NutritionDayDetail? { L5NutritionFixtures.day }
     func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { L5NutritionFixtures.week }
-    func logFood(_ body: LogFoodBody) async throws -> LogFoodResult { throw HubError.unauthorized }
-    func deleteLogItem(itemId: String, date: String?) async throws {}
 }
 
 nonisolated enum L5NutritionFixtures {
@@ -55,11 +53,3 @@ struct NutritionNativePreview: View {
     }
 }
 
-/// §8.5 registry entry "Nutrition log" — the +Log sheet's body.
-struct NutritionLogNativePreview: View {
-    @State private var model = LogSheetViewModel(provider: L5NutritionFixtureProvider())
-
-    var body: some View {
-        LogSheet(model: model).nativeContent
-    }
-}

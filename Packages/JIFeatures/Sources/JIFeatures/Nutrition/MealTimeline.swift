@@ -6,12 +6,13 @@ import JIDesign
 /// grouped by daytime in the RN oracle's fixed order.
 public struct MealTimeline: View {
     let day: NutritionDayDetail?
+    let onSelectMeal: ((MealDetail) -> Void)?
 
     private static let order: [String] = ["breakfast", "lunch", "dinner", "snack"]
     private static let labels: [String: String] = ["breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack"]
 
     @Environment(\.jiTheme) private var theme
-    public init(day: NutritionDayDetail?) { self.day = day }
+    public init(day: NutritionDayDetail?, onSelectMeal: ((MealDetail) -> Void)? = nil) { self.day = day; self.onSelectMeal = onSelectMeal }
 
     public var body: some View {
         Surface {
@@ -20,10 +21,14 @@ public struct MealTimeline: View {
                 // an in-card repeat of it read as two headers in the sweep.
                 if let day, !day.items.isEmpty {
                     ForEach(mealsInOrder(day), id: \.slot) { meal in
-                        mealSection(slot: meal.slot, items: meal.items)
+                        Button { onSelectMeal?(mealDetail(slot: meal.slot, items: meal.items)) } label: {
+                            mealSection(slot: meal.slot, items: meal.items)
+                        }
+                        .buttonStyle(.pressableScale)
+                        .disabled(onSelectMeal == nil)
                     }
                 } else {
-                    Text("No meals logged yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    Text("No meals in Apple Health yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("meal-timeline-empty")
                 }
             }
