@@ -2,6 +2,10 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// B-57 W1: the cap copy. The user-set cap is W4, so W1 never claims the user chose it.
+public nonisolated let sessionCoachCapTitle = "Your cap \(SessionCoachViewModel.hrSafetyCapBpm)"
+public nonisolated let sessionCoachCapCaption = "\(SessionCoachViewModel.hrSafetyCapBpm) bpm is the cap in your gate settings. The app never raises it."
+
 /// Live Session Coach screen (W3b-L1, P-session-coach). Oracle: `mobile/app/session-coach.tsx` +
 /// `mobile/src/components/training/SessionCoach.tsx`. Pushed from Training's `SessionCoachEntry`
 /// row — one tap, no tabs of its own (mirrors the RN route's single-screen shell).
@@ -60,8 +64,9 @@ public struct SessionCoachView: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Live session · HR cap \(SessionCoachViewModel.hrSafetyCapBpm)")
+                    Label(sessionCoachCapTitle, systemImage: "info.circle").labelStyle(.titleAndIcon)
                         .jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        .accessibilityHint(sessionCoachCapCaption)
                     Spacer()
                     Text(SessionCoachViewModel.label(for: model.capState))
                         .jiFont(.micro, weight: .heavy)
@@ -72,6 +77,8 @@ public struct SessionCoachView: View {
                         .accessibilityLabel("Session state")
                         .accessibilityValue(SessionCoachViewModel.label(for: model.capState))
                 }
+                Text(sessionCoachCapCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("session-coach-cap-caption")
                 Text(model.sample?.hrBpm.map(String.init) ?? "—")
                     .jiNumeral(.numeralDisplay, weight: .heavy)
                     .foregroundStyle(trainingToneColor(SessionCoachViewModel.tone(for: model.capState), theme))
