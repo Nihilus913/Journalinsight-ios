@@ -642,7 +642,8 @@ struct RootTabView: View {
             backupModel: backup,
             goalsSetupModel: goals,
             kpiListModel: kpis,
-            todayChips: { todayModel?.squareChips ?? [] }
+            todayChips: { todayModel?.squareChips ?? [] },
+            syncAction: { try await env.syncNow() }
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()

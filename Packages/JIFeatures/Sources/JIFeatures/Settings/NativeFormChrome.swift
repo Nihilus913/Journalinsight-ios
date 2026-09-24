@@ -35,7 +35,7 @@ extension View {
 // MARK: - B-57 W1 board summary card (fixer f3)
 
 /// The status line under a board card's big number: a glyph + one word, tinted by role.
-struct BoardStatus: Equatable {
+nonisolated struct BoardStatus: Equatable, Sendable {
     var word: String
     var systemImage: String?
     var role: JIColorRole

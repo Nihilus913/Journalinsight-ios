@@ -52,6 +52,8 @@ public final class VersionViewModel {
     public var bundleId: String { info.bundleId }
     /// RN shows "Version {APP_VERSION}"; iOS adds the build number in parentheses.
     public var versionLine: String { "Version \(info.appVersion) (\(info.build))" }
+    /// B-57 W1 board: "2.0.0 · build 42".
+    public var shortVersionLine: String { "\(info.appVersion) · build \(info.build)" }
 
     /// RN `recordVersionSeen(APP_VERSION)` — called when the screen appears; this is what clears
     /// the what's-new dot (`hasNewVersion`) on the Settings gear.

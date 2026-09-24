@@ -23,11 +23,12 @@ private struct VersionSectionRows: View {
     var body: some View {
         SettingsRowGroup(header: SettingsGroup.advanced.title) {
             NavigationLink {
-                VersionView(model: VersionViewModel(prefs: model.prefs, info: info))
+                VersionView(model: VersionViewModel(prefs: model.prefs, info: info),
+                            thisInstall: VersionInstallState(
+                                hub: settingsHubSubtitle(host: model.connection.host, lastSync: model.lastSyncDate, now: Date()),
+                                hubConnected: { if case .ok? = model.connection.status { true } else { false } }()))
             } label: {
-                SettingsLinkLabel(title: "About & version",
-                                  subtitle: "\(info.appName) \(info.appVersion) — what changed in this build",
-                                  systemImage: "info.circle")
+                SettingsLinkLabel(title: "About & version", systemImage: "info.circle", trailing: info.appVersion)
             }
             .accessibilityLabel("About & version")
             .accessibilityIdentifier("settings.row.version")

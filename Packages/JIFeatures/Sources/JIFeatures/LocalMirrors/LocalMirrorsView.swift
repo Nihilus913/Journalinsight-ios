@@ -88,43 +88,56 @@ public struct LocalMirrorsView: View {
                 .accessibilityIdentifier("localMirrors.summary")
             }
 
+            // B-57 W1 r4 (g3, board 5/06): the three sets as rows; each set's own list sits one
+            // level down. The board's WHEN card (mirror timing) is left for later (spec §2).
             Section {
-                setRow("Gate decisions", systemImage: "gauge.with.needle",
-                       detail: model.decisions.map { $0.isEmpty ? "No responses yet · on this phone"
-                           : "\($0.count) response\($0.count == 1 ? "" : "s") · on this phone" } ?? "Loading…",
-                       mirrored: setFlags[2])
-                setRow("KPI targets", systemImage: "chart.bar",
-                       detail: model.targets.isEmpty ? "Not mirrored yet · next sync at home" : "\(model.targets.count) targets",
-                       mirrored: setFlags[1])
-                setRow("Goal targets", systemImage: "target",
-                       detail: model.goals == nil ? "Not mirrored yet · next sync at home" : "Current targets",
-                       mirrored: setFlags[0])
+                NavigationLink {
+                    mirrorDetail("Gate decisions") { DecisionLogSection(entries: model.decisions) }
+                } label: {
+                    setRow("Gate decisions", systemImage: "gauge.with.needle",
+                           detail: model.decisions.map { $0.isEmpty ? "No responses yet · on this phone"
+                               : "\($0.count) response\($0.count == 1 ? "" : "s") · on this phone" } ?? "Loading…",
+                           mirrored: setFlags[2])
+                }
+                .accessibilityIdentifier("localMirrors.set.decisions")
+                NavigationLink {
+                    mirrorDetail("KPI targets") {
+                        Section { KpiTargetsMirrorSection(targets: model.targets) } header: {
+                            Text("KPI targets").accessibilityIdentifier("localMirrors.kpiTargets.header")
+                        }
+                    }
+                } label: {
+                    setRow("KPI targets", systemImage: "chart.bar",
+                           detail: model.targets.isEmpty ? "Not mirrored yet · next sync at home" : "\(model.targets.count) targets",
+                           mirrored: setFlags[1])
+                }
+                .accessibilityIdentifier("localMirrors.set.kpiTargets")
+                NavigationLink {
+                    mirrorDetail("Goal targets") {
+                        if let goals = model.goals {
+                            GoalTargetsMirrorSection(goals: goals)
+                        } else {
+                            unavailable("Goal targets", "Nothing mirrored yet — open Goals once while online.", id: "goalTargets")
+                        }
+                    }
+                } label: {
+                    setRow("Goal targets", systemImage: "target",
+                           detail: model.goals == nil ? "Not mirrored yet · next sync at home" : "Current targets",
+                           mirrored: setFlags[0])
+                }
+                .accessibilityIdentifier("localMirrors.set.goalTargets")
             } header: {
                 Text("Sets")
             } footer: {
-                // B-57 W1: the board's subtitle (board 5 Settings/06). Mirror timing is open (spec §0.6).
-                Text("Copies kept on this phone for when you are away from home. A set shows Nothing yet until its first sync at home.")
+                Text("A set shows Nothing yet until its first sync at home. After that it refreshes with every sync.")
                     .accessibilityIdentifier("localMirrors.info")
             }
-
-            if let goals = model.goals {
-                GoalTargetsMirrorSection(goals: goals)
-            } else {
-                unavailable("Goal targets", "Nothing mirrored yet — open Goals once while online.", id: "goalTargets")
-            }
-
-            Section {
-                KpiTargetsMirrorSection(targets: model.targets)
-            } header: {
-                Text("KPI targets").accessibilityIdentifier("localMirrors.kpiTargets.header")
-            }
-
-            DecisionLogSection(entries: model.decisions)
         }
         .jiNativeFormChrome()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Local data mirrors")
+        .navigationSubtitle("Copies kept on this phone for when you are away from home")
         .task { await model.load() }
     }
 
@@ -136,11 +149,18 @@ public struct LocalMirrorsView: View {
     }
 
     private func setRow(_ title: String, systemImage: String, detail: String, mirrored: Bool) -> some View {
-        JIRow(title: title, subtitle: detail, systemImage: systemImage) {
-            BoardStatusLabel(word: mirrored ? "Mirrored" : "Nothing yet", systemImage: mirrored ? "checkmark" : "minus",
-                             role: mirrored ? .go : .reduced)
-        }
+        SettingsLinkLabel(title: title, subtitle: detail, systemImage: systemImage,
+                          badge: BoardStatus(word: mirrored ? "Mirrored" : "Nothing yet", systemImage: mirrored ? "checkmark" : "minus",
+                                             role: mirrored ? .go : .reduced))
         .accessibilityElement(children: .combine)
+    }
+
+    private func mirrorDetail<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        List { content() }
+            .jiNativeFormChrome()
+            .readableColumn()
+            .jiTheme(.native)
+            .navigationTitle(title)
     }
 
     private func unavailable(_ title: String, _ message: String, id: String) -> some View {

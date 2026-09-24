@@ -16,13 +16,15 @@ public struct AppearanceSection: SettingsSection {
 
 private struct AppearanceSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
+    /// Re-read on every appear, so coming back from the Appearance screen shows the new mode.
+    @State private var mode: ThemeMode?
 
     var body: some View {
         SettingsRowGroup {
             NavigationLink { AppearanceView(model: AppearanceViewModel(prefs: model.prefs)) } label: {
-                SettingsLinkLabel(title: "Appearance", subtitle: "Theme, accent color, text size, and your greeting name",
-                                  systemImage: "paintpalette")
+                SettingsLinkLabel(title: "Appearance", systemImage: "paintpalette", trailing: mode?.label)
             }
+            .onAppear { mode = ThemePrefsStore.load(from: model.prefs).mode }
             .accessibilityLabel("Appearance")
             .accessibilityIdentifier("settings.row.appearance")
         }

@@ -31,8 +31,7 @@ public struct DataQualityView: View {
             case .loaded:
                 sourcesSummarySection
                 sourcesSection
-                qualitySection
-                trustSection
+                familiesSection
             }
         }
         .jiNativeFormChrome()
@@ -101,11 +100,10 @@ public struct DataQualityView: View {
     private var sourcesSection: some View {
         Section {
             ForEach(model.sourceSummary.sources) { source in
-                JIRow(title: dataQualitySourceDisplay(source.source)) {
-                    BoardStatusLabel(word: stateWord(source),
-                                     systemImage: source.state == .green ? "checkmark" : "exclamationmark.triangle",
-                                     role: role(for: source.state))
-                }
+                SettingsLinkLabel(title: dataQualitySourceDisplay(source.source),
+                                  badge: BoardStatus(word: stateWord(source),
+                                                     systemImage: source.state == .green ? "checkmark" : "exclamationmark.triangle",
+                                                     role: role(for: source.state)))
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("dataQuality.source.\(source.source)")
             }
@@ -138,126 +136,39 @@ public struct DataQualityView: View {
         }
     }
 
-    // MARK: - Per-source quality
+    // MARK: - Per-source quality (B-57 W1 r4: three compact rows, detail one level down)
 
-    private var qualitySection: some View {
+    private var familiesSection: some View {
         Section {
-            if model.sortedScores.isEmpty {
-                Text("No data-quality rows yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
-            } else {
-                ForEach(model.sortedScores) { entry in
-                    qualityRow(entry, fresh: model.freshness(for: entry))
+            ForEach(model.families) { row in
+                NavigationLink {
+                    DataQualitySourceDetailView(row: row, freshness: { model.freshness(for: $0) },
+                                                provenanceGap: model.provenanceGap)
+                } label: {
+                    SettingsLinkLabel(title: row.family.title, subtitle: "range · trust · freshness",
+                                      badge: BoardStatus(word: row.trailing, systemImage: nil, role: row.tone.map(role(forTone:)) ?? .muted))
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(row.family.title), \(row.percent.map { "\($0) percent" } ?? "no data")")
+                .accessibilityIdentifier("dataQuality.family.\(row.family.rawValue)")
             }
         } header: {
-            Text("Per-source quality")
-                .accessibilityIdentifier("dataQuality.section.quality")
+            Text("Per-source quality").accessibilityIdentifier("dataQuality.section.quality")
         } footer: {
-            if let gap = model.provenanceGap {
+            if let gap = model.provenanceGap, !gap.isEmpty {
                 Text(gap).accessibilityIdentifier("dataQuality.provenanceGap")
             }
         }
     }
 
-    private func qualityRow(_ entry: QualityScoreEntry, fresh: FreshnessEntry?) -> some View {
-        let tone = dataQualityCompositeTone(entry.composite)
-        return VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    toneDot(tone)
-                    Text(entry.metricLabel).font(.footnote.bold()).foregroundStyle(theme.color(.text))
-                        .lineLimit(2)
-                    Spacer(minLength: 8)
-                    Text("\(Int((entry.composite * 100).rounded()))%")
-                        .font(.caption.bold()).foregroundStyle(color(tone))
-                }
-                Text(dataQualitySourceDisplay(entry.source)).font(.caption2).foregroundStyle(theme.color(.muted))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    freshnessLine(fresh)
-                    detailLine(
-                        "Range validity — " + (entry.subScores.rangeValidity != nil
-                            ? "\(dataQualityPercent(entry.subScores.rangeValidity)) of rows in range"
-                            : "not scored for this metric")
-                    )
-                    detailLine(
-                        "Trust — " + (entry.subScores.trust != nil
-                            ? dataQualityPercent(entry.subScores.trust)
-                            : "no trust judgement for this source")
-                    )
-                    detailLine("Provenance — not scored yet (see note below)")
-                    if let fresh, fresh.coverageChecked, let gapCount = fresh.gapCount, gapCount > 0 {
-                        let missing = fresh.totalMissingDays ?? 0
-                        detailLine(
-                            "\(gapCount) coverage gap\(gapCount == 1 ? "" : "s") · \(missing) missing day\(missing == 1 ? "" : "s") total"
-                        )
-                    }
-                }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: JIRow<EmptyView>.minHeight)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.metricLabel), \(dataQualitySourceDisplay(entry.source)), \(Int((entry.composite * 100).rounded())) percent, \(tone.label)")
-        .accessibilityIdentifier("dataQuality.row.\(entry.id)")
-    }
-
-    @ViewBuilder
-    private func freshnessLine(_ fresh: FreshnessEntry?) -> some View {
-        if let fresh {
-            let tone = dataQualityFreshnessTone(fresh.state)
-            let stale = fresh.daysStale.map { ", \($0)d stale" } ?? ""
-            let coverage = fresh.coverageChecked ? "" : " · sparse-by-design, coverage not checked"
-            Text("Freshness — \(Text(tone.label).foregroundStyle(color(tone)))\(stale + coverage)")
-                .font(.caption).foregroundStyle(theme.color(.muted))
-        } else {
-            // The hub's two reports didn't line up for this row — say so, never invent a state.
-            detailLine("Freshness — —")
-        }
-    }
-
-    private func detailLine(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(theme.color(.muted))
-    }
-
-    // MARK: - Source trust
-
-    private var trustSection: some View {
-        Section {
-            if model.sourceTrust.isEmpty {
-                Text("No source-trust rows yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
-            } else {
-                ForEach(model.sourceTrust) { entry in trustRow(entry) }
-            }
-        } header: {
-            Text("Source trust · \(model.sourceTrust.count)")
-                .accessibilityIdentifier("dataQuality.section.trust")
-        }
-    }
-
-    private func trustRow(_ entry: SourceTrustEntry) -> some View {
-        let tone = dataQualityTrustTone(entry.trustTier)
-        let label = dataQualityTrustLabel(entry.trustTier)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(dataQualitySourceDisplay(entry.sourceLabel)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
-                Spacer(minLength: 8)
-                toneDot(tone)
-                Text(label).jiFont(.caption, weight: .bold).foregroundStyle(color(tone))
-            }
-            Text(entry.metricClass.uppercased())
-                .jiFont(.micro).foregroundStyle(theme.color(.muted))
-            Text(entry.note).jiFont(.caption).foregroundStyle(theme.color(.muted))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: JIRow<EmptyView>.minHeight)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(dataQualitySourceDisplay(entry.sourceLabel)), \(entry.metricClass), \(label)")
-        .accessibilityIdentifier("dataQuality.trust.\(entry.id)")
-    }
-
     // MARK: - Shared bits
 
-    private func toneDot(_ tone: DataQualityTone) -> some View {
-        Circle().fill(color(tone)).frame(width: 10, height: 10)
+    private func role(forTone tone: DataQualityTone) -> JIColorRole {
+        switch tone {
+        case .go: .go
+        case .amber: .reduced
+        case .red: .danger
+        }
     }
 
     /// Rule 6: green is reserved for verdict/band/status — a traffic-light band is exactly that.
@@ -290,5 +201,118 @@ public struct DataQualityUnavailableView: View {
         .jiTheme(.native)
         .navigationTitle("Data quality")
         .accessibilityIdentifier("dataQuality.unavailable")
+    }
+}
+
+// MARK: - B-57 W1 r4: one source's per-metric detail (the old flat list, one level down)
+
+/// Every quality row for one source (composite + freshness, range validity, trust, provenance,
+/// coverage gaps), worst first, then that source's trust judgements. Null-graceful as before: a
+/// missing sub-score reads as "not scored", never a number.
+struct DataQualitySourceDetailView: View {
+    @Environment(\.jiTheme) private var theme
+    let row: DataQualityFamilyRow
+    let freshness: (QualityScoreEntry) -> FreshnessEntry?
+    let provenanceGap: String?
+
+    var body: some View {
+        List {
+            Section {
+                if row.scores.isEmpty {
+                    Text("— No data. The hub has not scored this source yet.")
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("dataQuality.detail.empty")
+                } else {
+                    ForEach(row.scores) { entry in qualityRow(entry, fresh: freshness(entry)) }
+                }
+            } header: {
+                Text("Metrics")
+            } footer: {
+                if let provenanceGap, !provenanceGap.isEmpty { Text(provenanceGap) }
+            }
+            if !row.trust.isEmpty {
+                Section("Source trust · \(row.trust.count)") {
+                    ForEach(row.trust) { entry in trustRow(entry) }
+                }
+            }
+        }
+        .jiNativeFormChrome()
+        .jiTheme(.native)
+        .navigationTitle(row.family.title)
+    }
+
+    private func qualityRow(_ entry: QualityScoreEntry, fresh: FreshnessEntry?) -> some View {
+        let tone = dataQualityCompositeTone(entry.composite)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Circle().fill(color(tone)).frame(width: 10, height: 10)
+                Text(entry.metricLabel).font(.footnote.bold()).foregroundStyle(theme.color(.text)).lineLimit(2)
+                Spacer(minLength: 8)
+                Text("\(Int((entry.composite * 100).rounded()))%").font(.caption.bold()).foregroundStyle(color(tone))
+            }
+            Text(dataQualitySourceDisplay(entry.source)).font(.caption2).foregroundStyle(theme.color(.muted))
+            VStack(alignment: .leading, spacing: 4) {
+                freshnessLine(fresh)
+                detailLine("Range validity — " + (entry.subScores.rangeValidity != nil
+                    ? "\(dataQualityPercent(entry.subScores.rangeValidity)) of rows in range" : "not scored for this metric"))
+                detailLine("Trust — " + (entry.subScores.trust != nil
+                    ? dataQualityPercent(entry.subScores.trust) : "no trust judgement for this source"))
+                detailLine("Provenance — not scored yet (see note below)")
+                if let fresh, fresh.coverageChecked, let gapCount = fresh.gapCount, gapCount > 0 {
+                    let missing = fresh.totalMissingDays ?? 0
+                    detailLine("\(gapCount) coverage gap\(gapCount == 1 ? "" : "s") · \(missing) missing day\(missing == 1 ? "" : "s") total")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(entry.metricLabel), \(dataQualitySourceDisplay(entry.source)), \(Int((entry.composite * 100).rounded())) percent, \(tone.label)")
+        .accessibilityIdentifier("dataQuality.row.\(entry.id)")
+    }
+
+    @ViewBuilder
+    private func freshnessLine(_ fresh: FreshnessEntry?) -> some View {
+        if let fresh {
+            let tone = dataQualityFreshnessTone(fresh.state)
+            let stale = fresh.daysStale.map { ", \($0)d stale" } ?? ""
+            let coverage = fresh.coverageChecked ? "" : " · sparse-by-design, coverage not checked"
+            Text("Freshness — \(Text(tone.label).foregroundStyle(color(tone)))\(stale + coverage)")
+                .font(.caption).foregroundStyle(theme.color(.muted))
+        } else {
+            detailLine("Freshness — —")
+        }
+    }
+
+    private func trustRow(_ entry: SourceTrustEntry) -> some View {
+        let tone = dataQualityTrustTone(entry.trustTier)
+        let label = dataQualityTrustLabel(entry.trustTier)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(dataQualitySourceDisplay(entry.sourceLabel)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
+                Spacer(minLength: 8)
+                Circle().fill(color(tone)).frame(width: 10, height: 10)
+                Text(label).jiFont(.caption, weight: .bold).foregroundStyle(color(tone))
+            }
+            Text(entry.metricClass.uppercased()).jiFont(.micro).foregroundStyle(theme.color(.muted))
+            Text(entry.note).jiFont(.caption).foregroundStyle(theme.color(.muted))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: JIRow<EmptyView>.minHeight)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(dataQualitySourceDisplay(entry.sourceLabel)), \(entry.metricClass), \(label)")
+        .accessibilityIdentifier("dataQuality.trust.\(entry.id)")
+    }
+
+    private func detailLine(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(theme.color(.muted))
+    }
+
+    private func color(_ tone: DataQualityTone) -> Color {
+        switch tone {
+        case .go: theme.color(.go)
+        case .amber: theme.color(.reduced)
+        case .red: theme.color(.danger)
+        }
     }
 }

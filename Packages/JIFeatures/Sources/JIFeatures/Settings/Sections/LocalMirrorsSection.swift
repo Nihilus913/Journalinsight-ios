@@ -1,4 +1,5 @@
 import SwiftUI
+import JIDesign
 import JIPersistence
 
 // W5b-L4 (P-local-mirrors). RN `settings.tsx:606` Data card "Local data mirrors" →
@@ -27,21 +28,39 @@ private nonisolated enum LocalMirrorsDatabase {
 
 private struct LocalMirrorsSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
+    @State private var summary: LocalMirrorsSummary?
 
     var body: some View {
         SettingsRowGroup {
             NavigationLink {
-                LocalMirrorsView(model: LocalMirrorsViewModel(
-                    goals: model.goalsSetupModel?.goals,
-                    goalStore: LocalMirrorsDatabase.goalStore,
-                    targets: model.kpiListModel?.targets ?? [],
-                    decisionLog: LocalMirrorsDatabase.decisionLog
-                ))
+                LocalMirrorsView(model: makeModel())
             } label: {
-                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "", systemImage: "iphone")
+                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "", systemImage: "iphone",
+                                  badge: summary.map(localMirrorsBadge))
+            }
+            .task {
+                // The row's "n of 3" is the same count the screen's summary card shows.
+                let m = makeModel()
+                await m.load()
+                summary = localMirrorsSummary(hasGoals: m.goals != nil, targetCount: m.targets.count, decisionCount: m.decisions?.count)
             }
             .accessibilityLabel("Local data mirrors")
             .accessibilityIdentifier("settings.row.localMirrors")
         }
     }
+
+    private func makeModel() -> LocalMirrorsViewModel {
+        LocalMirrorsViewModel(
+            goals: model.goalsSetupModel?.goals,
+            goalStore: LocalMirrorsDatabase.goalStore,
+            targets: model.kpiListModel?.targets ?? [],
+            decisionLog: LocalMirrorsDatabase.decisionLog
+        )
+    }
+}
+
+/// The Settings row's badge: "1 of 3", orange while partial, green when all, muted at none.
+nonisolated func localMirrorsBadge(_ s: LocalMirrorsSummary) -> BoardStatus {
+    let role: JIColorRole = s.mirrored == s.total ? .go : s.mirrored == 0 ? .muted : .reduced
+    return BoardStatus(word: "\(s.mirrored) of \(s.total)", systemImage: s.mirrored == s.total ? "checkmark" : "minus", role: role)
 }

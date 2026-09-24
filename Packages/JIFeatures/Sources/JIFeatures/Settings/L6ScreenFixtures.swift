@@ -150,7 +150,12 @@ enum L6Fixtures {
 
     static func settings() -> AnyView {
         guard let prefs = prefStore else { return unavailable("Settings") }
-        return AnyView(SettingsView(model: SettingsViewModel(store: connectionStore, prefs: prefs, onSaved: { _ in })))
+        // B-57 W1 r4: the preview carries the same rows the app shows — a Health permission model
+        // (badge) and a sync action (the "Sync now" row; a no-op in the gallery, never the hub).
+        return AnyView(SettingsView(model: SettingsViewModel(
+            store: connectionStore, prefs: prefs,
+            healthPermissionModel: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }),
+            syncAction: {}, onSaved: { _ in })))
     }
 
     /// W-B41 (B-41): one fixture per top-level Settings group screen, so the sweep covers the
@@ -201,8 +206,8 @@ enum L6Fixtures {
         return AnyView(NavigationStack {
             VersionView(model: VersionViewModel(
                 prefs: prefs,
-                info: VersionInfo(appName: "JournalInsight", appVersion: "1.0.0", build: "42", bundleId: "toby913.JournalInsight")
-            ))
+                info: VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "42", bundleId: "toby913.JournalInsight")
+            ), thisInstall: VersionInstallState(hub: "Not set up", hubConnected: false))
         })
     }
 
@@ -231,14 +236,7 @@ enum L6Fixtures {
 
     static func healthPermission() -> AnyView {
         AnyView(NavigationStack {
-            List {
-                Section("Apple Watch (read)") {
-                    HealthPermissionView(model: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }))
-                }
-            }
-            .jiNativeFormChrome()
-            .jiTheme(.native)
-            .navigationTitle("Health permission")
+            HealthPermissionScreen(model: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }))
         })
     }
 

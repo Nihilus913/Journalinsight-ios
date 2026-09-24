@@ -31,6 +31,16 @@ public final class SettingsViewModel {
     /// RN `saved` — "Using hub — saved." after a successful save; nil until then.
     public private(set) var savedMessage: String?
 
+    /// B-57 W1 (g3): the board's "Sync now" row. App passes the real action (Apple Health upload,
+    /// then the hub's `POST /api/v1/ingestion/sync` — the same `sync_all` job launchd runs); nil
+    /// (previews, tests without it) = the row is not offered, never a button that does nothing.
+    private let syncAction: (@MainActor () async throws -> Void)?
+    private let now: () -> Date
+    public private(set) var syncing = false
+    public private(set) var syncFailed = false
+    /// When this device last started a sync that the hub accepted.
+    public private(set) var lastSyncStartedAt: Date?
+
     private let onSaved: (ConnectionConfig) -> Void
 
     public init(
@@ -43,8 +53,12 @@ public final class SettingsViewModel {
         kpiListModel: KpiListViewModel? = nil,
         todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
         sections: [any SettingsSection] = SettingsRegistry.sections,
+        syncAction: (@MainActor () async throws -> Void)? = nil,
+        now: @escaping () -> Date = Date.init,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
+        self.syncAction = syncAction
+        self.now = now
         self.connection = ConnectionSheetModel(store: store)
         self.prefs = prefs
         self.backloadModel = backloadModel
@@ -66,6 +80,30 @@ public final class SettingsViewModel {
         onSaved(config)
         savedMessage = "Using hub — saved."
         return true
+    }
+
+    public var canSyncNow: Bool { syncAction != nil }
+
+    /// The newer of the hub's own last sync (from the connection test) and the last sync this
+    /// device started. nil = unknown → the row shows "—".
+    public var lastSyncDate: Date? {
+        var hubLast: Date?
+        if case .ok(let raw)? = connection.status, let raw { hubLast = parseHubTimestamp(raw) }
+        return [hubLast, lastSyncStartedAt].compactMap { $0 }.max()
+    }
+
+    public func syncNow() async {
+        guard let syncAction, !syncing else { return }
+        syncing = true
+        syncFailed = false
+        let started = now()
+        do {
+            try await syncAction()
+            lastSyncStartedAt = started
+        } catch {
+            syncFailed = true
+        }
+        syncing = false
     }
 
     /// RN `visibleKpiOrder(prefs).length` — reads W3b-L2's `KpiSelection.prefKey` so the subtitle
