@@ -237,3 +237,8 @@ public final class DataQualityViewModel {
         }
     }
 }
+
+/// B-57 W1: YAZIO is a source read through Apple Health (v10 change "YAZIO via Apple Health").
+public nonisolated func dataQualitySourceDisplay(_ source: String) -> String {
+    source.lowercased() == "yazio" ? JIExplainers.nutritionSourceLabel : source
+}

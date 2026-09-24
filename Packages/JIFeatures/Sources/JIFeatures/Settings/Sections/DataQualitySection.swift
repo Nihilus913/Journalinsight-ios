@@ -26,7 +26,7 @@ private struct DataQualitySectionRows: View {
                     DataQualityUnavailableView()
                 }
             } label: {
-                SettingsLinkLabel(title: "Data quality", subtitle: "Per-source freshness, quality score and trust")
+                SettingsLinkLabel(title: "Data quality", subtitle: settingsDataSubtitles["Data quality"] ?? "")
             }
             .accessibilityLabel("Data quality")
             .accessibilityIdentifier("settings.row.dataQuality")

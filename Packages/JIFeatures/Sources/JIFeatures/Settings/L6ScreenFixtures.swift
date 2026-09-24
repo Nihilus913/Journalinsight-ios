@@ -119,18 +119,6 @@ enum L6Fixtures {
         return AnyView(Who5Sheet(model: model))
     }
 
-    static func challengesModel() -> ChallengesViewModel {
-        ChallengesViewModel(provider: provider, now: { today })
-    }
-
-    static func challenges() -> AnyView {
-        AnyView(NavigationStack { ChallengesView(model: challengesModel()) })
-    }
-
-    static func challengeEditor() -> AnyView {
-        AnyView(ChallengeEditor(model: ChallengeEditorViewModel(challenges: challengesModel(), now: { today }), onSaved: { _ in }))
-    }
-
     static func goals() -> AnyView {
         guard let store = seededGoalStore else { return unavailable("Goals") }
         return AnyView(NavigationStack { GoalsView(model: GoalsViewModel(store: store), now: { today }) })
@@ -205,7 +193,6 @@ enum L6Fixtures {
         return AnyView(NavigationStack {
             LocalMirrorsView(model: LocalMirrorsViewModel(
                 goalStore: seededGoalStore,
-                challengesModel: challengesModel(),
                 decisionLog: DecisionLogStore(db: db)
             ))
         })

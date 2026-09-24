@@ -35,11 +35,10 @@ private struct LocalMirrorsSectionRows: View {
                     goals: model.goalsSetupModel?.goals,
                     goalStore: LocalMirrorsDatabase.goalStore,
                     targets: model.kpiListModel?.targets ?? [],
-                    challengesModel: nil,
                     decisionLog: LocalMirrorsDatabase.decisionLog
                 ))
             } label: {
-                SettingsLinkLabel(title: "Local data mirrors", subtitle: "What this device has mirrored for goals, KPI targets, challenges, and gate decisions")
+                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "")
             }
             .accessibilityLabel("Local data mirrors")
             .accessibilityIdentifier("settings.row.localMirrors")

@@ -245,3 +245,10 @@ private struct FakeDataQualityProvider: DataQualityProviding {
         #expect(SettingsGroup(sortKey: DataQualitySection().sortKey) == .data)
     }
 }
+
+/// B-57 W1 T30: YAZIO reads as a source through Apple Health.
+@Test func yazioReadsAsViaAppleHealth() {
+    #expect(dataQualitySourceDisplay("yazio") == "YAZIO via Apple Health")
+    #expect(dataQualitySourceDisplay("YAZIO") == "YAZIO via Apple Health")
+    #expect(dataQualitySourceDisplay("garmin_api") == "garmin_api")      // unknown sources pass through
+}

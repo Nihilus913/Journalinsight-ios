@@ -37,6 +37,7 @@ public struct JournalView: View {
 
         .jiTheme(.native)
         .navigationTitle("Journal")
+        .navigationSubtitle("On this phone only")   // B-57 W1 board 4/01
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .topBarTrailing) { newEntryButton }

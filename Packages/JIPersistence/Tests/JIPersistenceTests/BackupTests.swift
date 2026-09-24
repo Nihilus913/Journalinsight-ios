@@ -242,3 +242,17 @@ private func loadFoldFixture() throws -> FoldFixture {
 private extension Result {
     var isFailure: Bool { if case .failure = self { return true } else { return false } }
 }
+
+// B-57 W1 deleted Challenges; old Fold archives still carry the cache and must import.
+@Test func foldArchiveStillDecodesChallengesCache() throws {
+    let dump = BackupChallengesCacheDump.self
+    #expect(String(describing: dump) == "BackupChallengesCacheDump")
+    // Stronger form (the Fold fixture's cache is null): a non-nil cache round-trips.
+    let archive = FoldArchive(
+        appVersion: "1.18.2", exportedAt: "2026-09-24T06:00:00Z", tables: [],
+        challengesCache: BackupChallengesCacheDump(key: "challenges", payload: .array([.string("x")]), fetchedAt: "2026-09-23T06:00:00Z")
+    )
+    let decoded = try FoldArchive.decodeOrdered(archive.encodeOrdered())
+    #expect(decoded.challengesCache == archive.challengesCache)
+    #expect(decoded.challengesCache != nil)
+}

@@ -6,9 +6,9 @@ import JIPersistence
 @testable import JIFeatures
 
 /// W5b-L4 (P-local-mirrors) — card exit: "LocalMirrors renders all four sections from fixtures,
-/// DecisionLog shows real rows after a respond". The first three domains come from the synced
-/// hub-contract fixtures via `MockDataProvider` (`planning_goals`, `planning_kpi_targets`,
-/// `planning_challenges`); the fourth is a real `decision_log_mirror` row written by
+/// DecisionLog shows real rows after a respond". The first two domains come from the synced
+/// hub-contract fixtures via `MockDataProvider` (`planning_goals`, `planning_kpi_targets`);
+/// the third is a real `decision_log_mirror` row written by
 /// `GateRespondViewModel.respond`.
 
 @MainActor
@@ -16,10 +16,9 @@ private func fixtureModel(db: AppDatabase) async throws -> LocalMirrorsViewModel
     let mock = MockDataProvider()
     let goals = try await mock.goals()
     let targets = try await mock.kpiTargets()
-    let challenges = ChallengesViewModel(provider: mock)
     return LocalMirrorsViewModel(
         goals: goals, goalStore: GoalStore(db: db), targets: targets,
-        challengesModel: challenges, decisionLog: DecisionLogStore(db: db)
+        decisionLog: DecisionLogStore(db: db)
     )
 }
 
@@ -31,7 +30,6 @@ private func fixtureModel(db: AppDatabase) async throws -> LocalMirrorsViewModel
 
     #expect(model.goals != nil)
     #expect(!model.targets.isEmpty)
-    #expect(model.challengesModel?.challenges.isEmpty == false)
     #expect(model.decisions == []) // loaded (not nil) — nothing answered yet
 }
 
@@ -57,7 +55,7 @@ private func fixtureModel(db: AppDatabase) async throws -> LocalMirrorsViewModel
     let db = try AppDatabase.inMemory()
     let store = GoalStore(db: db)
     try store.saveGoalTargetsMirror(try await MockDataProvider().goals())
-    let model = LocalMirrorsViewModel(goals: nil, goalStore: store, targets: [], challengesModel: nil, decisionLog: DecisionLogStore(db: db))
+    let model = LocalMirrorsViewModel(goals: nil, goalStore: store, targets: [], decisionLog: DecisionLogStore(db: db))
 
     await model.load()
 
@@ -90,4 +88,11 @@ private func fixtureModel(db: AppDatabase) async throws -> LocalMirrorsViewModel
         _ = GateRespondCard(model: model).body
         _ = VerdictHeroView(verdict: verdictParts("GO — Upper"), readiness: 72, readinessMissing: false, gateRespondModel: model).body
     }
+}
+
+/// B-57 W1 T28: Local mirrors keeps goals, KPI targets and decisions only.
+@Test @MainActor func localMirrorsHasNoChallengesSection() throws {
+    let db = try AppDatabase.inMemory()
+    let model = LocalMirrorsViewModel(goalStore: GoalStore(db: db), decisionLog: DecisionLogStore(db: db))
+    #expect(Mirror(reflecting: model).children.allSatisfy { $0.label != "challengesModel" })
 }

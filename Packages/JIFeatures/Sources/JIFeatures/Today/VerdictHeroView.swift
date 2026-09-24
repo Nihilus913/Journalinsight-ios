@@ -23,13 +23,11 @@ public struct VerdictHeroView: View {
     let sleepScore: Double?, load: Double?
     /// The `buildInsight` sentence for today. Empty falls back to the verdict's own summary.
     let insight: String
-    let challengesModel: ChallengesViewModel?
-    let gateRespondModel: GateRespondViewModel?   // W5b-L4: nil = no respond controls (same optional idiom as `challengesModel`)
+    let gateRespondModel: GateRespondViewModel?   // W5b-L4: nil = no respond controls
     /// B-57 §6: the Day face drops the "Respond ›" / logged one-liner (Decide owns the answer);
     /// the feel segment stays either way.
     let showsRespondRow: Bool
     @State private var revealed = false
-    @State private var showChallenges = false
     @State private var showRespond = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
@@ -42,11 +40,11 @@ public struct VerdictHeroView: View {
 
     public init(verdict: VerdictParts, readiness: Double?, readinessMissing: Bool,
                 sleepScore: Double? = nil, load: Double? = nil, insight: String = "",
-                challengesModel: ChallengesViewModel? = nil, gateRespondModel: GateRespondViewModel? = nil,
+                gateRespondModel: GateRespondViewModel? = nil,
                 showsRespondRow: Bool = true) {
         self.verdict = verdict; self.readiness = readiness; self.readinessMissing = readinessMissing
         self.sleepScore = sleepScore; self.load = load; self.insight = insight
-        self.challengesModel = challengesModel; self.gateRespondModel = gateRespondModel
+        self.gateRespondModel = gateRespondModel
         self.showsRespondRow = showsRespondRow
     }
 
@@ -59,7 +57,6 @@ public struct VerdictHeroView: View {
             VStack(alignment: .leading, spacing: 14) {
                 ringTrio
                 insightSentence
-                if let challengesModel { challengeRow(challengesModel) }
                 if let gateRespondModel { actionRow(gateRespondModel) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,26 +141,7 @@ public struct VerdictHeroView: View {
         .accessibilityIdentifier(showsSessionRow ? "today.verdict.group" : "today.verdict.session")
     }
 
-    // MARK: - Challenges link + the one compact action row
-
-    @ViewBuilder
-    private func challengeRow(_ model: ChallengesViewModel) -> some View {
-        // W3b-L3 — oracle `VerdictHero.tsx`'s challenges link (its own row opens `app/challenges.tsx`).
-        Button { showChallenges = true } label: {
-            HStack {
-                Text("Gate challenge").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted))
-            }
-        }
-        .buttonStyle(.pressableScale)
-        .accessibilityLabel("Gate challenge progress — open challenges")
-        .accessibilityIdentifier("today.gateChallenge")
-        // Attached locally so this row never needs the enclosing `NavigationStack`'s own
-        // `navigationDestination(for:)` (owned by App/RootTabView.swift) — a plain isPresented
-        // push still lands on the same stack.
-        .navigationDestination(isPresented: $showChallenges) { ChallengesView(model: model) }
-    }
+    // MARK: - The one compact action row
 
     /// Scout §5(i): ONE row — "Respond ›" (or the logged one-liner once answered) plus the 1–5 feel
     /// segment. Everything else the oracle rendered inline lives in the sheet.

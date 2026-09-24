@@ -2,7 +2,7 @@ import Foundation
 import JICore
 
 /// W5b-L1 (P-data-quality). `HubDataProvider.client` is internal (L0, W3b, B-14) — this
-/// conformance uses it directly, same convention as `HubDataProvider+Challenges.swift`.
+/// conformance uses it directly, same convention as the other `HubDataProvider+*.swift` slices.
 ///
 /// Endpoints, grepped from the HT routers (never the RN provider):
 /// `GET /api/v1/ingestion/quality-score` (`app/ingestion/router.py:306`, `QualityScoreResponse`),

@@ -44,6 +44,13 @@ enum RootTab: Hashable, Identifiable, CaseIterable {
 }
 
 struct RootTabView: View {
+    /// B-57 W1 (v11 change 1): More = Track / Practice / App. No Challenges.
+    static let moreSections: [(header: String, rows: [String])] = [
+        ("Track", ["Nutrition", "Energy", "My KPIs", "Goals"]),
+        ("Practice", ["Mind"]),
+        ("App", ["Settings"]),
+    ]
+
     @Bindable var env: AppEnvironment
     /// Owned by `JournalInsightApp` (see its doc comment) so a cold-start `.onOpenURL` — which can
     /// fire before this view exists — still has somewhere to land; consumed and cleared here.
@@ -83,6 +90,10 @@ struct RootTabView: View {
     // file, same as `prefs`/`cache` already being separate pools today.
     @State private var journalDB: AppDatabase?
     @State private var journalVault: VaultManager?
+    // B-57 W1 T27: More → Mind. Built after the vault unlocks (Export does the same), so
+    // encrypted check-in / event / WHO-5 rows decode.
+    @State private var moreMindModel: MindViewModel?
+    @State private var moreMindUnavailable = false
     @State private var journalModel: JournalViewModel?
     @State private var selectedTab: RootTab = .today
     /// B-55: one push path PER TAB (see `TabRouter`) — there is no root `NavigationStack`.
@@ -254,6 +265,9 @@ struct RootTabView: View {
         NavigationStack(path: Binding(get: { router.path(for: tab) }, set: { router.setPath($0, for: tab) })) {
             content()
                 .toolbar { shellToolbar }
+                // B-57 W1: shell hooks Recovery (L3) reads — the catalogue sheet and a KPI push.
+                .environment(\.openKpiCatalogue, { showKpiList = true })
+                .environment(\.openKpiDetail, { metric in pushKpiDetail(metric) })
                 .navigationDestination(for: RootRoute.self) { route in
                     switch route {
                     case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
@@ -360,12 +374,60 @@ struct RootTabView: View {
     /// B-55: rendered inside More's own `tabStack`, so the links push there.
     private var moreTab: some View {
         List {
-            NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
-                .accessibilityIdentifier("more.nutrition")
-            NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
-                .accessibilityIdentifier("more.energy")
+            Section("Track") {
+                NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
+                    .accessibilityIdentifier("more.nutrition")
+                NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
+                    .accessibilityIdentifier("more.energy")
+                Button { showKpiList = true } label: { Label("My KPIs", systemImage: "chart.bar") }
+                    .accessibilityIdentifier("more.kpis")
+                NavigationLink { moreGoals } label: { Label("Goals", systemImage: "target") }
+                    .accessibilityIdentifier("more.goals")
+            }
+            Section("Practice") {
+                NavigationLink { moreMind } label: { Label("Mind", systemImage: "water.waves") }
+                    .accessibilityIdentifier("more.mind")
+            }
+            Section("App") {
+                Button { showSettings = true } label: { Label("Settings", systemImage: "slider.horizontal.3") }
+                    .accessibilityIdentifier("more.settings")
+            }
         }
         .navigationTitle("More")
+        .navigationSubtitle("Everything that is not a daily decision")
+    }
+
+    @ViewBuilder private var moreGoals: some View {
+        if let db = journalDB ?? (try? AppDatabase.onDisk()) {
+            GoalsView(model: GoalsViewModel(store: GoalStore(db: db)))
+        } else {
+            screenUnavailable(title: "Goals unavailable", systemImage: "target")
+        }
+    }
+
+    /// The Mind stores take the vault cipher (as Export's do), so the model is built after
+    /// `vault.unlock()` — the `makeSettingsModel` pattern — never with the identity cipher.
+    @ViewBuilder private var moreMind: some View {
+        if let moreMindModel {
+            MindView(model: moreMindModel)
+        } else if moreMindUnavailable {
+            screenUnavailable(title: "Mind unavailable", systemImage: "water.waves")
+        } else {
+            ProgressView().task { await makeMoreMindModel() }
+        }
+    }
+
+    private func makeMoreMindModel() async {
+        let db = journalDB ?? (try? AppDatabase.onDisk())
+        journalDB = db
+        let vault = journalVault ?? VaultManager(keychain: SecureKeychainService())
+        journalVault = vault
+        guard let db, let cipher = try? await vault.unlock() else { moreMindUnavailable = true; return }
+        moreMindModel = MindViewModel(
+            checkins: CheckInStore(db: db, cipher: cipher),
+            eventStore: EventStore(db: db, cipher: cipher),
+            who5Store: Who5Store(db: db, cipher: cipher)
+        )
     }
 
     @ViewBuilder

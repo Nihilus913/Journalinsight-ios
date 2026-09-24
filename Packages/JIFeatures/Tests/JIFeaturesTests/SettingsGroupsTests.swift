@@ -122,3 +122,10 @@ private struct UnassignedSection: SettingsSection {
     }
     #expect(names.contains("Settings developer") == false)
 }
+
+/// B-57 W1 T29: the DATA rows each say what they are for, and the group footer tells them apart.
+@Test func dataGroupExplainsItsRows() {
+    #expect(settingsDataFooter == "Backup is for restoring. Export is for reading elsewhere. The other two show where your numbers come from.")
+    #expect(settingsDataSubtitles["Export"] == "A readable CSV or JSON of what you pick")
+    #expect(settingsDataSubtitles.count == 4)
+}

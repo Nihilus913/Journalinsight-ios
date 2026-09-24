@@ -59,6 +59,7 @@
 		E27245D5DB1D363CFA1D0144 /* GateWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */; };
 		E27D45B8AE065886C965D49D /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
 		E70F6F8C98F73DCF05CB0894 /* JICompute in Frameworks */ = {isa = PBXBuildFile; productRef = BBFE6322659149502ACF2389 /* JICompute */; };
+		E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E3002B92D368429BB3F69F /* MoreTabTests.swift */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		EC5311AB5875741B4CB7CE7D /* ApnsPayloadRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */; };
 		EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */; };
@@ -154,6 +155,7 @@
 		73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSelectionTests.swift; sourceTree = "<group>"; };
 		7541113198F7B5C556696963 /* MyKpisGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyKpisGlance.swift; sourceTree = "<group>"; };
 		7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandler.swift; sourceTree = "<group>"; };
+		81E3002B92D368429BB3F69F /* MoreTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreTabTests.swift; sourceTree = "<group>"; };
 		8642FE8630849030DFBA12CB /* ApnsPayloadRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouterTests.swift; sourceTree = "<group>"; };
 		9592E400266E0385BE90930E /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
@@ -293,6 +295,7 @@
 				1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */,
 				D84B36CD13034CA6AB211274 /* JournalTabTests.swift */,
 				D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */,
+				81E3002B92D368429BB3F69F /* MoreTabTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */,
 				2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */,
@@ -644,6 +647,7 @@
 				2D9F540F96AFCF16BD486B04 /* DeepLinkParseTests.swift in Sources */,
 				4A8C198ECF8F30E2FBE584EB /* JournalTabTests.swift in Sources */,
 				D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */,
+				E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				0FECD0C0B4BBA90BF4C6C305 /* ProviderSelectionTests.swift in Sources */,
 				DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */,
