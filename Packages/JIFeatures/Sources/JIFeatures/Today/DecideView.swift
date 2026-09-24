@@ -118,16 +118,41 @@ public struct DecideView: View {
     private var wasCaption: String? { override == nil ? nil : effectiveVerdict(parts: verdict, override: override).wasCaption }
     private var submitting: Bool { overrideModel?.phase == .submitting }
 
+    @ViewBuilder
+    private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
+        Button { go() } label: { Text("Go").lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
+            .buttonStyle(.borderedProminent).tint(theme.color(.go))
+            .disabled(!actions.go || submitting)
+            .accessibilityIdentifier("today.decide.go")
+        if showsAdjust {
+            Button { showAdjust = true } label: {
+                Text("Adjust").lineLimit(1).fixedSize().frame(maxWidth: stacked ? .infinity : nil)
+            }
+            .buttonStyle(.bordered)
+            .disabled(submitting)
+            .accessibilityIdentifier("today.decide.adjust")
+        }
+    }
+
     public var body: some View {
         let actions = decideActions(verdict: verdict, syncing: syncing)
         let showsAdjust = actions.adjust && overrideModel != nil && verdictDate != nil
         Surface(level: 1, padding: 24) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
-                        .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
-                    Spacer()
-                    SyncedPill(date: fetchedAt, now: now)
+                // r4 AX3: side by side while both fit whole; otherwise the pill drops under the date
+                // (never squeezed into a one-character-per-line column).
+                let dateText = Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
+                    .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        dateText.fixedSize()
+                        Spacer()
+                        SyncedPill(date: fetchedAt, now: now).fixedSize()
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        dateText.fixedSize(horizontal: false, vertical: true)
+                        SyncedPill(date: fetchedAt, now: now).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Text("YOUR CALL FOR TODAY").jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                 Text(syncing ? "Syncing…" : decideWord(shown))
@@ -166,17 +191,11 @@ public struct DecideView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("today.decide.session")
                 }
-                HStack(spacing: 12) {
-                    Button { go() } label: { Text("Go").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent).tint(theme.color(.go))
-                        .disabled(!actions.go || submitting)
-                        .accessibilityIdentifier("today.decide.go")
-                    if showsAdjust {
-                        Button("Adjust") { showAdjust = true }
-                            .buttonStyle(.bordered)
-                            .disabled(submitting)
-                            .accessibilityIdentifier("today.decide.adjust")
-                    }
+                // r4 AX3: Go / Adjust side by side while both labels fit whole; otherwise stacked
+                // full-width (no "Ad-just" hyphenation).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: false) }
+                    VStack(spacing: 10) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: true) }
                 }
                 .controlSize(.large)
                 if !showAdjust, let message = overrideModel?.errorMessage {

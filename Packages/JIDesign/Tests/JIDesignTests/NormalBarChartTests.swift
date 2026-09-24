@@ -45,6 +45,28 @@ struct NormalBarChartTests {
         #expect(normalBarChartAccessibilityLabel(points: [syncing], normal: nil, unit: "ms", decimals: 0) == "Mon — Not in Health yet")
     }
 
+    /// Verifier r3: at AX sizes the 7 column labels truncated ("M…", "Not in He…"); the chart
+    /// switches to one full-width row per night there.
+    @Test func accessibilitySizesStackOneRowPerNight() {
+        #expect(!normalBarChartStacks(.large))
+        #expect(!normalBarChartStacks(.xxxLarge))
+        #expect(normalBarChartStacks(.accessibility1))
+        #expect(normalBarChartStacks(.accessibility3))
+    }
+
+    @Test func stackedBarFractionIsValueOverTheScaleAndNilForAMissingNight() {
+        #expect(normalBarFraction(18, yMax: 36) == 0.5)
+        #expect(normalBarFraction(50, yMax: 36) == 1)
+        #expect(normalBarFraction(nil, yMax: 36) == nil)
+        #expect(normalBarFraction(5, yMax: 0) == nil)
+    }
+
+    @Test @MainActor func rendersStackedAtAccessibilitySizes() {
+        expectRenders("NormalBarChart AX3", height: 700) {
+            NormalBarChart(points: nights, normal: 27...30, unit: "ms").environment(\.dynamicTypeSize, .accessibility3)
+        }
+    }
+
     @Test @MainActor func renders() {
         expectRenders("NormalBarChart band", height: 220) { NormalBarChart(points: nights, normal: 27...30, unit: "ms") }
         expectRenders("NormalBarChart calibrating", height: 220) { NormalBarChart(points: nights, normal: nil, unit: "ms") }
