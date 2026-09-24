@@ -37,7 +37,7 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today decide Apple") { L4Screens.todayDecideApple() },
 
         // MARK: W-B46 L2 — B-42 Today components
-        ScreenEntry(name: "Trends card") { AnyView(TrendsCardNativePreview()) },
+        ScreenEntry(name: "Trends") { AnyView(TrendsNativePreview()) },   // B-57 W1: full screen (was "Trends card")
 
         // MARK: L5 — Training · Nutrition · Energy · KPI · Watch · Widgets (append-only)
         ScreenEntry(name: "Training") { AnyView(TrainingNativePreview()) },
@@ -45,11 +45,12 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Weekly plan") { AnyView(WeeklyPlanNativePreview()) },
         ScreenEntry(name: "Send to Watch") { AnyView(SendToWatchNativePreview()) },
         ScreenEntry(name: "Nutrition") { AnyView(NutritionNativePreview()) },
-        ScreenEntry(name: "Nutrition log") { AnyView(NutritionLogNativePreview()) },
+        ScreenEntry(name: "Meal detail") { AnyView(MealDetailNativePreview()) },   // B-57 W1: read-only (was "Nutrition log")
         ScreenEntry(name: "Weigh-in") { AnyView(WeighInNativePreview()) },
         ScreenEntry(name: "Energy") { AnyView(EnergyNativePreview()) },
         ScreenEntry(name: "KPIs") { AnyView(KpiListNativePreview()) },
         ScreenEntry(name: "KPI detail") { AnyView(KpiDetailNativePreview()) },
+        ScreenEntry(name: "KPI detail nutrition") { AnyView(KpiDetailNutritionNativePreview()) },
 
         // MARK: L6 — Journal · Mind · Coach · Settings & Data (B-33 Phase B). Append-only.
         ScreenEntry(name: "Journal") { L6Fixtures.journal() },
@@ -59,8 +60,6 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Mind check-in") { L6Fixtures.mindCheckIn() },
         ScreenEntry(name: "Mind event") { L6Fixtures.mindEvent() },
         ScreenEntry(name: "WHO-5") { L6Fixtures.who5() },
-        ScreenEntry(name: "Challenges") { L6Fixtures.challenges() },
-        ScreenEntry(name: "Challenge editor") { L6Fixtures.challengeEditor() },
         ScreenEntry(name: "Goals") { L6Fixtures.goals() },
         ScreenEntry(name: "Goals setup") { L6Fixtures.goalsSetup() },
         ScreenEntry(name: "Settings") { L6Fixtures.settings() },
