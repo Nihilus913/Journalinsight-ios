@@ -61,6 +61,7 @@ public struct TrendsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Your last 7 days against your normal from the 28 days before.")
                     .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
                 Picker("Filter", selection: $filter) {
                     ForEach(TrendsFilter.allCases) { Text($0.rawValue).tag($0) }
                 }

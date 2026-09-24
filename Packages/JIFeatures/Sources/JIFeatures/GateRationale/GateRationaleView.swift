@@ -140,6 +140,7 @@ public struct GateRationaleView: View {
                         .foregroundStyle(theme.color(.muted))
                 }
                 Text(gateRationaleRecoveryScoreCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("gateRationale.recoveryScore")
