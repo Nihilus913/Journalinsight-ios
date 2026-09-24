@@ -106,7 +106,7 @@ public struct DataQualityView: View {
                     Text("\(Int((entry.composite * 100).rounded()))%")
                         .font(.caption.bold()).foregroundStyle(color(tone))
                 }
-                Text(entry.source).font(.caption2).foregroundStyle(theme.color(.muted))
+                Text(dataQualitySourceDisplay(entry.source)).font(.caption2).foregroundStyle(theme.color(.muted))
 
                 VStack(alignment: .leading, spacing: 4) {
                     freshnessLine(fresh)
@@ -132,7 +132,7 @@ public struct DataQualityView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: JIRow<EmptyView>.minHeight)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.metricLabel), \(entry.source), \(Int((entry.composite * 100).rounded())) percent, \(tone.label)")
+        .accessibilityLabel("\(entry.metricLabel), \(dataQualitySourceDisplay(entry.source)), \(Int((entry.composite * 100).rounded())) percent, \(tone.label)")
         .accessibilityIdentifier("dataQuality.row.\(entry.id)")
     }
 
@@ -174,7 +174,7 @@ public struct DataQualityView: View {
         let label = dataQualityTrustLabel(entry.trustTier)
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(entry.sourceLabel).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
+                Text(dataQualitySourceDisplay(entry.sourceLabel)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
                 Spacer(minLength: 8)
                 toneDot(tone)
                 Text(label).jiFont(.caption, weight: .bold).foregroundStyle(color(tone))
@@ -186,7 +186,7 @@ public struct DataQualityView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: JIRow<EmptyView>.minHeight)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.sourceLabel), \(entry.metricClass), \(label)")
+        .accessibilityLabel("\(dataQualitySourceDisplay(entry.sourceLabel)), \(entry.metricClass), \(label)")
         .accessibilityIdentifier("dataQuality.trust.\(entry.id)")
     }
 
