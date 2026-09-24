@@ -73,6 +73,21 @@ final class AppEnvironment {
         }
     }
 
+    /// B-57 W1 r4 (g3): the Settings "Sync now" row. Sends Apple Health to the hub first (so last
+    /// night is in), then asks the hub to run its canonical sync job (`POST /api/v1/ingestion/sync`
+    /// — the same `sync_all` run launchd starts at 07:00; the hub never runs two at once). Throws
+    /// when there is no hub or the hub refused, so the row can say "Failed".
+    func syncNow() async throws {
+        guard let client = activeHubClient else { throw HubError.network("No hub connection") }
+        if let uploader = healthKitUploader, !CommandLine.arguments.contains("-no-healthkit") {
+            await uploader.syncAll()
+        }
+        let _: [String: String] = try await client.post("/api/v1/ingestion/sync", body: [String: String]())
+    }
+
+    /// The hub client of the connection `apply(_:)` last installed (nil before one exists).
+    private var activeHubClient: HubClient?
+
     /// W2d (L1): three-state read-permission model over the real `HKHealthStore`. Hub-independent,
     /// so it lives from `init` — `ConnectionSheet`'s "Apple Watch (read)" section (L3) is driven
     /// from it via `makeHealthPermissionModel()`.
@@ -130,6 +145,7 @@ final class AppEnvironment {
         }
         activeBaseURL = config.baseURL
         let hubClient = HubClient(config: config)
+        activeHubClient = hubClient
         let provider = HubDataProvider(client: hubClient)
         let store: ProviderStore
         if let existing = providerStore { existing.provider = provider; store = existing } else { store = ProviderStore(provider: provider); providerStore = store }

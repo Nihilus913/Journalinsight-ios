@@ -18,14 +18,14 @@ public struct HealthSection: SettingsSection {
 private struct HealthSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
 
+    // B-57 W1 r4 (g3): the board's Connect Apple Health layout first; the backload (the other
+    // thing this screen always carried) stays below it, unchanged.
     var body: some View {
+        if let healthPermissionModel = model.healthPermissionModel {
+            HealthPermissionBoardSections(model: healthPermissionModel, showsTitle: false)
+        }
         if let backloadModel = model.backloadModel {
             HealthBackloadSection(model: backloadModel)
-        }
-        if let healthPermissionModel = model.healthPermissionModel {
-            Section("Apple Watch (read)") {
-                HealthPermissionView(model: healthPermissionModel)
-            }
         }
     }
 }
