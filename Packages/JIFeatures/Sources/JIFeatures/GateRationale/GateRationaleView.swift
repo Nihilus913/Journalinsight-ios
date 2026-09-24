@@ -2,6 +2,9 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// B-57 W1 Recovery score card copy (the score itself is W3; the card shows "—" + Calibrating).
+public nonisolated let gateRationaleRecoveryScoreCopy = "One score from overnight HRV, resting HR, sleep and load, each against your normal. It shows a number once it has 14 nights."
+
 /// The gate's own reasoning (triggered rules + suggestions) plus the 3-day decision trail — the
 /// oracle's `mobile/app/gate-rationale.tsx`, reached by tapping the verdict hero on Today
 /// (`VerdictHero.tsx:404` → `router.push("/gate-rationale")`).
@@ -37,6 +40,8 @@ public struct GateRationaleView: View {
                     if model.isByDate {
                         byDateReasonCard
                     } else {
+                        recoveryScoreCard
+                        whatCountedCard
                         nutritionGateCard
                         triggeredRulesCard
                         contributorsCard
@@ -79,7 +84,7 @@ public struct GateRationaleView: View {
     private var verdictCard: some View {
         Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 4) {
-                sectionLabel("Readiness verdict")
+                sectionLabel("Why today is")
                 Text(model.verdict.word)
                     .jiNumeral(.numeralLarge, weight: .heavy)
                     .foregroundStyle(theme.color(verdictColorRole(model.verdict.tone)))
@@ -119,6 +124,37 @@ public struct GateRationaleView: View {
                     Text(tracked).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("gateRationale.trackedDays")
                 }
+                HowWeCalculateLink("How JI calculates balance and the plan band", title: JIExplainers.energyBalanceTitle,
+                                   steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+            }
+        }
+    }
+
+    /// B-57 W1: the recovery score is W3 — the card shows "—" + Calibrating, never a number.
+    private var recoveryScoreCard: some View {
+        card("Recovery score") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("—").jiNumeral(.numeralLarge, tint: .muted)
+                    Label(JIMissingReason.calibrating.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
+                        .foregroundStyle(theme.color(.muted))
+                }
+                Text(gateRationaleRecoveryScoreCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("gateRationale.recoveryScore")
+        }
+    }
+
+    @ViewBuilder private var whatCountedCard: some View {
+        if let signals = model.morning?.gateSignals, !signals.isEmpty {
+            card("What counted") {
+                VStack(spacing: 6) {
+                    ForEach(signals.map(decideSignalRowModel)) { m in
+                        SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, status: m.status, detail: m.detail)
+                    }
+                }
+                .accessibilityIdentifier("gateRationale.whatCounted")
             }
         }
     }

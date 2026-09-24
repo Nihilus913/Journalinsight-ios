@@ -200,3 +200,8 @@ private struct GateRationaleProvider: HealthDataProvider {
     #expect(GateRationaleView.weekdayLabel("2026-09-11", locale: en) == "Fri")
     #expect(GateRationaleView.weekdayLabel("not-a-date", locale: en) == "not-a-date")
 }
+
+@Test func recoveryScoreCardIsCalibratingInW1() {
+    #expect(gateRationaleRecoveryScoreCopy == "One score from overnight HRV, resting HR, sleep and load, each against your normal. It shows a number once it has 14 nights.")
+    #expect(!gateRationaleRecoveryScoreCopy.contains("goal"))
+}
