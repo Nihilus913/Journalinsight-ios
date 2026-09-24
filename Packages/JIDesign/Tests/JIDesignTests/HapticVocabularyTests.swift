@@ -366,6 +366,7 @@ struct Rig {
 
 /// The "changed" tier's second pulse is scheduled after a gap on the MainActor; a fixed 250 ms sleep
 /// raced it when the suite's render tests load the MainActor (B-57 W1). Poll up to 2 s instead.
-@MainActor private func waitForPulses(_ done: () -> Bool) async throws {
+/// Shared with `FeelgateMarkerTests`, which raced the same pulse.
+@MainActor func waitForPulses(_ done: () -> Bool) async throws {
     for _ in 0..<80 where !done() { try await Task.sleep(for: .milliseconds(25)) }
 }

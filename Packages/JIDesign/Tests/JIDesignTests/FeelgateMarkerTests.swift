@@ -56,7 +56,8 @@ private func expectMarker(_ line: String?, _ label: String) {
     r.dispatcher.fire(.gateChange(.changed))
     #expect(log.lines.count == before + 1)   // exactly one new line immediately, not one per pulse
     expectMarker(log.last, "gateChange:changed")
-    try await Task.sleep(for: .milliseconds(250))
+    // Wait for the second pulse itself (a fixed 250 ms sleep raced it under load, B-57 W1).
+    try await waitForPulses { r.fallback.calls.count >= 4 }
     #expect(log.lines.count == before + 1)   // still just the one after both pulses complete
     #expect(r.fallback.calls.count == 4)     // routine + failed + the two "changed" pulses
 }
