@@ -114,6 +114,30 @@ public nonisolated enum MorningGateOverridableField: String, CaseIterable, Codab
     }
 }
 
+/// B-57 W1: the GateConfig board's groups. Safety is a locked, non-field section.
+public nonisolated enum GateConfigGroup: String, CaseIterable, Sendable { case safety = "Safety", recoverySignals = "Recovery signals", sleep = "Sleep", fuel = "Fuel" }
+
+public nonisolated extension MorningGateOverridableField {
+    /// nil = a display target that lives in Goals; not shown on GateConfig.
+    var group: GateConfigGroup? {
+        switch self {
+        case .respDeltaAmber: .recoverySignals
+        case .minSleepH: .sleep
+        case .carb3dWatch: .fuel
+        case .stepTarget, .kcalTarget, .proteinTarget, .carbTarget, .fatTarget, .targetWeight, .targetBf: nil
+        }
+    }
+    /// B-57 W1: one plain line under each shown field (sleep stays floor-worded until W3).
+    var explanation: String {
+        switch self {
+        case .respDeltaAmber: "Flags when your breathing rate sits this far above usual."
+        case .minSleepH: "Below this, interval sessions turn Modified."
+        case .carb3dWatch: "Below this for 3 days, hard sessions turn Modified."
+        default: ""
+        }
+    }
+}
+
 /// `MorningGateOverrides` — `Partial<Record<OverridableMorningGateField, number>>`.
 ///
 /// Backed by a `[String: Double]` rather than a keyed-by-enum dictionary on purpose: `JSONEncoder`

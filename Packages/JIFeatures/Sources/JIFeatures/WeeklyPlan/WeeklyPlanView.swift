@@ -30,21 +30,39 @@ public struct WeeklyPlanView: View {
 
     /// §8.5: the composition without the scrolling root — what the sweep renders.
     @ViewBuilder var nativeContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Training days (from your session schedule) eat more; the rest day banks it back — the weekly average, and your deficit, stays fixed.")
-                .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+        // B-57 W1 board order (`3 Plan & train/04 WeeklyPlan.png`): subtitle, the average hero,
+        // the week, then the targets. Layout only — every number is the model's, unchanged.
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Bank weekday calories for a bigger weekend. The weekly deficit stays fixed.")
+                .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("weeklyPlan.info")
-            JISectionHeader("Targets")
-            knobsCard
-            JISectionHeader("The week")
-            // §8.1: the seven-day table and the knobs compose side by side in regular width.
-            tableCard
-            footnote
+            averageHero
+            VStack(alignment: .leading, spacing: 10) {
+                JISectionHeader("The week")
+                tableCard
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                JISectionHeader("Targets")
+                knobsCard
+                footnote
+            }
             if model.hasSaved {
                 Text("Saved.").jiFont(.micro).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("weeklyPlan.saved")
             }
         }
+    }
+
+    /// Board hero: the weekly average as the headline figure.
+    private var averageHero: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("\(model.plan.avgKcal)")
+                .jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(.info))
+            Text("kcal average").jiFont(.body).foregroundStyle(theme.color(.muted))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Weekly average \(model.plan.avgKcal) kcal")
+        .accessibilityIdentifier("weeklyPlan.hero")
     }
 
     // MARK: knobs

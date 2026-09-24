@@ -86,4 +86,10 @@ struct SessionCoachViewModelTests {
             #expect(!SessionCoachViewModel.action(for: state).isEmpty)
         }
     }
+
+    @Test func capCopyNeverClaimsTheUserChoseItYet() {
+        #expect(sessionCoachCapTitle == "Your cap 175")
+        #expect(sessionCoachCapCaption == "175 bpm is the cap in your gate settings. The app never raises it.")
+        #expect(!sessionCoachCapCaption.contains("You chose"))   // user-set cap is W4
+    }
 }
