@@ -37,13 +37,20 @@ nonisolated enum L5NutritionFixtures {
 
 /// §8.5 registry entry "Nutrition" — the cards `NutritionView.loaded` composes, over the fixture.
 struct NutritionNativePreview: View {
+    private static let syncedAt = Date(timeIntervalSince1970: 1_790_583_240)   // fixed, so the sweep is stable
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // B-57 W1: the header pill and the read-only note mirror `NutritionView`.
+            HStack { Spacer(); SyncedPill(date: Self.syncedAt, label: .lastSynced, now: Self.syncedAt.addingTimeInterval(3_600)) }
             NutritionWeekStrip(days: L5NutritionFixtures.week, selectedDate: L5NutritionFixtures.date) { _ in }
             JISectionHeader("Today")
             MacroSummaryCard(day: L5NutritionFixtures.day)
             JISectionHeader("Meals")
-            MealTimeline(day: L5NutritionFixtures.day)
+            MealTimeline(day: L5NutritionFixtures.day, onSelectMeal: { _ in })
+            Surface(level: 2) {
+                Label(nutritionReadOnlyNote, systemImage: "info.circle").jiFont(.footnote).foregroundStyle(JITheme.native.color(.muted))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20).padding(.top, 8)

@@ -73,6 +73,7 @@ struct KpiNutritionPanel: View {
                         .jiFont(.footnote)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("kpi-detail-macro-table")
             }
         }

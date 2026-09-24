@@ -3,18 +3,9 @@ import JICore
 import JIDesign
 
 /// §8.5 registry entries "KPIs" and "KPI detail". Both compose the shipping components
-/// (`KpiSelectionRow`, `KpiTargetsMirrorSection`, `TrendChart`) over fixtures — the sweep never
+/// (`SquareGrid` via `kpiCatalogueItems`, `KpiTargetsMirrorSection`, `TrendChart`) over fixtures — the sweep never
 /// builds a hub-backed view model, whose `.task` `ImageRenderer` would not run anyway.
 private nonisolated enum L5KpiFixtures {
-    static let rows: [(label: String, value: String, target: String?)] = [
-        ("HRV (7d avg)", "52 ms", "≥ 48"),
-        ("Resting HR", "54 bpm", "≤ 58"),
-        ("Sleep score (7d)", "81", "≥ 75"),
-        ("ACWR", "1.08", "0.8–1.3"),
-        ("Protein (7d avg)", "168 g", "≥ 160"),
-        ("Weight", "104.2 kg", "≤ 100"),
-    ]
-
     static let targets: [KpiTarget] = [
         KpiTarget(targetId: 1, metric: "hrv_weekly_avg", operator: ">=", threshold: 48),
         KpiTarget(targetId: 2, metric: "rhr_bpm", operator: "<=", threshold: 58),
@@ -29,21 +20,23 @@ private nonisolated enum L5KpiFixtures {
 
 struct KpiListNativePreview: View {
     private let theme = JITheme.native
+    /// B-57 W1: mirrors `KpiListView.rows` — the catalogue of squares over fixture values.
+    private static let visible: [KpiMetricId] = [.hrv, .rhr, .sleep, .acwr]
+    private static let values: [KpiMetricId: Double] = [.hrv: 52, .rhr: 54, .sleep: 81, .acwr: 1.08, .protein: 168, .weight: 104.2]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            JISectionHeader("My KPIs")
-            Surface(padding: 16) {
-                VStack(spacing: 0) {
-                    ForEach(Array(L5KpiFixtures.rows.enumerated()), id: \.offset) { idx, row in
-                        KpiSelectionRow(label: row.label, valueText: row.value, targetText: row.target,
-                                        selected: idx < 4, canMoveUp: idx > 0, canMoveDown: idx < 3,
-                                        showsReorder: idx < 4, identifierSuffix: "preview-\(idx)",
-                                        onMoveUp: {}, onMoveDown: {}, onToggle: { _ in })
-                        if idx != L5KpiFixtures.rows.count - 1 {
-                            Divider().overlay(theme.color(.hairlineNested))
-                        }
+            Text("Every metric is a square. Ticked ones sit on Today; any of them can go on a widget.")
+                .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+            ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
+                let items = kpiCatalogueItems(group: group, visible: Self.visible, value: { Self.values[$0] })
+                if !items.isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(group.rawValue).jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
+                    SquareGrid(items: items, onBadge: { _ in })
                 }
             }
             JISectionHeader("Gate targets")
