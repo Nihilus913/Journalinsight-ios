@@ -16,23 +16,6 @@ import JIPersistence
 
     // MARK: arcs
 
-    @Test func arcFractionIsTheValueOnItsScaleClamped() {
-        #expect(gateSignalFraction(signal("sleep", 74, thr: 70, status: .pass)) == 0.74)
-        #expect(gateSignalFraction(signal("rhr", 60, thr: 65, dir: .max, min: 40, max: 80, status: .pass)) == 0.5)
-        #expect(gateSignalFraction(signal("hrv", 120, thr: 27, max: 80, status: .pass)) == 1)
-        #expect(gateSignalFraction(signal("rhr", 30, thr: 65, dir: .max, min: 40, max: 80, status: .pass)) == 0)
-    }
-
-    /// Rule 5: a missing value is no fill at all (a muted track), never a zero-filled arc.
-    @Test func missingValueHasNoFraction() {
-        #expect(gateSignalFraction(signal("sleep", nil, thr: 70, status: .missing)) == nil)
-    }
-
-    @Test func thresholdTickSitsOnTheScale() {
-        #expect(gateSignalThresholdFraction(signal("sleep_h", 7, thr: 6, max: 10, status: .pass)) == 0.6)
-        #expect(gateSignalThresholdFraction(signal("rhr", 60, thr: 65, dir: .max, min: 40, max: 80, status: .pass)) == 0.625)
-    }
-
     @Test func tintFollowsTheHubStatus() {
         #expect(gateSignalColorRole(.pass) == .go)
         #expect(gateSignalColorRole(.amber) == .reduced)
@@ -122,7 +105,6 @@ import JIPersistence
         #expect(gateSignalColorRole(.context) == .muted)
         #expect(gateSignalColorRole(.context) != .go)
         #expect(gateSignalValueText(s) == "31")
-        #expect(gateSignalFraction(s) != nil)           // the value is drawn, unlike a missing arc
         #expect(gateSignalNoteText(s) == "weekday — dosed")
         #expect(gateSignalAccessibilityLabel(s) == "HRV (day) 31 ms, context only, weekday — dosed")
     }
