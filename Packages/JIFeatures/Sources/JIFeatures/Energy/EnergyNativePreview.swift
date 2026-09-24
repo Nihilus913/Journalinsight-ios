@@ -42,6 +42,26 @@ struct EnergyNativePreview: View {
                     TrendChart(points: balancePoints(), tint: theme.color(.info), unit: "kcal", range: $range, showAll: nil)
                 }
             }
+            HStack(alignment: .firstTextBaseline) {
+                Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            }
+            Surface(level: 1) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                        Label(JIMissingReason.notInHealthYet.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
+                            .foregroundStyle(theme.color(.muted))
+                    }
+                    Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("energy.whatYouBurn")
+            }
+            HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                .accessibilityIdentifier("energy.howWeCalculate")
             JISectionHeader("Intake vs TDEE")
             Surface(padding: 18) { IntakeTdeeChart(days: Self.days) }
             JISectionHeader("Daily log")
