@@ -88,6 +88,7 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var loaded: some View {
+        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, macro: model.metric) }
         chartSection
         if model.target != nil { editor }
     }
