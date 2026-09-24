@@ -20,11 +20,12 @@ private struct GateConfigSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
 
     var body: some View {
-        Section {
+        SettingsRowGroup {
             NavigationLink {
                 GateConfigView(model: GateConfigViewModel(targetsProvider: Self.hubTargetsProvider(), prefStore: model.prefs))
             } label: {
-                SettingsLinkLabel(title: "Gate config", subtitle: "Local threshold overrides, fixture preview, live KPI targets")
+                SettingsLinkLabel(title: "Gate config", subtitle: "Local threshold overrides, fixture preview, live KPI targets",
+                                  systemImage: "slider.horizontal.3")
             }
             .accessibilityLabel("Gate config")
             .accessibilityIdentifier("settings.row.gateConfig")

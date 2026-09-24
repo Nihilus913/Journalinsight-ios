@@ -34,3 +34,27 @@ public nonisolated func mindSnapshot(_ checkin: CheckIn?) -> MindSnapshot {
     let description = "Stress \(checkin.stress)/5 · energy \(checkin.energy)/5 logged today."
     return MindSnapshot(headline: headline, description: description)
 }
+
+// MARK: - B-57 W1 Mind board (fixer f3)
+
+/// The Mind board's "Today" card: stress and energy from today's check-in, and the mood as a
+/// 1–5 step for the five-segment track. No check-in = nil values and "Not checked in" (rule 5).
+nonisolated public struct MindTodaySummary: Sendable, Equatable {
+    public let stress: Int?
+    public let energy: Int?
+    public let moodStep: Int?
+    public let statusWord: String
+}
+
+public nonisolated func mindTodaySummary(_ checkin: CheckIn?) -> MindTodaySummary {
+    guard let checkin else {
+        return MindTodaySummary(stress: nil, energy: nil, moodStep: nil, statusWord: "Not checked in")
+    }
+    return MindTodaySummary(stress: checkin.stress, energy: checkin.energy,
+                            moodStep: journalMoodScore(checkin.mood?.rawValue), statusWord: "Checked in")
+}
+
+/// WHO-5 percentage against the 50 screening line (a trend word, never a diagnosis).
+public nonisolated func who5ScoreWord(pct: Int) -> String {
+    pct > 50 ? "Above the screening line" : "At or below the screening line"
+}

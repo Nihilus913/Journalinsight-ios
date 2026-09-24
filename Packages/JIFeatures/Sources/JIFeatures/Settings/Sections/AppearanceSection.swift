@@ -18,9 +18,10 @@ private struct AppearanceSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
 
     var body: some View {
-        Section {
+        SettingsRowGroup {
             NavigationLink { AppearanceView(model: AppearanceViewModel(prefs: model.prefs)) } label: {
-                SettingsLinkLabel(title: "Appearance", subtitle: "Theme, accent color, text size, and your greeting name")
+                SettingsLinkLabel(title: "Appearance", subtitle: "Theme, accent color, text size, and your greeting name",
+                                  systemImage: "paintpalette")
             }
             .accessibilityLabel("Appearance")
             .accessibilityIdentifier("settings.row.appearance")

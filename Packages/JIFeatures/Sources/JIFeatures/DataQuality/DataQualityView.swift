@@ -29,6 +29,8 @@ public struct DataQualityView: View {
             case .error(let message): errorCard(message)
             case .empty: emptyCard
             case .loaded:
+                sourcesSummarySection
+                sourcesSection
                 qualitySection
                 trustSection
             }
@@ -45,7 +47,6 @@ public struct DataQualityView: View {
         // §5: the hand-drawn large title is the system's; the oracle's `ScreenHeader info=…`
         // copy becomes the navigation subtitle, verbatim.
         .navigationTitle("Data quality")
-        .navigationSubtitle("Per-source data quality, freshness, and trust — every source and metric the pipeline ingests, worst first.")
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
@@ -74,6 +75,68 @@ public struct DataQualityView: View {
         }
     }
 
+    // MARK: - B-57 W1 board: Sources fresh today + Sources rows
+
+    private var sourcesSummarySection: some View {
+        let summary = model.sourceSummary
+        let total = summary.sources.count
+        return Section {
+            BoardSummaryCard(
+                systemImage: "checkmark.shield", title: "Sources fresh today",
+                trailing: model.fetchedAt.map { "as of \($0.formatted(date: .omitted, time: .shortened))" },
+                value: total == 0 ? nil : "\(summary.fresh)", unit: "of \(total)",
+                valueTint: summary.stale == 0 ? .go : .reduced,
+                status: total == 0
+                    ? BoardStatus(word: "No data", systemImage: "minus", role: .muted)
+                    : summary.stale == 0
+                        ? BoardStatus(word: "All fresh", systemImage: "checkmark", role: .go)
+                        : BoardStatus(word: "\(summary.stale) stale", systemImage: "exclamationmark.triangle", role: .danger),
+                segments: summary.sources.map { role(for: $0.state) },
+                note: sourcesNote(summary)
+            )
+            .accessibilityIdentifier("dataQuality.summary")
+        }
+    }
+
+    private var sourcesSection: some View {
+        Section {
+            ForEach(model.sourceSummary.sources) { source in
+                JIRow(title: dataQualitySourceDisplay(source.source)) {
+                    Label(stateWord(source), systemImage: source.state == .green ? "checkmark" : "exclamationmark.triangle")
+                        .jiFont(.subheadline, weight: .semibold, tint: role(for: source.state))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("dataQuality.source.\(source.source)")
+            }
+        } header: {
+            Text("Sources")
+        }
+    }
+
+    private func stateWord(_ s: DataQualitySourceState) -> String {
+        switch s.state {
+        case .green: "Fresh"
+        case .amber, .red: s.daysStale.map { "Stale \($0) d" } ?? "Not arriving"
+        }
+    }
+
+    private func sourcesNote(_ summary: DataQualitySourceSummary) -> String? {
+        guard !summary.sources.isEmpty else { return nil }
+        let stale = summary.sources.filter { $0.state != .green }
+        if stale.isEmpty { return "Every source is current." }
+        return "Stale: " + stale.map { s in
+            dataQualitySourceDisplay(s.source) + (s.daysStale.map { " (\($0) d)" } ?? "")
+        }.joined(separator: ", ") + "."
+    }
+
+    private func role(for state: FreshnessState) -> JIColorRole {
+        switch state {
+        case .green: .go
+        case .amber: .reduced
+        case .red: .danger
+        }
+    }
+
     // MARK: - Per-source quality
 
     private var qualitySection: some View {
@@ -86,7 +149,7 @@ public struct DataQualityView: View {
                 }
             }
         } header: {
-            Text("Per-source quality · \(model.sortedScores.count)")
+            Text("Per-source quality")
                 .accessibilityIdentifier("dataQuality.section.quality")
         } footer: {
             if let gap = model.provenanceGap {

@@ -49,20 +49,60 @@ public final class LocalMirrorsViewModel {
     }
 }
 
+// MARK: - B-57 W1 board summary (fixer f3)
+
+/// The board's "Mirrored n of N sets" card. W1 has three mirrored sets on this phone — goal
+/// targets, KPI targets, gate decisions (the board's fourth, Challenges, was deleted in W1). A set
+/// counts once it holds something; `decisionCount == nil` means the store has not been read yet.
+nonisolated public struct LocalMirrorsSummary: Sendable, Equatable {
+    public let mirrored: Int
+    public let total: Int
+    public let word: String
+}
+
+public nonisolated func localMirrorsSummary(hasGoals: Bool, targetCount: Int, decisionCount: Int?) -> LocalMirrorsSummary {
+    let flags = [hasGoals, targetCount > 0, (decisionCount ?? 0) > 0]
+    let mirrored = flags.filter { $0 }.count
+    let word = mirrored == 0 ? "Nothing yet" : mirrored == flags.count ? "All mirrored" : "Partial"
+    return LocalMirrorsSummary(mirrored: mirrored, total: flags.count, word: word)
+}
+
 public struct LocalMirrorsView: View {
     @Environment(\.jiTheme) private var theme
     @State private var model: LocalMirrorsViewModel
-    @Environment(\.dismiss) private var dismiss
-
     public init(model: LocalMirrorsViewModel) { _model = State(initialValue: model) }
 
     public var body: some View {
         List {
+            let summary = localMirrorsSummary(hasGoals: model.goals != nil, targetCount: model.targets.count,
+                                              decisionCount: model.decisions?.count)
             Section {
-                EmptyView()
+                BoardSummaryCard(
+                    systemImage: "iphone", title: "Mirrored", value: "\(summary.mirrored)", unit: "of \(summary.total) sets",
+                    valueTint: summaryRole(summary),
+                    status: BoardStatus(word: summary.word,
+                                        systemImage: summary.mirrored == summary.total ? "checkmark" : "exclamationmark.triangle",
+                                        role: summaryRole(summary)),
+                    segments: setFlags.map { $0 ? JIColorRole.go : nil }
+                )
+                .accessibilityIdentifier("localMirrors.summary")
+            }
+
+            Section {
+                setRow("Gate decisions", systemImage: "gauge.with.needle",
+                       detail: model.decisions.map { "\($0.count) response\($0.count == 1 ? "" : "s") · on this phone" } ?? "Loading…",
+                       mirrored: setFlags[2])
+                setRow("KPI targets", systemImage: "chart.bar",
+                       detail: model.targets.isEmpty ? "Not mirrored yet · next sync at home" : "\(model.targets.count) targets",
+                       mirrored: setFlags[1])
+                setRow("Goal targets", systemImage: "target",
+                       detail: model.goals == nil ? "Not mirrored yet · next sync at home" : "Current targets",
+                       mirrored: setFlags[0])
+            } header: {
+                Text("Sets")
             } footer: {
                 // B-57 W1: the board's subtitle (board 5 Settings/06). Mirror timing is open (spec §0.6).
-                Text("Copies kept on this phone for when you are away from home")
+                Text("Copies kept on this phone for when you are away from home. A set shows Nothing yet until its first sync at home.")
                     .accessibilityIdentifier("localMirrors.info")
             }
 
@@ -72,22 +112,34 @@ public struct LocalMirrorsView: View {
                 unavailable("Goal targets", "Nothing mirrored yet — open Goals once while online.", id: "goalTargets")
             }
 
-            Section { KpiTargetsMirrorSection(targets: model.targets) }
+            Section {
+                KpiTargetsMirrorSection(targets: model.targets)
+            } header: {
+                Text("KPI targets").accessibilityIdentifier("localMirrors.kpiTargets.header")
+            }
 
             DecisionLogSection(entries: model.decisions)
-
-            Section {
-                Button("Done") { dismiss() }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityLabel("Done")
-                    .accessibilityIdentifier("localMirrors.done")
-            }
         }
         .jiNativeFormChrome()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Local data mirrors")
         .task { await model.load() }
+    }
+
+    /// goals · KPI targets · gate decisions — whether each set holds anything yet.
+    private var setFlags: [Bool] { [model.goals != nil, !model.targets.isEmpty, !(model.decisions ?? []).isEmpty] }
+
+    private func summaryRole(_ s: LocalMirrorsSummary) -> JIColorRole {
+        s.mirrored == s.total ? .go : .reduced
+    }
+
+    private func setRow(_ title: String, systemImage: String, detail: String, mirrored: Bool) -> some View {
+        JIRow(title: title, subtitle: detail, systemImage: systemImage) {
+            Label(mirrored ? "Mirrored" : "Nothing yet", systemImage: mirrored ? "checkmark" : "minus")
+                .jiFont(.subheadline, weight: .semibold, tint: mirrored ? .go : .reduced)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func unavailable(_ title: String, _ message: String, id: String) -> some View {

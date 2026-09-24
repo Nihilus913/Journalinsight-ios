@@ -176,6 +176,8 @@ public final class DataQualityViewModel {
     public var sortedScores: [QualityScoreEntry] { dataQualitySortedScores(report?.qualityScore ?? []) }
     public var sourceTrust: [SourceTrustEntry] { report?.sourceTrust ?? [] }
     public var provenanceGap: String? { report?.provenanceGap }
+    /// B-57 W1 board: per-source freshness for the summary card and the Sources rows.
+    public var sourceSummary: DataQualitySourceSummary { dataQualitySourceSummary(report?.freshness ?? []) }
 
     /// The freshness detail paired with a quality row, or nil when the hub's two reports don't
     /// line up for it — the screen then prints "—" rather than inventing a state.
@@ -241,4 +243,39 @@ public final class DataQualityViewModel {
 /// B-57 W1: YAZIO is a source read through Apple Health (v10 change "YAZIO via Apple Health").
 public nonisolated func dataQualitySourceDisplay(_ source: String) -> String {
     source.lowercased() == "yazio" ? JIExplainers.nutritionSourceLabel : source
+}
+
+// MARK: - B-57 W1 board summary (fixer f3)
+
+/// One source's worst freshness state across its metrics (the board's "Sources" rows).
+nonisolated public struct DataQualitySourceState: Sendable, Equatable, Identifiable {
+    public let source: String
+    public let state: FreshnessState
+    /// Days stale of the worst metric; nil when the hub did not say.
+    public let daysStale: Int?
+    public var id: String { source }
+}
+
+/// The board's "Sources fresh today — n of N" card: one entry per source the hub reports.
+nonisolated public struct DataQualitySourceSummary: Sendable, Equatable {
+    public let sources: [DataQualitySourceState]
+    public var fresh: Int { sources.filter { $0.state == .green }.count }
+    public var stale: Int { sources.count - fresh }
+}
+
+public nonisolated func dataQualitySourceSummary(_ rows: [FreshnessEntry]) -> DataQualitySourceSummary {
+    func rank(_ s: FreshnessState) -> Int { s == .red ? 2 : s == .amber ? 1 : 0 }
+    var worst: [String: DataQualitySourceState] = [:]
+    for row in rows {
+        if let current = worst[row.source] {
+            if rank(row.state) > rank(current.state) {
+                worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: row.daysStale)
+            } else if rank(row.state) == rank(current.state), let d = row.daysStale, d > (current.daysStale ?? -1) {
+                worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: d)
+            }
+        } else {
+            worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: row.daysStale)
+        }
+    }
+    return DataQualitySourceSummary(sources: worst.values.sorted { $0.source < $1.source })
 }

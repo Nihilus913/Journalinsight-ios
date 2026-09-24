@@ -35,6 +35,19 @@ public final class MindViewModel {
         self.now = now
     }
 
+    /// Registry/Gallery preview (B-57 W1 fixer f3): the loaded Mind board from fixture rows — the
+    /// sweep never runs `load()`, so without this the preview is only a spinner.
+    init(checkins: CheckInStore, eventStore: EventStore, who5Store: Who5Store, now: @escaping () -> Date,
+         previewToday: CheckIn?, previewWho5: Who5Entry?) {
+        self.checkins = checkins
+        self.eventStore = eventStore
+        self.who5Store = who5Store
+        self.now = now
+        self.today = previewToday
+        self.latestWho5 = previewWho5
+        self.phase = .loaded
+    }
+
     public var checkedInToday: Bool { today != nil }
     public var snapshot: MindSnapshot { mindSnapshot(today) }
     public var who5Due: Bool { who5DueThisWeek(latestWho5?.date, now: now()) }
