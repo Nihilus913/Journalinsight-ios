@@ -38,7 +38,7 @@ private struct LocalMirrorsSectionRows: View {
                     decisionLog: LocalMirrorsDatabase.decisionLog
                 ))
             } label: {
-                SettingsLinkLabel(title: "Local data mirrors", subtitle: "Copies kept here so screens work away from home")
+                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "")
             }
             .accessibilityLabel("Local data mirrors")
             .accessibilityIdentifier("settings.row.localMirrors")

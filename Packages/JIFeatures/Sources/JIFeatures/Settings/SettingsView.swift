@@ -119,7 +119,7 @@ private struct DataLinksRows: View {
         Section(SettingsGroup.data.title) {
             if let backup = model.backupModel {
                 NavigationLink { BackupView(model: backup) } label: {
-                    SettingsLinkLabel(title: "Backup & restore", subtitle: "Export or restore a full copy of everything on this device")
+                    SettingsLinkLabel(title: "Backup & restore", subtitle: settingsDataSubtitles["Backup & restore"] ?? "")
                 }
                 .accessibilityLabel("Backup & restore")
                 .accessibilityIdentifier("settings.row.backup")

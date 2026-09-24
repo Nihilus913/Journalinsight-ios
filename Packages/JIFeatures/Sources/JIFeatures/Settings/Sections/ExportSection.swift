@@ -30,7 +30,7 @@ private struct ExportSectionRows: View {
         Section {
             if let stores {
                 NavigationLink { ExportView(model: ExportViewModel(stores: stores)) } label: {
-                    SettingsLinkLabel(title: "Export", subtitle: "Share journal, mind and goals as CSV or JSON")
+                    SettingsLinkLabel(title: "Export", subtitle: settingsDataSubtitles["Export"] ?? "")
                 }
                 .accessibilityLabel("Export")
                 .accessibilityIdentifier("settings.row.export")

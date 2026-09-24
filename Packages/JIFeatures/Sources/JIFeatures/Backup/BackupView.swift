@@ -16,6 +16,9 @@ public struct BackupView: View {
 
     public var body: some View {
         Form {
+            Section {
+                Text("Journal · Mind · Goals").jiFont(.body).accessibilityIdentifier("backup-contents")
+            } header: { Text("What's in it") } footer: { Text("A full encrypted copy, to restore on a new phone. For a readable copy, use Export.") }
             Section("Export") {
                 Button("Export backup") { model.export() }
                     .accessibilityIdentifier("backup-export")
