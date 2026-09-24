@@ -35,6 +35,7 @@ public struct MindView: View {
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Mind")
+        .navigationSubtitle("On this phone only")   // B-57 W1 board 4/03
         .task { if model.phase == .idle { await model.load() } }
         .sheet(isPresented: $checkInOpen) { CheckInSheet(model: model).jiNativeSheetSizing() }
         .sheet(isPresented: $eventOpen) { EventSheet(model: model).jiNativeSheetSizing() }

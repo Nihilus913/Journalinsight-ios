@@ -61,8 +61,8 @@ public struct LocalMirrorsView: View {
             Section {
                 EmptyView()
             } footer: {
-                // Oracle `ScreenHeader info=…`, verbatim.
-                Text("What this device has mirrored locally for goals, KPI targets, and gate decisions — the hub stays the source of truth until F5d.")
+                // B-57 W1: the board's subtitle (board 5 Settings/06). Mirror timing is open (spec §0.6).
+                Text("Copies kept on this phone for when you are away from home")
                     .accessibilityIdentifier("localMirrors.info")
             }
 

@@ -14,7 +14,8 @@ public nonisolated enum RemindersCopy {
     public static let unavailable = "Something about notifications isn't available here (Expo Go has limited support). Try a development build."
     public static let schedulingUnavailable = "Scheduling isn't available here (Expo Go has limited notification support). Try a development build."
     public static let readFailed = "Couldn't read scheduled reminders on this device."
-    public static let header = "Local reminders. Nothing leaves your device."
+    /// B-57 W1: the board's subtitle (5 Settings/08); the layout rework (medication, cap check) is W4.
+    public static let header = "Quiet by default. Only what you asked for."
     public static let workoutTitle = "Workout reminders"
     public static let workoutCaption = "Independent on/off + time per weekday — separate from the reminders above."
     public static let noReminder = "No reminder scheduled."
