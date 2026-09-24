@@ -54,3 +54,10 @@ nonisolated struct GoalsFakeProvider: GoalsSetupProviding {
     #expect(vm.goals == before)
     guard case .error = vm.phase else { Issue.record("expected .error phase"); return }
 }
+
+@Test func nextWorkingWeightIsReadOnlyAndNeverInvented() {
+    let rows = nextWorkingWeights(entries: [])
+    #expect(rows.map(\.name) == ["Bench press", "Bent-over row"])
+    #expect(rows.allSatisfy { $0.kg == nil })
+    #expect(goalsTrainingPlanTitle == "Training plan")
+}

@@ -72,6 +72,9 @@ public final class StrengthStateStore: Sendable {
 
     public func getLocal(exerciseId: Int) -> StrengthStateEntry? { readAll()[exerciseId] }
 
+    /// B-57 W1: every stored exercise, for GoalsSetup's read-only "Next working weight".
+    public func entries() -> [StrengthStateEntry] { readAll().values.sorted { $0.exerciseName < $1.exerciseName } }
+
     /// Rows written locally that haven't been confirmed pushed to the hub yet.
     public func listUnsynced() -> [StrengthStateEntry] { readAll().values.filter { !$0.synced } }
 

@@ -2,6 +2,10 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// B-57 W1: the Goals "Training plan" supporting-target row copy.
+public nonisolated let goalsTrainingPlanTitle = "Training plan"
+public nonisolated let goalsTrainingPlanSubtitle = "Full Upper ×4 · intervals · Z2 · 10K"
+
 /// W4-L3, mirrors `mobile/app/goals.tsx`: the local-only, ad-hoc freeform goal list. Local-only —
 /// separate from `GoalsSetupView`'s structured, hub-backed targets (see that oracle's own header
 /// comment / `GoalStore.ts`'s module comment for the two-feature split).
@@ -55,6 +59,19 @@ public struct GoalsView: View {
                         )
                     }
                 }
+            }
+            Section("Supporting targets") {
+                HStack {
+                    Image(systemName: "dumbbell").foregroundStyle(theme.color(.sleep)).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(goalsTrainingPlanTitle).jiFont(.body).foregroundStyle(theme.color(.text))
+                        Text(goalsTrainingPlanSubtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    }
+                    Spacer()
+                    Text("— of 4").jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.muted))   // n-of-4 needs the week (W5)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("goals-training-plan")
             }
         }
         .jiNativeFormChrome()
