@@ -232,7 +232,7 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     #expect(vm.fatG == 55)
 }
 
-@Test @MainActor func everyEditWritesThroughImmediately() async throws {
+@Test @MainActor func editsAreStagedUntilSavePlan() async throws {
     let store = WeeklyPlanStore(prefs: PrefStore(db: try AppDatabase.inMemory()))
     let vm = WeeklyPlanViewModel(store: store)
     await vm.load()
@@ -241,11 +241,15 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     // the screen shows, and never climbs past what the rest day can fund.
     #expect(vm.value(of: .trainKcal) == 1907)
     vm.step(.trainKcal, by: 50)
+    #expect(store.load() == nil) // B-57 W1 r4: "Save plan" is the write, not each tap
+    vm.save()
     #expect(vm.hasSaved)
     #expect(store.load()?.trainKcal == 1907)
     vm.step(.trainKcal, by: -50)
-    #expect(store.load()?.trainKcal == 1857)
     vm.step(.protein, by: -5)
+    #expect(!vm.hasSaved)
+    vm.save()
+    #expect(store.load()?.trainKcal == 1857)
     #expect(store.load()?.proteinG == 160)
 }
 
@@ -270,6 +274,7 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     vm.step(.weeklyAvg, by: 50) // user edits while goals() is still in flight
     await load.value
     #expect(vm.weeklyAvgKcal == 1850) // the seed did not clobber the edit
+    vm.save()
     #expect(store.load()?.weeklyAvgKcal == 1850)
 }
 

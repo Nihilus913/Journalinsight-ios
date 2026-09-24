@@ -1,5 +1,6 @@
 import Foundation
 import JICompute
+import JIDesign
 
 // W5b-L5 (P-weekly-plan). Port of `mobile/src/lib/weeklyPlan.ts` — weekly calorie banking
 // (zig-zag): hold the WEEKLY average constant while letting chosen "high" days run a surplus,
@@ -230,4 +231,17 @@ public nonisolated func weeklyPlanCapNote(_ plan: PeriodizedPlan) -> String? {
     guard plan.trainCapped else { return nil }
     let rest = plan.restDays.count == 1 ? "the rest day" : "the rest days"
     return "Training days held at \(plan.trainKcal) kcal: \(rest) can't bank more without dropping below the protein and fat you eat every day (\(plan.restFloorKcal) kcal)."
+}
+
+/// B-57 W1 r4: the held training-day target as a board status line (the board has no separate
+/// warning box) — `weeklyPlanCapStatusDetail` carries the reason under it.
+public nonisolated func weeklyPlanCapStatus(_ plan: PeriodizedPlan) -> WeeklyPlanGoalStatus? {
+    guard plan.trainCapped else { return nil }
+    return WeeklyPlanGoalStatus(word: "Training days held at \(plan.trainKcal) kcal", role: .reduced, symbolName: "arrow.down")
+}
+
+public nonisolated func weeklyPlanCapStatusDetail(_ plan: PeriodizedPlan) -> String? {
+    guard plan.trainCapped else { return nil }
+    let rest = plan.restDays.count == 1 ? "The rest day can't" : "The rest days can't"
+    return "\(rest) bank more without dropping below the protein and fat you eat every day (\(plan.restFloorKcal) kcal)."
 }

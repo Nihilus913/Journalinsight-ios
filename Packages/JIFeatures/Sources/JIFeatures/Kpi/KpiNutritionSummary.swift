@@ -24,8 +24,8 @@ public nonisolated func kpiMacroSummary(rows: [NutritionDailyRow], macro: KpiMet
                            avg7: trendAverage(series, days: 7), avg28: trendAverage(series, days: 28))
 }
 
-/// The goal / latest / 7 d / 28 d cells of one table row. JI-owned macro goals arrive in W2, so
-/// the goal cell is "— No data" until then; a missing actual is "— No data" too (rule 5).
+/// The goal / latest / 7 d / 28 d cells of one table row. The goal is the user's goals document;
+/// a goal not set, or a missing actual, is "— No data" (rule 5).
 public nonisolated func kpiMacroTableCells(_ s: KpiMacroSummary, decimals: Int, unit: String? = nil, goal: Double? = nil) -> [String] {
     [goal, s.latest, s.avg7, s.avg28].map { jiValueOrReasonText($0, decimals: decimals, unit: unit) }
 }
@@ -43,10 +43,94 @@ public nonisolated func kpiMacroDayHeader(_ summaries: [KpiMacroSummary]) -> Str
     return "\(parts[2]) \(months[parts[1] - 1])"
 }
 
+// MARK: - B-57 W1 r4: the board's hero, its status line and the Up / Down / Steady line
+
+/// The board's calorie tint (orange). `metricTintRole` has no calorie entry, and the palette is
+/// the Design area's; `.reduced` is the palette's orange, used here as the kcal metric colour on
+/// the nutrition screens (KpiDetailNutrition, WeeklyPlan, Energy) — never as a verdict.
+public nonisolated let nutritionKcalTintRole: JIColorRole = .reduced
+
+/// The numeral / label tint for one macro: calories carry `nutritionKcalTintRole`, the rest keep
+/// `metricTintRole`.
+public nonisolated func kpiMacroTintRole(_ macro: KpiMetricId) -> JIColorRole {
+    macro == .kcal ? nutritionKcalTintRole : metricTintRole(macro.rawValue)
+}
+
+/// The user's own goal for one macro, from the goals document (Goals › setup). `nil` = not set.
+public nonisolated func kpiMacroGoal(_ goal: NutritionGoal?, _ macro: KpiMetricId) -> Double? {
+    switch macro {
+    case .kcal: goal?.kcalGoal
+    case .protein: goal?.proteinG
+    case .carbs: goal?.carbsG
+    case .fat: goal?.fatG
+    default: nil
+    }
+}
+
+/// Beside the hero numeral: "/ 155 g goal", or "no goal set" — never an invented goal.
+public nonisolated func kpiMacroHeroGoalText(goal: Double?, unit: String, decimals: Int) -> String {
+    guard let goal, goal.isFinite else { return "no goal set" }
+    return "/ \(jiNumber(goal, decimals)) \(unit) goal"
+}
+
+/// Within this share of the goal a day reads "On goal" (1549 against 1617 is on goal on the board).
+public nonisolated let kpiMacroOnGoalTolerance = 0.05
+
+public nonisolated struct KpiMacroHeroStatus: Equatable, Sendable {
+    public let word: String
+    public let role: JIColorRole
+    public let symbolName: String
+}
+
+/// "22 Sep" from "2026-09-22"; the raw string when it is not a date.
+public nonisolated func kpiShortDayText(_ iso: String) -> String {
+    let parts = iso.split(separator: "-").compactMap { Int($0) }
+    guard parts.count == 3, (1...12).contains(parts[1]) else { return iso }
+    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return "\(parts[2]) \(months[parts[1] - 1])"
+}
+
+/// The hero's status line: the newest day against the user's goal. `nil` when no goal is set (the
+/// hero already says "no goal set"); "— No data" when there is no reading. Protein over its goal
+/// is good news (`.go`); calories, carbs or fat over it are not (`.reduced`).
+public nonisolated func kpiMacroHeroStatus(value: Double?, goal: Double?, date: String?, macro: KpiMetricId,
+                                           unit: String, decimals: Int) -> KpiMacroHeroStatus? {
+    guard let value, value.isFinite else {
+        return KpiMacroHeroStatus(word: "— \(JIMissingReason.noData.rawValue)", role: .muted, symbolName: "minus")
+    }
+    guard let goal, goal.isFinite, goal > 0 else { return nil }
+    let diff = value - goal
+    if abs(diff) / goal <= kpiMacroOnGoalTolerance {
+        return KpiMacroHeroStatus(word: JISignalStatus.onGoal.word, role: .go, symbolName: "checkmark")
+    }
+    let on = date.map { " on \(kpiShortDayText($0))" } ?? ""
+    let amount = "\(jiNumber(abs(diff), decimals)) \(unit)"
+    if diff < 0 {
+        return KpiMacroHeroStatus(word: "\(JISignalStatus.belowGoal.word) · \(amount) short\(on)", role: .reduced, symbolName: "arrow.down")
+    }
+    return KpiMacroHeroStatus(word: "\(JISignalStatus.aboveGoal.word) · \(amount) over\(on)",
+                              role: macro == .protein ? .go : .reduced, symbolName: "arrow.up")
+}
+
+/// The line under the 7-day bar: the 7-day average against the 28-day one, in words.
+public nonisolated func kpiMacroTrendLine(avg7: Double?, avg28: Double?) -> String {
+    let tail = "Days with nothing in Apple Health are skipped, not counted as zero."
+    let word: String
+    switch trendDirection(recent: avg7, baseline: avg28) {
+    case .up: word = "Up"
+    case .down: word = "Down"
+    case .flat: word = "Steady"
+    case .unknown: return "— \(JIMissingReason.noData.rawValue) yet to compare. \(tail)"
+    }
+    return "\(word) against your 28-day average. \(tail)"
+}
+
 /// B-57 W1 KpiDetailNutrition: macro picker, the 7-day NormalBar (normal W3, goal W2), and the
 /// goal / latest / 7 d / 28 d table over `NutritionDailyRow`s.
 struct KpiNutritionPanel: View {
     let rows: [NutritionDailyRow]
+    /// The user's goals document (`nil` = not loaded / not set → "no goal set", "— No data").
+    var goals: NutritionGoal? = nil
     @State var macro: KpiMetricId
     private let theme = JITheme.native
 
@@ -59,6 +143,7 @@ struct KpiNutritionPanel: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("kpi-detail-macro-picker")
+            KpiMacroHero(summary: s, macro: macro, goal: kpiMacroGoal(goals, macro))
             HStack(alignment: .firstTextBaseline) {
                 Text("7 days vs 28 days").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
                 Spacer()
@@ -69,15 +154,66 @@ struct KpiNutritionPanel: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Last 7 days").jiFont(.body).foregroundStyle(theme.color(.text))
                         Spacer()
-                        Text(jiValueText(s.avg7, decimals: def.decimals)).jiFont(.body, weight: .bold).foregroundStyle(theme.color(.text))
+                        Text(jiValueText(s.avg7, decimals: def.decimals)).jiFont(.body, weight: .bold)
+                            .foregroundStyle(theme.color(s.avg7 == nil ? .muted : kpiMacroTintRole(macro)))
                         if s.avg7 != nil { Text("\(def.unit) a day").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
                     }
-                    NormalBar(value: s.avg7, normal: nil, unit: def.unit, decimals: def.decimals, tint: metricTintRole(macro.rawValue))
+                    // Goal tick (W2) and normal band (W3) are left for later waves.
+                    NormalBar(value: s.avg7, normal: nil, unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
                 }
             }
+            Text(kpiMacroTrendLine(avg7: s.avg7, avg28: s.avg28))
+                .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("kpi-detail-macro-trend")
             JISectionHeader("All macros · goal vs actual")
-            Surface { KpiMacroTable(rows: rows) }
+            Surface { KpiMacroTable(rows: rows, goals: goals) }
+            // Board: "Put on a widget" — the KPI widget is chosen in the system widget editor
+            // (`SelectKpiIntent`); the app has no in-app pin action, so the row is left out.
         }
+    }
+}
+
+/// Board hero: the newest day's value large in the macro's tint, "/ 155 g goal" (or "no goal
+/// set") beside it, and the status line under it.
+struct KpiMacroHero: View {
+    let summary: KpiMacroSummary
+    let macro: KpiMetricId
+    let goal: Double?
+    private let theme = JITheme.native
+
+    var body: some View {
+        let def = KpiMetrics.def(macro)
+        let status = kpiMacroHeroStatus(value: summary.latest, goal: goal, date: summary.latestDate, macro: macro,
+                                        unit: def.unit, decimals: def.decimals)
+        VStack(alignment: .leading, spacing: 4) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) { number(def); goalText(def) }
+                VStack(alignment: .leading, spacing: 2) { number(def); goalText(def) }
+            }
+            if let status {
+                Group {
+                    if status.word.hasPrefix("—") { Text(status.word) } else { Label(status.word, systemImage: status.symbolName) }
+                }
+                .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(status.role))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("kpi-detail-macro-status")
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("kpi-detail-macro-hero")
+    }
+
+    private func number(_ def: KpiMetricDef) -> some View {
+        Text(jiValueText(summary.latest, decimals: def.decimals))
+            .jiNumeral(.numeralDisplay, weight: .heavy)
+            .foregroundStyle(theme.color(summary.latest == nil ? .muted : kpiMacroTintRole(macro)))
+            .accessibilityIdentifier("kpi-detail-value")
+    }
+
+    private func goalText(_ def: KpiMetricDef) -> some View {
+        Text(kpiMacroHeroGoalText(goal: goal, unit: def.unit, decimals: def.decimals))
+            .jiFont(.body).foregroundStyle(theme.color(.muted))
     }
 }
 
@@ -87,6 +223,7 @@ struct KpiNutritionPanel: View {
 /// fit, so each macro becomes its own labelled block.
 struct KpiMacroTable: View {
     let rows: [NutritionDailyRow]
+    var goals: NutritionGoal? = nil
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     private static let macros: [KpiMetricId] = [.kcal, .protein, .carbs, .fat]
@@ -103,7 +240,7 @@ struct KpiMacroTable: View {
 
     private func cells(_ i: Int, _ s: KpiMacroSummary) -> [String] {
         let m = Self.macros[i]
-        return kpiMacroTableCells(s, decimals: KpiMetrics.def(m).decimals, unit: kpiMacroTableUnit(m))
+        return kpiMacroTableCells(s, decimals: KpiMetrics.def(m).decimals, unit: kpiMacroTableUnit(m), goal: kpiMacroGoal(goals, m))
     }
 
     private func grid(_ summaries: [KpiMacroSummary], headers: [String]) -> some View {
@@ -118,7 +255,7 @@ struct KpiMacroTable: View {
                 Divider().gridCellUnsizedAxes(.horizontal)
                 GridRow {
                     Text(KpiMetrics.def(Self.macros[i]).label).jiFont(.footnote, weight: .semibold)
-                        .foregroundStyle(theme.color(metricTintRole(Self.macros[i].rawValue)))
+                        .foregroundStyle(theme.color(kpiMacroTintRole(Self.macros[i])))
                         .frame(maxWidth: .infinity, alignment: .leading)
                     ForEach(Array(cells(i, s).enumerated()), id: \.offset) { c, cell in
                         Text(cell).jiFont(.caption)
@@ -136,7 +273,7 @@ struct KpiMacroTable: View {
             ForEach(Array(summaries.enumerated()), id: \.offset) { i, s in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(KpiMetrics.def(Self.macros[i]).label).jiFont(.body, weight: .semibold)
-                        .foregroundStyle(theme.color(metricTintRole(Self.macros[i].rawValue)))
+                        .foregroundStyle(theme.color(kpiMacroTintRole(Self.macros[i])))
                     ForEach(Array(zip(headers, cells(i, s)).enumerated()), id: \.offset) { _, pair in
                         HStack(alignment: .firstTextBaseline) {
                             Text(pair.0).jiFont(.footnote).foregroundStyle(theme.color(.muted))

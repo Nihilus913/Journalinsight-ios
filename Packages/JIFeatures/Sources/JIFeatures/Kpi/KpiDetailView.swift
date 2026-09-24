@@ -50,25 +50,18 @@ public struct KpiDetailView: View {
         if let t = model.target?.threshold { threshold = t }
     }
 
-    /// §5: the screen's name is the navigation title; the card keeps only the live number.
+    /// §5: the screen's name is the navigation title. B-57 W1 board: the value card carries its
+    /// status word and explanation; the nutrition variant has its own hero inside the panel.
+    @ViewBuilder
     private var headline: some View {
-        let unit = model.def.unit
-        let text = formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)")
-        return Surface {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(text)
-                    .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
-                    .accessibilityLabel(model.def.label)
-                    .accessibilityValue(text)
-                    .accessibilityIdentifier("kpi-detail-value")
-                // B-46 item 3: a fallback reading is labelled with the day it came from, so an
-                // older number is never presented as today's.
-                if let asOf = model.asOfLabel {
-                    Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("kpi-detail-as-of")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        if !isNutritionKpi(model.metric) {
+            let unit = model.def.unit
+            KpiDetailValueCard(
+                valueText: formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"),
+                label: model.def.label,
+                status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals),
+                asOf: model.asOfLabel
+            )
         }
     }
 
@@ -91,7 +84,7 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var loaded: some View {
-        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, macro: model.metric) }
+        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, goals: model.goals?.nutrition, macro: model.metric) }
         chartSection
         if model.target != nil { editor }
     }
