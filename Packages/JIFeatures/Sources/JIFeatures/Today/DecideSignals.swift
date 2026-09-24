@@ -78,12 +78,23 @@ public struct DecideSignalsSection: View {
 
     public init(signals: [GateSignal]) { self.signals = signals }
 
+    private var whyHeading: some View {
+        Text("Why").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+    }
+    private var whyNote: some View {
+        Text("your normal — \(JIMissingReason.calibrating.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+    }
+
     public var body: some View {
         let rows = VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Why").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                Spacer()
-                Text("your normal — \(JIMissingReason.calibrating.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            // AX sizes: the reference note drops under the heading instead of truncating to "your normal…".
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    whyHeading
+                    Spacer()
+                    whyNote.lineLimit(1)
+                }
+                VStack(alignment: .leading, spacing: 2) { whyHeading; whyNote }
             }
             ForEach(signals.map(decideSignalRowModel)) { m in
                 Button { if rationaleModel != nil { showRationale = true } } label: {

@@ -32,8 +32,12 @@ public struct ScreenScroll<Content: View>: View {
             // Pinned to the cell and clipped from the TOP: a screen taller than the cell used to
             // overflow symmetrically (the sweep showed its middle), and a bottom overlay (W-B57b
             // Coach card) sat off-cell. Now the cell shows what a phone shows before scrolling.
+            // W-B57-W1 verifier: the content is laid out at its own (ideal) height, as a ScrollView
+            // proposes — offering it the cell height squeezed AX3 rows until they overlapped.
             GeometryReader { g in
                 VStack(spacing: 0) { content; Spacer(minLength: 0) }
+                    .frame(width: g.size.width)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(width: g.size.width, alignment: .top)
                     .frame(height: g.size.height, alignment: .top)
                     .clipped()
@@ -151,7 +155,14 @@ struct NativeFixtureUnavailable: View {
         return AnyView(NativeScreenPreview { GateConfigView(model: model) })
     }
 
+    /// Board EditToday: the squares carry the Today fixture's values (a missing one says why) and
+    /// the board's hidden three sit under "Add a square". Its own store, so no other fixture sees it.
     static func editToday() -> AnyView {
-        AnyView(NativeScreenPreview { EditTodayView(model: EditTodayViewModel(prefs: NativeFixtureStore.prefs)) })
+        let prefs = (try? AppDatabase.inMemory()).map(PrefStore.init(db:))
+        var shown = TodayTilePrefs.default
+        for id in ["kcal", "steps", "weight"] { shown = setTodayTileHidden(shown, id: id, hide: true) }
+        saveTodayTilePrefs(shown, prefs: prefs)
+        let chips = TodayViewModel.fixture()?.squareChips ?? []
+        return AnyView(NativeScreenPreview { EditTodayView(model: EditTodayViewModel(prefs: prefs, chips: chips)) })
     }
 }

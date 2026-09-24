@@ -17,7 +17,7 @@ public nonisolated func signalRowAccessibilityLabel(label: String, value: Double
 }
 
 /// B-57 §1 (replaces the old gate-signal arcs row, B-72): label + reference line on the left, value and the
-/// tinted, worded status on the right. Wraps at AX sizes instead of clipping.
+/// tinted, worded status on the right. Stacks at AX sizes and always keeps its full height.
 public struct SignalRow: View {
     let label: String, value: Double?, unit: String?, decimals: Int
     let normal: ClosedRange<Double>?, goal: Double?, status: JISignalStatus, detail: String?
@@ -51,6 +51,9 @@ public struct SignalRow: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        // W-B57-W1 verifier (AX3): never squeezed below its own height by a height-starved parent —
+        // a squeezed row drew its lines over the next row. It grows; the container scrolls.
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(signalRowAccessibilityLabel(label: label, value: value, unit: unit, decimals: decimals, status: status, reference: reference))
     }
