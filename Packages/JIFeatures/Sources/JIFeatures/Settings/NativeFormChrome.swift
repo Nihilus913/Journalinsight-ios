@@ -72,12 +72,7 @@ struct BoardSummaryCard<Accessory: View>: View {
                 VStack(alignment: .leading, spacing: 2) { number; unitText }
             }
             if let status {
-                Label {
-                    Text(status.word).jiFont(.subheadline, weight: .semibold)
-                } icon: {
-                    Image(systemName: status.systemImage ?? "minus")
-                }
-                .foregroundStyle(theme.color(status.role))
+                BoardStatusLabel(word: status.word, systemImage: status.systemImage ?? "minus", role: status.role)
             }
             if !segments.isEmpty {
                 HStack(spacing: 6) {
@@ -136,6 +131,21 @@ struct BoardSectionHeader<Trailing: View>: View {
 
     private var titleText: some View {
         Text(title).jiFont(.cardTitle, weight: .bold, tint: .text).accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A status word with its glyph, tight (a `Label` in a `List` row takes the list's icon column).
+struct BoardStatusLabel: View {
+    let word: String
+    let systemImage: String
+    let role: JIColorRole
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: systemImage).imageScale(.small)
+            Text(word)
+        }
+        .jiFont(.subheadline, weight: .semibold, tint: role)
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -125,7 +125,7 @@ public struct SettingsView: View {
 
     private func subtitle(for id: String) -> String {
         switch id {
-        case "hub": model.connection.baseURL.isEmpty ? "Not set up" : model.connection.baseURL
+        case "hub": URL(string: model.connection.baseURL)?.host().map { $0 } ?? "Not set up"
         case "health": "Backload and Apple Watch read access"
         case "home": "Edit Today, weekly plan, widgets"
         case "haptics": "Feel and notifications"

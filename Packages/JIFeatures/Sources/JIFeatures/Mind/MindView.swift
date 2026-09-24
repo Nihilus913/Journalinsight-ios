@@ -50,8 +50,8 @@ public struct MindView: View {
                     MindScaleValue(label: "Stress", value: summary.stress)
                     MindScaleValue(label: "Energy", value: summary.energy)
                 }
-                Label(summary.statusWord, systemImage: model.checkedInToday ? "checkmark" : "minus")
-                    .jiFont(.subheadline, weight: .semibold, tint: model.checkedInToday ? .info : .muted)
+                BoardStatusLabel(word: summary.statusWord, systemImage: model.checkedInToday ? "checkmark" : "minus",
+                                 role: model.checkedInToday ? .info : .muted)
                     .accessibilityIdentifier("mind-today-status")
                 HStack(spacing: 6) {
                     ForEach(1...5, id: \.self) { step in
@@ -93,7 +93,7 @@ public struct MindView: View {
             if model.events.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Migraine · reflux · other").jiFont(.subheadline, tint: .text)
-                    Label("None logged", systemImage: "minus").jiFont(.subheadline, weight: .semibold, tint: .muted)
+                    BoardStatusLabel(word: "None logged", systemImage: "minus", role: .muted)
                 }
                 .accessibilityElement(children: .combine)
             } else {
@@ -154,7 +154,9 @@ private struct Who5ScoreCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             BoardSummaryCard(
-                systemImage: "chart.bar", title: "Last score", trailing: entry?.date,
+                systemImage: "chart.bar", title: "Last score",
+                trailing: entry.flatMap { JournalCalendarZurich.date(fromISODay: $0.date) }
+                    .map { JournalCalendarZurich.formatter("d MMM").string(from: $0) },
                 value: entry.map { "\($0.pct)" }, unit: "/ 100",
                 status: entry.map { BoardStatus(word: who5ScoreWord(pct: $0.pct), systemImage: $0.pct > 50 ? "checkmark" : "minus",
                                                  role: $0.pct > 50 ? .info : .muted) }

@@ -104,9 +104,9 @@ public struct JournalCalendarScreen: View {
             Section { grid.listRowBackground(Color.clear) }
 
             Section {
-                AdaptiveHStack {
-                    entriesCard
-                    moodCard
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 12) { entriesCard; moodCard }
+                    VStack(spacing: 12) { entriesCard; moodCard }
                 }
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
@@ -234,8 +234,8 @@ public struct JournalCalendarScreen: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(label).jiFont(.subheadline, weight: .semibold, tint: .text)
                 Spacer(minLength: 8)
-                Label(written ? "Written" : "Not written", systemImage: written ? "checkmark" : "minus")
-                    .jiFont(.subheadline, weight: .semibold, tint: written ? .info : .reduced)
+                BoardStatusLabel(word: written ? "Written" : "Not written", systemImage: written ? "checkmark" : "minus",
+                                 role: written ? .info : .reduced)
             }
             if written, let entry = model.entries.first(where: { $0.date == selectedDay }) {
                 Button("Open entry") { model.beginEditEntry(entry) }

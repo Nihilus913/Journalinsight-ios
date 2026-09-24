@@ -90,7 +90,8 @@ public struct LocalMirrorsView: View {
 
             Section {
                 setRow("Gate decisions", systemImage: "gauge.with.needle",
-                       detail: model.decisions.map { "\($0.count) response\($0.count == 1 ? "" : "s") · on this phone" } ?? "Loading…",
+                       detail: model.decisions.map { $0.isEmpty ? "No responses yet · on this phone"
+                           : "\($0.count) response\($0.count == 1 ? "" : "s") · on this phone" } ?? "Loading…",
                        mirrored: setFlags[2])
                 setRow("KPI targets", systemImage: "chart.bar",
                        detail: model.targets.isEmpty ? "Not mirrored yet · next sync at home" : "\(model.targets.count) targets",
@@ -136,8 +137,8 @@ public struct LocalMirrorsView: View {
 
     private func setRow(_ title: String, systemImage: String, detail: String, mirrored: Bool) -> some View {
         JIRow(title: title, subtitle: detail, systemImage: systemImage) {
-            Label(mirrored ? "Mirrored" : "Nothing yet", systemImage: mirrored ? "checkmark" : "minus")
-                .jiFont(.subheadline, weight: .semibold, tint: mirrored ? .go : .reduced)
+            BoardStatusLabel(word: mirrored ? "Mirrored" : "Nothing yet", systemImage: mirrored ? "checkmark" : "minus",
+                             role: mirrored ? .go : .reduced)
         }
         .accessibilityElement(children: .combine)
     }

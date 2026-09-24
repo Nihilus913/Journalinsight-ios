@@ -102,8 +102,9 @@ public struct DataQualityView: View {
         Section {
             ForEach(model.sourceSummary.sources) { source in
                 JIRow(title: dataQualitySourceDisplay(source.source)) {
-                    Label(stateWord(source), systemImage: source.state == .green ? "checkmark" : "exclamationmark.triangle")
-                        .jiFont(.subheadline, weight: .semibold, tint: role(for: source.state))
+                    BoardStatusLabel(word: stateWord(source),
+                                     systemImage: source.state == .green ? "checkmark" : "exclamationmark.triangle",
+                                     role: role(for: source.state))
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("dataQuality.source.\(source.source)")
