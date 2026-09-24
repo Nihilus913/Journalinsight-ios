@@ -98,3 +98,8 @@ nonisolated struct EnergyEmptyProvider: EnergyProviding {
     #expect(EnergyFormat.deficitColor(150, class: "mild", theme: .native) == JITheme.native.color(.info))
     #expect(EnergyFormat.deficitColor(600, class: "dangerous", theme: .native) != JITheme.native.color(.go))
 }
+
+@Test func energyCopyIsTheBoards() {
+    #expect(energySubtitle == "What you eat against what you burn, from Apple Health")
+    #expect(energyBurnCardCopy == "Resting plus active energy, both read from Apple Health. JI adds them up each day.")
+}

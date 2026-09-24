@@ -2,6 +2,11 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// B-57 W1: the board's subtitle and "What you burn" copy (W1 ships the wording; the values stay
+/// hub-sourced until W2's HealthKit reads, so the burn card shows "Not in Health yet").
+public nonisolated let energySubtitle = "What you eat against what you burn, from Apple Health"
+public nonisolated let energyBurnCardCopy = "Resting plus active energy, both read from Apple Health. JI adds them up each day."
+
 /// Energy tab (W3a-L1, frozen contract `EnergyView.init(model:)` for `RootTabView`'s L4 wiring).
 /// Composes `EnergyHero` + `IntakeTdeeChart` + `DeficitDayList` from `RecoveryView`'s own
 /// loading/error/empty/loaded phase switch (the pattern the wave card names) — single-column only
@@ -35,6 +40,9 @@ public struct EnergyView: View {
         .jiTheme(.native)
         // §5: the hand-drawn large title becomes the system one.
         .navigationTitle("Energy")
+        #if os(iOS)
+        .navigationSubtitle(energySubtitle)
+        #endif
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
@@ -60,6 +68,7 @@ public struct EnergyView: View {
 
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
+            HStack { Spacer(); SyncedPill(date: model.fetchedAt, label: .lastSynced) }
             if let staleDate = staleDateBanner {
                 Surface(level: 2) {
                     Text("Showing energy from \(staleDate) — no newer sync yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
@@ -80,6 +89,27 @@ public struct EnergyView: View {
                             .accessibilityIdentifier("energy.balanceTrend")
                     }
                 }
+                HowWeCalculateLink(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                }
+                Surface(level: 1) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                            Label(JIMissingReason.notInHealthYet.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
+                                .foregroundStyle(theme.color(.muted))
+                        }
+                        Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("energy.whatYouBurn")
+                }
+                HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                    .accessibilityIdentifier("energy.howWeCalculate")
                 JISectionHeader("Intake vs TDEE")
                 Surface(padding: 18) {
                     IntakeTdeeChart(days: report.days)

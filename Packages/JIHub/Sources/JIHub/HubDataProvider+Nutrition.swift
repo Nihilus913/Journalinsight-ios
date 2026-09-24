@@ -20,13 +20,4 @@ extension HubDataProvider: NutritionProviding {
         return r.days
     }
 
-    public func logFood(_ body: LogFoodBody) async throws -> LogFoodResult {
-        try await client.post("/api/v1/nutrition/log", body: body)
-    }
-
-    public func deleteLogItem(itemId: String, date: String?) async throws {
-        var query: [String: String] = [:]
-        if let date { query["date"] = date }
-        try await client.delete("/api/v1/nutrition/log/\(itemId)", query: query)
-    }
 }
