@@ -59,10 +59,22 @@ public nonisolated func normalBarChartAccessibilityLabel(points: [NormalBarPoint
     }.joined(separator: ", ")
 }
 
+/// At accessibility text sizes seven column labels cannot fit under the bars (they truncated to
+/// "M…" / "Not in He…"), so the chart becomes one full-width row per night instead.
+public nonisolated func normalBarChartStacks(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
+/// A stacked row's bar length as a 0…1 share of the chart's scale; nil for a missing night.
+public nonisolated func normalBarFraction(_ value: Double?, yMax: Double) -> Double? {
+    guard let value, yMax > 0 else { return nil }
+    return min(1, max(0, value / yMax))
+}
+
 public struct NormalBarChart: View {
     let points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String?, decimals: Int
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 150
+    @ScaledMetric(relativeTo: .body) private var stackedBarHeight: CGFloat = 8
     /// The chart's width, so a missing night's reason word wraps inside its own slot instead of
     /// running over its neighbours ("Not in Health yet" spanned two nights).
     @State private var chartWidth: CGFloat = 0
@@ -84,6 +96,9 @@ public struct NormalBarChart: View {
         VStack(alignment: .leading, spacing: 8) {
             if points.isEmpty {
                 Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            } else if normalBarChartStacks(dynamicTypeSize) {
+                stackedRows
+                latestBandWord
             } else {
                 Chart(points) { p in
                     let slot = normalBarSlotText(p, decimals: decimals)
@@ -130,15 +145,61 @@ public struct NormalBarChart: View {
                 }
                 .frame(height: chartHeight)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chartWidth = $0 }
-                if let latest = points.last(where: \.isLatest),
-                   let word = normalBandWord(normalBandPosition(latest.value, normal: normal)) {
-                    Text("\(latest.label) · \(word)").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.reduced))
-                }
+                latestBandWord
             }
             Text(normalBarChartLegend(normal: normal, decimals: decimals)).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Last \(points.count) nights")
         .accessibilityValue(normalBarChartAccessibilityLabel(points: points, normal: normal, unit: unit, decimals: decimals))
+    }
+
+    @ViewBuilder private var latestBandWord: some View {
+        if let latest = points.last(where: \.isLatest),
+           let word = normalBandWord(normalBandPosition(latest.value, normal: normal)) {
+            Text("\(latest.label) · \(word)").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.reduced))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// AX sizes: label + value (or "—" + reason) on a line that wraps whole words, then a
+    /// horizontal bar over the shaded normal band.
+    private var stackedRows: some View {
+        let yMax = normalBarChartYMax(points: points, normal: normal)
+        return VStack(alignment: .leading, spacing: 12) {
+            ForEach(points) { p in
+                let slot = normalBarSlotText(p, decimals: decimals)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(p.label).jiFont(.footnote, weight: p.isLatest ? .bold : .regular)
+                            .foregroundStyle(theme.color(.text))
+                        Spacer(minLength: 8)
+                        Text(slot.value).jiFont(.footnote, weight: p.isLatest ? .bold : .semibold)
+                            .foregroundStyle(p.value == nil || !p.isLatest ? theme.color(.muted) : theme.color(barRole(p)))
+                    }
+                    if let reason = slot.reason {
+                        Text(reason).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(theme.color(.mutedNested).opacity(0.2))
+                            if let normal {
+                                let lo = CGFloat(normalBarFraction(normal.lowerBound, yMax: yMax) ?? 0)
+                                let hi = CGFloat(normalBarFraction(normal.upperBound, yMax: yMax) ?? 0)
+                                Rectangle().fill(theme.color(.mutedNested).opacity(0.35))
+                                    .frame(width: max(2, (hi - lo) * geo.size.width))
+                                    .offset(x: lo * geo.size.width)
+                            }
+                            if let f = normalBarFraction(p.value, yMax: yMax) {
+                                Capsule().fill(theme.color(barRole(p)))
+                                    .frame(width: max(stackedBarHeight, CGFloat(f) * geo.size.width))
+                            }
+                        }
+                    }
+                    .frame(height: stackedBarHeight)
+                }
+            }
+        }
     }
 }

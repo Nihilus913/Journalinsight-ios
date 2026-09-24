@@ -2,9 +2,6 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-57 W1 Recovery score card copy (the score itself is W3; the card shows "—" + Calibrating).
-public nonisolated let gateRationaleRecoveryScoreCopy = "One score from overnight HRV, resting HR, sleep and load, each against your normal. It shows a number once it has 14 nights."
-
 /// The gate's own reasoning (triggered rules + suggestions) plus the 3-day decision trail — the
 /// oracle's `mobile/app/gate-rationale.tsx`, reached by tapping the verdict hero on Today
 /// (`VerdictHero.tsx:404` → `router.push("/gate-rationale")`).
@@ -40,13 +37,11 @@ public struct GateRationaleView: View {
                     if model.isByDate {
                         byDateReasonCard
                     } else {
-                        recoveryScoreCard
+                        // r4 (board 03 GateRationale): What counted → Weekly nutrition → Last 3 days.
+                        // The recovery score is left for W3, so its card is gone (not a placeholder).
                         whatCountedCard
-                        nutritionGateCard
-                        triggeredRulesCard
-                        contributorsCard
-                        suggestionsCard
-                        decisionTrailCard
+                        weeklyNutritionSection
+                        lastDaysSection
                     }
                     // W-B57b (§9): the WEEKLY gate response left Today — it lives here, at the
                     // bottom of the rationale, built by Today's `makeGateRespondModel` path and
@@ -113,40 +108,6 @@ public struct GateRationaleView: View {
         }
     }
 
-    /// 2026-09-08 fix (oracle): `recommendation` is the WEEKLY NUTRITION KPI gate's verdict, not the
-    /// morning readiness verdict — its own card, with the honest counts.
-    private var nutritionGateCard: some View {
-        card("Weekly nutrition gate") {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(model.recommendationLabel ?? "—").jiFont(.footnote).foregroundStyle(theme.color(.text))
-                    .accessibilityIdentifier("gateRationale.recommendation")
-                if let tracked = model.trackedDaysLine {
-                    Text(tracked).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("gateRationale.trackedDays")
-                }
-                HowWeCalculateLink("How JI calculates balance and the plan band", title: JIExplainers.energyBalanceTitle,
-                                   steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-            }
-        }
-    }
-
-    /// B-57 W1: the recovery score is W3 — the card shows "—" + Calibrating, never a number.
-    private var recoveryScoreCard: some View {
-        card("Recovery score") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("—").jiNumeral(.numeralLarge, tint: .muted)
-                    Label(JIMissingReason.calibrating.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
-                        .foregroundStyle(theme.color(.muted))
-                }
-                Text(gateRationaleRecoveryScoreCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("gateRationale.recoveryScore")
-        }
-    }
-
     @ViewBuilder private var whatCountedCard: some View {
         if let signals = model.morning?.gateSignals, !signals.isEmpty {
             card("What counted") {
@@ -160,81 +121,127 @@ public struct GateRationaleView: View {
         }
     }
 
-    private var triggeredRulesCard: some View {
-        card("Why — triggered rules") {
-            if let clean = model.noRulesCopy {
-                Text(clean).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("gateRationale.noRules")
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(model.humanizedRules().enumerated()), id: \.offset) { _, rule in
-                        bullet(rule, dot: theme.color(.reduced))
+    /// Board "Weekly nutrition · 7-day": Energy balance + Protein tiles from the weekly gate's own
+    /// averages ("—" + No data when absent), then the gate's recommendation / rules / suggestions as
+    /// the caption, then the balance explainer. Plan band, deficit class and the protein goal are
+    /// W2 (goals/band), so those spots are left out.
+    private var weeklyNutritionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            boardHeader("Weekly nutrition", trailing: "7-day")
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) { energyTile; proteinTile }
+                VStack(alignment: .leading, spacing: 12) { energyTile; proteinTile }
+            }
+            let notes = model.weeklyNotes()
+            if !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(notes.enumerated()), id: \.offset) { _, line in
+                        Text(line).jiFont(.footnote).foregroundStyle(theme.color(.text))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .accessibilityIdentifier("gateRationale.triggeredRules")
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("gateRationale.weeklyNotes")
             }
+            HowWeCalculateLink("How JI calculates balance and the plan band", title: JIExplainers.energyBalanceTitle,
+                               steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
         }
     }
 
-    /// The numeric WHY alongside the qualitative rules — the gate's own 7-day averages, ranked by
-    /// magnitude. Neutral bars only (green is reserved for verdict/band/score).
-    private var contributorsCard: some View {
-        card("Contributors") {
-            ContributorBreakdown(contributors: contributors)
-                .accessibilityIdentifier("gateRationale.contributors")
-        }
+    private var energyTile: some View {
+        weeklyTile(title: "Energy balance", systemImage: "flame", tint: .reduced, value: model.energyBalance7d,
+                   signed: true, unit: "kcal/day", id: "gateRationale.energyBalance")
     }
 
-    private var contributors: [ReadinessContributor] {
-        let a = model.gate?.averages
-        return [
-            ReadinessContributor(id: "kcal", label: "7d kcal", value: a?.avgKcal7d, magnitude: a?.avgKcal7d ?? 0),
-            ReadinessContributor(id: "protein", label: "7d protein", value: a?.avgProtein7d, magnitude: (a?.avgProtein7d ?? 0) * 10),
-            ReadinessContributor(id: "sleep", label: "7d sleep score", value: a?.sleepScore7d, magnitude: (a?.sleepScore7d ?? 0) * 10),
-            // ACWR lives on a 0–2 scale; scaled so it is comparable against the others' magnitudes
-            // rather than always ranking last (RecoveryView's ContributorBreakdown does the same).
-            ReadinessContributor(id: "acwr", label: "ACWR", value: a?.acwr, magnitude: (a?.acwr ?? 0) * 1000),
-        ]
+    private var proteinTile: some View {
+        weeklyTile(title: "Protein", systemImage: "fork.knife", tint: .text, value: model.protein7d,
+                   signed: false, unit: "g a day", id: "gateRationale.protein")
     }
 
-    private var suggestionsCard: some View {
-        card("Suggestions") {
-            if let empty = model.suggestionsEmptyCopy {
-                Text(empty).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("gateRationale.noSuggestions")
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(model.suggestionLines.enumerated()), id: \.offset) { _, line in
-                        bullet(line, dot: theme.color(.go))
-                    }
-                }
-                .accessibilityIdentifier("gateRationale.suggestions")
-            }
-        }
-    }
-
-    private var decisionTrailCard: some View {
-        let days = model.trailDays
-        return card("Decision trail · last \(days.count) days") {
-            if days.isEmpty {
-                Text("No recovery history yet.").jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("gateRationale.noTrail")
-            } else {
-                HStack(alignment: .top, spacing: 8) {
-                    ForEach(days) { day in
-                        VStack(spacing: 4) {
-                            Circle().fill(theme.color(verdictColorRole(day.tone))).frame(width: 12, height: 12)
-                            Text(Self.weekdayLabel(day.date)).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.text))
-                            Text(day.metricsLine()).jiFont(.micro).foregroundStyle(theme.color(.muted))
-                                .multilineTextAlignment(.center).lineLimit(2)
+    private func weeklyTile(title: String, systemImage: String, tint: JIColorRole, value: Double?, signed: Bool,
+                            unit: String, id: String) -> some View {
+        Surface(level: 2, padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(title, systemImage: systemImage).jiFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(theme.color(tint))
+                if let value {
+                    let text = signed && value > 0 ? "+\(jiNumber(value, 0))" : jiNumber(value, 0)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(text).jiNumeral(.numeralMedium, weight: .heavy).foregroundStyle(theme.color(tint))
+                            Text(unit).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         }
-                        .frame(maxWidth: .infinity)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(day.date): \(day.metricsLine())")
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(text).jiNumeral(.numeralMedium, weight: .heavy).foregroundStyle(theme.color(tint))
+                            Text(unit).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        }
+                    }
+                } else {
+                    Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                    Text(JIMissingReason.noData.rawValue).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityValue(value.map { "\(jiNumber($0, 0)) \(unit), 7-day average" } ?? "No data")
+        .accessibilityIdentifier(id)
+    }
+
+    /// Board "Last 3 days": date · session · verdict word, newest first. A day with no persisted
+    /// verdict reads "—" + No data (never a guessed session).
+    private var lastDaysSection: some View {
+        let rows = model.lastDays()
+        return VStack(alignment: .leading, spacing: 10) {
+            boardHeader("Last 3 days", trailing: nil)
+            Surface(level: 2, padding: 0) {
+                VStack(spacing: 0) {
+                    if rows.isEmpty {
+                        Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 { Divider().overlay(theme.color(.hairlineNested)) }
+                        lastDayRow(row)
                     }
                 }
-                .accessibilityIdentifier("gateRationale.decisionTrail")
             }
+            .accessibilityIdentifier("gateRationale.lastDays")
+        }
+    }
+
+    private func lastDayRow(_ row: GateDayRow) -> some View {
+        let dayText = Text(row.dayLabel).jiFont(.body).foregroundStyle(theme.color(.muted))
+        let session = Text(row.session ?? (row.verdictWord == nil ? "—" : "")).jiFont(.body)
+            .foregroundStyle(theme.color(row.session == nil ? .muted : .text))
+            .fixedSize(horizontal: false, vertical: true)
+        let verdict = Text(row.verdictWord ?? JIMissingReason.noData.rawValue)
+            .jiFont(.body, weight: .semibold)
+            .foregroundStyle(theme.color(row.verdictWord == nil ? .muted : verdictColorRole(row.tone)))
+            .fixedSize(horizontal: false, vertical: true)
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                dayText.fixedSize()
+                session.frame(maxWidth: .infinity, alignment: .leading)
+                verdict.multilineTextAlignment(.trailing)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack { dayText; Spacer(minLength: 8); verdict }
+                session
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(row.dayLabel): \(row.session ?? "no session"), \(row.verdictWord ?? "no data")")
+    }
+
+    private func boardHeader(_ title: String, trailing: String?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if let trailing { Text(trailing).jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
         }
     }
 
@@ -253,15 +260,6 @@ public struct GateRationaleView: View {
     /// §2: the uppercase footnote header, from JIDesign (unpadded inside a card).
     private func sectionLabel(_ text: String) -> some View {
         JISectionHeader(text).padding(.leading, -16)
-    }
-
-    private func bullet(_ text: String, dot: Color) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text("•").jiFont(.footnote).foregroundStyle(dot)
-            Text(text).jiFont(.footnote).foregroundStyle(theme.color(.text)).frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(text)
     }
 
     /// "2026-09-11" -> "Thu". Parsed as a plain calendar date (no timezone shift off the hub's day).

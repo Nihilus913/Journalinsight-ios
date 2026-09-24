@@ -201,7 +201,59 @@ private struct GateRationaleProvider: HealthDataProvider {
     #expect(GateRationaleView.weekdayLabel("not-a-date", locale: en) == "not-a-date")
 }
 
-@Test func recoveryScoreCardIsCalibratingInW1() {
-    #expect(gateRationaleRecoveryScoreCopy == "One score from overnight HRV, resting HR, sleep and load, each against your normal. It shows a number once it has 14 nights.")
-    #expect(!gateRationaleRecoveryScoreCopy.contains("goal"))
+// MARK: - r4: the board's Weekly nutrition tiles + "Last 3 days" table
+
+@Test @MainActor func weeklyTilesReadTheGatesSevenDayAveragesNeverInvented() async throws {
+    let vm = GateRationaleViewModel(provider: GateRationaleProvider())
+    await vm.load()
+    // planning_gate.json: avg_kcal_deficit_7d 249.3 -> balance −249.3 (the sign people read).
+    #expect(vm.energyBalance7d == -249.3)
+    #expect(vm.protein7d == vm.gate?.averages.avgProtein7d)
+
+    let empty = GateRationaleViewModel(provider: GateRationaleProvider())
+    #expect(empty.energyBalance7d == nil)
+    #expect(empty.protein7d == nil)
+}
+
+@Test @MainActor func weeklyNotesKeepTheGatesRecommendationRulesAndSuggestionsReachable() async throws {
+    var p = GateRationaleProvider()
+    p.recommendation = .reduce
+    p.triggeredRules = ["avg_protein_7d 118.0 vs threshold 130.0 (REDUCE: insufficient protein)"]
+    p.suggestions = ["Front-load protein earlier in the day"]
+    let vm = GateRationaleViewModel(provider: p)
+    await vm.load()
+    #expect(vm.weeklyNotes(locale: en) == [
+        "Gate recommends REDUCE",
+        "7-day protein averages 118g against the 130g floor — insufficient protein.",
+        "Front-load protein earlier in the day",
+    ])
+}
+
+@Test func lastThreeDatesCountBackFromTheVerdictDayNewestFirst() {
+    #expect(GateRationaleViewModel.lastThreeDates(anchor: "2026-09-01") == ["2026-09-01", "2026-08-31", "2026-08-30"])
+    #expect(GateRationaleViewModel.lastThreeDates(anchor: "garbage").isEmpty)
+    #expect(GateRationaleViewModel.lastThreeDates(anchor: nil).isEmpty)
+}
+
+@Test @MainActor func lastThreeDaysShowOnlyRowsPersistedForThatExactDate() async throws {
+    // The mock serves the 2026-09-11 row for any date; morning's verdict_date is 2026-09-12.
+    let vm = GateRationaleViewModel(provider: GateRationaleProvider())
+    await vm.load()
+    let rows = vm.lastDays(locale: en)
+    #expect(rows.map(\.date) == ["2026-09-12", "2026-09-11", "2026-09-10"])
+    #expect(rows.map(\.dayLabel) == ["Sat 12", "Fri 11", "Thu 10"])
+    #expect(rows[0].verdictWord == nil && rows[0].session == nil)
+    #expect(rows[1].verdictWord == "GO (auto-regulated)")
+    #expect(rows[1].session == "Day 3 Full Upper + Z2 60min")
+    #expect(rows[1].tone == .go)
+    #expect(rows[2].verdictWord == nil)
+}
+
+@Test @MainActor func lastThreeDaysAreEmptyWhenNoVerdictsExist() async throws {
+    var p = GateRationaleProvider()
+    p.verdictError = HubError.http(status: 404, detail: nil)
+    let vm = GateRationaleViewModel(provider: p)
+    await vm.load()
+    #expect(vm.phase == .loaded)
+    #expect(vm.lastDays(locale: en).allSatisfy { $0.verdictWord == nil })
 }

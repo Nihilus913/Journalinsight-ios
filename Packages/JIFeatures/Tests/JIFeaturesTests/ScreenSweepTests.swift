@@ -130,8 +130,8 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     let tall = SweepCell(device: "proof-tall", width: 393, height: 3400, dark: true, ax: true)
     var shots: [(ScreenEntry, SweepCell)] = ScreenRegistry.entries
         .filter { ["today-decide", "readiness-rationale"].contains($0.slug) }
-        .map { ($0, tall) }
-    #expect(shots.count == 2)
+        .flatMap { [($0, tall), ($0, SweepCell(device: "proof-tall", width: 393, height: 3400, dark: true, ax: false))] }
+    #expect(shots.count == 4)
     let nights = ScreenEntry(name: "Proof nil night") {
         AnyView(NormalBarChart(points: [
             NormalBarPoint(id: "1", label: "Thu", value: 28, isLatest: false),
