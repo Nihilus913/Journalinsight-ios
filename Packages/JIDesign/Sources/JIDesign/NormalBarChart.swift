@@ -63,6 +63,13 @@ public struct NormalBarChart: View {
     let points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String?, decimals: Int
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 150
+    /// The chart's width, so a missing night's reason word wraps inside its own slot instead of
+    /// running over its neighbours ("Not in Health yet" spanned two nights).
+    @State private var chartWidth: CGFloat = 0
+    private var slotWidth: CGFloat? {
+        guard chartWidth > 0, !points.isEmpty else { return nil }
+        return max(24, chartWidth / CGFloat(points.count) - 2)
+    }
 
     public init(points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String? = nil, decimals: Int = 0) {
         self.points = points; self.normal = normal; self.unit = unit; self.decimals = decimals
@@ -98,8 +105,10 @@ public struct NormalBarChart: View {
                                     if let reason = slot.reason {
                                         Text(reason).jiFont(.micro).multilineTextAlignment(.center)
                                             .lineLimit(3).minimumScaleFactor(0.7)
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
                                 }
+                                .frame(width: slotWidth)
                                 .foregroundStyle(theme.color(.muted))
                             }
                     }
@@ -120,6 +129,7 @@ public struct NormalBarChart: View {
                     }
                 }
                 .frame(height: chartHeight)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chartWidth = $0 }
                 if let latest = points.last(where: \.isLatest),
                    let word = normalBandWord(normalBandPosition(latest.value, normal: normal)) {
                     Text("\(latest.label) · \(word)").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.reduced))
