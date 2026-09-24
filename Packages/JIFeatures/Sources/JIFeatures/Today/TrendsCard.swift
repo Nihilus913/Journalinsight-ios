@@ -2,7 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-42 (W-B46 L2) — one row of the Today **Trends** card: the metric's 7-day average against its
+/// B-42 (W-B46 L2) — one Today trend: the metric's 7-day average against its
 /// own 28-day baseline. Computed client-side over the series Today has already cached (`recovery`
 /// + `gate.daily`), so the card costs no hub round-trip and needs no new route.
 public nonisolated struct TodayTrend: Identifiable, Sendable, Equatable {
@@ -58,80 +58,4 @@ public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow
         trend("load", "Load (ACWR)", rec(\.acwr), decimals: 2, role: .reduced),
         trend("weight", "Weight", day("weight_kg"), unit: "kg", decimals: 1, role: .muted),
     ]
-}
-
-/// The Today Trends card — Apple's two-column block (`docs/design/references/
-/// 2026-09-22-apple-fitness-summary.png`), fed by `todayTrends`.
-public struct TrendsCard: View {
-    let trends: [TodayTrend]
-    let onSelectKpi: ((String) -> Void)?
-    @Environment(\.jiTheme) private var theme
-
-    public init(trends: [TodayTrend], onSelectKpi: ((String) -> Void)? = nil) {
-        self.trends = trends; self.onSelectKpi = onSelectKpi
-    }
-
-    public var body: some View {
-        Surface(level: 1) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Trends").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text("7 d vs 28 d").jiFont(.subheadline).foregroundStyle(theme.color(.muted))
-                }
-                Columns(minimum: 150, spacing: 14) {
-                    ForEach(trends) { t in
-                        let row = TrendRow(name: t.name, recent: t.recent, baseline: t.baseline,
-                                           unit: t.unit, decimals: t.decimals, tint: theme.color(t.colorRole))
-                        if let onSelectKpi {
-                            Button { onSelectKpi(t.id) } label: { row }
-                                .buttonStyle(.pressableScale)
-                                .accessibilityIdentifier("today.trend.\(t.id)")
-                        } else {
-                            row.accessibilityIdentifier("today.trend.\(t.id)")
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityIdentifier("today.trends")
-    }
-}
-
-/// §8.5 registry entry "Trends card" — the shipping card over a fixed series, so the sweep renders
-/// the same pixels on every run (no hub, no disk, no async load).
-struct TrendsCardNativePreview: View {
-    private static let recovery: [RecoveryDay] = (0..<28).map { i in
-        let day: Int = i % 7
-        let sleep: Double = [78, 81, 74, 88, 83, 79, 85][day]
-        let rhr: Double = [54, 53, 55, 52, 53, 54, 52][day]
-        let battery: Double = [61, 64, 58, 70, 66, 62, 68][day]
-        let readiness: Double = [68, 71, 64, 79, 74, 70, 76][day]
-        let acwr: Double = [1.02, 1.05, 1.11, 0.97, 1.01, 1.08, 1.04][day]
-        let hrv: Double = [48, 50, 47, 53, 51, 49, 52][day] + Double(i) * 0.1
-        return RecoveryDay(
-            date: String(format: "2026-09-%02d", i + 1),
-            sleepScore: sleep,
-            sleepDurationSec: 25_200,
-            rhrBpm: rhr,
-            bodyBatteryAvg: battery,
-            readinessScore: readiness,
-            acwr: acwr,
-            hrvWeeklyAvg: hrv
-        )
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            JISectionHeader("Today")
-            TrendsCard(trends: todayTrends(recovery: Self.recovery, daily: []))
-        }
-        .padding(.horizontal, 20).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(JITheme.native.color(.bg))
-        .jiTheme(.native)
-        .environment(\.jiOffscreenRender, true)
-    }
 }

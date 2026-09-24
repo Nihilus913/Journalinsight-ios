@@ -120,8 +120,9 @@ import JIDesign
                             sleepScore: 81, load: 1.04, insight: "Verdict: GO — Full Upper.").body
         _ = VerdictHeroView(verdict: verdictParts(nil), readiness: nil, readinessMissing: true,
                             sleepScore: nil, load: nil, insight: InsightSentence.noVerdictCopy).body
-        _ = TrendsCard(trends: todayTrends(recovery: recovery([48, 50, 52]), daily: [])).body
-        _ = TrendsCardNativePreview().body
+        // B-57 W1: the Trends card became the full Trends screen (TrendsView).
+        _ = TrendsView(recovery: recovery([48, 50, 52]), daily: [], averages: nil).body
+        _ = TrendsNativePreview().body
     }
 
     @Test func theRegistryCarriesTheTrendsEntry() {
