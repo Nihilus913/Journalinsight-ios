@@ -88,11 +88,13 @@ public struct SquareGrid: View {
             .accessibilityIdentifier("square.\(item.id)")
         if editing, let onMove {
             base
+            #if !os(watchOS)
                 .draggable(item.id)
                 .dropDestination(for: String.self) { dropped, _ in
                     guard let moving = dropped.first else { return false }
                     onMove(moving, item.id); return true
                 }
+            #endif
                 .accessibilityAction(named: "Move earlier") {
                     if let i = ids.firstIndex(of: item.id), i > 0 { onMove(item.id, ids[i - 1]) }
                 }
