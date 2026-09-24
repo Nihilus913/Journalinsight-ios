@@ -84,16 +84,51 @@ private let periodizedBase = PeriodizedPlanInput(weeklyAvgKcal: 1800, trainKcal:
 }
 
 @Test func everyTrainingDayHitsTargetRestDayBankedDown() {
-    let p = computePeriodizedPlan(periodizedBase)
+    // A target the rest days can fund: 6 × 50 kcal banked off the one rest day.
+    var input = periodizedBase
+    input.trainKcal = 1850
+    let p = computePeriodizedPlan(input)
     for d in p.days where trainingWeekDays.contains(d.day) {
-        #expect(d.kcal == 2200)
+        #expect(d.kcal == 1850)
         #expect(d.high)
     }
     let sun = p.days.first { $0.day == .sun }!
     #expect(!sun.high)
-    #expect(sun.kcal < 1800)
-    #expect(p.trainKcal == 2200)
+    #expect(sun.kcal == 1800 - 6 * 50)
+    #expect(p.trainKcal == 1850)
     #expect(p.restKcal == sun.kcal)
+    #expect(!p.trainCapped)
+}
+
+// MARK: B-57 W1 fixer — the rest day printed "-600" kcal
+//
+// Root cause: the schedule has 6 training days and 1 rest day, so a +400 training-day boost has
+// to be banked entirely off Sunday: 1800 − 6 × 400 = −600. The banking math had no floor.
+
+@Test func restDayNeverDropsBelowTheProteinAndFatHeldEveryDay() {
+    let p = computePeriodizedPlan(periodizedBase)   // 1800 avg, 2200 train, 165 P, 55 F
+    let floor = weeklyPlanDayFloorKcal(proteinG: 165, fatG: 55)
+    #expect(floor == 165 * 4 + 55 * 9)
+    #expect(p.days.allSatisfy { $0.kcal > 0 && Double($0.kcal) >= floor })
+    #expect(p.days.allSatisfy { $0.carbs >= 0 })
+    #expect(p.trainCapped)
+    // The weekly average still holds; the training days take only what the rest day can fund.
+    #expect(p.weeklyKcal == 1800 * 7)
+    #expect(p.trainKcal == 1800 + Int(((1800 - floor) * 1 / 6).rounded(.down)))
+    #expect(weeklyPlanMaxTrainKcal(weeklyAvgKcal: 1800, proteinG: 165, fatG: 55) == Double(p.trainKcal))
+}
+
+@Test func averageBelowTheFloorIsAFlatWeekNeverNegative() {
+    let p = computePeriodizedPlan(PeriodizedPlanInput(weeklyAvgKcal: 1000, trainKcal: 1400, proteinG: 165, fatG: 55))
+    #expect(p.days.allSatisfy { $0.kcal == 1000 })
+}
+
+@Test func capNoteNamesTheHeldTargetAndTheFloor() {
+    let p = computePeriodizedPlan(periodizedBase)
+    let note = weeklyPlanCapNote(p)
+    #expect(note?.contains("\(p.trainKcal) kcal") == true)
+    #expect(note?.contains("1155 kcal") == true)
+    #expect(weeklyPlanCapNote(computePeriodizedPlan(PeriodizedPlanInput(weeklyAvgKcal: 1800, trainKcal: 1800, proteinG: 165, fatG: 55))) == nil)
 }
 
 @Test func periodizedTrainRestDaysMatchClassification() {
@@ -170,7 +205,10 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     #expect(vm.fatG == 59.125)
     #expect(vm.plan.avgKcal == 1935)
     #expect(vm.plan.trainDays == trainingWeekDays)
-    #expect(vm.plan.days.first { $0.day == .mon }!.kcal == 2335)
+    // 1935 + 400 cannot be banked off one rest day; Monday takes what Sunday can fund.
+    #expect(vm.plan.trainCapped)
+    #expect(vm.plan.days.first { $0.day == .mon }!.kcal == 2045)
+    #expect(vm.plan.days.allSatisfy { $0.kcal > 0 })
     // Seeding alone never writes the prefs row (RN only persists on an edit).
     #expect(store.load() == nil)
 }
@@ -199,9 +237,14 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     let vm = WeeklyPlanViewModel(store: store)
     await vm.load()
     #expect(!vm.hasSaved)
+    // The default 2200 is held at 1907 (see restDayNeverDropsBelow…); a step starts from what
+    // the screen shows, and never climbs past what the rest day can fund.
+    #expect(vm.value(of: .trainKcal) == 1907)
     vm.step(.trainKcal, by: 50)
     #expect(vm.hasSaved)
-    #expect(store.load()?.trainKcal == 2250)
+    #expect(store.load()?.trainKcal == 1907)
+    vm.step(.trainKcal, by: -50)
+    #expect(store.load()?.trainKcal == 1857)
     vm.step(.protein, by: -5)
     #expect(store.load()?.proteinG == 160)
 }

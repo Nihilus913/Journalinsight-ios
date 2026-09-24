@@ -147,6 +147,26 @@ public nonisolated struct PeriodizedPlanInput: Sendable, Equatable {
     }
 }
 
+/// B-57 W1 fixer: the least a day can be planned at — the protein and fat held every day, with
+/// carbs at zero. Both come from the user's own knobs; below this a day's target would have to
+/// take away protein or fat (or, with the banking math unbounded, go negative).
+public nonisolated func weeklyPlanDayFloorKcal(proteinG: Double, fatG: Double) -> Double {
+    proteinG * 4 + fatG * 9
+}
+
+/// The highest training-day target the rest days can fund without any of them dropping below
+/// `weeklyPlanDayFloorKcal`, with the weekly average held. Whole kcal, rounded down so the week
+/// still sums to exactly 7 × the average. `nil` when the schedule has no training or no rest day
+/// (nothing is banked, so there is no cap).
+public nonisolated func weeklyPlanMaxTrainKcal(weeklyAvgKcal: Double, proteinG: Double, fatG: Double,
+                                              trainDays: [WeekDay] = trainingWeekDays) -> Double? {
+    let nHigh = weekDays.filter { trainDays.contains($0) }.count
+    let nLow = 7 - nHigh
+    guard nHigh > 0, nLow > 0 else { return nil }
+    let room = max(0, weeklyAvgKcal - weeklyPlanDayFloorKcal(proteinG: proteinG, fatG: fatG))
+    return weeklyAvgKcal + (room * Double(nLow) / Double(nHigh)).rounded(.down)
+}
+
 /// TS `interface PeriodizedPlan extends WeeklyPlan` — Swift has no struct inheritance, so the base
 /// plan is held as `plan` and its members are forwarded verbatim below.
 public nonisolated struct PeriodizedPlan: Sendable, Equatable {
@@ -155,6 +175,11 @@ public nonisolated struct PeriodizedPlan: Sendable, Equatable {
     public var restDays: [WeekDay]
     public var trainKcal: Int
     public var restKcal: Int
+    /// True when the requested training-day target was held lower so no rest day drops below
+    /// `restFloorKcal` (the screen says so; the target is never silently changed).
+    public var trainCapped: Bool
+    /// `weeklyPlanDayFloorKcal` for this plan's protein and fat, whole kcal.
+    public var restFloorKcal: Int
 
     public var days: [DayPlan] { plan.days }
     public var weeklyKcal: Int { plan.weeklyKcal }
@@ -163,18 +188,26 @@ public nonisolated struct PeriodizedPlan: Sendable, Equatable {
     public var fatG: Double { plan.fatG }
     public var lowDayDelta: Int { plan.lowDayDelta }
 
-    public init(plan: WeeklyPlan, trainDays: [WeekDay], restDays: [WeekDay], trainKcal: Int, restKcal: Int) {
+    public init(plan: WeeklyPlan, trainDays: [WeekDay], restDays: [WeekDay], trainKcal: Int, restKcal: Int,
+                trainCapped: Bool = false, restFloorKcal: Int = 0) {
         self.plan = plan; self.trainDays = trainDays; self.restDays = restDays
         self.trainKcal = trainKcal; self.restKcal = restKcal
+        self.trainCapped = trainCapped; self.restFloorKcal = restFloorKcal
     }
 }
 
 public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput) -> PeriodizedPlan {
+    // B-57 W1 fixer (ROOT CAUSE of the "-600" rest day): with 6 training days and 1 rest day the
+    // whole weekly surplus was banked off Sunday with no floor (1800 − 6 × 400 = −600). The
+    // training-day target is now held at what the rest days can fund.
+    let maxTrain = weeklyPlanMaxTrainKcal(weeklyAvgKcal: opts.weeklyAvgKcal, proteinG: opts.proteinG, fatG: opts.fatG)
+    let capped = maxTrain.map { opts.trainKcal > $0 } ?? false
+    let trainKcal = capped ? maxTrain! : opts.trainKcal
     let plan = computeWeeklyPlan(
         WeeklyPlanInput(
             dailyTargetKcal: opts.weeklyAvgKcal,
             highDays: trainingWeekDays,
-            boostKcal: opts.trainKcal - opts.weeklyAvgKcal,
+            boostKcal: trainKcal - opts.weeklyAvgKcal,
             proteinG: opts.proteinG,
             fatG: opts.fatG
         )
@@ -185,7 +218,16 @@ public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput) -> Pe
         plan: plan,
         trainDays: trainingWeekDays,
         restDays: restWeekDays,
-        trainKcal: trainDay?.kcal ?? Int(jsRound(opts.trainKcal)),
-        restKcal: restDay?.kcal ?? Int(jsRound(opts.weeklyAvgKcal))
+        trainKcal: trainDay?.kcal ?? Int(jsRound(trainKcal)),
+        restKcal: restDay?.kcal ?? Int(jsRound(opts.weeklyAvgKcal)),
+        trainCapped: capped,
+        restFloorKcal: Int(jsRound(weeklyPlanDayFloorKcal(proteinG: opts.proteinG, fatG: opts.fatG)))
     )
+}
+
+/// The line under the week when the training-day target was held (nil otherwise).
+public nonisolated func weeklyPlanCapNote(_ plan: PeriodizedPlan) -> String? {
+    guard plan.trainCapped else { return nil }
+    let rest = plan.restDays.count == 1 ? "the rest day" : "the rest days"
+    return "Training days held at \(plan.trainKcal) kcal: \(rest) can't bank more without dropping below the protein and fat you eat every day (\(plan.restFloorKcal) kcal)."
 }

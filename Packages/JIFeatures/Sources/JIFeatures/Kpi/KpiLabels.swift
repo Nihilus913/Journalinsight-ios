@@ -18,9 +18,33 @@ public nonisolated func kpiAsOfLabel(valueDate: String?, today: String) -> Strin
 /// to a neutral phrasing rather than printing the raw symbol at the reader.
 public nonisolated func kpiThresholdSentence(metricLabel: String, `operator` op: String) -> String {
     switch op {
-    case "<", "<=": return "Alert when \(metricLabel) falls below"
-    case ">", ">=": return "Alert when \(metricLabel) rises above"
-    case "between": return "Alert when \(metricLabel) leaves the range starting at"
+    case "<", "<=": return "Tell me when \(metricLabel) falls below"
+    case ">", ">=": return "Tell me when \(metricLabel) rises above"
+    case "between": return "Tell me when \(metricLabel) leaves the range starting at"
     default: return "Alert threshold for \(metricLabel)"
+    }
+}
+
+/// B-57 W1 board subtitle under the KPI detail title: where the number comes from. Device-neutral
+/// ("your watch") for the recovery signals — the gate is source-agnostic — and the board's own
+/// wording for the macros.
+public nonisolated func kpiSourceSubtitle(_ id: KpiMetricId) -> String {
+    switch id {
+    case .hrv, .rhr: "Your watch · measured while you sleep"
+    case .sleep: "Your watch · scored each night"
+    case .bodyBattery, .readiness: "Your watch · each morning"
+    case .acwr: "Worked out from your training sessions"
+    case .weight: "Your weigh-ins"
+    case .steps: "Your watch or phone"
+    case .kcal, .protein, .carbs, .fat: "Read from Apple Health · written by YAZIO"
+    }
+}
+
+/// One tap of the alert stepper, in the metric's own precision (ACWR moves in 0.05s).
+public nonisolated func kpiAlertStep(decimals: Int) -> Double {
+    switch decimals {
+    case ...0: 1
+    case 1: 0.1
+    default: 0.05
     }
 }

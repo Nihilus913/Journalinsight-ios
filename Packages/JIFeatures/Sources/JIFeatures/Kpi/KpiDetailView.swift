@@ -9,9 +9,10 @@ import JIDesign
 /// `KpiTargetsProviding.updateKpiTarget` (PUT).
 public struct KpiDetailView: View {
     @Bindable private var model: KpiDetailViewModel
-    @State private var thresholdText: String = ""
-    /// §2b.3 Health range picker above the trend.
-    @State private var range: TrendRange = .month
+    /// The alert stepper's working value (the rule's threshold until the reader steps it).
+    @State private var threshold: Double = 0
+    /// B-57 W1 board: 7 D / 30 D / 90 D above the trend.
+    @State private var range: KpiDetailRange = .month
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
 
@@ -20,8 +21,10 @@ public struct KpiDetailView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                KpiDetailSourceLine(subtitle: kpiSourceSubtitle(model.metric), fetchedAt: model.fetchedAt,
+                                    showsSynced: isNutritionKpi(model.metric))
                 headline
-                StalenessBanner(fetchedAt: nil, hubReachable: model.hubReachable)
+                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
@@ -37,14 +40,14 @@ public struct KpiDetailView: View {
         .refreshable { await model.refresh() }
         .task {
             if !model.hasLiveResult { await model.load() }
-            syncThresholdText()
+            syncThreshold()
         }
-        .onChange(of: model.target?.threshold) { _, _ in syncThresholdText() }
+        .onChange(of: model.target?.threshold) { _, _ in syncThreshold() }
         .animation(JIMotion.standard, value: model.phase)
     }
 
-    private func syncThresholdText() {
-        thresholdText = model.target.map { formatKpiValue($0.threshold, decimals: 2) } ?? ""
+    private func syncThreshold() {
+        if let t = model.target?.threshold { threshold = t }
     }
 
     /// §5: the screen's name is the navigation title; the card keeps only the live number.
@@ -93,67 +96,23 @@ public struct KpiDetailView: View {
         if model.target != nil { editor }
     }
 
-    /// The history as `TrendPoint`s, newest `range.days` days. A day with no reading is omitted,
-    /// never plotted as a zero (rule 5).
-    private var trendPoints: [TrendPoint] {
-        model.history
-            .compactMap { point -> TrendPoint? in
-                guard let value = point.value, let date = trainingStripDate(point.date) else { return nil }
-                return TrendPoint(date: date, value: value)
-            }
-            .sorted { $0.date < $1.date }
-            .suffix(range.days)
-    }
-
     @ViewBuilder
     private var chartSection: some View {
-        JISectionHeader("Trend")
-        Surface {
-            // §2b.3: the Health chart — D/W/M/6M/Y picker, trailing axis, dashed average,
-            // "Show All Data ›". Empty renders its own "No data yet" (rule 5).
-            TrendChart(points: trendPoints, tint: theme.color(.info),
-                       unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range, showAll: nil)
-                .accessibilityLabel("\(model.def.label) trend")
-                .accessibilityIdentifier("kpi-detail-chart")
-        }
+        KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
+                       unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range)
     }
 
     @ViewBuilder
     private var editor: some View {
-        // B-46 device feedback 4: the section used to be headed "Target threshold" over the raw
-        // `plan.kpi_target` row ("sleep_score_7d < … [55.00] Save"), which reads as "type your
-        // sleep score in here". The header is now what the rule DOES, and the line above the
-        // field is a sentence in the metric's own words — never the snake_case column key.
-        JISectionHeader("Alert")
-        Surface {
-            VStack(alignment: .leading, spacing: 10) {
-                if let target = model.target {
-                    Text(kpiThresholdSentence(metricLabel: model.def.label, operator: target.operator))
-                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("kpi-detail-threshold-label")
-                }
-                HStack(spacing: 10) {
-                    TextField(model.def.unit.isEmpty ? "Threshold" : "Threshold (\(model.def.unit))", text: $thresholdText)
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Threshold")
-                        .accessibilityIdentifier("kpi-detail-threshold-field")
-                    Button("Save") {
-                        guard let value = Double(thresholdText) else { return }
-                        Task { await model.saveThreshold(value) }
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(theme.color(.info))
-                    .disabled(model.saving || Double(thresholdText) == nil)
-                    .accessibilityLabel("Save target threshold")
-                    .accessibilityIdentifier("kpi-detail-threshold-save")
-                }
-                if let saveError = model.saveError {
-                    Text(saveError).jiFont(.footnote).foregroundStyle(theme.color(.reduced))
-                }
-            }
+        // B-46 device feedback 4: never the raw `plan.kpi_target` key — the rule in the metric's
+        // own words. B-57 W1 board: a − / + stepper and a full-width "Save alert".
+        if let target = model.target {
+            KpiAlertEditor(
+                sentence: kpiThresholdSentence(metricLabel: model.def.label, operator: target.operator),
+                value: $threshold, unit: model.def.unit, decimals: model.def.decimals,
+                saving: model.saving, dirty: threshold != target.threshold, error: model.saveError,
+                onSave: { Task { await model.saveThreshold(threshold) } }
+            )
         }
     }
 }
