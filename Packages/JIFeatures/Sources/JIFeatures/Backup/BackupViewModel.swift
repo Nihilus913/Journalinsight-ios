@@ -46,14 +46,35 @@ public final class BackupViewModel {
     public var passphrase: String = ""
     private var pendingArchive: FoldArchive?
 
+    /// B-57 W1 board "Last backup": when the last export was saved (the system save sheet
+    /// reported success). nil = never on this phone — the card shows "—" and "No data".
+    public private(set) var lastBackupAt: Date?
+
     private let db: AppDatabase
     private let cipher: any FieldCipher
     private let appVersion: String
+    private let now: () -> Date
+    private let prefs: PrefStore
 
-    public init(db: AppDatabase, cipher: any FieldCipher, appVersion: String) {
+    nonisolated static let lastBackupKey = "backup.lastExportAt"
+
+    public init(db: AppDatabase, cipher: any FieldCipher, appVersion: String, now: @escaping () -> Date = Date.init) {
         self.db = db
         self.cipher = cipher
         self.appVersion = appVersion
+        self.now = now
+        self.prefs = PrefStore(db: db)
+        self.lastBackupAt = (try? prefs.get(Self.lastBackupKey, as: Double.self)).flatMap { $0 }
+            .map { Date(timeIntervalSince1970: $0) }
+    }
+
+    /// The `.fileExporter` completion: a saved file records "Last backup"; a cancel or a failure
+    /// leaves the last one standing.
+    public func exportFinished(_ result: Result<URL, any Error>) {
+        guard case .success = result else { return }
+        let at = now()
+        lastBackupAt = at
+        try? prefs.set(Self.lastBackupKey, at.timeIntervalSince1970)
     }
 
     public func export() {
@@ -137,5 +158,16 @@ public final class BackupViewModel {
         case .passphraseRequired:
             return "This backup is vault-protected — enter its passphrase to restore."
         }
+    }
+}
+
+/// "3 days ago" under the Last-backup date; "No data" when there has never been one (rule 5).
+public nonisolated func backupDaysAgoText(_ date: Date?, now: Date, calendar: Calendar = .autoupdatingCurrent) -> String {
+    guard let date else { return "No data" }
+    let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)).day ?? 0
+    switch days {
+    case ..<1: return "Today"
+    case 1: return "1 day ago"
+    default: return "\(days) days ago"
     }
 }

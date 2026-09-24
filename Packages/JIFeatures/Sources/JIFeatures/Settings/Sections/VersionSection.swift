@@ -21,12 +21,13 @@ private struct VersionSectionRows: View {
     private let info = VersionInfo()
 
     var body: some View {
-        Section(SettingsGroup.advanced.title) {
+        SettingsRowGroup(header: SettingsGroup.advanced.title) {
             NavigationLink {
                 VersionView(model: VersionViewModel(prefs: model.prefs, info: info))
             } label: {
                 SettingsLinkLabel(title: "About & version",
-                                  subtitle: "\(info.appName) \(info.appVersion) — what changed in this build")
+                                  subtitle: "\(info.appName) \(info.appVersion) — what changed in this build",
+                                  systemImage: "info.circle")
             }
             .accessibilityLabel("About & version")
             .accessibilityIdentifier("settings.row.version")

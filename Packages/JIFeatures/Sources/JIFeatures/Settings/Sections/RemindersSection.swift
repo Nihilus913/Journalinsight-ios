@@ -20,11 +20,11 @@ private struct RemindersSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
 
     var body: some View {
-        Section("Reminders") {
+        SettingsRowGroup(header: "Reminders") {
             NavigationLink {
                 RemindersDestination(prefs: model.prefs)
             } label: {
-                SettingsLinkLabel(title: "Reminders", subtitle: RemindersCopy.header)
+                SettingsLinkLabel(title: "Reminders", subtitle: RemindersCopy.header, systemImage: "bell")
             }
             .accessibilityLabel("Reminders")
             .accessibilityIdentifier("settings.row.reminders")
