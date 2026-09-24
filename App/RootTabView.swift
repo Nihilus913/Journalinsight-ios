@@ -44,12 +44,21 @@ enum RootTab: Hashable, Identifiable, CaseIterable {
 }
 
 struct RootTabView: View {
-    /// B-57 W1 (v11 change 1): More = Track / Practice / App. No Challenges.
+    /// B-57 W1 (v11 change 1): More = Track / Practice / App.
     static let moreSections: [(header: String, rows: [String])] = [
         ("Track", ["Nutrition", "Energy", "My KPIs", "Goals"]),
         ("Practice", ["Mind"]),
         ("App", ["Settings"]),
     ]
+
+    /// B-57 W1 board: the My KPIs row's trailing value.
+    static func moreKpiText(count: Int) -> String { "\(count) chosen" }
+
+    /// The same count `KpiListView` and Settings show (`KpiSelection.prefKey`).
+    private var moreKpiCount: Int {
+        let raw = try? env.prefs.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)
+        return KpiSelection.visibleOrder(KpiSelection.reconcile(raw)).count
+    }
 
     @Bindable var env: AppEnvironment
     /// Owned by `JournalInsightApp` (see its doc comment) so a cold-start `.onOpenURL` — which can
@@ -379,7 +388,9 @@ struct RootTabView: View {
                     .accessibilityIdentifier("more.nutrition")
                 NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
                     .accessibilityIdentifier("more.energy")
-                Button { showKpiList = true } label: { Label("My KPIs", systemImage: "chart.bar") }
+                Button { showKpiList = true } label: {
+                    LabeledContent { Text(Self.moreKpiText(count: moreKpiCount)) } label: { Label("My KPIs", systemImage: "chart.bar") }
+                }
                     .accessibilityIdentifier("more.kpis")
                 NavigationLink { moreGoals } label: { Label("Goals", systemImage: "target") }
                     .accessibilityIdentifier("more.goals")
@@ -389,7 +400,10 @@ struct RootTabView: View {
                     .accessibilityIdentifier("more.mind")
             }
             Section("App") {
-                Button { showSettings = true } label: { Label("Settings", systemImage: "slider.horizontal.3") }
+                Button { showSettings = true } label: {
+                    // Board: "Hub synced 07:41" — the last sync Today holds, or "Not synced yet".
+                    LabeledContent { SyncedPill(date: todayModel?.fetchedAt) } label: { Label("Settings", systemImage: "slider.horizontal.3") }
+                }
                     .accessibilityIdentifier("more.settings")
             }
         }
@@ -627,7 +641,8 @@ struct RootTabView: View {
             healthPermissionModel: env.makeHealthPermissionModel(),
             backupModel: backup,
             goalsSetupModel: goals,
-            kpiListModel: kpis
+            kpiListModel: kpis,
+            todayChips: { todayModel?.chips ?? [] }
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()

@@ -34,5 +34,9 @@ struct SignalStatusTests {
         #expect(jiNumber(1617, 0) == "1617")
         #expect(jiValueText(nil, decimals: 0) == "—")
         #expect(jiValueText(0.0, decimals: 2) == "0.00")    // a REAL zero still prints; only nil is "—"
+        #expect(jiValueOrReasonText(nil, decimals: 0, unit: "g") == "— No data")
+        #expect(jiValueOrReasonText(nil, decimals: 0, reason: .notInHealthYet) == "— Not in Health yet")
+        #expect(jiValueOrReasonText(12.4, decimals: 0, unit: "g") == "12 g")
+        #expect(jiValueOrReasonText(1617, decimals: 0) == "1617")
     }
 }

@@ -25,3 +25,11 @@ struct KpiNutritionSummaryTests {
         #expect(!isNutritionKpi(.hrv))
     }
 }
+
+extension KpiNutritionSummaryTests {
+    /// Rule 5: goal (W2) and missing actuals read "— No data" in the macro table, never a bare dash.
+    @Test func macroTableCellsNeverShowABareDash() {
+        let s = KpiMacroSummary(latestDate: "2026-09-22", latest: 127, avg7: nil, avg28: 131.4)
+        #expect(kpiMacroTableCells(s, decimals: 0) == ["— No data", "127", "— No data", "131"])
+    }
+}

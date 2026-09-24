@@ -40,3 +40,15 @@ struct TrendsViewTests {
         #expect(cards.first { $0.id == "carbs" }?.status == .missing(.noData))   // W2 reads dietary carbs from Health
     }
 }
+
+extension TrendsViewTests {
+    /// Spec §2 W1: Trends has an Edit action — hidden cards drop out, editing shows all to restore.
+    @Test func editHidesAndRestoresCards() {
+        let cards = trendsCards(recovery: [], daily: [], averages: nil)
+        let raw = trendsToggleHidden("", id: "steps")
+        #expect(raw == "steps")
+        #expect(!trendsShownCards(cards, hiddenRaw: raw, editing: false).map(\.id).contains("steps"))
+        #expect(trendsShownCards(cards, hiddenRaw: raw, editing: true).count == cards.count)
+        #expect(trendsToggleHidden(raw, id: "steps") == "")
+    }
+}

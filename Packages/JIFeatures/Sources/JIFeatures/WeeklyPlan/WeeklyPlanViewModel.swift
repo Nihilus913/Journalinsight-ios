@@ -86,8 +86,8 @@ public final class WeeklyPlanViewModel {
             switch self {
             case .weeklyAvg: "Weekly average"
             case .trainKcal: "Training-day target"
-            case .protein: "Protein (every day)"
-            case .fat: "Fat (every day)"
+            case .protein: "Protein, every day"
+            case .fat: "Fat, every day"
             }
         }
 

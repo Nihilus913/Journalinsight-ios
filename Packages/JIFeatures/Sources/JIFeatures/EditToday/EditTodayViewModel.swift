@@ -12,7 +12,11 @@ public final class EditTodayViewModel {
     public private(set) var prefs: TodayTilePrefs = .default
     private let store: PrefStore?
 
-    public init(prefs: PrefStore?) { self.store = prefs }
+    /// Today's chips (value, unit, source support) so each square shows what Today shows.
+    /// Empty = no Today data reached this screen; every square then says "— No data".
+    public let chips: [TodayChip]
+
+    public init(prefs: PrefStore?, chips: [TodayChip] = []) { self.store = prefs; self.chips = chips }
 
     public var visibleOrder: [String] { visibleTodayTileOrder(prefs) }
 

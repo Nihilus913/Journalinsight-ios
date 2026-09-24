@@ -17,7 +17,8 @@ public struct HowWeCalculate: View {
     public init(title: String, steps: [HowWeCalculateStep], note: String? = nil) { self.title = title; self.steps = steps; self.note = note }
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+            Text(title).jiFont(.cardTitle).foregroundStyle(theme.color(.text)).fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             Surface(level: 1) {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(steps.enumerated()), id: \.element.id) { i, step in
@@ -26,9 +27,11 @@ public struct HowWeCalculate: View {
                                 .frame(width: 24, height: 24).background(theme.color(.nested), in: Circle())
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(step.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                                    .fixedSize(horizontal: false, vertical: true)
                                 Text(step.body).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                                     .fixedSize(horizontal: false, vertical: true)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(howWeCalculateStepAccessibilityLabel(index: i, count: steps.count, step: step))

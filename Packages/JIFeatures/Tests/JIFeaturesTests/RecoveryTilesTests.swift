@@ -46,3 +46,8 @@ struct RecoveryTilesTests {
         #expect(recoveryNightLabel("2026-09-24") == "Thu")
     }
 }
+
+extension RecoveryTilesTests {
+    /// Board `2 Monitor/01 Recovery.png`: two squares a row (AX sizes stay at two).
+    @Test func recoveryGridIsTwoColumns() { #expect(recoveryGridColumns == 2) }
+}

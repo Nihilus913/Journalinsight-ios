@@ -78,7 +78,7 @@ public struct RecoveryView: View {
             }
             HStack { Text("Last night").jiFont(.subheadline).foregroundStyle(theme.color(.muted)); Spacer(); SyncedPill(date: model.fetchedAt) }
             let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
-            SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing,
+            SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
                        onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
                        onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
                        onMove: { moving, target in orderRaw = squareGridMove(layout.visible + layout.hidden, moving: moving, before: target).joined(separator: ",") },

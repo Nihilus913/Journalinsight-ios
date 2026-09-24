@@ -18,6 +18,14 @@ public nonisolated func mealDetail(slot: String, items: [NutritionMealItem]) -> 
                       kcal: sum(\.kcal), protein: sum(\.proteinG), carbs: sum(\.carbsG), fat: sum(\.fatG))
 }
 
+/// The four macro rows. A missing sum is "— No data" (rule 5: never a bare dash, never a zero).
+public nonisolated func mealDetailRows(_ detail: MealDetail) -> [(title: String, value: String, role: JIColorRole)] {
+    [("Calories", jiValueOrReasonText(detail.kcal, decimals: 0, unit: "kcal"), .reduced),
+     ("Protein", jiValueOrReasonText(detail.protein, decimals: 0, unit: "g"), .info),
+     ("Carbs", jiValueOrReasonText(detail.carbs, decimals: 0, unit: "g"), .reduced),
+     ("Fat", jiValueOrReasonText(detail.fat, decimals: 0, unit: "g"), .sleep)]
+}
+
 /// B-57 W1 (v11 change 2): the old +Log sheet, now a read-only Meal detail. One action: Done.
 public struct MealDetailSheet: View {
     public nonisolated static let actionTitles = ["Done"]
@@ -46,14 +54,11 @@ public struct MealDetailSheet: View {
             }
             Section(detail.title) {
                 row("Source", JIExplainers.nutritionSourceLabel, role: .muted)
-                row("Calories", jiValueText(detail.kcal, decimals: 0) + (detail.kcal == nil ? "" : " kcal"), role: .reduced)
-                row("Protein", jiValueText(detail.protein, decimals: 0) + (detail.protein == nil ? "" : " g"), role: .info)
-                row("Carbs", jiValueText(detail.carbs, decimals: 0) + (detail.carbs == nil ? "" : " g"), role: .reduced)
-                row("Fat", jiValueText(detail.fat, decimals: 0) + (detail.fat == nil ? "" : " g"), role: .sleep)
+                ForEach(mealDetailRows(detail), id: \.title) { r in row(r.title, r.value, role: r.role) }
             }
             Section {
                 ForEach(Array(detail.items.enumerated()), id: \.offset) { _, item in
-                    JIRow(title: item.name) { Text(item.kcal.map { "\(Int($0)) kcal" } ?? "—") }
+                    JIRow(title: item.name) { Text(jiValueOrReasonText(item.kcal, decimals: 0, unit: "kcal")) }
                 }
             } footer: {
                 Text("To change it, edit the entry in YAZIO; JI updates on the next sync. JI does not log or edit food.")

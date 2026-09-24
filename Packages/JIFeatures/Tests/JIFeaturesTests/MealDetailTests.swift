@@ -19,3 +19,11 @@ struct MealDetailTests {
         #expect(nutritionReadOnlyNote.contains("never logs food"))
     }
 }
+
+extension MealDetailTests {
+    /// Rule 5: a missing macro sum reads "— No data", never a bare dash or a zero.
+    @Test func missingMacroRowsCarryAReasonWord() {
+        let d = mealDetail(slot: "lunch", items: [])
+        #expect(mealDetailRows(d).map(\.value) == ["— No data", "— No data", "— No data", "— No data"])
+    }
+}

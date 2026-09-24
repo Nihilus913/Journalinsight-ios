@@ -29,6 +29,10 @@ public nonisolated func squareGridMove(_ ids: [String], moving: String, before t
 
 /// Three squares a row; two at accessibility sizes so a label never truncates to nothing.
 public nonisolated func squareGridColumnCount(isAccessibilitySize: Bool) -> Int { isAccessibilitySize ? 2 : 3 }
+/// A screen may ask for fewer columns (Recovery's board = 2); AX sizes still cap it at 2.
+public nonisolated func squareGridColumnCount(preferred: Int, isAccessibilitySize: Bool) -> Int {
+    max(1, min(preferred, squareGridColumnCount(isAccessibilitySize: isAccessibilitySize)))
+}
 
 public nonisolated func squareAccessibilityLabel(_ item: JISquareItem) -> String {
     var parts = [item.label]
@@ -54,18 +58,18 @@ public nonisolated func squareBadgeActionLabel(_ item: JISquareItem) -> String? 
 }
 
 public struct SquareGrid: View {
-    let items: [JISquareItem], editing: Bool
+    let items: [JISquareItem], editing: Bool, columns: Int
     let onTap: ((String) -> Void)?, onBadge: ((String) -> Void)?, onMove: ((String, String) -> Void)?, onAdd: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    public init(items: [JISquareItem], editing: Bool = false, onTap: ((String) -> Void)? = nil, onBadge: ((String) -> Void)? = nil,
+    public init(items: [JISquareItem], editing: Bool = false, columns: Int = 3, onTap: ((String) -> Void)? = nil, onBadge: ((String) -> Void)? = nil,
                 onMove: ((String, String) -> Void)? = nil, onAdd: (() -> Void)? = nil) {
-        self.items = items; self.editing = editing; self.onTap = onTap; self.onBadge = onBadge; self.onMove = onMove; self.onAdd = onAdd
+        self.items = items; self.editing = editing; self.columns = columns; self.onTap = onTap; self.onBadge = onBadge; self.onMove = onMove; self.onAdd = onAdd
     }
 
     public var body: some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
-                            count: squareGridColumnCount(isAccessibilitySize: typeSize.isAccessibilitySize))
+                            count: squareGridColumnCount(preferred: columns, isAccessibilitySize: typeSize.isAccessibilitySize))
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(items) { item in
                 square(item)

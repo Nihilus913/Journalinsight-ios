@@ -121,13 +121,22 @@ public nonisolated func saveTodayTilePrefs(_ value: TodayTilePrefs, prefs: PrefS
 
 // MARK: - B-57 W1 EditToday squares
 
-public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs) -> [JISquareItem] {
-    visibleTodayTileOrder(prefs).map { JISquareItem(id: $0, label: TodayTileRegistry.label(for: $0), systemImage: TodayTileRegistry.systemImage(for: $0),
-                                                    tint: metricTintRole($0), value: nil, badge: .hide) }
+/// One EditToday square carrying Today's own chip value (the board shows values). A real value
+/// carries no status word in W1 (the normal is W3); a missing one is "— No data", or "— Not in
+/// Health yet" when the source cannot supply it (rule 5: never a bare dash, never a zero).
+public nonisolated func editTodaySquare(_ id: String, chips: [TodayChip], badge: JISquareBadge) -> JISquareItem {
+    let chip = chips.first { $0.id == id }
+    let value = chip?.value
+    return JISquareItem(id: id, label: TodayTileRegistry.label(for: id), systemImage: TodayTileRegistry.systemImage(for: id),
+                        tint: metricTintRole(id), value: value, unit: chip?.unit,
+                        status: value == nil ? .missing(chip?.sourceMissing == true ? .notInHealthYet : .noData) : nil,
+                        badge: badge)
 }
-public nonisolated func editTodayHiddenItems(_ prefs: TodayTilePrefs) -> [JISquareItem] {
-    prefs.hidden.map { JISquareItem(id: $0, label: TodayTileRegistry.label(for: $0), systemImage: TodayTileRegistry.systemImage(for: $0),
-                                    tint: metricTintRole($0), value: nil, badge: .add) }
+public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {
+    visibleTodayTileOrder(prefs).map { editTodaySquare($0, chips: chips, badge: .hide) }
+}
+public nonisolated func editTodayHiddenItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {
+    prefs.hidden.map { editTodaySquare($0, chips: chips, badge: .add) }
 }
 public nonisolated func editTodayCountText(_ prefs: TodayTilePrefs) -> String {
     "\(visibleTodayTileOrder(prefs).count) of \(prefs.order.count)"

@@ -35,13 +35,13 @@ public struct EditTodayView: View {
                     Spacer()
                     Text(editTodayCountText(model.prefs)).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 }
-                SquareGrid(items: editTodayVisibleItems(model.prefs), editing: true,
+                SquareGrid(items: editTodayVisibleItems(model.prefs, chips: model.chips), editing: true,
                            onBadge: { model.setHidden($0, hide: true) },
                            onMove: { model.moveSquare($0, before: $1) },
                            onAdd: model.prefs.hidden.first.map { first in { model.setHidden(first, hide: false) } })
                 if !model.prefs.hidden.isEmpty {
                     Text("Add a square").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                    SquareGrid(items: editTodayHiddenItems(model.prefs), onBadge: { model.setHidden($0, hide: false) })
+                    SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), onBadge: { model.setHidden($0, hide: false) })
                 }
                 Text("The call on top stays fixed. Hidden squares still count toward it.")
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))

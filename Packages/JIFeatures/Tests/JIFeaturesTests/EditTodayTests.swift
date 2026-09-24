@@ -155,3 +155,22 @@ private let ids = ["hrv", "rhr", "sleep", "steps"]
     #expect(vm.pageName == "Morning")
     #expect(loadTodayPageName(prefs: PrefStore(db: db)) == "Morning")
 }
+
+/// B-57 W1 board: EditToday squares show Today's values; a missing one carries a reason word.
+@Test func editTodaySquaresShowTodaysValuesAndReasonWords() {
+    let p = TodayTilePrefs(order: ["hrv", "rhr", "sleep", "steps"], hidden: ["rhr"])
+    let chips = [
+        TodayChip(id: "hrv", label: "HRV", value: 48, unit: "ms", points: [], sourceMissing: false),
+        TodayChip(id: "sleep", label: "Sleep", value: nil, unit: nil, points: [], sourceMissing: true),
+        TodayChip(id: "steps", label: "Steps", value: nil, unit: nil, points: [], sourceMissing: false),
+        TodayChip(id: "rhr", label: "RHR", value: 52, unit: "bpm", points: [], sourceMissing: false),
+    ]
+    let visible = editTodayVisibleItems(p, chips: chips)
+    #expect(visible.map(\.value) == [48, nil, nil])
+    #expect(visible[0].unit == "ms" && visible[0].status == nil)
+    #expect(visible[1].status == .missing(.notInHealthYet))
+    #expect(visible[2].status == .missing(.noData))
+    #expect(editTodayHiddenItems(p, chips: chips).first?.value == 52)
+    // No chips reached the screen: every square still says why it is empty.
+    #expect(editTodayVisibleItems(p).allSatisfy { $0.value == nil && $0.status == .missing(.noData) })
+}

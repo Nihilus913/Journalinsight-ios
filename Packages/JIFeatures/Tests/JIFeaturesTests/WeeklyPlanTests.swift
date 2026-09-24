@@ -243,3 +243,31 @@ nonisolated struct SlowGoalsProvider: EnergyProviding {
         return try await MockDataProvider().goals()
     }
 }
+
+// MARK: B-57 W1 board restyle (bar per day, board copy)
+
+@Suite @MainActor struct WeeklyPlanBoardTests {
+    @Test func barFractionIsRelativeToTheTallestDay() {
+        let days = [DayPlan(day: .mon, high: true, kcal: 2000, protein: 165, carbs: 200, fat: 55),
+                    DayPlan(day: .tue, high: false, kcal: 1500, protein: 165, carbs: 100, fat: 55)]
+        #expect(weeklyPlanBarFraction(kcal: 2000, days: days) == 1)
+        #expect(weeklyPlanBarFraction(kcal: 1500, days: days) == 0.75)
+        #expect(weeklyPlanBarFraction(kcal: 1500, days: []) == 0)
+    }
+
+    @Test func boardCopyAndLabels() {
+        #expect(WeeklyPlanViewModel.Knob.protein.label == "Protein, every day")
+        #expect(WeeklyPlanViewModel.Knob.fat.label == "Fat, every day")
+        #expect(weeklyPlanTrainDaysText(4) == "4 training days")
+        #expect(weeklyPlanTrainDaysText(1) == "1 training day")
+        let d = DayPlan(day: .sat, high: false, kcal: 1617, protein: 155, carbs: 120, fat: 55)
+        #expect(weeklyPlanDayAccessibilityLabel(d) == "Sat, rest day: 1617 kcal, 155 g protein, 120 g carbs, 55 g fat")
+    }
+
+    @Test func todayMapsToMondayFirstWeekDay() {
+        var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!
+        // 2026-09-24 is a Thursday; 2026-09-27 a Sunday.
+        #expect(weeklyPlanToday(c.date(from: DateComponents(year: 2026, month: 9, day: 24))!, calendar: c) == .thu)
+        #expect(weeklyPlanToday(c.date(from: DateComponents(year: 2026, month: 9, day: 27))!, calendar: c) == .sun)
+    }
+}

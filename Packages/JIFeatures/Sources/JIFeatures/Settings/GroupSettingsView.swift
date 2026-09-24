@@ -14,8 +14,40 @@ public nonisolated let settingsDataSubtitles: [String: String] = [
     "Backup & restore": "Full copy of Journal and Mind, to restore on a new phone",
     "Export": "A readable CSV or JSON of what you pick",
     "Local data mirrors": "Copies kept here so screens work away from home",
-    "Data quality": "Which sources are fresh and trusted",
+    "Data quality": "Which sources are fresh, on, and first in line",
 ]
+
+/// B-57 W1 board: the four DATA rows share ONE card (Backup · Export · Local mirrors · Data
+/// quality), in this order, with `settingsDataFooter` under it.
+public nonisolated let settingsDataSectionIds: [String] = ["l0.data", "l5.export", "w5b.l4.localMirrors", "w5b.l1.dataQuality"]
+
+/// Splits a group's sections into the ones drawn as their own cards and the DATA rows drawn as
+/// one card (kept in `settingsDataSectionIds` order).
+public nonisolated func settingsPartitionDataSections(_ ids: [String]) -> (standalone: [String], data: [String]) {
+    (ids.filter { !settingsDataSectionIds.contains($0) }, settingsDataSectionIds.filter { ids.contains($0) })
+}
+
+extension EnvironmentValues {
+    /// true = a section draws its rows only, because the enclosing screen already opened the card.
+    @Entry var settingsRowsOnly: Bool = false
+}
+
+/// A section's card: a `Section` normally, just the rows inside a shared card (`settingsRowsOnly`).
+struct SettingsRowGroup<Content: View>: View {
+    var header: String? = nil
+    @ViewBuilder var content: Content
+    @Environment(\.settingsRowsOnly) private var rowsOnly
+    var body: some View {
+        if rowsOnly {
+            content
+        } else if let header {
+            Section(header) { content }
+        } else {
+            Section { content }
+        }
+    }
+}
+
 public struct GroupSettingsView: View {
     private let group: SettingsGroupId
     private let sections: [any SettingsSection]
@@ -43,12 +75,23 @@ public struct GroupSettingsView: View {
                         .accessibilityIdentifier("settings.group.\(group.rawValue).empty")
                 }
             }
-            ForEach(sections, id: \.id) { section in
+            let split = settingsPartitionDataSections(sections.map(\.id))
+            ForEach(sections.filter { split.standalone.contains($0.id) }, id: \.id) { section in
                 AnyView(section.body)
                     .accessibilityIdentifier("settings.section.\(section.id)")
             }
-            if group == .sync {
-                Section { } footer: {
+            if !split.data.isEmpty {
+                Section {
+                    ForEach(split.data, id: \.self) { id in
+                        if let section = sections.first(where: { $0.id == id }) {
+                            AnyView(section.body)
+                                .environment(\.settingsRowsOnly, true)
+                                .accessibilityIdentifier("settings.section.\(section.id)")
+                        }
+                    }
+                } header: {
+                    Text(SettingsGroup.data.title)
+                } footer: {
                     Text(settingsDataFooter).accessibilityIdentifier("settings.data.footer")
                 }
             }

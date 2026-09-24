@@ -29,7 +29,7 @@ private struct LocalMirrorsSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
 
     var body: some View {
-        Section {
+        SettingsRowGroup {
             NavigationLink {
                 LocalMirrorsView(model: LocalMirrorsViewModel(
                     goals: model.goalsSetupModel?.goals,
@@ -38,7 +38,7 @@ private struct LocalMirrorsSectionRows: View {
                     decisionLog: LocalMirrorsDatabase.decisionLog
                 ))
             } label: {
-                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "")
+                SettingsLinkLabel(title: "Local data mirrors", subtitle: settingsDataSubtitles["Local data mirrors"] ?? "", systemImage: "iphone")
             }
             .accessibilityLabel("Local data mirrors")
             .accessibilityIdentifier("settings.row.localMirrors")

@@ -30,21 +30,32 @@ public struct WeeklyPlanView: View {
 
     /// §8.5: the composition without the scrolling root — what the sweep renders.
     @ViewBuilder var nativeContent: some View {
-        // B-57 W1 board order (`3 Plan & train/04 WeeklyPlan.png`): subtitle, the average hero,
-        // the week, then the targets. Layout only — every number is the model's, unchanged.
+        // B-57 W1 board (`3 Plan & train/04 WeeklyPlan.png`): subtitle, the average hero, the week
+        // as one bar per day, the legend, then the TARGETS rows. Layout only — every number is
+        // the model's, unchanged.
         VStack(alignment: .leading, spacing: 20) {
             Text("Bank weekday calories for a bigger weekend. The weekly deficit stays fixed.")
                 .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("weeklyPlan.info")
             averageHero
             VStack(alignment: .leading, spacing: 10) {
-                JISectionHeader("The week")
-                tableCard
+                HStack(alignment: .firstTextBaseline) {
+                    Text("The week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    Text(weeklyPlanTrainDaysText(model.plan.trainDays.count))
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                }
+                weekChart
+                legend
             }
             VStack(alignment: .leading, spacing: 10) {
                 JISectionHeader("Targets")
-                knobsCard
-                footnote
+                targetsCard
+                Text(weeklyPlanFootnote)
+                    .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("weeklyPlan.footnote")
             }
             if model.hasSaved {
                 Text("Saved.").jiFont(.micro).foregroundStyle(theme.color(.muted))
@@ -55,149 +66,163 @@ public struct WeeklyPlanView: View {
 
     /// Board hero: the weekly average as the headline figure.
     private var averageHero: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(model.plan.avgKcal)")
-                .jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(.info))
-            Text("kcal average").jiFont(.body).foregroundStyle(theme.color(.muted))
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) { heroNumber; heroUnit }
+            VStack(alignment: .leading, spacing: 2) { heroNumber; heroUnit }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Weekly average \(model.plan.avgKcal) kcal")
         .accessibilityIdentifier("weeklyPlan.hero")
     }
+    private var heroNumber: some View {
+        Text("\(model.plan.avgKcal)").jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(.info))
+    }
+    private var heroUnit: some View { Text("kcal average").jiFont(.body).foregroundStyle(theme.color(.muted)) }
 
-    // MARK: knobs
+    // MARK: the week (one bar per day)
 
-    private var knobsCard: some View {
-        Surface(padding: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(WeeklyPlanViewModel.Knob.allCases, id: \.self) { stepperRow($0) }
-                Text("Training days (\(model.plan.trainDays.count)) · Rest (\(model.plan.restDays.count))")
-                    .jiFont(.micro).textCase(.uppercase).foregroundStyle(theme.color(.muted))
-                    .padding(.top, 12)
-                dayChips
-                Text("Set automatically from your Full Upper / interval / Z2 schedule — not manually chosen.")
-                    .jiFont(.micro).foregroundStyle(theme.color(.muted))
+    private var weekChart: some View {
+        let days = model.plan.days
+        let today = weeklyPlanToday()
+        return Surface(padding: 16) {
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(days) { day in
+                    let isToday = day.day == today
+                    VStack(spacing: 6) {
+                        Text("\(day.kcal)")
+                            .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(theme.color(.info).opacity(day.high ? 1 : 0.35))
+                            .frame(height: barMaxHeight * weeklyPlanBarFraction(kcal: day.kcal, days: days))
+                        Text(day.day.label)
+                            .jiFont(.footnote, weight: isToday ? .bold : .regular)
+                            .foregroundStyle(theme.color(isToday ? .text : .muted))
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(weeklyPlanDayAccessibilityLabel(day))
+                    .accessibilityIdentifier("weeklyPlan.row.\(day.day.rawValue)")
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .accessibilityIdentifier("weeklyPlan.week")
+    }
+
+    @ScaledMetric(relativeTo: .body) private var barMaxHeight: CGFloat = 96
+
+    private var legend: some View {
+        HStack(spacing: 16) {
+            legendItem("Training day", opacity: 1)
+            legendItem("Rest day", opacity: 0.35)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func legendItem(_ text: String, opacity: Double) -> some View {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 3).fill(theme.color(.info).opacity(opacity)).frame(width: 12, height: 12)
+            Text(text).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+        }
+    }
+
+    // MARK: targets
+
+    private var targetsCard: some View {
+        Surface(padding: 0) {
+            VStack(spacing: 0) {
+                ForEach(Array(WeeklyPlanViewModel.Knob.allCases.enumerated()), id: \.element) { i, knob in
+                    targetRow(knob)
+                    if i < WeeklyPlanViewModel.Knob.allCases.count - 1 { Divider().overlay(theme.color(.hairlineNested)) }
+                }
             }
         }
     }
 
-    private func stepperRow(_ knob: WeeklyPlanViewModel.Knob) -> some View {
-        HStack(spacing: 12) {
-            Text(knob.label).jiFont(.subheadline).foregroundStyle(theme.color(.text))
-            Spacer()
-            circleButton(systemImage: "minus") { model.step(knob, by: -knob.stepSize) }
+    private func targetRow(_ knob: WeeklyPlanViewModel.Knob) -> some View {
+        // A wide row keeps label · value · stepper on one line; when that does not fit (large
+        // Dynamic Type), the label takes its own line so nothing truncates.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                knobLabel(knob).fixedSize()
+                Spacer(minLength: 8)
+                knobValue(knob).fixedSize()
+                knobStepper(knob)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                knobLabel(knob).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) { knobValue(knob).fixedSize(); Spacer(minLength: 8); knobStepper(knob) }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func knobLabel(_ knob: WeeklyPlanViewModel.Knob) -> some View {
+        Text(knob.label).jiFont(.body).foregroundStyle(theme.color(.text))
+    }
+
+    private func knobValue(_ knob: WeeklyPlanViewModel.Knob) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(weeklyPlanNumberText(model.value(of: knob))).jiNumeral(.numeralSmall, weight: .heavy)
+                .foregroundStyle(theme.color(knob.unit == "kcal" ? .info : .text))
+            Text(knob.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("weeklyPlan.\(knob.rawValue).value")
+    }
+
+    private func knobStepper(_ knob: WeeklyPlanViewModel.Knob) -> some View {
+        HStack(spacing: 0) {
+            stepButton(systemImage: "minus") { model.step(knob, by: -knob.stepSize) }
                 .accessibilityLabel("\(knob.label) decrease")
                 .accessibilityIdentifier("weeklyPlan.\(knob.rawValue).decrease")
-            Text("\(weeklyPlanNumberText(model.value(of: knob))) \(knob.unit)")
-                .jiNumeral(.numeralSmall).foregroundStyle(theme.color(.text))
-                .frame(minWidth: 88)
-                .accessibilityIdentifier("weeklyPlan.\(knob.rawValue).value")
-            circleButton(systemImage: "plus") { model.step(knob, by: knob.stepSize) }
+            Rectangle().fill(theme.color(.hairlineNested)).frame(width: 1, height: 20)
+            stepButton(systemImage: "plus") { model.step(knob, by: knob.stepSize) }
                 .accessibilityLabel("\(knob.label) increase")
                 .accessibilityIdentifier("weeklyPlan.\(knob.rawValue).increase")
         }
-        .padding(.vertical, 6)
+        .background(theme.color(.control), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .fixedSize()
     }
 
-    private func circleButton(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func stepButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.headline)
-                .foregroundStyle(theme.color(.text))
-                .frame(width: 36, height: 36)
-                .background(theme.color(.control), in: Circle())
+            Image(systemName: systemImage).font(.headline).foregroundStyle(theme.color(.text))
+                .frame(minWidth: 44, minHeight: 36)
         }
         .buttonStyle(.pressableScale)
     }
+}
 
-    private var dayChips: some View {
-        // A fixed seven-item week never needs to scroll horizontally; wrapping keeps it legible
-        // at the largest dynamic-type sizes.
-        HStack(spacing: 8) {
-            ForEach(weekDays, id: \.self) { day in
-                let isTrain = model.plan.trainDays.contains(day)
-                Text(day.label)
-                    .jiFont(.caption, weight: .bold)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .foregroundStyle(isTrain ? Color.white : theme.color(.muted))
-                    .background(isTrain ? theme.color(.info) : theme.color(.control), in: Capsule())
-                    .accessibilityLabel("\(day.label) \(isTrain ? "training day" : "rest day")")
-                    .accessibilityIdentifier("weeklyPlan.chip.\(day.rawValue)")
-            }
-        }
-        .padding(.vertical, 6)
-    }
+// MARK: - pure helpers (B-57 W1 board)
 
-    // MARK: table
+/// Board footnote under TARGETS.
+public nonisolated let weeklyPlanFootnote = "Carbs fill what is left on each day, and land in the meal after training."
 
-    private var tableCard: some View {
-        Surface(padding: 18) {
-            VStack(spacing: 0) {
-                headerRow
-                Divider().overlay(theme.color(.hairlineNested))
-                ForEach(model.plan.days) { dayRow($0) }
-                averageRow
-            }
-        }
-    }
+/// "The week" header trailing text: the count of training days the schedule sets.
+public nonisolated func weeklyPlanTrainDaysText(_ count: Int) -> String {
+    count == 1 ? "1 training day" : "\(count) training days"
+}
 
-    private var headerRow: some View {
-        HStack(spacing: 0) {
-            columnText("Day", width: 48, align: .leading)
-            Text("kcal").frame(maxWidth: .infinity, alignment: .trailing)
-            columnText("P", width: 50, align: .trailing)
-            columnText("C", width: 60, align: .trailing)
-            columnText("F", width: 46, align: .trailing)
-        }
-        .jiFont(.micro, weight: .bold).textCase(.uppercase).foregroundStyle(theme.color(.muted))
-        .padding(.bottom, 8)
-        .accessibilityHidden(true)
-    }
+/// A day's bar height as a fraction of the tallest day (0…1). An empty or all-zero week = 0.
+public nonisolated func weeklyPlanBarFraction(kcal: Int, days: [DayPlan]) -> CGFloat {
+    guard let top = days.map(\.kcal).max(), top > 0 else { return 0 }
+    return CGFloat(max(0, kcal)) / CGFloat(top)
+}
 
-    private func columnText(_ text: String, width: CGFloat, align: Alignment) -> some View {
-        Text(text).frame(width: width, alignment: align)
-    }
+/// Spelled out for VoiceOver: the day, its kind, and all four numbers the old table showed.
+public nonisolated func weeklyPlanDayAccessibilityLabel(_ day: DayPlan) -> String {
+    "\(day.day.label), \(day.high ? "training day" : "rest day"): \(day.kcal) kcal, \(weeklyPlanNumberText(day.protein)) g protein, \(day.carbs) g carbs, \(weeklyPlanNumberText(day.fat)) g fat"
+}
 
-    private func dayRow(_ day: DayPlan) -> some View {
-        HStack(spacing: 0) {
-            Text(day.day.label)
-                .jiFont(.subheadline, weight: day.high ? .heavy : .semibold)
-                .foregroundStyle(day.high ? theme.color(.info) : theme.color(.text))
-                .frame(width: 48, alignment: .leading)
-            Text("\(day.kcal)")
-                .jiNumeral(.numeralSmall, weight: .heavy)
-                .foregroundStyle(day.high ? theme.color(.info) : theme.color(.text))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            Text(weeklyPlanNumberText(day.protein)).frame(width: 50, alignment: .trailing).foregroundStyle(theme.color(.muted))
-            Text("\(day.carbs)").frame(width: 60, alignment: .trailing).foregroundStyle(theme.color(.text))
-            Text(weeklyPlanNumberText(day.fat)).frame(width: 46, alignment: .trailing).foregroundStyle(theme.color(.muted))
-        }
-        .jiFont(.footnote)
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(day.day.label): \(day.kcal) kcal, \(weeklyPlanNumberText(day.protein)) g protein, \(day.carbs) g carbs, \(weeklyPlanNumberText(day.fat)) g fat")
-        .accessibilityIdentifier("weeklyPlan.row.\(day.day.rawValue)")
-    }
-
-    private var averageRow: some View {
-        HStack(spacing: 0) {
-            Text("Avg").jiFont(.caption).foregroundStyle(theme.color(.muted)).frame(width: 48, alignment: .leading)
-            Text("\(model.plan.avgKcal) kcal ✓")
-                .jiNumeral(.numeralSmall, weight: .heavy).foregroundStyle(theme.color(.info))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            Color.clear.frame(width: 156, height: 1)
-        }
-        .padding(.top, 10)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Weekly average \(model.plan.avgKcal) kcal")
-        .accessibilityIdentifier("weeklyPlan.average")
-    }
-
-    private var footnote: some View {
-        Text("Protein held \(weeklyPlanNumberText(model.proteinG)) g every day · fat capped \(weeklyPlanNumberText(model.fatG)) g · the training-day surplus becomes reflux-safe carbs (rice, Milchreis, potato, banana, berries — front-loaded). Weekly avg \(model.plan.avgKcal) kcal = your target, so the deficit holds.")
-            .jiFont(.micro).foregroundStyle(theme.color(.muted))
-            .accessibilityIdentifier("weeklyPlan.footnote")
-    }
+/// Today's weekday in the plan's Monday-first order.
+nonisolated func weeklyPlanToday(_ date: Date = Date(), calendar: Calendar = .autoupdatingCurrent) -> WeekDay {
+    // Calendar weekday: 1 = Sunday … 7 = Saturday.
+    let w = calendar.component(.weekday, from: date)
+    return weekDays[(w + 5) % 7]
 }
 
 // MARK: - Nutrition-tab entry

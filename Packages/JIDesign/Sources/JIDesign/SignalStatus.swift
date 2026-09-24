@@ -64,3 +64,13 @@ public nonisolated func jiValueText(_ value: Double?, decimals: Int) -> String {
     guard let value, value.isFinite else { return "—" }
     return jiNumber(value, decimals)
 }
+
+/// Rule 5 for text-only cells (tables, list rows): a real value with its unit, or "—" plus exactly
+/// one reason word ("— No data") — never a bare dash.
+public nonisolated func jiValueOrReasonText(_ value: Double?, decimals: Int, unit: String? = nil,
+                                            reason: JIMissingReason = .noData) -> String {
+    guard let value, value.isFinite else { return "— \(reason.rawValue)" }
+    let number = jiNumber(value, decimals)
+    guard let unit, !unit.isEmpty else { return number }
+    return "\(number) \(unit)"
+}

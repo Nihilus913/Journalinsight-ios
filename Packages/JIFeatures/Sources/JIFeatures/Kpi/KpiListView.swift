@@ -22,8 +22,8 @@ public struct KpiListView: View {
                 case .error(let msg): errorCard(msg)
                 case .loaded: rows
                 }
-                JISectionHeader("Gate targets")
-                KpiTargetsMirrorSection(targets: model.targets)
+                // B-57 W1 board: no "Gate targets" section here — the gate rules are read-only in
+                // Settings → Local data mirrors and edited per metric on KpiDetail.
                 Button("Reset to defaults") { model.resetSelection() }
                     .buttonStyle(.bordered)
                     .tint(theme.color(.info))

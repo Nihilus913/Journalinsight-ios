@@ -59,7 +59,14 @@ struct SettingsLinkLabel: View {
     let title: String
     let subtitle: String
     var systemImage: String? = nil
-    var body: some View { JIRow(title: title, subtitle: subtitle, systemImage: systemImage) }
+    /// B-57 W1: a row's state ("Locked", "Preparing…") sits trailing; the subtitle keeps saying
+    /// what the row is for.
+    var trailing: String? = nil
+    var body: some View {
+        JIRow(title: title, subtitle: subtitle, systemImage: systemImage) {
+            if let trailing { Text(trailing).jiFont(.subheadline, tint: .muted) }
+        }
+    }
 }
 
 /// RN "Preferences": Goals → `GoalsSetupView` (W4-L3), My KPIs → `KpiListView` (W3b-L2).
@@ -116,16 +123,19 @@ struct DataLinksSection: SettingsSection {
 private struct DataLinksRows: View {
     @Environment(SettingsViewModel.self) private var model
     var body: some View {
-        Section(SettingsGroup.data.title) {
+        SettingsRowGroup(header: SettingsGroup.data.title) {
             if let backup = model.backupModel {
                 NavigationLink { BackupView(model: backup) } label: {
-                    SettingsLinkLabel(title: "Backup & restore", subtitle: settingsDataSubtitles["Backup & restore"] ?? "")
+                    SettingsLinkLabel(title: "Backup & restore", subtitle: settingsDataSubtitles["Backup & restore"] ?? "",
+                                      systemImage: "archivebox")
                 }
                 .accessibilityLabel("Backup & restore")
                 .accessibilityIdentifier("settings.row.backup")
             } else {
                 // Rule 5: never a silently missing row — the vault unlocks on the Journal tab.
-                SettingsLinkLabel(title: "Backup & restore", subtitle: "Open the Journal tab once to unlock the vault first")
+                SettingsLinkLabel(title: "Backup & restore", subtitle: settingsDataSubtitles["Backup & restore"] ?? "",
+                                  systemImage: "archivebox", trailing: "Locked")
+                    .accessibilityHint("Open the Journal tab once to unlock the vault first")
                     .accessibilityIdentifier("settings.row.backup.unavailable")
             }
         }

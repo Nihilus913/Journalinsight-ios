@@ -6,6 +6,9 @@ import JIDesign
 /// per-device UI pref (`@AppStorage` in RecoveryView), comma-joined ids.
 public nonisolated let recoveryTileIds = ["hrv", "sleep", "rhr", "load"]
 
+/// Board `2 Monitor/01 Recovery.png`: the "Last night" squares sit two a row.
+public nonisolated let recoveryGridColumns = 2
+
 public nonisolated struct RecoveryTileLayout: Equatable, Sendable { public let visible: [String], hidden: [String] }
 
 public nonisolated func recoveryTileLayout(orderRaw: String, hiddenRaw: String) -> RecoveryTileLayout {

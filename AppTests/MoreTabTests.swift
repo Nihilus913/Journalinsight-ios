@@ -8,4 +8,8 @@ struct MoreTabTests {
         #expect(s.flatMap(\.rows) == ["Nutrition", "Energy", "My KPIs", "Goals", "Mind", "Settings"])
         #expect(!s.flatMap(\.rows).contains("Challenges"))
     }
+
+    @Test func myKpisRowShowsTheChosenCount() {
+        #expect(RootTabView.moreKpiText(count: 5) == "5 chosen")
+    }
 }

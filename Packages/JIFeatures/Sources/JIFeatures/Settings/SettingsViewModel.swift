@@ -24,6 +24,8 @@ public final class SettingsViewModel {
     public let goalsSetupModel: GoalsSetupViewModel?
     /// Optional (W3b-L2): nil = no hub provider for the KPI list.
     public let kpiListModel: KpiListViewModel?
+    /// B-57 W1: Today's chips for EditToday's squares (App passes the live Today model's).
+    public let todayChips: @MainActor () -> [TodayChip]
     /// Registered sections in render order (by `sortKey`, stable for equal keys).
     public let sections: [any SettingsSection]
     /// RN `saved` — "Using hub — saved." after a successful save; nil until then.
@@ -39,6 +41,7 @@ public final class SettingsViewModel {
         backupModel: BackupViewModel? = nil,
         goalsSetupModel: GoalsSetupViewModel? = nil,
         kpiListModel: KpiListViewModel? = nil,
+        todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
         sections: [any SettingsSection] = SettingsRegistry.sections,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
@@ -49,6 +52,7 @@ public final class SettingsViewModel {
         self.backupModel = backupModel
         self.goalsSetupModel = goalsSetupModel
         self.kpiListModel = kpiListModel
+        self.todayChips = todayChips
         // `sorted` is stable in Swift's stdlib (documented since 5.x), so equal keys keep registry order.
         self.sections = sections.sorted { $0.sortKey < $1.sortKey }
         self.onSaved = onSaved

@@ -24,6 +24,11 @@ public nonisolated func kpiMacroSummary(rows: [NutritionDailyRow], macro: KpiMet
                            avg7: trendAverage(series, days: 7), avg28: trendAverage(series, days: 28))
 }
 
+/// The goal / latest / 7 d / 28 d cells of one table row. JI-owned macro goals arrive in W2, so
+/// the goal cell is "— No data" until then; a missing actual is "— No data" too (rule 5).
+public nonisolated func kpiMacroTableCells(_ s: KpiMacroSummary, decimals: Int, goal: Double? = nil) -> [String] {
+    [goal, s.latest, s.avg7, s.avg28].map { jiValueOrReasonText($0, decimals: decimals) }
+}
 
 /// B-57 W1 KpiDetailNutrition: macro picker, the 7-day NormalBar (normal W3, goal W2), and the
 /// goal / latest / 7 d / 28 d table over `NutritionDailyRow`s.
@@ -67,8 +72,10 @@ struct KpiNutritionPanel: View {
                         let d = KpiMetrics.def(m).decimals
                         GridRow {
                             Text(KpiMetrics.def(m).label).foregroundStyle(theme.color(metricTintRole(m.rawValue))).gridColumnAlignment(.leading)
-                            Text("—").foregroundStyle(theme.color(.muted))          // goals: W2 (JI-owned macro goals)
-                            Text(jiValueText(ms.latest, decimals: d)); Text(jiValueText(ms.avg7, decimals: d)); Text(jiValueText(ms.avg28, decimals: d))
+                            ForEach(Array(kpiMacroTableCells(ms, decimals: d).enumerated()), id: \.offset) { _, cell in
+                                Text(cell).foregroundStyle(theme.color(cell.hasPrefix("—") ? .muted : .text))
+                                    .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                         .jiFont(.footnote)
                     }

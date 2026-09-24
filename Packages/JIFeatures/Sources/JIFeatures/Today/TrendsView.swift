@@ -45,10 +45,26 @@ public nonisolated func trendsCards(_ cards: [TrendsCardModel], filter: TrendsFi
     filter == .all ? cards : cards.filter { $0.group == filter }
 }
 
+/// B-57 W1 Trends "Edit": which cards show is a per-device UI pref (`@AppStorage`, comma-joined
+/// ids — the same shape as Recovery's squares). Editing shows every card with a hide/show badge.
+public nonisolated func trendsHiddenIds(_ raw: String) -> Set<String> {
+    Set(raw.split(separator: ",").map(String.init))
+}
+public nonisolated func trendsShownCards(_ cards: [TrendsCardModel], hiddenRaw: String, editing: Bool) -> [TrendsCardModel] {
+    editing ? cards : cards.filter { !trendsHiddenIds(hiddenRaw).contains($0.id) }
+}
+public nonisolated func trendsToggleHidden(_ raw: String, id: String) -> String {
+    var hidden = trendsHiddenIds(raw)
+    if hidden.contains(id) { hidden.remove(id) } else { hidden.insert(id) }
+    return hidden.sorted().joined(separator: ",")
+}
+
 public struct TrendsView: View {
     let recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?
     let onSelectKpi: ((String) -> Void)?
     @State private var filter: TrendsFilter = .all
+    @State private var editing = false
+    @AppStorage("trends.hidden") private var hiddenRaw = ""
     @Environment(\.jiTheme) private var theme
 
     public init(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?, onSelectKpi: ((String) -> Void)? = nil) {
@@ -74,7 +90,7 @@ public struct TrendsView: View {
                         if group == .nutrition { Text("7 d vs 28 d").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
                     }
                     Columns(minimum: 150, spacing: 12) {
-                        ForEach(trendsCards(all, filter: group)) { c in card(c) }
+                        ForEach(trendsShownCards(trendsCards(all, filter: group), hiddenRaw: hiddenRaw, editing: editing)) { c in card(c) }
                     }
                 }
                 NormalBarLegend()
@@ -84,10 +100,18 @@ public struct TrendsView: View {
         }
         .background(theme.color(.bg))
         .navigationTitle("Trends")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(editing ? "Done" : "Edit") { editing.toggle() }.accessibilityIdentifier("trends.edit")
+            }
+        }
     }
 
     private func card(_ c: TrendsCardModel) -> some View {
-        Button { onSelectKpi?(c.id) } label: {
+        let hidden = trendsHiddenIds(hiddenRaw).contains(c.id)
+        return Button {
+            if editing { hiddenRaw = trendsToggleHidden(hiddenRaw, id: c.id) } else { onSelectKpi?(c.id) }
+        } label: {
             Surface(level: 1) {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(c.name, systemImage: c.systemImage).jiFont(.subheadline, weight: .semibold)
@@ -102,10 +126,20 @@ public struct TrendsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .opacity(editing && hidden ? 0.45 : 1)
+            .overlay(alignment: .topTrailing) {
+                if editing {
+                    Image(systemName: hidden ? "plus" : "minus").font(.caption.weight(.bold))
+                        .foregroundStyle(theme.color(hidden ? .bg : .text))
+                        .frame(width: 24, height: 24).background(theme.color(hidden ? .info : .control), in: Circle())
+                        .padding(8).accessibilityHidden(true)
+                }
+            }
         }
         .buttonStyle(.pressableScale)
-        .disabled(onSelectKpi == nil)
+        .disabled(!editing && onSelectKpi == nil)
         .accessibilityElement(children: .combine)
+        .accessibilityHint(editing ? (hidden ? "Shows this card" : "Hides this card") : "")
         .accessibilityIdentifier("trends.card.\(c.id)")
     }
 }

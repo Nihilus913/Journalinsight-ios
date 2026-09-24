@@ -17,6 +17,8 @@ struct SquareGridTests {
     @Test func squareGridDropsToTwoColumnsAtAXSizes() {
         #expect(squareGridColumnCount(isAccessibilitySize: false) == 3)
         #expect(squareGridColumnCount(isAccessibilitySize: true) == 2)
+        #expect(squareGridColumnCount(preferred: 2, isAccessibilitySize: false) == 2)
+        #expect(squareGridColumnCount(preferred: 3, isAccessibilitySize: true) == 2)
     }
 
     @Test func accessibilityLabelSpellsValueStatusAndBadge() {

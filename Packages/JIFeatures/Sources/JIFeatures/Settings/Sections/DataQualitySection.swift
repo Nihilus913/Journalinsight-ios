@@ -16,7 +16,7 @@ public struct DataQualitySection: SettingsSection {
 
 private struct DataQualitySectionRows: View {
     var body: some View {
-        Section {
+        SettingsRowGroup {
             NavigationLink {
                 // Built at push time, not at row-render time, so the installed provider (and a
                 // reconnection that replaced it) is the one the screen reads.
@@ -26,7 +26,7 @@ private struct DataQualitySectionRows: View {
                     DataQualityUnavailableView()
                 }
             } label: {
-                SettingsLinkLabel(title: "Data quality", subtitle: settingsDataSubtitles["Data quality"] ?? "")
+                SettingsLinkLabel(title: "Data quality", subtitle: settingsDataSubtitles["Data quality"] ?? "", systemImage: "checkmark.shield")
             }
             .accessibilityLabel("Data quality")
             .accessibilityIdentifier("settings.row.dataQuality")
