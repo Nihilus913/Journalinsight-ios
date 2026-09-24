@@ -72,8 +72,7 @@ public struct HubClient: Sendable {
     }
 
     /// DELETE with no response body — same request/error mapping as `send`, but doesn't attempt
-    /// to decode a body (mirrors `HubDataProvider+Nutrition.swift`'s pre-L0 `deleteLogItem`, which
-    /// this seam fix supersedes with a shared, non-`Mirror`-based helper).
+    /// to decode a body.
     public func delete(_ path: String, query: [String: String] = [:]) async throws {
         var comps = URLComponents(url: config.baseURL.appending(path: path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) } }

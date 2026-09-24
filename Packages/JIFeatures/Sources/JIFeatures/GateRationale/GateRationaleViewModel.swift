@@ -113,7 +113,7 @@ public final class GateRationaleViewModel {
             let hubError = Self.asHubError(error)
             lastError = hubError
             // A screen that already holds a rationale keeps showing it rather than collapsing to an
-            // error card (TodayViewModel/ChallengesViewModel branching) — blank is not honest when
+            // error card (the same branching as TodayViewModel) — blank is not honest when
             // we hold real data.
             phase = gate == nil ? .error(Self.describe(hubError)) : .loaded
         }

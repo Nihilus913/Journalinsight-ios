@@ -279,9 +279,8 @@ public struct GateRationaleView: View {
 // MARK: - Entry point
 
 extension EnvironmentValues {
-    /// Set by the app's Today wiring; `nil` leaves the verdict hero inert (the same optional-model
-    /// idiom as `VerdictHeroView.challengesModel`, routed through the environment so the entry site
-    /// costs exactly one line and cannot collide with the other lane editing that file).
+    /// Set by the app's Today wiring; `nil` leaves the verdict hero inert (an optional model,
+    /// routed through the environment so the entry site costs exactly one line).
     @Entry public var gateRationaleModel: GateRationaleViewModel?
     /// W-B57b (§9): the weekly gate's answer model, set by `TodayView` (which builds it through
     /// the App's `makeGateRespondModel`) so the rationale screen can show the respond card.
@@ -313,7 +312,7 @@ struct GateRationaleDestination: ViewModifier {
                 .accessibilityLabel("Readiness verdict details")
                 .accessibilityIdentifier("today.verdict.rationale")
                 // Attached locally so this never needs the enclosing NavigationStack's own
-                // `navigationDestination(for:)` — same rationale as the challenges link above it.
+                // `navigationDestination(for:)`.
                 .navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: model, respondModel: respondModel) }
         } else {
             content

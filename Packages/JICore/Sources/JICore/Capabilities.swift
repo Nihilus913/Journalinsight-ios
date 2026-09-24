@@ -14,11 +14,11 @@ public struct DataCapability: OptionSet, Sendable, Hashable {
     public static let energy          = DataCapability(rawValue: 1 << 6)
     public static let nutritionDay    = DataCapability(rawValue: 1 << 7)
     public static let nutritionWeek   = DataCapability(rawValue: 1 << 8)
-    public static let foodLogWrite    = DataCapability(rawValue: 1 << 9)
+    // 1 << 9 retired (B-57 W1: food logging removed — JI is read-only for food). Never reuse.
     public static let weighinWrite    = DataCapability(rawValue: 1 << 10)
     public static let goals           = DataCapability(rawValue: 1 << 11)
     public static let kpiTargets      = DataCapability(rawValue: 1 << 12)
-    public static let challenges      = DataCapability(rawValue: 1 << 13)
+    // 1 << 13 retired (B-57 W1 deleted that feature). Never reuse.
     public static let sync            = DataCapability(rawValue: 1 << 14)
     public static let dataQuality     = DataCapability(rawValue: 1 << 15)
     // Metrics that only some sources carry (Garmin/Firstbeat vs HealthKit)
@@ -31,7 +31,7 @@ public struct DataCapability: OptionSet, Sendable, Hashable {
     /// What the Mac hub (T1, Garmin Fenix depth) supplies.
     public static let hubAll: DataCapability = [
         .gate, .morning, .morningVerdict, .recovery, .sleepSummary, .exercises, .energy,
-        .nutritionDay, .nutritionWeek, .foodLogWrite, .weighinWrite, .goals, .kpiTargets,
-        .challenges, .sync, .dataQuality, .bodyBattery, .trainingReadiness, .garminSleepScore, .hrvRMSSD,
+        .nutritionDay, .nutritionWeek, .weighinWrite, .goals, .kpiTargets,
+        .sync, .dataQuality, .bodyBattery, .trainingReadiness, .garminSleepScore, .hrvRMSSD,
     ]
 }

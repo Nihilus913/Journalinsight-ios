@@ -2,7 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 
-// MARK: - Helpers kept from the retired GateSignalArcsRow (B-61/B-65 tests pin them)
+// MARK: - Signal helpers kept from the pre-B-57 arcs row (B-61/B-65 tests pin them)
 
 public nonisolated func gateSignalColorRole(_ status: GateSignalStatus) -> JIColorRole {
     switch status {

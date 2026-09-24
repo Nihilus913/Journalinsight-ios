@@ -2,7 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// W3b-L4 (P-weigh-in), mirrors the weigh-in part of `mobile/src/components/nutrition/LogSheet.tsx`
+/// W3b-L4 (P-weigh-in), mirrors the weigh-in part of the RN nutrition log sheet (oracle v1.18.2)
 /// (`SheetView == "weight"`): a weight logged here closes the sheet immediately on save — no
 /// confirm/undo step (a weigh-in has no undo path, same as the oracle). CLAUDE.md rule 5: the field
 /// starts empty (never a placeholder "0"), and Save is disabled until the typed text parses to a
@@ -60,7 +60,7 @@ public struct WeighInSheet: View {
                     .padding()
                     .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous))
                     .foregroundStyle(theme.color(.text))
-                    // Oracle `LogSheet.tsx` TextField label, verbatim.
+                    // The RN oracle sheet's TextField label, verbatim.
                     .accessibilityLabel("Weight (kg)")
                     .accessibilityIdentifier("weighin-weight-field")
 

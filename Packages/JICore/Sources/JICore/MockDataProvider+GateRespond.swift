@@ -8,8 +8,8 @@ import Foundation
 /// (`log_id` / `feel_id`), not a capturable document — there is no `planning_gate_respond.json`
 /// among the fixtures of record (`HealthTraining/fixtures/hub-contract/`, read-only from here,
 /// and `Fixtures/MANIFEST.sha256` is generated from exactly that directory). So this echoes the
-/// posted body back, matching `MockDataProvider+Nutrition.logFood`'s "echo the posted body"
-/// convention for previews and happy-path tests; the failure branches are exercised against the
+/// posted body back (the mocks' "echo the posted body" convention, as `updateKpiTarget` does)
+/// for previews and happy-path tests; the failure branches are exercised against the
 /// real `HubClient` with `StubURLProtocol` (JIHub) and against fakes (JIFeatures).
 extension MockDataProvider: GateRespondProviding {
     /// `pdf_requested` mirrors the hub's own rule verbatim (`app/planning/router.py`'s

@@ -16,7 +16,7 @@ public nonisolated func signalRowAccessibilityLabel(label: String, value: Double
         .compactMap { $0 }.joined(separator: ", ")
 }
 
-/// B-57 §1 (replaces `GateSignalArcsRow`, B-72): label + reference line on the left, value and the
+/// B-57 §1 (replaces the old gate-signal arcs row, B-72): label + reference line on the left, value and the
 /// tinted, worded status on the right. Wraps at AX sizes instead of clipping.
 public struct SignalRow: View {
     let label: String, value: Double?, unit: String?, decimals: Int

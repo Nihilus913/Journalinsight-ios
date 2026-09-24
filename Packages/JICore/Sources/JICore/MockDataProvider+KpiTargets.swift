@@ -8,8 +8,8 @@ extension MockDataProvider: KpiTargetsProviding {
         try Self.decodeKpiFixture("planning_kpi_targets", as: KpiTargetsResponse.self).targets
     }
 
-    /// No real hub to PUT to — echoes the edit back into the fixture's own row, matching
-    /// `MockDataProvider+Nutrition.logFood`'s "echo the posted body" convention for previews/tests
+    /// No real hub to PUT to — echoes the edit back into the fixture's own row (the mocks'
+    /// "echo the posted body" convention) for previews/tests
     /// exercising the happy path (view-model round-trip tests use their own fake
     /// `KpiTargetsProviding` for the 4xx/5xx branches, not this mock).
     public func updateKpiTarget(id: Int, threshold: Double, thresholdHi: Double?, description: String?) async throws -> KpiTarget {
