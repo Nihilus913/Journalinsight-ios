@@ -124,7 +124,8 @@ import JIDesign
         _ = TrendsCardNativePreview().body
     }
 
-    @Test func theRegistryCarriesTheTrendsCardEntry() {
-        #expect(ScreenRegistry.entries.contains { $0.name == "Trends card" })
+    @Test func theRegistryCarriesTheTrendsEntry() {
+        // B-57 W1 (L1 Task 7): "Trends card" became the full "Trends" screen.
+        #expect(ScreenRegistry.entries.contains { $0.name == "Trends" })
     }
 }
