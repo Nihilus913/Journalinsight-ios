@@ -2,13 +2,13 @@ import SwiftUI
 import JIDesign
 import JICore
 
-// W5b-L5 (P-weekly-plan). Port of `mobile/app/weekly-plan.tsx`: four steppers that write through
-// on every tap, the train/rest day chips derived from the session schedule, and the seven-row
+// W5b-L5 (P-weekly-plan). Port of `mobile/app/weekly-plan.tsx`: four steppers (saved by "Save
+// plan" since B-57 W1 r4), the train/rest day chips derived from the session schedule, and the seven-row
 // day table with the weekly-average footer. Reached from the Nutrition tab's "Weekly kcal /
 // macro plan" row (RN's real entry) and from Settings → Preferences.
 //
-// Rule 6: the `info` role (blue) is the selection/CTA accent — the high-day chips and kcal figures
-// are a selection state, not a verdict/band/score, so green is deliberately NOT used here.
+// B-57 W1 r4: kcal figures and bars carry the board's calorie tint (`nutritionKcalTintRole`);
+// green appears only on the goal status line (a status, rule 6); "Save plan" is the CTA.
 public struct WeeklyPlanView: View {
     @State private var model: WeeklyPlanViewModel
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
@@ -38,7 +38,19 @@ public struct WeeklyPlanView: View {
                 .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("weeklyPlan.info")
-            averageHero
+            VStack(alignment: .leading, spacing: 6) {
+                averageHero
+                statusLine(model.goalStatus).accessibilityIdentifier("weeklyPlan.goalStatus")
+                // The held training-day target keeps its truth, in the board's status-line form.
+                if let held = weeklyPlanCapStatus(model.plan) {
+                    statusLine(held).accessibilityIdentifier("weeklyPlan.capNote")
+                    if let detail = weeklyPlanCapStatusDetail(model.plan) {
+                        Text(detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("weeklyPlan.capDetail")
+                    }
+                }
+            }
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("The week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
@@ -48,12 +60,6 @@ public struct WeeklyPlanView: View {
                 }
                 weekChart
                 legend
-                if let note = weeklyPlanCapNote(model.plan) {
-                    Label(note, systemImage: "exclamationmark.triangle")
-                        .jiFont(.footnote).foregroundStyle(theme.color(.reduced))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("weeklyPlan.capNote")
-                }
             }
             VStack(alignment: .leading, spacing: 10) {
                 JISectionHeader("Targets")
@@ -63,11 +69,25 @@ public struct WeeklyPlanView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("weeklyPlan.footnote")
             }
-            if model.hasSaved {
-                Text("Saved.").jiFont(.micro).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("weeklyPlan.saved")
+            VStack(spacing: 6) {
+                Button { model.save() } label: {
+                    Text("Save plan").jiFont(.body, weight: .semibold).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).controlSize(.large).tint(theme.color(.info))
+                .disabled(!model.canSave)
+                .accessibilityIdentifier("weeklyPlan.save")
+                if model.hasSaved {
+                    Text("Saved.").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("weeklyPlan.saved")
+                }
             }
         }
+    }
+
+    private func statusLine(_ status: WeeklyPlanGoalStatus) -> some View {
+        Label(status.word, systemImage: status.symbolName)
+            .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(status.role))
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Board hero: the weekly average as the headline figure.
@@ -81,7 +101,7 @@ public struct WeeklyPlanView: View {
         .accessibilityIdentifier("weeklyPlan.hero")
     }
     private var heroNumber: some View {
-        Text("\(model.plan.avgKcal)").jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(.info))
+        Text("\(model.plan.avgKcal)").jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(nutritionKcalTintRole))
     }
     private var heroUnit: some View { Text("kcal average").jiFont(.body).foregroundStyle(theme.color(.muted)) }
 
@@ -99,7 +119,7 @@ public struct WeeklyPlanView: View {
                             .jiFont(.caption).foregroundStyle(theme.color(.muted))
                             .lineLimit(1).minimumScaleFactor(0.5)
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(theme.color(.info).opacity(day.high ? 1 : 0.35))
+                            .fill(theme.color(nutritionKcalTintRole).opacity(day.high ? 1 : 0.35))
                             // A planned day always shows its bar (board: rest days are shorter
                             // bars, never absent); the math never plans a day below zero.
                             .frame(height: max(day.kcal > 0 ? 8 : 0, barMaxHeight * weeklyPlanBarFraction(kcal: day.kcal, days: days)))
@@ -131,7 +151,7 @@ public struct WeeklyPlanView: View {
 
     private func legendItem(_ text: String, opacity: Double) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 3).fill(theme.color(.info).opacity(opacity)).frame(width: 12, height: 12)
+            RoundedRectangle(cornerRadius: 3).fill(theme.color(nutritionKcalTintRole).opacity(opacity)).frame(width: 12, height: 12)
             Text(text).jiFont(.footnote).foregroundStyle(theme.color(.muted))
         }
     }
@@ -175,7 +195,7 @@ public struct WeeklyPlanView: View {
     private func knobValue(_ knob: WeeklyPlanViewModel.Knob) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(weeklyPlanNumberText(model.value(of: knob))).jiNumeral(.numeralSmall, weight: .heavy)
-                .foregroundStyle(theme.color(knob.unit == "kcal" ? .info : .text))
+                .foregroundStyle(theme.color(knob.unit == "kcal" ? nutritionKcalTintRole : .text))
             Text(knob.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
         .accessibilityElement(children: .combine)

@@ -8,7 +8,8 @@ public nonisolated let energySubtitle = "What you eat against what you burn, fro
 public nonisolated let energyBurnCardCopy = "Resting plus active energy, both read from Apple Health. JI adds them up each day."
 
 /// Energy tab (W3a-L1, frozen contract `EnergyView.init(model:)` for `RootTabView`'s L4 wiring).
-/// Composes `EnergyHero` + `IntakeTdeeChart` + `DeficitDayList` from `RecoveryView`'s own
+/// Composes `EnergyHero` + "This week" (`EnergyWeekChart`) + the Daily log (`DeficitDayList`)
+/// from `RecoveryView`'s own
 /// loading/error/empty/loaded phase switch (the pattern the wave card names) — single-column only
 /// this wave; the RN oracle's >=600dp two-pane layout is left for a follow-up (out of this lane's
 /// exit criteria, which cover render-from-fixture + states, not window-size adaptivity).
@@ -16,8 +17,6 @@ public struct EnergyView: View {
     @Bindable private var model: EnergyViewModel
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
-    /// §2b.3 Health range picker over the balance trend.
-    @State private var range: TrendRange = .month
 
     public init(model: EnergyViewModel) { self.model = model }
 
@@ -76,68 +75,91 @@ public struct EnergyView: View {
                 }
             }
             if let report = model.report {
-                JISectionHeader("Balance")
-                // §8.1: hero and trend compose side by side in regular width, stack on a phone.
-                AdaptiveHStack {
-                    EnergyHero(report: report)
-                    Surface(padding: 18) {
-                        // §2b.3: the Health range picker + dashed average, over the daily balance
-                        // (`-deficit`, the sign people read). §4b: no arc — energy balance is
-                        // signed and unbounded, so it is a line, never a ring.
-                        TrendChart(points: balancePoints(report.days), tint: theme.color(.info),
-                                   unit: "kcal", range: $range, showAll: nil)
-                            .accessibilityIdentifier("energy.balanceTrend")
-                    }
-                }
+                // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE" —
+                // the hero, then the week's bars and the daily log against the user's goal.
+                EnergyHero(report: report)
                 HowWeCalculateLink(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-                HStack(alignment: .firstTextBaseline) {
-                    Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                }
-                Surface(level: 1) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("—").jiNumeral(.numeralMedium, tint: .muted)
-                            Label(JIMissingReason.notInHealthYet.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
-                                .foregroundStyle(theme.color(.muted))
-                        }
-                        Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("energy.whatYouBurn")
-                }
+                EnergyBurnCard()
                 HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
                     .accessibilityIdentifier("energy.howWeCalculate")
-                JISectionHeader("Intake vs TDEE")
-                Surface(padding: 18) {
-                    IntakeTdeeChart(days: report.days)
-                        .accessibilityIdentifier("energy.intakeTdeeChart")
-                }
+                EnergyThisWeek(days: report.days, goal: model.goalKcal, today: today)
             }
             JISectionHeader("Daily log")
             Surface(padding: 18) {
-                DeficitDayList(days: model.days)
+                DeficitDayList(days: model.days, goal: model.goalKcal, today: today)
                     .accessibilityIdentifier("energy.dailyLog")
             }
         }
     }
 
-    /// The balance series the range picker filters: `-deficit` per day, newest `range.days` days,
-    /// untracked days omitted rather than drawn as a zero (rule 5).
-    private func balancePoints(_ days: [EnergyDay]) -> [TrendPoint] {
-        days.sorted { $0.date < $1.date }
-            .suffix(range.days)
-            .compactMap { day in
-                guard let deficit = day.deficitCorrected, !deficit.isNaN,
-                      let date = trainingStripDate(day.date) else { return nil }
-                return TrendPoint(date: date, value: -deficit)
-            }
-    }
+    private var today: String { energyTodayISO(model.now()) }
 
     private var staleDateBanner: String? {
         if case .staleVerdictDate(let date) = model.screenState { return date }
         return nil
     }
+}
+
+/// Board "What you burn": the words ship in W1; resting + active energy from HealthKit arrive in
+/// W2 (the resting / active split is left for W2 too), so the value is "— Not in Health yet".
+struct EnergyBurnCard: View {
+    private let theme = JITheme.native
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            }
+            Surface(level: 1) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                        Label(JIMissingReason.notInHealthYet.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
+                            .foregroundStyle(theme.color(.muted))
+                    }
+                    Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("energy.whatYouBurn")
+            }
+        }
+    }
+}
+
+/// Board "This week": header with the user's goal, the bars, and the "still filling in" caption.
+/// The board's Week / 30 D / 90 D picker is left out: the screen loads 7 days, and a picker that
+/// could not change what is shown would be a fake control.
+struct EnergyThisWeek: View {
+    let days: [EnergyDay]
+    let goal: Double?
+    let today: String
+    private let theme = JITheme.native
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("This week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                Text(energyGoalHeaderText(goal)).jiFont(.footnote, weight: .semibold)
+                    .foregroundStyle(theme.color(goal == nil ? .muted : .text))
+                    .accessibilityIdentifier("energy.goal")
+            }
+            Surface(padding: 16) {
+                EnergyWeekChart(bars: energyWeekBars(days: days, today: today), goal: goal)
+            }
+            if let caption = energyFillingInCaption(days: days, today: today) {
+                Text(caption).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("energy.fillingIn")
+            }
+        }
+    }
+}
+
+/// "Goal 1617 kcal", or "No goal set".
+public nonisolated func energyGoalHeaderText(_ goal: Double?) -> String {
+    guard let goal, goal.isFinite else { return EnergyDayStatus.noGoal.word }
+    return "Goal \(jiNumber(goal, 0)) kcal"
 }

@@ -2,52 +2,250 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// D2-E3 port — the daily log (`DeficitDayList.tsx`). Newest-first, one row per day: a status dot
-/// (tracked/partial/untracked, mirrored from `trackedStatus` in the RN oracle's `DayStrip.tsx`),
-/// date, intake/TDEE/class line, and the balance colored by `EnergyFormat.deficitColor`. The RN
-/// row taps through to Nutrition on that date — no cross-tab navigation exists yet in this wave
-/// (Nutrition ships in sibling lane L2), so this list is display-only; a future wave wires the tap.
+// B-57 W1 r4 (board `2 Monitor/06 Energy.png`): the "This week" bars and the Daily log, over the
+// hub's energy days and the user's calorie goal. Pure helpers first, then the two views.
+
+/// Within this share of the goal a day reads "On target" (the board's 1549 against 1617 does).
+public nonisolated let energyOnTargetTolerance = 0.05
+
+/// One day of the log against the user's calorie goal.
+public nonisolated enum EnergyDayStatus: Equatable, Sendable {
+    case onTarget, overGoal, underGoal, noGoal
+    case missing(JIMissingReason)
+
+    public var word: String {
+        switch self {
+        case .onTarget: "On target"
+        case .overGoal: "Over goal"
+        case .underGoal: "Under goal"
+        case .noGoal: "No goal set"
+        case .missing(let reason): "— \(reason.rawValue)"
+        }
+    }
+
+    public var role: JIColorRole {
+        switch self {
+        case .onTarget: .go
+        case .overGoal, .underGoal: .reduced
+        case .noGoal, .missing: .muted
+        }
+    }
+
+    public var symbolName: String {
+        switch self {
+        case .onTarget: "checkmark"
+        case .overGoal: "arrow.up"
+        case .underGoal: "arrow.down"
+        case .noGoal, .missing: "minus"
+        }
+    }
+}
+
+public nonisolated func energyDayStatus(intake: Double?, goal: Double?) -> EnergyDayStatus {
+    guard let intake, intake.isFinite else { return .missing(.noData) }
+    guard let goal, goal.isFinite, goal > 0 else { return .noGoal }
+    let change = (intake - goal) / goal
+    if abs(change) <= energyOnTargetTolerance { return .onTarget }
+    return change > 0 ? .overGoal : .underGoal
+}
+
+/// One bar of "This week" (Monday first). `kcal` is nil for a day with no intake and for days
+/// still to come — drawn as "—", never a zero bar.
+public nonisolated struct EnergyWeekBar: Identifiable, Equatable, Sendable {
+    public let id: String      // ISO date
+    public let label: String   // "Mon"
+    public let kcal: Double?
+    public let isToday: Bool
+    public let isFuture: Bool
+}
+
+private nonisolated let energyWeekdayShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+private nonisolated let energyWeekdayLong = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+/// Monday-first index (0…6) of an ISO date.
+nonisolated func energyWeekdayIndex(_ iso: String) -> Int? {
+    guard let d = trainingStripDate(iso) else { return nil }
+    return (trainingStripCalendar.component(.weekday, from: d) + 5) % 7
+}
+
+/// Today's ISO date on the device's own calendar (the energy days are local calendar days).
+public nonisolated func energyTodayISO(_ now: Date = Date(), calendar: Calendar = .autoupdatingCurrent) -> String {
+    let c = calendar.dateComponents([.year, .month, .day], from: now)
+    return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+}
+
+/// The current week, Monday to Sunday, with each day's intake from `days`.
+public nonisolated func energyWeekBars(days: [EnergyDay], today: String) -> [EnergyWeekBar] {
+    guard let todayDate = trainingStripDate(today), let idx = energyWeekdayIndex(today),
+          let monday = trainingStripCalendar.date(byAdding: .day, value: -idx, to: todayDate) else { return [] }
+    let byDate = Dictionary(days.map { ($0.date, $0.kcalConsumed) }, uniquingKeysWith: { a, _ in a })
+    return (0..<7).compactMap { i in
+        guard let d = trainingStripCalendar.date(byAdding: .day, value: i, to: monday) else { return nil }
+        let iso = trainingStripISO(d)
+        let future = iso > today
+        return EnergyWeekBar(id: iso, label: energyWeekdayShort[i], kcal: future ? nil : (byDate[iso] ?? nil),
+                             isToday: iso == today, isFuture: future)
+    }
+}
+
+/// "Wednesday is still filling in." — only when today already has intake in the week.
+public nonisolated func energyFillingInCaption(days: [EnergyDay], today: String) -> String? {
+    guard let day = days.first(where: { $0.date == today }), day.kcalConsumed != nil,
+          let idx = energyWeekdayIndex(today) else { return nil }
+    return "\(energyWeekdayLong[idx]) is still filling in."
+}
+
+/// The log's days: complete days only (today counts once it ends), newest first.
+public nonisolated func energyLogDays(days: [EnergyDay], today: String) -> [EnergyDay] {
+    days.filter { $0.date < today }.sorted { $0.date > $1.date }
+}
+
+/// "Tue 22".
+public nonisolated func energyLogDateLabel(_ iso: String) -> String {
+    guard let idx = energyWeekdayIndex(iso), let day = iso.split(separator: "-").last.flatMap({ Int($0) }) else { return iso }
+    return "\(energyWeekdayShort[idx]) \(day)"
+}
+
+/// Board "This week": one intake bar per day in the calorie tint, the user's goal as a dashed
+/// line, today's bar hatched while it fills in, "—" for a day with nothing yet.
+struct EnergyWeekChart: View {
+    let bars: [EnergyWeekBar]
+    let goal: Double?
+    @Environment(\.jiTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var barMaxHeight: CGFloat = 110
+
+    private var scaleTop: Double {
+        max(bars.compactMap(\.kcal).max() ?? 0, goal ?? 0, 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(bars) { bar in column(bar) }
+            }
+            .overlay(alignment: .bottom) { goalLine }
+        }
+        .accessibilityIdentifier("energy.thisWeek")
+    }
+
+    @ViewBuilder
+    private var goalLine: some View {
+        if let goal, goal > 0 {
+            GeometryReader { g in
+                // Bars sit above a label row; the line is measured from the bars' baseline.
+                let y = g.size.height - labelRowHeight - 4 - barMaxHeight * CGFloat(goal / scaleTop)
+                Path { p in p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: g.size.width, y: y)) }
+                    .stroke(theme.color(.go).opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    @ScaledMetric(relativeTo: .footnote) private var labelRowHeight: CGFloat = 22
+    /// Room above the tallest bar for its number (and the column's spacing).
+    @ScaledMetric(relativeTo: .caption) private var valueRowHeight: CGFloat = 30
+
+    private func column(_ bar: EnergyWeekBar) -> some View {
+        VStack(spacing: 4) {
+            Spacer(minLength: 0)
+            if let kcal = bar.kcal {
+                Text(jiNumber(kcal, 0)).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.text))
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(theme.color(nutritionKcalTintRole).opacity(bar.isToday ? 0.45 : 1))
+                    .overlay {
+                        if bar.isToday {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(theme.color(nutritionKcalTintRole), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                        }
+                    }
+                    .frame(height: max(6, barMaxHeight * CGFloat(kcal / scaleTop)))
+            } else {
+                Text("—").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                Capsule().fill(theme.color(.nested)).frame(height: 3)
+            }
+            Text(bar.label).jiFont(.footnote, weight: bar.isToday ? .bold : .regular)
+                .foregroundStyle(theme.color(bar.isToday ? .text : .muted))
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .frame(height: labelRowHeight)
+        }
+        .frame(maxWidth: .infinity).frame(height: barMaxHeight + labelRowHeight + valueRowHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(bar.label)
+        .accessibilityValue(bar.kcal.map { "\(jiNumber($0, 0)) kcal\(bar.isToday ? ", still filling in" : "")" }
+                            ?? (bar.isFuture ? "still to come" : JIMissingReason.noData.rawValue))
+        .accessibilityIdentifier("energy.week.\(bar.id)")
+    }
+}
+
+/// Board "Daily log": one row per complete day, newest first — "Tue 22 · 1619 kcal · ✓ On target".
+/// Display-only (the RN tap-through to Nutrition on that date has no Swift route yet).
 public struct DeficitDayList: View {
     private let days: [EnergyDay]
+    private let goal: Double?
+    private let today: String
     @Environment(\.jiTheme) private var theme
-    public init(days: [EnergyDay]) { self.days = days }
+
+    public init(days: [EnergyDay], goal: Double? = nil, today: String = energyTodayISO()) {
+        self.days = days; self.goal = goal; self.today = today
+    }
 
     public var body: some View {
-        let sorted = days.sorted { $0.date > $1.date }
+        let log = energyLogDays(days: days, today: today)
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(sorted, id: \.date) { day in
+            if log.isEmpty {
+                Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .padding(.vertical, 8)
+            }
+            ForEach(log, id: \.date) { day in
                 row(day)
-                if day.date != sorted.last?.date {
-                    Divider().overlay(theme.color(.hairlineNested))
-                }
+                if day.date != log.last?.date { Divider().overlay(theme.color(.hairlineNested)) }
             }
         }
     }
 
-    /// §2b.2: one 44-pt inset-grouped row per day, the status dot carried as the row's tint.
     private func row(_ day: EnergyDay) -> some View {
-        JIRow(title: day.date,
-              subtitle: "intake \(fmt(day.kcalConsumed)) · TDEE \(fmt(day.tdeeCorrected)) · \(day.deficitClass ?? "—")",
-              systemImage: "circle.fill", tint: dotColor(day)) {
-            Text(EnergyFormat.balanceText(day.deficitCorrected))
-                .jiFont(.subheadline, weight: .bold)
-                .foregroundStyle(EnergyFormat.deficitColor(day.deficitCorrected, class: day.deficitClass, theme: theme))
+        let status = energyDayStatus(intake: day.kcalConsumed, goal: goal)
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                dateText(day).frame(minWidth: 56, alignment: .leading)
+                kcalText(day)
+                Spacer(minLength: 8)
+                statusText(status)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) { dateText(day); kcalText(day) }
+                statusText(status)
+            }
         }
-        // Display-only rows (RN's `View ${d.date} in Nutrition` tap-through has no Swift
-        // counterpart yet), so the label is the row's visible text.
-        .accessibilityLabel("\(day.date), intake \(fmt(day.kcalConsumed)), TDEE \(fmt(day.tdeeCorrected)), \(day.deficitClass ?? "unknown")")
-        .accessibilityValue("\(EnergyFormat.balanceText(day.deficitCorrected)) kcal")
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(energyLogDateLabel(day.date))
+        .accessibilityValue("\(day.kcalConsumed.map { "\(jiNumber($0, 0)) kcal" } ?? JIMissingReason.noData.rawValue), \(status.word)")
         .accessibilityIdentifier("energy.day.\(day.date)")
-        .padding(.vertical, 2)
     }
 
-    private func dotColor(_ day: EnergyDay) -> Color {
-        guard let meals = day.mealsLogged, day.kcalConsumed != nil else { return theme.color(.danger) }
-        return meals >= 2 ? theme.color(.info) : theme.color(.reduced)
+    private func dateText(_ day: EnergyDay) -> some View {
+        Text(energyLogDateLabel(day.date)).jiFont(.body).foregroundStyle(theme.color(.muted))
     }
 
-    private func fmt(_ v: Double?) -> String {
-        guard let v else { return "—" }
-        return String(Int(v.rounded()))
+    private func kcalText(_ day: EnergyDay) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(jiValueText(day.kcalConsumed, decimals: 0)).jiFont(.statValue, weight: .bold)
+                .foregroundStyle(theme.color(day.kcalConsumed == nil ? .muted : nutritionKcalTintRole))
+            if day.kcalConsumed != nil { Text("kcal").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+        }
+    }
+
+    /// A missing day already starts with "—", so it carries no second dash glyph.
+    @ViewBuilder
+    private func statusText(_ status: EnergyDayStatus) -> some View {
+        if case .missing = status {
+            Text(status.word).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(status.role))
+        } else {
+            Label(status.word, systemImage: status.symbolName)
+                .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(status.role))
+        }
     }
 }

@@ -52,10 +52,10 @@ struct KpiDetailNativePreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             KpiDetailSourceLine(subtitle: kpiSourceSubtitle(.hrv), fetchedAt: nil, showsSynced: false)
-            Surface {
-                Text("52 ms").jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            // The shipped value card over the fixture nights: number, status word, explanation.
+            KpiDetailValueCard(valueText: "52 ms", label: "HRV",
+                               status: kpiDetailStatus(history: L5KpiFixtures.history, value: 52, unit: "ms", decimals: 0),
+                               asOf: nil)
             KpiDetailTrend(points: kpiDetailTrendPoints(L5KpiFixtures.history, range: range), label: "HRV", unit: "ms", range: $range)
             KpiAlertEditor(sentence: kpiDetailPreviewThresholdSentence, value: $threshold, unit: "ms", decimals: 0,
                            saving: false, dirty: threshold != 45, error: nil, onSave: {})

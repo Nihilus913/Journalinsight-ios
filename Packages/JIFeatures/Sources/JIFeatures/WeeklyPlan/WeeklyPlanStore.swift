@@ -6,9 +6,8 @@ import JIPersistence
 // `getLocalPref`/`setLocalPref`; the Swift counterpart of that seam is `JIPersistence.PrefStore`
 // (the same store `EditToday`/`KpiSelection` persist through), keyed identically.
 //
-// Every edit on the screen writes through immediately (no Save button — see the screen's own
-// comment), so this is the single source of truth for "what did the user last set", read once at
-// mount and otherwise left alone until the next edit.
+// B-57 W1 r4: the screen's "Save plan" writes here (edits are staged until then), so this is the
+// single source of truth for "what did the user last save", read once at mount.
 
 public nonisolated struct WeeklyPlanPrefs: Codable, Sendable, Equatable {
     public var weeklyAvgKcal: Double
