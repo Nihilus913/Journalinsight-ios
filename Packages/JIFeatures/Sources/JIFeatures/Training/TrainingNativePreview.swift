@@ -51,8 +51,24 @@ struct TrainingNativePreview: View {
         """) ?? []
     }
 
+    /// The fixture day's sync time, 2026-09-21 07:00 UTC (fixed so the sweep is deterministic).
+    private let previewFetchedAt = Date(timeIntervalSince1970: 1_789_974_000)
+
+    private var previewWatchLine: String? {
+        #if canImport(WorkoutKit)
+        trainingWatchLine(.idle)
+        #else
+        nil
+        #endif
+    }
+
     var body: some View {
+        // B-57 W1: a ScrollView like the screen, so the sweep pins the header at the top (the
+        // sweep renders through a real UIWindow now, which lays out scroll content).
+        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
+            // B-57 W1: the preview carries the screen's new header (spec §1 "Registration").
+            TrainingSessionHeader(sessionName: "Full upper A", fetchedAt: previewFetchedAt, watchLine: previewWatchLine)
             TrainingDayStrip(daily: gate?.daily ?? [], selectedDate: today, today: today) { _ in }
             JISectionHeader("Readiness")
             AdaptiveHStack {
@@ -77,7 +93,8 @@ struct TrainingNativePreview: View {
         }
         .padding(.horizontal, 20).padding(.top, 8)
         .readableColumn()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
+        }
         .background(JITheme.native.color(.bg))
     }
 }

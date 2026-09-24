@@ -17,6 +17,7 @@ public nonisolated let gateConfigMorningCallRows: [(word: String, role: JIColorR
 public struct GateConfigView: View {
     @State private var model: GateConfigViewModel
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// B-33 §8.5: no hub fetch while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
 
@@ -28,8 +29,13 @@ public struct GateConfigView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("How the morning call works").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
                     ForEach(gateConfigMorningCallRows, id: \.word) { row in
-                        HStack(alignment: .top, spacing: 12) {
-                            Text(row.word).jiFont(.body, weight: .bold).foregroundStyle(theme.color(row.role)).frame(width: 90, alignment: .leading)
+                        // AX sizes: the word sits above its line, so "Modified" never splits mid-word.
+                        let layout = dynamicTypeSize.isAccessibilitySize
+                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                        layout {
+                            Text(row.word).jiFont(.body, weight: .bold).foregroundStyle(theme.color(row.role))
+                                .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 90, alignment: .leading)
                             Text(row.text).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         }
                     }
