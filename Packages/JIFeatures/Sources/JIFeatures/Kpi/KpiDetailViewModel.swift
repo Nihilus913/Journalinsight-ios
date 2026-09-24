@@ -23,6 +23,9 @@ public final class KpiDetailViewModel {
     /// isn't part of this card).
     public private(set) var target: KpiTarget?
     public private(set) var hubReachable = true
+    /// When this metric's own source last reached the phone (nutrition for the macros, recovery
+    /// otherwise). Nil until one has — the pill then says so rather than inventing a time.
+    public private(set) var fetchedAt: Date?
     public private(set) var hasLiveResult = false
     public private(set) var lastError: HubError?
 
@@ -86,8 +89,9 @@ public final class KpiDetailViewModel {
 
     private func restoreFromCache() {
         let targetKeys = def.targetMetricKeys
-        if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value }
-        if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value }
+        let macro = isNutritionKpi(metric)
+        if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value; if !macro { fetchedAt = hit.fetchedAt } }
+        if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value; if macro { fetchedAt = hit.fetchedAt } }
         if let hit = try? cache.get(Self.keys.gate, as: GateResponse.self) { dailyRows = hit.value.daily; gateAverages = hit.value.averages }
         if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { target = hit.value.first { targetKeys.contains($0.metric) } }
         if hasAnyData { phase = .loaded }
@@ -111,6 +115,7 @@ public final class KpiDetailViewModel {
             if let nv = n.value { nutrition = nv }
             if let gv = g.value { dailyRows = gv.daily; gateAverages = gv.averages }
             if let tv = t.value { target = tv.first { targetKeys.contains($0.metric) } }
+            fetchedAt = (isNutritionKpi(metric) ? n.fetchedAt : (r.fetchedAt ?? g.fetchedAt)) ?? fetchedAt
 
             let errors = [r.error, n.error, g.error, t.error].compactMap { $0 }
             let representative = errors.first { if case .unauthorized = $0 { return true }; return false }

@@ -88,9 +88,10 @@ private func dailyRow(_ date: String, kcal: Double?) -> DailyKpiRow {
 // MARK: - Item 4: the threshold editor showed the raw plan.kpi_target column key
 
 @Test func thresholdSentenceIsInTheMetricsOwnWordsNotTheColumnKey() {
-    #expect(kpiThresholdSentence(metricLabel: "Sleep score", operator: "<") == "Alert when Sleep score falls below")
-    #expect(kpiThresholdSentence(metricLabel: "Sleep score", operator: "<=") == "Alert when Sleep score falls below")
-    #expect(kpiThresholdSentence(metricLabel: "Training load (ACWR)", operator: ">") == "Alert when Training load (ACWR) rises above")
+    // B-57 W1 board (`2 Monitor/03 KpiDetail.png`): "Tell me when HRV falls below".
+    #expect(kpiThresholdSentence(metricLabel: "Sleep score", operator: "<") == "Tell me when Sleep score falls below")
+    #expect(kpiThresholdSentence(metricLabel: "Sleep score", operator: "<=") == "Tell me when Sleep score falls below")
+    #expect(kpiThresholdSentence(metricLabel: "Training load (ACWR)", operator: ">") == "Tell me when Training load (ACWR) rises above")
     #expect(kpiThresholdSentence(metricLabel: "Calories", operator: "between").contains("leaves the range"))
     // An operator we do not recognise must never fall through to printing the symbol raw.
     let unknown = kpiThresholdSentence(metricLabel: "Protein", operator: "~=")
@@ -280,7 +281,8 @@ private func makeB45VM(
 
 @Test func galleryKpiDetailUsesTheSameThresholdSentenceAsTheShippedScreen() {
     #expect(kpiDetailPreviewAlertHeader == "Alert")
-    #expect(kpiDetailPreviewThresholdSentence == "Alert when HRV rises above")
+    // The preview's fixture rule is the board's: an HRV rule that fires when HRV falls below.
+    #expect(kpiDetailPreviewThresholdSentence == "Tell me when HRV falls below")
     #expect(!kpiDetailPreviewThresholdSentence.contains("_"))
     #expect(!kpiDetailPreviewThresholdSentence.contains(">="))
 }

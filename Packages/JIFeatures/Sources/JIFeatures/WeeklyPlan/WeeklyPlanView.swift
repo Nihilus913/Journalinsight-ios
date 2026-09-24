@@ -48,6 +48,12 @@ public struct WeeklyPlanView: View {
                 }
                 weekChart
                 legend
+                if let note = weeklyPlanCapNote(model.plan) {
+                    Label(note, systemImage: "exclamationmark.triangle")
+                        .jiFont(.footnote).foregroundStyle(theme.color(.reduced))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("weeklyPlan.capNote")
+                }
             }
             VStack(alignment: .leading, spacing: 10) {
                 JISectionHeader("Targets")
@@ -94,7 +100,9 @@ public struct WeeklyPlanView: View {
                             .lineLimit(1).minimumScaleFactor(0.5)
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(theme.color(.info).opacity(day.high ? 1 : 0.35))
-                            .frame(height: barMaxHeight * weeklyPlanBarFraction(kcal: day.kcal, days: days))
+                            // A planned day always shows its bar (board: rest days are shorter
+                            // bars, never absent); the math never plans a day below zero.
+                            .frame(height: max(day.kcal > 0 ? 8 : 0, barMaxHeight * weeklyPlanBarFraction(kcal: day.kcal, days: days)))
                         Text(day.day.label)
                             .jiFont(.footnote, weight: isToday ? .bold : .regular)
                             .foregroundStyle(theme.color(isToday ? .text : .muted))

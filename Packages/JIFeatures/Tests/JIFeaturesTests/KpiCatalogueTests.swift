@@ -21,12 +21,16 @@ struct KpiCatalogueTests {
         #expect(recovery.allSatisfy { $0.badge == .add })
     }
 
-    @Test func fibreAndSugarAreDisplayOnlyNoData() {
+    /// Board (`2 Monitor/02 KpiList.png`): Fibre and Sugar carry the "+" badge like every other
+    /// square off Today; they stay "— No data" until a source exists.
+    @Test func fibreAndSugarAreNoDataWithTheAddBadge() {
         let n = kpiCatalogueItems(group: .nutrition, visible: [], value: { _ in 100 })
-        let fibre = n.first { $0.id == "fibre" }
-        #expect(fibre?.value == nil)
-        #expect(fibre?.status == .missing(.noData))
-        #expect(fibre?.badge == JISquareBadge.none)
+        for id in ["fibre", "sugar"] {
+            let square = n.first { $0.id == id }
+            #expect(square?.value == nil)
+            #expect(square?.status == .missing(.noData))
+            #expect(square?.badge == .add)
+        }
     }
 
     @Test func missingValuesAreNoDataNeverZero() {

@@ -73,7 +73,12 @@ public final class WeeklyPlanViewModel {
     public func step(_ knob: Knob, by delta: Double) {
         switch knob {
         case .weeklyAvg: setWeeklyAvgKcal(max(1200, weeklyAvgKcal + delta))
-        case .trainKcal: setTrainKcal(max(weeklyAvgKcal, trainKcal + delta))
+        case .trainKcal:
+            // B-57 W1 fixer: step from the target the screen shows (a held target, when capped),
+            // and never past what the rest days can fund — a "+" that changes nothing on screen
+            // while the stored number climbs would be a lie.
+            let ceiling = weeklyPlanMaxTrainKcal(weeklyAvgKcal: weeklyAvgKcal, proteinG: proteinG, fatG: fatG) ?? .infinity
+            setTrainKcal(min(ceiling, max(weeklyAvgKcal, value(of: .trainKcal) + delta)))
         case .protein: setProteinG(max(80, proteinG + delta))
         case .fat: setFatG(max(30, fatG + delta))
         }
@@ -109,7 +114,7 @@ public final class WeeklyPlanViewModel {
     public func value(of knob: Knob) -> Double {
         switch knob {
         case .weeklyAvg: weeklyAvgKcal
-        case .trainKcal: trainKcal
+        case .trainKcal: plan.trainCapped ? Double(plan.trainKcal) : trainKcal
         case .protein: proteinG
         case .fat: fatG
         }

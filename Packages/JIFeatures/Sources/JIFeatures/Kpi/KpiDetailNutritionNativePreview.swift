@@ -9,7 +9,12 @@ struct KpiDetailNutritionNativePreview: View {
                           proteinG: 110 + Double(d), carbsG: nil, fatG: 48 + Double(d % 6), mealsLogged: 3)
     }
     var body: some View {
-        KpiNutritionPanel(rows: Self.rows, macro: .protein)
+        VStack(alignment: .leading, spacing: 16) {
+            // Board: the source line with the "Last synced" pill (a fixed fixture time).
+            KpiDetailSourceLine(subtitle: kpiSourceSubtitle(.protein),
+                                fetchedAt: Date(timeIntervalSince1970: 1_790_158_440), showsSynced: true)
+            KpiNutritionPanel(rows: Self.rows, macro: .protein)
+        }
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(JITheme.native.color(.bg))

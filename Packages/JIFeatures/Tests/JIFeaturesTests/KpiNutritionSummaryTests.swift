@@ -33,3 +33,26 @@ extension KpiNutritionSummaryTests {
         #expect(kpiMacroTableCells(s, decimals: 0) == ["— No data", "127", "— No data", "131"])
     }
 }
+
+extension KpiNutritionSummaryTests {
+    /// Board: the day column is headed by that day ("22 SEP"); when the macros' newest days differ
+    /// the header falls back to "Latest" rather than naming a day some cells are not from.
+    @Test func dayColumnHeaderIsTheSharedLatestDay() {
+        let a = KpiMacroSummary(latestDate: "2026-09-22", latest: 1, avg7: nil, avg28: nil)
+        let b = KpiMacroSummary(latestDate: "2026-09-21", latest: 1, avg7: nil, avg28: nil)
+        let none = KpiMacroSummary(latestDate: nil, latest: nil, avg7: nil, avg28: nil)
+        #expect(kpiMacroDayHeader([a, a, none]) == "22 SEP")
+        #expect(kpiMacroDayHeader([a, b]) == "LATEST")
+        #expect(kpiMacroDayHeader([none]) == "LATEST")
+    }
+}
+
+extension KpiNutritionSummaryTests {
+    /// Board: grams carry their unit in the table ("127 g"); calories stay bare; a gap is still
+    /// "— No data" whole (the table lays it out on one line, it is never shortened to "—").
+    @Test func macroTableCellsCarryTheBoardsUnits() {
+        let s = KpiMacroSummary(latestDate: "2026-09-22", latest: 127, avg7: nil, avg28: 131.4)
+        #expect(kpiMacroTableCells(s, decimals: 0, unit: kpiMacroTableUnit(.protein)) == ["— No data", "127 g", "— No data", "131 g"])
+        #expect(kpiMacroTableUnit(.kcal) == nil)
+    }
+}

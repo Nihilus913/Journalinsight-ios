@@ -17,10 +17,11 @@ public nonisolated func kpiCatalogueGroup(_ id: KpiMetricId) -> KpiCatalogueGrou
 
 public nonisolated func isNutritionKpi(_ id: KpiMetricId) -> Bool { kpiCatalogueGroup(id) == .nutrition }
 
-/// Display-only squares with no source on the phone yet (board: "— / No data"). Not selectable.
+/// Squares with no source on the phone yet (board: "— / No data" with the "+" badge every square
+/// off Today carries). They are not `KpiMetricId`s, so the badge cannot put them on Today yet.
 public nonisolated let kpiCatalogueExtras: [JISquareItem] = [
-    JISquareItem(id: "fibre", label: "Fibre", systemImage: "leaf", value: nil, status: .missing(.noData)),
-    JISquareItem(id: "sugar", label: "Sugar", systemImage: "drop", value: nil, status: .missing(.noData)),
+    JISquareItem(id: "fibre", label: "Fibre", systemImage: "leaf", value: nil, status: .missing(.noData), badge: .add),
+    JISquareItem(id: "sugar", label: "Sugar", systemImage: "drop", value: nil, status: .missing(.noData), badge: .add),
 ]
 
 private nonisolated func kpiSymbol(_ id: KpiMetricId) -> String {
