@@ -33,6 +33,7 @@ public struct TrainingView: View {
                     .jiFont(.subheadline, weight: .semibold)
                     .foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("training-date-header")
+                TrainingSessionHeader(sessionName: model.plannedSessionForSelectedDay?.name, fetchedAt: model.fetchedAt, watchLine: watchLine)
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -89,6 +90,14 @@ public struct TrainingView: View {
                 }
             }
         }
+    }
+
+    private var watchLine: String? {
+        #if canImport(WorkoutKit)
+        trainingWatchLine(sendToWatch?.state)
+        #else
+        nil
+        #endif
     }
 
     private var loading: some View {
