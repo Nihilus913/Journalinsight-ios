@@ -1,4 +1,5 @@
 import Foundation
+import JIDesign
 import JIPersistence
 
 // W5a-L3 (P-edit-today). Port of `mobile/src/components/TodayTileRegistry.tsx` (labels) +
@@ -28,6 +29,17 @@ public nonisolated enum TodayTileRegistry {
         case "sleep": "Sleep"
         case "steps": "Steps"
         default: id
+        }
+    }
+
+    /// B-57 W1: the square's icon (board EditToday).
+    public static func systemImage(for id: String) -> String {
+        switch id {
+        case "hrv": "waveform.path.ecg"
+        case "rhr": "heart"
+        case "sleep": "moon"
+        case "steps": "figure.walk"
+        default: "square"
         }
     }
 }
@@ -105,4 +117,18 @@ public nonisolated func loadTodayTilePrefs(prefs: PrefStore?) -> TodayTilePrefs 
 public nonisolated func saveTodayTilePrefs(_ value: TodayTilePrefs, prefs: PrefStore?) {
     saveTileOrder(value.order, prefs: prefs)
     try? prefs?.set(todayTileHiddenKey, value.hidden)
+}
+
+// MARK: - B-57 W1 EditToday squares
+
+public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs) -> [JISquareItem] {
+    visibleTodayTileOrder(prefs).map { JISquareItem(id: $0, label: TodayTileRegistry.label(for: $0), systemImage: TodayTileRegistry.systemImage(for: $0),
+                                                    tint: metricTintRole($0), value: nil, badge: .hide) }
+}
+public nonisolated func editTodayHiddenItems(_ prefs: TodayTilePrefs) -> [JISquareItem] {
+    prefs.hidden.map { JISquareItem(id: $0, label: TodayTileRegistry.label(for: $0), systemImage: TodayTileRegistry.systemImage(for: $0),
+                                    tint: metricTintRole($0), value: nil, badge: .add) }
+}
+public nonisolated func editTodayCountText(_ prefs: TodayTilePrefs) -> String {
+    "\(visibleTodayTileOrder(prefs).count) of \(prefs.order.count)"
 }

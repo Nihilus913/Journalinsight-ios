@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JIDesign
 import JIPersistence
 @testable import JIFeatures
 
@@ -133,4 +134,24 @@ private let ids = ["hrv", "rhr", "sleep", "steps"]
     #expect(ids.contains(EditTodaySection.sectionId))
     let s = SettingsRegistry.sections.first { $0.id == EditTodaySection.sectionId }!
     #expect(SettingsGroup(sortKey: s.sortKey) == .preferences)
+}
+
+@Test func squaresSplitVisibleAndHiddenWithBadges() {
+    let p = TodayTilePrefs(order: ["hrv", "rhr", "sleep", "steps"], hidden: ["rhr"])
+    #expect(editTodayVisibleItems(p).map(\.id) == ["hrv", "sleep", "steps"])
+    #expect(editTodayVisibleItems(p).allSatisfy { $0.badge == .hide })
+    #expect(editTodayHiddenItems(p).map(\.id) == ["rhr"])
+    #expect(editTodayHiddenItems(p).allSatisfy { $0.badge == .add })
+    #expect(editTodayCountText(p) == "3 of 4")
+}
+
+@Test @MainActor func dragMovesWithinTheVisibleOrderAndPersists() throws {
+    let db = try AppDatabase.inMemory()
+    let vm = EditTodayViewModel(prefs: PrefStore(db: db))
+    vm.load()
+    vm.moveSquare("steps", before: "hrv")
+    #expect(vm.visibleOrder == ["steps", "hrv", "rhr", "sleep"])
+    vm.setPageName("  Morning ")
+    #expect(vm.pageName == "Morning")
+    #expect(loadTodayPageName(prefs: PrefStore(db: db)) == "Morning")
 }

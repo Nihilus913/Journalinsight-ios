@@ -69,16 +69,23 @@ public func decideSubmit(model: VerdictOverrideViewModel, date: String, choice: 
 }
 
 /// Decide's big word without RN's parenthetical ("MODIFIED (HRV low)" → "MODIFIED"), which never
-/// fits the ring; the reason is carried by the arcs (or the reason line when there are none).
+/// fits; the reason is carried by the Why rows (or the reason line when there are none).
 public nonisolated func decideWord(_ parts: VerdictParts) -> String {
     let bare = parts.word.replacing(/\(.*\)/, with: "").trimmingCharacters(in: .whitespaces)
     return bare.isEmpty ? parts.word : bare
 }
 
+/// B-57 W1 Decide "Session" row. The hub sends no session time or exercise list to Today, so W1
+/// shows the session name only (time, exercises and first working weight: W5 progression).
+public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: VerdictParts) -> (title: String, detail: String) {
+    let name = [sessionForToday, verdict.session].compactMap { $0 }.first { !$0.isEmpty }
+    return ("Today's session", name ?? "— \(JIMissingReason.noData.rawValue)")
+}
+
 // MARK: - View
 
-/// B-57 §2 + §9 Decide: the (effective) verdict word + session, ONE readiness ring, the row of
-/// gate-signal arcs (the why), then Go / Adjust. Both write a verdict override for `verdictDate`
+/// B-57 §2 + §9 Decide (W1 board): date + synced pill, the (effective) verdict word + session, the
+/// "Why" signal rows, today's session row, then Go / Adjust. Both write a verdict override for `verdictDate`
 /// and advance only once the write settled (`.logged` / `.queued`), never on `.failed`.
 public struct DecideView: View {
     let verdict: VerdictParts
@@ -90,6 +97,8 @@ public struct DecideView: View {
     /// The override already known for `verdictDate` (hub `/morning` or this device's last write).
     let override: VerdictOverride?
     let overrideModel: VerdictOverrideViewModel?
+    let fetchedAt: Date?
+    let now: Date
     let onAdvance: () -> Void
     @State private var showAdjust = false
     @Environment(\.jiTheme) private var theme
@@ -97,10 +106,12 @@ public struct DecideView: View {
 
     public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
-                overrideModel: VerdictOverrideViewModel?, onAdvance: @escaping () -> Void) {
+                overrideModel: VerdictOverrideViewModel?, fetchedAt: Date? = nil, now: Date = Date(),
+                onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
-        self.override = override; self.overrideModel = overrideModel; self.onAdvance = onAdvance
+        self.override = override; self.overrideModel = overrideModel
+        self.fetchedAt = fetchedAt; self.now = now; self.onAdvance = onAdvance
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -111,48 +122,52 @@ public struct DecideView: View {
         let actions = decideActions(verdict: verdict, syncing: syncing)
         let showsAdjust = actions.adjust && overrideModel != nil && verdictDate != nil
         Surface(level: 1, padding: 24) {
-            VStack(spacing: 20) {
-                ZStack {
-                    // Rule 5: a missing readiness is a muted ring with "—", never a zero-filled score ring.
-                    ScoreRing(value: readiness ?? 0, max: 100,
-                              tint: readiness == nil ? theme.color(.nested) : theme.color(verdictColorRole(shown.tone)), size: 160)
-                    VStack(spacing: 4) {
-                        // The bare word: the parenthetical ("(HRV low)") is what the arcs below show.
-                        Text(syncing ? "Syncing…" : decideWord(shown))
-                            .jiNumeral(.numeralHero)
-                            .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
-                            .lineLimit(1).minimumScaleFactor(0.4)
-                            .padding(.horizontal, 12)
-                        if !syncing {
-                            Text(readiness.map(todayRingValueText) ?? "—").jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        }
-                    }
-                    .frame(width: 150)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
+                        .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    Spacer()
+                    SyncedPill(date: fetchedAt, now: now)
                 }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
-                .accessibilityIdentifier("today.readinessGauge")
+                Text("YOUR CALL FOR TODAY").jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                Text(syncing ? "Syncing…" : decideWord(shown))
+                    .jiNumeral(.numeralDisplay, weight: .heavy)
+                    .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                    .lineLimit(1).minimumScaleFactor(0.4)
+                    .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
+                    .accessibilityIdentifier("today.readinessGauge")
                 if !syncing, !shown.session.isEmpty {
-                    Text(shown.session).jiFont(.cardTitle, weight: .semibold).foregroundStyle(theme.color(.text))
-                        .multilineTextAlignment(.center)
+                    Text(shown.session).jiFont(.cardTitleLarge, weight: .bold).foregroundStyle(theme.color(.text))
                         .accessibilityIdentifier("today.verdict.session")
                 }
                 if !syncing, let wasCaption {
                     Text(wasCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .multilineTextAlignment(.center)
                         .accessibilityIdentifier("today.decide.was")
                 }
                 if !syncing {
                     if let gateSignals {
-                        GateSignalArcsRow(signals: gateSignals)
+                        DecideSignalsSection(signals: gateSignals)
                     } else if let reason = verdictReasonLine(verdict) {
                         Text(reason).jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                            .multilineTextAlignment(.center)
                             .accessibilityIdentifier("today.decide.reason")
                     }
+                    let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
+                    Surface(level: 2) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "dumbbell").foregroundStyle(theme.color(.info)).accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                                Text(row.detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("today.decide.session")
                 }
                 HStack(spacing: 12) {
-                    Button("Go") { go() }
+                    Button { go() } label: { Text("Go").frame(maxWidth: .infinity) }
                         .buttonStyle(.borderedProminent).tint(theme.color(.go))
                         .disabled(!actions.go || submitting)
                         .accessibilityIdentifier("today.decide.go")
@@ -166,11 +181,10 @@ public struct DecideView: View {
                 .controlSize(.large)
                 if !showAdjust, let message = overrideModel?.errorMessage {
                     Text(message).jiFont(.caption).foregroundStyle(theme.color(.danger))
-                        .multilineTextAlignment(.center)
                         .accessibilityIdentifier("today.decide.error")
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .sheet(isPresented: $showAdjust) {
             if let overrideModel, let verdictDate {

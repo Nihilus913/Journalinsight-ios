@@ -44,7 +44,8 @@ public struct TodayView: View {
                                    verdictDate: model.verdictDate,
                                    sessionForToday: model.morning?.sessionForToday,
                                    override: currentOverride,
-                                   overrideModel: verdictOverrideModel) { model.morningEvent(.gateResponded) }
+                                   overrideModel: verdictOverrideModel,
+                                   fetchedAt: model.fetchedAt) { model.morningEvent(.gateResponded) }
                     case .coach, .day:
                         // §9: Coach is the Day view plus a bottom overlay card (below), not a step.
                         dayContent
@@ -57,7 +58,7 @@ public struct TodayView: View {
         .background(theme.color(.bg))
         .refreshable { JIHaptic.fire(.selection); await model.refresh() }   // W8-L1 (P-haptics) — oracle SyncButton.tsx:136 hapticSelection() the instant the sync is kicked off (Swift sync control = pull-to-refresh)
         // §5: the hand-drawn large title becomes the system one; the date line is the subtitle.
-        .navigationTitle("Today")
+        .navigationTitle(loadTodayPageName(prefs: model.tileOrderStore))
         .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — a cancelled fetch over a warm cache
         // leaves `phase == .loaded` (restored from cache), so keying off `.idle` alone would never
@@ -104,6 +105,7 @@ public struct TodayView: View {
 
     @ViewBuilder
     private var dayContent: some View {
+        HStack { Spacer(); SyncedPill(date: model.fetchedAt) }.accessibilityIdentifier("today.day.synced")
         MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
                            caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption }) {
             showMorningReview = true
@@ -120,9 +122,18 @@ public struct TodayView: View {
             ringsRow
         }
         TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
-        // B-42: Apple Fitness's Trends block, computed client-side over the series
-        // already cached for this screen — no hub round-trip, no new route.
-        TrendsCard(trends: todayTrends(recovery: model.recovery, daily: model.gate?.daily ?? []), onSelectKpi: onSelectKpi)
+        // B-57 W1: the Trends card became a full screen, reached from this footer link.
+        HStack {
+            Spacer()
+            NavigationLink {
+                TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
+            } label: {
+                Text("Trends").jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.pressableScale)
+            .accessibilityIdentifier("today.footer.trends")
+        }
         // Room so the Coach overlay never covers the last card.
         if model.morningState == .coach || showMorningReview { Color.clear.frame(height: 140).accessibilityHidden(true) }
     }

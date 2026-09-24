@@ -267,5 +267,10 @@ public extension GateRationaleViewModel {
 }
 
 private let fixtureRationaleMorningJSON = """
-{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"hrv_series":[]}
+{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"hrv_series":[],
+ "gate_signals":[
+  {"key":"sleep","label":"Sleep","value":85,"unit":"","threshold":70,"direction":"min","scale_min":0,"scale_max":100,"status":"pass","note":null},
+  {"key":"hrv","label":"HRV","value":52,"unit":"ms","threshold":27,"direction":"min","scale_min":0,"scale_max":80,"status":"pass","note":null},
+  {"key":"rhr","label":"RHR","value":52,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass","note":null},
+  {"key":"sleep_h","label":"Sleep time","value":null,"unit":"h","threshold":6.0,"direction":"min","scale_min":0,"scale_max":10,"status":"missing","note":null}]}
 """
