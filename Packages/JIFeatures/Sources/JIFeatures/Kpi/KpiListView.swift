@@ -11,7 +11,13 @@ public struct KpiListView: View {
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
 
-    public init(model: KpiListViewModel) { self.model = model }
+    /// W-FIX2 BUG-21: a square opens its KPI detail (board 2/02). nil = display-only squares.
+    private let onSelectKpi: ((String) -> Void)?
+
+    public init(model: KpiListViewModel, onSelectKpi: ((String) -> Void)? = nil) {
+        self.model = model
+        self.onSelectKpi = onSelectKpi
+    }
 
     public var body: some View {
         ScrollView {
@@ -70,7 +76,7 @@ public struct KpiListView: View {
                         Spacer()
                         if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
-                    SquareGrid(items: items, onBadge: { raw in
+                    SquareGrid(items: items, onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
                         guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
                         _ = model.toggle(id, selected: group != .onToday)
                     })
@@ -78,4 +84,10 @@ public struct KpiListView: View {
             }
         }
     }
+}
+
+/// W-FIX2 BUG-21: the metric a tapped My KPIs square opens — only registered KPIs have a detail
+/// (Fibre / Sugar squares are display-only).
+public nonisolated func kpiListDetailMetric(_ squareId: String) -> String? {
+    KpiMetricId(rawValue: squareId)?.rawValue
 }

@@ -108,3 +108,11 @@ private func makeModel(failing: Bool = false) -> KpiListViewModel {
     vm.resetSelection()
     #expect(vm.prefs == KpiSelection.defaultPrefs())
 }
+
+// W-FIX2 BUG-21: a My KPIs square opens its detail; display-only squares open nothing.
+@Test func fix2KpiListSquareTapOpensTheMetricsDetail() {
+    #expect(kpiListDetailMetric("kcal") == "kcal")
+    #expect(kpiListDetailMetric("hrv") == "hrv")
+    #expect(kpiListDetailMetric("fibre") == nil)
+    #expect(kpiListDetailMetric("sugar") == nil)
+}

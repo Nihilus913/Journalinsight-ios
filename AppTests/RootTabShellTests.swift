@@ -1,4 +1,6 @@
 import Testing
+import SwiftUI
+import UIKit
 @testable import JournalInsight
 
 // W3a L4 (tab shell): pure shape checks for `RootTab`. The tabs' cast-fallback behavior
@@ -47,4 +49,36 @@ import Testing
     #expect(RootTabView.launchArgumentTab(["x"]) == nil)
     #expect(RootTabView.launchArgumentRoute(["x", "-push-route", "kpiList"]) == .kpiList)
     #expect(RootTabView.launchArgumentRoute(["x"]) == nil)
+}
+
+// MARK: - W-FIX2 BUG-14: the search-role Tab stays interactive after a pass-through tab mounted
+
+@MainActor @Test func fix2SearchTabContentReceivesTouchesAfterAPassThroughTabMounted() {
+    let passThrough = UIHostingController(rootView: Color.clear.background(TabHostPassThrough()).allowsHitTesting(false))
+    let journal = UIViewController()
+    let button = UIButton(type: .system)
+    button.frame = CGRect(x: 100, y: 300, width: 120, height: 60)
+    journal.view.addSubview(button)
+    let tabs = UITabBarController()
+    tabs.viewControllers = [passThrough, journal]
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+    let host = UIViewController()                  // stands in for SwiftUI's platform host
+    window.rootViewController = host
+    host.addChild(tabs)
+    tabs.view.frame = host.view.bounds
+    host.view.addSubview(tabs.view)
+    tabs.didMove(toParent: host)
+    window.makeKeyAndVisible()
+    tabs.selectedIndex = 0                     // Today mounts first (the pass-through marker runs)
+    window.layoutIfNeeded()
+    tabs.selectedIndex = 1                     // then the user taps Search (the Journal)
+    window.layoutIfNeeded()
+    let point = button.convert(CGPoint(x: 60, y: 30), to: window)
+    #expect(window.hitTest(point, with: nil) === button)
+    // Back on the pass-through tab, a tap above the bar still falls through (nothing claims it).
+    tabs.selectedIndex = 0
+    window.layoutIfNeeded()
+    let hit = window.hitTest(CGPoint(x: 200, y: 400), with: nil)
+    #expect(hit == nil || hit === window || hit === host.view)
+    window.isHidden = true
 }
