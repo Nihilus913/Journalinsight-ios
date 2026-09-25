@@ -147,7 +147,7 @@ public struct GoalsSetupView: View {
                 saveSection
 
                 if let mirror = model.goals {
-                    GoalTargetsMirrorSection(goals: mirror)
+                    GoalTargetsMirrorSection(goals: mirror, macros: model.macroGoals)
                 }
             }
         }

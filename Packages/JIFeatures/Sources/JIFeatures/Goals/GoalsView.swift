@@ -73,15 +73,19 @@ public nonisolated enum GoalsBoard {
 
     private static func int(_ v: Double?) -> String? { v.flatMap { $0.isFinite ? String(Int($0.rounded())) : nil } }
 
-    public static func targets(goals: Goals?, yesterdayKcal: Double?, yesterdayProteinG: Double?, yesterdaySteps: Double?) -> [GoalsTargetRow] {
+    /// B-73 (W-B57-W2 fixer GOALS-HUB-SEED): Calories and Protein compare against the user's own
+    /// goals (`macros`, PrefStore `goals.macros`), never the hub document's seeded nutrition
+    /// (`goals.nutrition` is the TEMP bridge until B-50). Unset = "Set your goal", no status.
+    public static func targets(goals: Goals?, macros: MacroGoals?, yesterdayKcal: Double?, yesterdayProteinG: Double?,
+                               yesterdaySteps: Double?) -> [GoalsTargetRow] {
         let missing = "— \(JIMissingReason.noData.rawValue)"
         let noGoal = "No goal set"
-        let kcalGoal = goals?.nutrition.kcalGoal, proteinGoal = goals?.nutrition.proteinG
+        let kcalGoal = macros?.targetKcal, proteinGoal = macros?.proteinG
         var rows: [GoalsTargetRow] = [
-            GoalsTargetRow(title: "Calories", subtitle: int(kcalGoal).map { "goal \($0) a day" } ?? noGoal,
+            GoalsTargetRow(title: "Calories", subtitle: int(kcalGoal).map { "goal \($0) a day" } ?? MacroGoals.setGoalCopy,
                            value: int(yesterdayKcal).map { "\($0) kcal" } ?? missing,
                            status: status(yesterdayKcal, goal: kcalGoal, floorOnly: false)),
-            GoalsTargetRow(title: "Protein", subtitle: int(proteinGoal).map { "goal \($0) g a day" } ?? noGoal,
+            GoalsTargetRow(title: "Protein", subtitle: int(proteinGoal).map { "goal \($0) g a day" } ?? MacroGoals.setGoalCopy,
                            value: int(yesterdayProteinG).map { "\($0) g" } ?? missing,
                            status: status(yesterdayProteinG, goal: proteinGoal, floorOnly: true)),
             GoalsTargetRow(title: goalsTrainingPlanTitle, subtitle: goalsTrainingPlanSubtitle, value: "— of 4", status: nil),
@@ -118,6 +122,8 @@ public nonisolated struct GoalsBoardInput: Sendable, Equatable {
 /// "New goal" form is gone from this screen.
 public struct GoalsView: View {
     @Environment(\.jiTheme) private var theme
+    /// B-73: the user's own nutrition goals (injected at the app root) — the Calories/Protein rows.
+    @Environment(\.nutritionGoals) private var nutritionGoals
     @Bindable var model: GoalsViewModel
     let now: () -> Date
     let board: GoalsBoardInput?
@@ -150,7 +156,7 @@ public struct GoalsView: View {
                 Text("One active goal. Everything else supports it.")
             }
             Section("Supporting targets") {
-                ForEach(GoalsBoard.targets(goals: board?.goals, yesterdayKcal: board?.yesterdayKcal,
+                ForEach(GoalsBoard.targets(goals: board?.goals, macros: nutritionGoals.macros, yesterdayKcal: board?.yesterdayKcal,
                                            yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps)) { row in
                     targetRow(row)
                 }
