@@ -63,6 +63,9 @@ public final class KpiDetailViewModel {
     private let targetsProvider: any KpiTargetsProviding
     private let goalsProvider: (any EnergyProviding)?
     private let cache: OfflineCache
+    /// B-57 W2 (B-73): builds the "Edit macro goals" GoalsSetup with the phone's goals store and
+    /// the save-only hub mirror (App wiring). nil = a bare model (no nutrition save).
+    private let makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)?
     private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals")
 
     public init(
@@ -71,8 +74,10 @@ public final class KpiDetailViewModel {
         nutritionProvider: any NutritionProviding,
         targetsProvider: any KpiTargetsProviding,
         cache: OfflineCache,
-        goalsProvider: (any EnergyProviding)? = nil
+        goalsProvider: (any EnergyProviding)? = nil,
+        makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)? = nil
     ) {
+        self.makeGoalsSetup = makeGoalsSetup
         // The hub provider serves both protocols (the idiom `WeeklyPlanNutritionRow` uses).
         self.goalsProvider = goalsProvider ?? (nutritionProvider as? any EnergyProviding)
         self.metric = metric
@@ -106,7 +111,7 @@ public final class KpiDetailViewModel {
     public var goalsSetupModel: GoalsSetupViewModel? {
         if let cachedGoalsSetupModel { return cachedGoalsSetupModel }
         guard let provider = nutritionProvider as? any GoalsSetupProviding else { return nil }
-        let model = GoalsSetupViewModel(provider: provider)
+        let model = makeGoalsSetup?(provider) ?? GoalsSetupViewModel(provider: provider)
         cachedGoalsSetupModel = model
         return model
     }

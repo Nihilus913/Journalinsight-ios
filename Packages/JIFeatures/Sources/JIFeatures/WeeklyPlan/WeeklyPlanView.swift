@@ -305,12 +305,20 @@ nonisolated func weeklyPlanToday(_ date: Date = Date(), calendar: Calendar = .au
 public struct WeeklyPlanNutritionRow: View {
     private let goalsProvider: (any EnergyProviding)?
     @Environment(\.jiTheme) private var theme
+    /// B-57 W2 (B-73): the user's own goals seed the plan before the hub's (nil = not injected).
+    @Environment(\.nutritionGoals) private var nutritionGoals
 
     public init(provider: any NutritionProviding) { goalsProvider = provider as? any EnergyProviding }
 
+    private var jiGoals: (@MainActor () -> MacroGoals?)? {
+        guard let macros = nutritionGoals.macros else { return nil }
+        return { macros }
+    }
+
     public var body: some View {
         NavigationLink {
-            WeeklyPlanView(model: WeeklyPlanViewModel(store: .onDisk, goalsProvider: goalsProvider))
+            WeeklyPlanView(model: WeeklyPlanViewModel(store: .onDisk, goalsProvider: goalsProvider,
+                                                      jiGoals: jiGoals))
         } label: {
             Surface(padding: 18) {
                 JIRow(title: "Weekly kcal / macro plan",
