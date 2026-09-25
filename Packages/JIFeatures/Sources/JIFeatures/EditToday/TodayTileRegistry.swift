@@ -157,8 +157,12 @@ public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs, chips: [T
 public nonisolated func editTodayHiddenItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {
     prefs.hidden.map { editTodaySquare($0, chips: chips, badge: .add) }
 }
-/// Board: the dashed "+ Add" square always closes the grid; it restores a square only when one is hidden.
-public nonisolated func editTodayCanAdd(_ prefs: TodayTilePrefs) -> Bool { !prefs.hidden.isEmpty }
+/// W-FIX2 BUG-20: the "Add a square" catalogue (board 04) — every square in EditToday's order,
+/// ✓ when it is on Today, + when it is hidden.
+public nonisolated func editTodayCatalogueItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {
+    let hidden = Set(prefs.hidden)
+    return prefs.order.map { editTodaySquare($0, chips: chips, badge: hidden.contains($0) ? .add : .selected) }
+}
 public nonisolated func editTodayCountText(_ prefs: TodayTilePrefs) -> String {
     "\(visibleTodayTileOrder(prefs).count) of \(prefs.order.count)"
 }

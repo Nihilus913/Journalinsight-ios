@@ -38,8 +38,7 @@ public struct EditTodayView: View {
                 SquareGrid(items: editTodayVisibleItems(model.prefs, chips: model.chips), editing: true,
                            onBadge: { model.setHidden($0, hide: true) },
                            onMove: { model.moveSquare($0, before: $1) },
-                           onAdd: { if let first = model.prefs.hidden.first { model.setHidden(first, hide: false) } },
-                           canAdd: editTodayCanAdd(model.prefs))
+                           onAdd: { model.openAddCatalogue() })
                 if !model.prefs.hidden.isEmpty {
                     Text("Add a square").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
                     SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), onBadge: { model.setHidden($0, hide: false) })
@@ -52,7 +51,35 @@ public struct EditTodayView: View {
         }
         .background(theme.color(.bg))
         .navigationTitle("Edit Today")
+        .sheet(isPresented: $model.showsAddCatalogue) { catalogue }
         .onAppear { model.load(); nameDraft = model.pageName }
         .onDisappear { model.setPageName(nameDraft) }
+    }
+
+    /// W-FIX2 BUG-20: board 04's "Add a square" catalogue — tap a square (or its badge) to put it
+    /// on Today (+) or take it off (✓); every tap writes through like the rest of this screen.
+    private var catalogue: some View {
+        NavigationStack {
+            ScreenScroll {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Tap + to add a square to Today, ✓ to take it off.").jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                    SquareGrid(items: editTodayCatalogueItems(model.prefs, chips: model.chips),
+                               onTap: { model.toggleFromCatalogue($0) }, onBadge: { model.toggleFromCatalogue($0) })
+                }
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .readableColumn()
+            }
+            .background(theme.color(.bg))
+            .navigationTitle("Add a square")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { model.showsAddCatalogue = false }.accessibilityIdentifier("editToday.catalogue.done")
+                }
+            }
+        }
+        .accessibilityIdentifier("editToday.catalogue")
     }
 }
