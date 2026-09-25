@@ -338,19 +338,24 @@ public nonisolated func todayCardTintRole(_ kpiId: String) -> JIColorRole {
     metricTintRole(kpiId)
 }
 
-/// The card's big numeral, formatted exactly as the `StatChip` it replaces did (whole numbers
-/// stay whole, anything else gets one decimal). `nil` when there is nothing to show — rule 5:
-/// never a fabricated zero, and never a bare dash with a dangling unit.
-public nonisolated func todayCardValueText(_ value: Double?, sourceMissing: Bool) -> String? {
-    guard !sourceMissing, let value else { return nil }
-    return value.formatted(.number.precision(.fractionLength(value.rounded() == value ? 0 : 1)))
+/// The card's big numeral. `nil` when there is nothing to show — rule 5: never a fabricated zero,
+/// and never a bare dash with a dangling unit.
+///
+/// W-FIX4 BUG-36: one rounding rule — the KPI's own `KpiMetricDef.decimals`, locale-free and
+/// never grouped (`jiNumber`), exactly as My KPIs / KpiDetail render the same number ("8420",
+/// Fat 37.8 → "38", Weight "82.5", ACWR "1.23"). A chip id outside the catalogue keeps the old
+/// whole-or-one-decimal precision, still ungrouped.
+public nonisolated func todayCardValueText(_ value: Double?, kpiId: String? = nil, sourceMissing: Bool) -> String? {
+    guard !sourceMissing, let value, value.isFinite else { return nil }
+    if let kpiId, let id = KpiMetricId(rawValue: kpiId) { return jiNumber(value, KpiMetrics.def(id).decimals) }
+    return jiNumber(value, value.rounded() == value ? 0 : 1)
 }
 
 /// B-46 item 3 (fixer), carried forward: the ONE place a `TodayChip` becomes a Today card, so
 /// every field the model computes — `asOf` above all — is provably threaded through. The first
 /// fix computed "as of Sep 15" in the view model and then dropped it here.
 public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummaryCardSpec {
-    let value = todayCardValueText(chip.value, sourceMissing: chip.sourceMissing)
+    let value = todayCardValueText(chip.value, kpiId: chip.id, sourceMissing: chip.sourceMissing)
     return TodaySummaryCardSpec(
         icon: todayCardIcon(chip.id),
         tintRole: todayCardTintRole(chip.id),

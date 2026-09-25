@@ -253,12 +253,13 @@ public final class DataQualityViewModel {
     }
 }
 
-/// B-57 W1: YAZIO is a source read through Apple Health (v10 change "YAZIO via Apple Health").
 /// W-FIX1 BUG-50: the hub's raw ids read as the board's source names (AppleHealth → Apple Watch,
 /// GarminAPI / GarminDB → Garmin); anything else passes through untouched.
+/// W-FIX4 PF-09: YAZIO is "YAZIO" — intake comes from the YAZIO API (`core.nutrition_daily`,
+/// dso 3), not through Apple Health, so the old "YAZIO via Apple Health" lineage was untrue here.
 public nonisolated func dataQualitySourceDisplay(_ source: String) -> String {
     switch source.lowercased() {
-    case "yazio": JIExplainers.nutritionSourceLabel
+    case "yazio": DataQualityFamily.yazio.title
     case "applehealth": DataQualityFamily.appleWatch.title
     case "garminapi", "garmindb": DataQualityFamily.garmin.title
     default: source
@@ -300,54 +301,41 @@ public nonisolated func dataQualitySourceSummary(_ rows: [FreshnessEntry]) -> Da
     return DataQualitySourceSummary(sources: worst.values.sorted { $0.source < $1.source })
 }
 
-/// W-FIX1 BUG-10 / BUG-50 — the board's Sources rows and "n of N fresh" card.
+/// W-FIX1 BUG-10 / BUG-50, W-FIX4 PF-11 — the board's Sources rows and "n of N fresh" card.
 ///
 /// - One row per board source (`DataQualityFamily`: Apple Watch, Garmin, YAZIO, Other), named by
 ///   its board title, never the raw hub id.
 /// - The retired GarminDB feed (dso_key 1, removed in the P2 refactor) is not a source any more,
 ///   so it never counts as stale.
-/// - A metric counts against a source only when that source is the freshest deliverer of it.
-///   Apple's weight row (491 d) does not make Apple stale while YAZIO delivers weight today, and
-///   Garmin's sleep does not count while Apple delivers sleep. The metrics only one source
-///   delivers (Garmin Activities) still do, so a genuinely dead feed stays visible.
-/// - A source's state is the worst of its counted metrics; `daysStale` is that worst metric's age.
+/// - A source row states that SOURCE's freshness: how recently its feed delivered, i.e. its
+///   freshest daily-cadence metric (`coverage_checked` tables — vitals, sleep, recovery, activity
+///   summary, nutrition, body). It is not its worst metric: Garmin's Activities (one row per
+///   session, sparse by design) being 21 d old says nobody trained on the Garmin, not that the
+///   feed is dead (PF-11; the rule BUG-10 removed for Apple). `training_load` is computed by the
+///   hub every day (ACWR from core_mapper), so it never makes a source look fresh.
+/// - A genuinely dead feed still reads stale: every daily metric is old. A source that reports
+///   only sparse metrics falls back to its freshest one.
 public nonisolated func dataQualityBoardSourceSummary(_ rows: [FreshnessEntry]) -> DataQualitySourceSummary {
     func rank(_ s: FreshnessState) -> Int { s == .red ? 2 : s == .amber ? 1 : 0 }
-    let live = rows.filter { $0.dsoKey != 1 && $0.source.lowercased() != "garmindb" }
-    // Freshest age per metric across sources (nil age = unknown, never the freshest).
-    var freshestAge: [String: Int] = [:]
-    for row in live {
-        guard let d = row.daysStale else { continue }
-        freshestAge[row.metric] = min(freshestAge[row.metric] ?? d, d)
+    func fresher(_ a: DataQualitySourceState, than b: DataQualitySourceState) -> Bool {
+        rank(a.state) < rank(b.state)
+            || (rank(a.state) == rank(b.state) && (a.daysStale ?? Int.max) < (b.daysStale ?? Int.max))
     }
-    var worst: [DataQualityFamily: DataQualitySourceState] = [:]
+    let live = rows.filter { $0.dsoKey != 1 && $0.source.lowercased() != "garmindb" }
     var seen: [DataQualityFamily] = []
-    var best: [DataQualityFamily: DataQualitySourceState] = [:]
+    var feed: [DataQualityFamily: DataQualitySourceState] = [:]      // freshest delivered daily metric
+    var any: [DataQualityFamily: DataQualitySourceState] = [:]       // freshest of all (fallback)
     for row in live {
         let family = DataQualityFamily(dsoKey: row.dsoKey, source: row.source)
         if !seen.contains(family) { seen.append(family) }
         let mine = DataQualitySourceState(source: family.title, state: row.state, daysStale: row.daysStale)
-        if let b = best[family] {
-            if rank(row.state) < rank(b.state)
-                || (rank(row.state) == rank(b.state) && (row.daysStale ?? Int.max) < (b.daysStale ?? Int.max)) {
-                best[family] = mine
-            }
-        } else { best[family] = mine }
-        // Another source delivers this metric more recently → not this source's problem.
-        if let best = freshestAge[row.metric], let d = row.daysStale, d > best { continue }
-        if row.daysStale == nil, freshestAge[row.metric] != nil { continue }
-        let candidate = DataQualitySourceState(source: family.title, state: row.state, daysStale: row.daysStale)
-        guard let current = worst[family] else { worst[family] = candidate; continue }
-        if rank(row.state) > rank(current.state)
-            || (rank(row.state) == rank(current.state) && (row.daysStale ?? -1) > (current.daysStale ?? -1)) {
-            worst[family] = candidate
-        }
+        if any[family].map({ fresher(mine, than: $0) }) ?? true { any[family] = mine }
+        guard row.coverageChecked, row.metric != "training_load" else { continue }
+        if feed[family].map({ fresher(mine, than: $0) }) ?? true { feed[family] = mine }
     }
     let order = DataQualityFamily.allCases
     let sources = seen.sorted { order.firstIndex(of: $0)! < order.firstIndex(of: $1)! }.map { family in
-        // Every metric of this source is delivered fresher elsewhere: its own freshest metric
-        // says whether it still arrives at all.
-        worst[family] ?? best[family]!
+        feed[family] ?? any[family]!
     }
     return DataQualitySourceSummary(sources: sources)
 }

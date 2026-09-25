@@ -102,7 +102,9 @@ public final class GateRationaleViewModel {
 
     public init(provider: any HealthDataProvider, date: String? = nil, windowDays: Int = 28) {
         self.provider = provider
-        self.date = date
+        // W-FIX4 PF-12: an empty deep-link date is the live rationale — never a `morning-verdict`
+        // call the hub must 422 (`date` is a required `YYYY-MM-DD` query).
+        self.date = date.flatMap { $0.isEmpty ? nil : $0 }
         self.windowDays = windowDays
     }
 
@@ -158,7 +160,7 @@ public final class GateRationaleViewModel {
     /// Each date's persisted row, fetched concurrently; a failed or mismatched row is simply absent.
     private static func fetchVerdicts(_ dates: [String], provider: any HealthDataProvider) async -> [String: MorningVerdict] {
         await withTaskGroup(of: MorningVerdict?.self) { group in
-            for date in dates {
+            for date in dates where !date.isEmpty {
                 group.addTask { (try? await provider.morningVerdict(date: date)).flatMap { $0.date == date ? $0 : nil } }
             }
             var out: [String: MorningVerdict] = [:]

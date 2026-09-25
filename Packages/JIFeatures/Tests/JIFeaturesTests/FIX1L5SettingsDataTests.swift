@@ -42,10 +42,11 @@ private let liveFreshness: [FreshnessEntry] = [
     let s = dataQualityBoardSourceSummary(liveFreshness)
     let apple = s.sources.first { $0.source == "Apple Watch" }
     #expect(apple?.state == .green)          // not "Stale 491 d" from the unused Apple weight
-    // Garmin's own Activities feed (nobody else delivers it) is 21 d old: honestly stale.
+    // W-FIX4 PF-11: Garmin's row is its feed's freshness (vitals / activity summary 3 d), not its
+    // worst metric (Activities 21 d) — still stale (amber), never "Stale 21 d".
     let garmin = s.sources.first { $0.source == "Garmin" }
-    #expect(garmin?.state == .red)
-    #expect(garmin?.daysStale == 21)
+    #expect(garmin?.state == .amber)
+    #expect(garmin?.daysStale == 3)
     #expect(s.sources.count == 3)            // retired GarminDB is not a fourth stale source
     #expect(s.fresh == 2)
     #expect(s.stale == 1)

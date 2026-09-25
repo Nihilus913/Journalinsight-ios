@@ -45,6 +45,14 @@ public nonisolated func squareBadgeGlyphPointSize(side: CGFloat) -> CGFloat { si
 /// that covers the square's icon at AX sizes.
 public nonisolated func squareBadgeSide(scaled: CGFloat) -> CGFloat { min(max(scaled, 24), 32) }
 
+/// W-FIX4 BUG-19 (EditToday − badge): where the badge lives relative to the square's drag source.
+public nonisolated enum JISquareBadgeHost: Sendable, Equatable { case insideSquare, aboveDragSource }
+/// Always above: inside `.draggable` + `.contentShape(Rectangle())` (the editing branch) the drag
+/// interaction and the clipped hit shape swallowed the "−" tap, so it never removed a square.
+public nonisolated func squareBadgeHost(editing: Bool, draggable: Bool) -> JISquareBadgeHost { .aboveDragSource }
+/// The badge's hit target: the drawn circle, grown to the 44-pt HIG minimum around its centre.
+public nonisolated func squareBadgeHitSide(side: CGFloat) -> CGFloat { max(side, 44) }
+
 public nonisolated func squareAccessibilityLabel(_ item: JISquareItem) -> String {
     var parts = [item.label]
     if let v = item.value {
@@ -97,7 +105,7 @@ public struct SquareGrid: View {
     @ViewBuilder
     private func square(_ item: JISquareItem) -> some View {
         let ids = items.map(\.id)
-        let base = MetricSquare(item: item, onBadge: onBadge)
+        let base = MetricSquare(item: item)
             .contentShape(Rectangle())
             .onTapGesture { if !editing { onTap?(item.id) } }
             .accessibilityElement(children: .ignore)
@@ -121,8 +129,10 @@ public struct SquareGrid: View {
                     else if let i = ids.firstIndex(of: item.id), i + 1 < ids.count, let last = ids.last { onMove(last, item.id) }
                 }
                 .modifier(BadgeAction(item: item, onBadge: onBadge))
+                .overlay(alignment: .topLeading) { SquareBadge(item: item, onBadge: onBadge) }
         } else {
             base.modifier(BadgeAction(item: item, onBadge: onBadge))
+                .overlay(alignment: .topLeading) { SquareBadge(item: item, onBadge: onBadge) }
         }
     }
 }
@@ -141,11 +151,8 @@ private struct BadgeAction: ViewModifier {
 /// One square: icon + label, the value (or "—"), the goal fraction, and the worded status.
 struct MetricSquare: View {
     let item: JISquareItem
-    let onBadge: ((String) -> Void)?
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var minSide: CGFloat = 104
-    @ScaledMetric(relativeTo: .caption) private var scaledBadge: CGFloat = 24
-    private var badgeSide: CGFloat { squareBadgeSide(scaled: scaledBadge) }
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -179,7 +186,27 @@ struct MetricSquare: View {
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: minSide, alignment: .topLeading)
         .background(theme.color(.surface), in: RoundedRectangle(cornerRadius: theme.radius(.nested), style: .continuous))
-        .overlay(alignment: .topLeading) { badge.offset(x: -badgeSide / 3, y: -badgeSide / 3) }
+    }
+}
+
+/// The square's corner badge ("−" / "✓" / "+"), hosted by `SquareGrid` above the drag source
+/// (W-FIX4 BUG-19). The circle straddles the top-leading corner as before; the hit target is the
+/// circle grown to 44 pt around its centre, so the whole drawn badge is tappable.
+struct SquareBadge: View {
+    let item: JISquareItem
+    let onBadge: ((String) -> Void)?
+    @Environment(\.jiTheme) private var theme
+    @ScaledMetric(relativeTo: .caption) private var scaledBadge: CGFloat = 24
+    private var badgeSide: CGFloat { squareBadgeSide(scaled: scaledBadge) }
+
+    var body: some View {
+        // No badge = no hit target: a bare square's corner stays the square's own tap.
+        if item.badge != .none {
+            let hit = squareBadgeHitSide(side: badgeSide)
+            // Centre of the drawn circle sits at (side/2 − side/3) from the corner, as before.
+            let centre = badgeSide / 2 - badgeSide / 3
+            badge.offset(x: centre - hit / 2, y: centre - hit / 2)
+        }
     }
 
     @ViewBuilder private var badge: some View {
@@ -198,10 +225,13 @@ struct MetricSquare: View {
                     Image(systemName: symbol).font(.system(size: squareBadgeGlyphPointSize(side: badgeSide), weight: .bold))
                         .foregroundStyle(theme.color(tint))
                 }
+                .frame(width: squareBadgeHitSide(side: badgeSide), height: squareBadgeHitSide(side: badgeSide))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.pressableScale)
         .disabled(onBadge == nil)
         .accessibilityHidden(true)   // exposed as a named action on the square instead
+        .accessibilityIdentifier("square.\(item.id).badge")
     }
 }
 
