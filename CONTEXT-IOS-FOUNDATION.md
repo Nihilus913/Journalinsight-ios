@@ -84,7 +84,7 @@ public func verdictParts(_ v: String?) -> VerdictParts
 ```
 Port of `mobile/src/lib/verdict.ts`: splits on `"—"`; `word` keeps the parenthetical, tone strips it. Tone: `nil`/empty → `("—","No verdict yet",.muted)`; `GO*` → `.go`; **`REDUCED*` → `.amber`** (deliberate deviation — RN's `startsWith("RED")` also catches `"REDUCED"` and renders red; design wins, `mobile/src/theme/tokens.ts` `verdict.reduced` + plan L24, 2026-09-13 ruling); other `RED*` → `.red`; else `.amber`.
 
-`Recovery.swift`: `public struct RecoveryDay: Codable, Sendable, Equatable { public var date: String; public var sleepScore, sleepDurationSec, rhrBpm, bodyBatteryAvg, readinessScore, acwr, hrvWeeklyAvg: Double? }`; `public struct RecoveryReport: Codable, Sendable, Equatable { public var days: [RecoveryDay] }`.
+`Recovery.swift`: `public struct RecoveryDay: Codable, Sendable, Equatable { public var date: String; public var sleepScore, sleepDurationSec, rhrBpm, bodyBatteryAvg, readinessScore, acwr, hrvWeeklyAvg: Double? }`; `public struct RecoveryReport: Codable, Sendable, Equatable { public var days: [RecoveryDay] }`. W-FIX1 (BUG-06) adds `public var hrvRmssdMs: Double?` (wire `hrv_rmssd_ms`, the night's RMSSD; `hrvWeeklyAvg` is the hub's 7-day mix) and a trailing `hrvRmssdMs: Double? = nil` init parameter — additive, old hubs decode nil.
 
 `Sync.swift`: `public struct SyncStatus: Codable, Sendable, Equatable { public var lastSync: String? }`; `public struct HealthResponse: Codable, Sendable, Equatable { public var status: String }`.
 

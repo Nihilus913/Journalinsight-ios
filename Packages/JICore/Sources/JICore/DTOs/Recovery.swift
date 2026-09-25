@@ -1,6 +1,10 @@
 public struct RecoveryDay: Codable, Sendable, Equatable {
     public var date: String
     public var sleepScore, sleepDurationSec, rhrBpm, bodyBatteryAvg, readinessScore, acwr, hrvWeeklyAvg: Double?
+    /// W-FIX1 BUG-06: that night's own RMSSD (`/vitals/recovery` `hrv_rmssd_ms`, from
+    /// `core.daily_vitals.hrv_rmssd_ms`). A night — unlike `hrvWeeklyAvg`, the hub's 7-day mix.
+    /// Optional on the wire: a hub that predates the field decodes to nil ("—").
+    public var hrvRmssdMs: Double?
 
     /// W7-L3: the synthesized memberwise initializer is `internal`, so until now a `RecoveryDay`
     /// could only ever be *decoded*. The on-device T2 provider (`JIHealthKit.HealthKitProvider`)
@@ -14,7 +18,8 @@ public struct RecoveryDay: Codable, Sendable, Equatable {
         bodyBatteryAvg: Double? = nil,
         readinessScore: Double? = nil,
         acwr: Double? = nil,
-        hrvWeeklyAvg: Double? = nil
+        hrvWeeklyAvg: Double? = nil,
+        hrvRmssdMs: Double? = nil
     ) {
         self.date = date
         self.sleepScore = sleepScore
@@ -24,6 +29,7 @@ public struct RecoveryDay: Codable, Sendable, Equatable {
         self.readinessScore = readinessScore
         self.acwr = acwr
         self.hrvWeeklyAvg = hrvWeeklyAvg
+        self.hrvRmssdMs = hrvRmssdMs
     }
 }
 public struct RecoveryReport: Codable, Sendable, Equatable {

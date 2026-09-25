@@ -63,7 +63,7 @@ import JIDesign
     private func recovery(_ hrv: [Double?]) -> [RecoveryDay] {
         hrv.enumerated().map { i, v in
             RecoveryDay(date: String(format: "2026-09-%02d", i + 1), sleepScore: nil, sleepDurationSec: nil,
-                        rhrBpm: nil, bodyBatteryAvg: nil, readinessScore: nil, acwr: nil, hrvWeeklyAvg: v)
+                        rhrBpm: nil, bodyBatteryAvg: nil, readinessScore: nil, acwr: nil, hrvRmssdMs: v)   // W-FIX1 BUG-06: the night
         }
     }
 

@@ -331,17 +331,15 @@ public final class GateRationaleViewModel {
         }
     }
 
-    /// The 3 most recent recovery days, oldest-first for left-to-right reading order, joined to the
-    /// morning HRV series by date (recovery arrives newest-first).
+    /// The 3 most recent recovery days, oldest-first for left-to-right reading order (recovery
+    /// arrives newest-first). W-FIX1 BUG-06: HRV is each night's own RMSSD
+    /// (`KpiMetrics.nightlyHrvMs`), never the morning series' 7-day `hrv_weekly_avg` mix; the
+    /// field keeps its W-B57 name.
     public var trailDays: [GateTrailDay] {
-        let hrvByDate = Dictionary(
-            (morning?.hrvSeries ?? []).map { ($0.date, $0.hrvWeeklyAvg) },
-            uniquingKeysWith: { _, last in last }
-        )
-        return recovery.prefix(3).reversed().map { day in
+        recovery.prefix(3).reversed().map { day in
             GateTrailDay(
                 date: day.date,
-                hrvWeeklyAvg: hrvByDate[day.date] ?? nil,
+                hrvWeeklyAvg: KpiMetrics.nightlyHrvMs(day),
                 rhrBpm: day.rhrBpm,
                 sleepScore: day.sleepScore,
                 tone: Self.readinessTone(day.readinessScore)

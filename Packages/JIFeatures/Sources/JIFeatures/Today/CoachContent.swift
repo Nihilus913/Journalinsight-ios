@@ -12,7 +12,8 @@ public nonisolated struct CoachContent: Equatable, Sendable {
 ///
 /// Signals (max 3, in order, each only when both numbers exist): newest non-nil value vs the mean
 /// of the up-to-7 earlier non-nil readings — Sleep, HRV, RHR, then Load (ACWR) only if fewer than
-/// three so far. Change: rest day → the rest sentence; else the hub's first suggestion; else the
+/// three so far. Change: rest day → the rest sentence; amber auto-regulated day → "Modified: <the
+/// trimmed prescription>"; else the hub's first suggestion; else the
 /// action derived from the first triggered rule; else "Train as planned: <session>."
 public nonisolated enum CoachContentBuilder {
     public static let restChange = "Rest today — mobility and a walk."
@@ -23,7 +24,8 @@ public nonisolated enum CoachContentBuilder {
         if let s = compare(recovery, date: \.date, value: \.sleepScore) {
             signals.append("Sleep \(fmt(s.newest, 0, locale)) vs \(fmt(s.mean, 0, locale)) avg")
         }
-        if let h = compare(morning?.hrvSeries ?? [], date: \.date, value: \.hrvWeeklyAvg) {
+        // W-FIX1 BUG-06: the nights' own RMSSD, never `hrv_series`' 7-day `hrv_weekly_avg` mix.
+        if let h = compare(recovery, date: \.date, value: { KpiMetrics.nightlyHrvMs($0) }) {
             signals.append("HRV \(fmt(h.newest, 0, locale)) ms vs \(fmt(h.mean, 0, locale)) avg")
         }
         if let r = compare(recovery, date: \.date, value: \.rhrBpm) {
@@ -38,6 +40,11 @@ public nonisolated enum CoachContentBuilder {
     private static func change(morning: MorningResponse?, gate: GateResponse?) -> String {
         let verdict = verdictParts(morning?.verdict)
         if morning?.verdict != nil, TodayMorningFlow.isRestDay(verdict) { return restChange }
+        // W-FIX1 BUG-03: the hub's amber auto-regulated day is a Modified day — say the trimmed
+        // session, never "Train as planned: <full session>".
+        if let trimmed = autoRegulatedPrescription(verdict) {
+            return "Modified: " + trimmed.prefix(1).lowercased() + trimmed.dropFirst()
+        }
         if let gate {
             if let suggestion = gate.suggestions.first { return suggestion }
             if !gate.triggeredRules.isEmpty {

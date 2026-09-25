@@ -202,7 +202,8 @@ private let ids = gridIds + extraIds
     let food = resolveTodayRow(daily).row
     #expect(byId["protein"]?.value == (food?.values["protein_g"] ?? nil))
     #expect(byId["kcal"]?.value == (food?.values["kcal_consumed"] ?? nil))
-    #expect(byId["acwr"]?.value == vm.recovery.sorted { $0.date > $1.date }.compactMap(\.acwr).first)
+    // W-FIX1 BUG-12: Load is the current ACWR (≤ 36 h) or "—" — never a stale newest value.
+    #expect(byId["acwr"]?.value == vm.heroLoad)
     #expect(byId["weight"]?.value == daily.sorted { $0.date > $1.date }.compactMap { $0.values["weight_kg"] ?? nil }.first)
 }
 

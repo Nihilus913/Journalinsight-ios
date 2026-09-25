@@ -39,7 +39,7 @@ public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryT
         case "hrv": ("HRV", "waveform.path.ecg", night { KpiMetrics.nightlyHrvMs($0) }, "ms", 0)
         case "sleep": ("Sleep", "moon", night { $0.sleepDurationSec.map { ($0 / 3600 * 10).rounded() / 10 } }, "h", 1)
         case "rhr": ("Resting HR", "heart", night { $0.rhrBpm }, "bpm", 0)
-        default: ("Load", "bolt", newest(days) { KpiMetrics.honestAcwr($0.acwr) }, nil, 2)
+        default: ("Load", "bolt", night { KpiMetrics.honestAcwr($0.acwr) }, nil, 2)   // BUG-12: stale Load = "—"
         }
         let value = reading?.value
         // W1: a real value carries no status word (the normal is W3); missing = "— No data".

@@ -156,12 +156,11 @@ public nonisolated enum KpiMetrics {
 
     // MARK: - W-FIX1 L3 honest values (BUG-05 / BUG-06 / BUG-12)
 
-    /// BUG-06: HRV is last night's RMSSD, never a 7-day mix. `RecoveryDay.hrvWeeklyAvg` is the hub's
+    /// BUG-06: HRV is the night's RMSSD, never a 7-day mix. `RecoveryDay.hrvWeeklyAvg` is the hub's
     /// 7-day average, which its own docstring says conflates Garmin RMSSD with Apple SDNN
-    /// (`app/vitals/readiness_composite.py`), so it is not a night. `/vitals/recovery` exposes no
-    /// nightly RMSSD (`core.daily_vitals.hrv_rmssd_ms`) yet, so there is no honest nightly value
-    /// on the phone: HRV reads "—" until the hub serves one and this accessor reads it.
-    public static func nightlyHrvMs(_ day: RecoveryDay) -> Double? { nil }
+    /// (`app/vitals/readiness_composite.py`), so it is not a night. The night is `hrvRmssdMs`
+    /// (`/vitals/recovery` `hrv_rmssd_ms` = `core.daily_vitals.hrv_rmssd_ms`); nil stays "—".
+    public static func nightlyHrvMs(_ day: RecoveryDay) -> Double? { day.hrvRmssdMs }
 
     /// BUG-12 (B-70(a)): the hub's ACWR is computed only from Garmin Training Effect, and with no
     /// source rows it serves `0.0` for every day — an invented ratio, not a load. A ratio of zero
@@ -169,6 +168,31 @@ public nonisolated enum KpiMetrics {
     public static func honestAcwr(_ value: Double?) -> Double? {
         guard let value, value.isFinite, value > 0 else { return nil }
         return value
+    }
+
+    /// BUG-12: the Load shown as today's — the newest real ACWR only while it is current (the same
+    /// ≤ 36 h rule as a "last night" value, `isLastNightFresh`). A 15-day-old ratio is "—", never
+    /// an undated number on the Day hero ring.
+    public static func currentAcwr(_ days: [RecoveryDay], now: Date) -> Double? {
+        guard let newest = days.sorted(by: { $0.date > $1.date }).first(where: { honestAcwr($0.acwr) != nil }),
+              isLastNightFresh(nightDate: newest.date, now: now) else { return nil }
+        return honestAcwr(newest.acwr)
+    }
+
+    /// `latest(for:…)` for the "current value" squares (My KPIs): every metric keeps its dated
+    /// reading, except Load, which is "—" once it is not current (`currentAcwr`, BUG-12).
+    public static func currentReading(
+        for id: KpiMetricId,
+        recovery: [RecoveryDay],
+        nutrition: [NutritionDailyRow],
+        dailyRows: [DailyKpiRow],
+        gateAverages: GateAverages?,
+        now: Date
+    ) -> (value: Double, date: String)? {
+        let hit = latest(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+        guard id == .acwr else { return hit }
+        guard let hit, isLastNightFresh(nightDate: hit.date, now: now) else { return nil }
+        return hit
     }
 
     /// The same days with every invented ACWR (`honestAcwr`) cleared, for screens that read the

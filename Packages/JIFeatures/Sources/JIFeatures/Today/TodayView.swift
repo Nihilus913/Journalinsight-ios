@@ -190,11 +190,8 @@ public struct TodayView: View {
 
     private func chip(_ id: String) -> TodayChip? { model.chips.first { $0.id == id } }
 
-    /// Newest non-null ACWR — the hero trio's Load ring (`RecoveryDay.acwr`, the same field the
-    /// KPI screen reads).
-    private var latestAcwr: Double? {
-        model.recovery.sorted { $0.date > $1.date }.compactMap(\.acwr).first
-    }
+    /// The hero trio's Load ring: the current ACWR or "—" (W-FIX1 BUG-12, `TodayViewModel.heroLoad`).
+    private var latestAcwr: Double? { model.heroLoad }
 
     @ViewBuilder
     private func kpiCell(def: KpiMetricDef, value: Double?, asOf: String? = nil) -> some View {

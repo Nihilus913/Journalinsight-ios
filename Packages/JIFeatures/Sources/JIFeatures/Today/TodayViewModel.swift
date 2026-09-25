@@ -132,6 +132,10 @@ public final class TodayViewModel {
 
     public var readiness: Double? { lastNight(\.readinessScore)?.value }
 
+    /// W-FIX1 BUG-12: the Day hero's Load ring — the newest real ACWR only while it is current
+    /// (`KpiMetrics.currentAcwr`, ≤ 36 h); the ring has no room for a date, so older is "—".
+    public var heroLoad: Double? { KpiMetrics.currentAcwr(recovery, now: now()) }
+
     public var chips: [TodayChip] {
         let caps = provider.capabilities
         let rec = recovery.sorted { $0.date < $1.date }.suffix(7)
@@ -168,7 +172,7 @@ public final class TodayViewModel {
         let sortedDaily = daily.sorted { $0.date < $1.date }.suffix(7)
         return chips + [
             chip("acwr", "Load", unit: nil, points: sortedRec.map(\.acwr), sourceMissing: false,
-                 latest: newestNonNull(recovery, date: \.date, value: \.acwr)),
+                 latest: lastNight(\.acwr)),   // W-FIX1 BUG-12: a stale Load is "—", not today's
             chip("protein", "Protein", unit: "g", points: sortedDaily.map { $0.values["protein_g"] ?? nil }, sourceMissing: false,
                  latest: foodValue("protein_g")),
             chip("kcal", "Calories", unit: "kcal", points: sortedDaily.map { $0.values["kcal_consumed"] ?? nil }, sourceMissing: false,

@@ -38,9 +38,11 @@ import JICore
         #expect(c.signals.contains("RHR 55 vs 53 avg"))
         #expect(c.signals.count <= 3)
     }
-    @Test func hrvSignalFromMorningSeriesAndCapOfThree() {
-        let series = #"[{"date":"2026-09-19","hrv_weekly_avg":50},{"date":"2026-09-20","hrv_weekly_avg":50},{"date":"2026-09-21","hrv_weekly_avg":47}]"#
-        let rec = (0..<3).map { i in RecoveryDay(date: "2026-09-\(19 + i)", sleepScore: [80,80,74][i], rhrBpm: [53,53,55][i], acwr: [1.0,1.0,1.11][i]) }
+    /// W-FIX1 BUG-06: HRV is the nights' own RMSSD off `recovery`; the morning series (the 7-day
+    /// `hrv_weekly_avg` mix, 60 here) is never read.
+    @Test func hrvSignalFromNightlyRmssdAndCapOfThree() {
+        let series = #"[{"date":"2026-09-19","hrv_weekly_avg":60},{"date":"2026-09-20","hrv_weekly_avg":60},{"date":"2026-09-21","hrv_weekly_avg":60}]"#
+        let rec = (0..<3).map { i in RecoveryDay(date: "2026-09-\(19 + i)", sleepScore: [80,80,74][i], rhrBpm: [53,53,55][i], acwr: [1.0,1.0,1.11][i], hrvRmssdMs: [50,50,47][i]) }
         let c = CoachContentBuilder.build(morning: morning(hrvSeries: series), gate: gate(), recovery: rec, locale: Locale(identifier: "en_US"))
         #expect(c.signals == ["Sleep 74 vs 80 avg", "HRV 47 ms vs 50 avg", "RHR 55 vs 53 avg"])   // Load dropped: already 3
     }

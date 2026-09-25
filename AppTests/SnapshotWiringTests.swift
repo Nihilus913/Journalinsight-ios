@@ -16,6 +16,10 @@ import JISnapshot
 /// unique suite name and torn down after.
 @Suite(.serialized)
 struct SnapshotWiringTests {
+    /// W-FIX1 BUG-05: readiness is "last night" only while that night is ≤ 36 h old, so the clock
+    /// is pinned to the dated `MockDataProvider` fixture's newest night (2026-09-11).
+    private static let fixtureNow: @Sendable () -> Date = { Date(timeIntervalSince1970: 1_789_128_000) } // 2026-09-11T12:00Z
+
     private func makeStore() -> (SnapshotStore, String) {
         let suite = "ji.test.snapshot.\(UUID().uuidString)"
         return (SnapshotStore(suiteName: suite), suite)
@@ -30,7 +34,7 @@ struct SnapshotWiringTests {
         defer { teardown(suite) }
 
         let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
-        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs)
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
         let recovery = RecoveryViewModel(provider: MockDataProvider(), cache: env.cache)
         env.bind(today: today, recovery: recovery)
 
@@ -64,14 +68,14 @@ struct SnapshotWiringTests {
 
         let sharedCache = OfflineCache(db: try AppDatabase.inMemory())
         let warmEnv = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: SnapshotStore(suiteName: "ji.test.snapshot.\(UUID().uuidString)"))
-        let warmToday = TodayViewModel(provider: MockDataProvider(), cache: sharedCache, prefs: warmEnv.prefs)
+        let warmToday = TodayViewModel(provider: MockDataProvider(), cache: sharedCache, prefs: warmEnv.prefs, now: Self.fixtureNow)
         let warmRecovery = RecoveryViewModel(provider: MockDataProvider(), cache: sharedCache)
         await warmToday.load()
         await warmRecovery.load()
         #expect(warmToday.morning != nil) // cache now warm
 
         let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
-        let today = TodayViewModel(provider: AlwaysFailingProvider(), cache: sharedCache, prefs: env.prefs)
+        let today = TodayViewModel(provider: AlwaysFailingProvider(), cache: sharedCache, prefs: env.prefs, now: Self.fixtureNow)
         let recovery = RecoveryViewModel(provider: AlwaysFailingProvider(), cache: sharedCache)
         env.bind(today: today, recovery: recovery)
 

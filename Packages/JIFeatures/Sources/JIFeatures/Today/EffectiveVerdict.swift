@@ -47,8 +47,9 @@ nonisolated public func effectiveVerdictTone(parts: VerdictParts, override: Verd
 
 /// The hub's `session` resolution (Wave Card Contract), for an override that is queued offline
 /// and has no hub-resolved `session` yet: accept → the verdict's session; full →
-/// `sessionForToday` (plan weekday) else the verdict's session; modified → the verdict's session
-/// if the verdict was MODIFIED/REDUCED, else "Easy Z2 30–40 min"; rest → "Rest — walks only".
+/// `sessionForToday` (plan weekday) else the verdict's session; modified → the trimmed prescription
+/// on an amber auto-regulated GO, the verdict's session if the verdict was MODIFIED/REDUCED, else
+/// "Easy Z2 30–40 min"; rest → "Rest — walks only".
 nonisolated public func localOverrideSession(choice: VerdictOverrideChoice, parts: VerdictParts, sessionForToday: String?) -> String {
     switch choice {
     case .accept:
@@ -57,6 +58,9 @@ nonisolated public func localOverrideSession(choice: VerdictOverrideChoice, part
         if let s = sessionForToday, !s.isEmpty { return s }
         return parts.session
     case .modified:
+        // W-FIX1 BUG-03: on the hub's amber day the Modified session IS the trimmed prescription
+        // (the hub's `modified_session_for` resolves the same), never the generic easy Z2.
+        if let trimmed = autoRegulatedPrescription(parts) { return trimmed }
         let bare = bareVerdictWord(parts)
         if (bare.hasPrefix("MODIFIED") || bare.hasPrefix("REDUCED")), !parts.session.isEmpty { return parts.session }
         return VerdictOverrideCopy.easySession
