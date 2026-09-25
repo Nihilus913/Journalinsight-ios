@@ -258,15 +258,18 @@ final class AppEnvironment {
             (.bodyFatPercentage, HAEMetricName.bodyFatPercentage, "%", HKSampleMapping.perSample(unit: .percent())),
             (.leanBodyMass, HAEMetricName.leanBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
             (.bodyMassIndex, HAEMetricName.bodyMassIndex, "count", HKSampleMapping.perSample(unit: .count())),
+            // B-57 W2 (A3): basal energy is an `HKReadKind` now (read for the on-phone energy
+            // balance), so it moves here from the identifier list below — same type, metric name
+            // and v1 anchor. The dietary kinds are read-only for the phone and never uploaded.
+            (.basalEnergy, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
         ]
-        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`,
-        // `calories_bmr_avg`, `vo2max`, all 14/14 null) that `HKReadKind` has no case for yet, so
+        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`, `vo2max`,
+        // all 14/14 null) that `HKReadKind` has no case for yet, so
         // they are named by identifier here. Health Auto Export metric names; SpO2 goes as
         // HealthKit's 0–1 fraction (the hub side scales it, like body fat).
         let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
             (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
-            (.basalEnergyBurned, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
             (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested
