@@ -106,12 +106,18 @@ public nonisolated func energyLogDateLabel(_ iso: String) -> String {
     return "\(energyWeekdayShort[idx]) \(day)"
 }
 
+/// A weekday column label: "Wed", or "We" at accessibility sizes.
+public nonisolated func energyWeekdayLabel(_ label: String, accessibilitySize: Bool) -> String {
+    accessibilitySize ? String(label.prefix(2)) : label
+}
+
 /// Board "This week": one intake bar per day in the calorie tint, the user's goal as a dashed
 /// line, today's bar hatched while it fills in, "—" for a day with nothing yet.
 struct EnergyWeekChart: View {
     let bars: [EnergyWeekBar]
     let goal: Double?
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var barMaxHeight: CGFloat = 110
 
     private var scaleTop: Double {
@@ -165,9 +171,12 @@ struct EnergyWeekChart: View {
                 Text("—").jiFont(.caption).foregroundStyle(theme.color(.muted))
                 Capsule().fill(theme.color(.nested)).frame(height: 3)
             }
-            Text(bar.label).jiFont(.footnote, weight: bar.isToday ? .bold : .regular)
+            // AX3: three letters cannot fit a seventh of the card, so the label shortens to two
+            // (the column's VoiceOver label keeps the full day) instead of truncating to "W…".
+            Text(energyWeekdayLabel(bar.label, accessibilitySize: typeSize.isAccessibilitySize))
+                .jiFont(.footnote, weight: bar.isToday ? .bold : .regular)
                 .foregroundStyle(theme.color(bar.isToday ? .text : .muted))
-                .lineLimit(1).minimumScaleFactor(0.6)
+                .lineLimit(1).minimumScaleFactor(0.5).allowsTightening(true)
                 .frame(height: labelRowHeight)
         }
         .frame(maxWidth: .infinity).frame(height: barMaxHeight + labelRowHeight + valueRowHeight)

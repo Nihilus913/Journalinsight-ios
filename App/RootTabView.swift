@@ -333,19 +333,24 @@ struct RootTabView: View {
                 .environment(\.verdictOverrideModel, verdictOverrideModel)
             } else {
                 ProgressView()
-                    .task {
-                        todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
-                        env.bind(today: todayModel, recovery: recoveryModel)
-                        gateRationaleModel = GateRationaleViewModel(provider: store.provider)
-                        // Outbox on the same on-disk database the drainer reads (see makeGateRespondModel).
-                        if let p = store.provider as? any VerdictOverrideProviding,
-                           let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }() {
-                            verdictOverrideModel = VerdictOverrideViewModel(provider: p, outbox: Outbox(db: db))
-                        }
-                    }
+                    .task { makeTodayModels(store: store) }
             }
         } else {
             connectionPrompt
+        }
+    }
+
+    /// Today's model + its siblings (rationale, override). Shared by the Today tab and More (the
+    /// Goals row reads the latest weight from Today's gate rows).
+    private func makeTodayModels(store: ProviderStore) {
+        guard todayModel == nil else { return }
+        todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
+        env.bind(today: todayModel, recovery: recoveryModel)
+        gateRationaleModel = GateRationaleViewModel(provider: store.provider)
+        // Outbox on the same on-disk database the drainer reads (see makeGateRespondModel).
+        if let p = store.provider as? any VerdictOverrideProviding,
+           let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }() {
+            verdictOverrideModel = VerdictOverrideViewModel(provider: p, outbox: Outbox(db: db))
         }
     }
 
@@ -384,19 +389,27 @@ struct RootTabView: View {
     private var moreTab: some View {
         List {
             Section("Track") {
-                NavigationLink { nutritionTab } label: { Label("Nutrition", systemImage: RootTab.nutrition.symbol) }
+                NavigationLink { nutritionTab } label: {
+                    MoreRowLabel("Nutrition", systemImage: RootTab.nutrition.symbol, value: moreNutritionRow)
+                }
                     .accessibilityIdentifier("more.nutrition")
-                NavigationLink { energyTab } label: { Label("Energy", systemImage: RootTab.energy.symbol) }
+                NavigationLink { energyTab } label: {
+                    MoreRowLabel("Energy", systemImage: RootTab.energy.symbol, value: moreEnergyRow)
+                }
                     .accessibilityIdentifier("more.energy")
                 Button { showKpiList = true } label: {
                     LabeledContent { Text(Self.moreKpiText(count: moreKpiCount)) } label: { Label("My KPIs", systemImage: "chart.bar") }
                 }
                     .accessibilityIdentifier("more.kpis")
-                NavigationLink { moreGoals } label: { Label("Goals", systemImage: "target") }
+                NavigationLink { moreGoals } label: {
+                    MoreRowLabel("Goals", systemImage: "target", value: moreGoalsRow)
+                }
                     .accessibilityIdentifier("more.goals")
             }
             Section("Practice") {
-                NavigationLink { moreMind } label: { Label("Mind", systemImage: "water.waves") }
+                NavigationLink { moreMind } label: {
+                    MoreRowLabel("Mind", systemImage: "water.waves", value: moreMindValue(who5Pct: moreMindModel?.latestWho5?.pct))
+                }
                     .accessibilityIdentifier("more.mind")
             }
             Section("App") {
@@ -409,6 +422,45 @@ struct RootTabView: View {
         }
         .navigationTitle("More")
         .navigationSubtitle("Everything that is not a daily decision")
+        .task { await loadMoreSummaries() }
+    }
+
+    // B-57 W1 r5 (h3): the More rows' trailing values read the same models the screens behind
+    // them use (built here when More is opened first); missing data is "—" + a reason.
+    private var moreNutritionRow: MoreRowValue {
+        let today = String(Date().ISO8601Format().prefix(10))
+        let day = nutritionModel?.day.flatMap { $0.date == today ? $0 : nil }
+        return moreNutritionValue(consumedKcal: day?.total.kcal, goalKcal: day?.total.kcalGoal ?? energyModel?.goalKcal)
+    }
+
+    private var moreEnergyRow: MoreRowValue {
+        moreEnergyValue(avgDeficit7d: energyModel?.report?.avgDeficitCorrected7d, trackingDays: energyModel?.report?.trackingDays ?? 0)
+    }
+
+    private var moreGoalsRow: MoreRowValue {
+        let gate = todayModel?.gate
+        let current = KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value
+        return moreGoalsValue(currentKg: current, targetKg: energyModel?.goals?.weight.targetKg)
+    }
+
+    private func loadMoreSummaries() async {
+        if let store = env.providerStore {
+            makeTodayModels(store: store)
+            if energyModel == nil, let p = store.provider as? any EnergyProviding {
+                energyModel = EnergyViewModel(provider: p, cache: env.cache, now: Date.init)
+            }
+            if nutritionModel == nil, let p = store.provider as? any NutritionProviding {
+                nutritionModel = NutritionViewModel(provider: p, cache: env.cache, now: Date.init)
+            }
+        }
+        if moreMindModel == nil, !moreMindUnavailable { await makeMoreMindModel() }
+        // Loaded side by side (each restores its cache first, then fetches live).
+        var loads: [Task<Void, Never>] = []
+        if let today = todayModel, !today.hasLiveResult { loads.append(Task { await today.load() }) }
+        if let energy = energyModel, !energy.hasLiveResult { loads.append(Task { await energy.load() }) }
+        if let nutrition = nutritionModel, !nutrition.hasLiveResult { loads.append(Task { await nutrition.load() }) }
+        if let mind = moreMindModel, mind.phase == .idle { loads.append(Task { await mind.load() }) }
+        for load in loads { await load.value }
     }
 
     @ViewBuilder private var moreGoals: some View {
@@ -642,6 +694,7 @@ struct RootTabView: View {
             backupModel: backup,
             goalsSetupModel: goals,
             kpiListModel: kpis,
+            goalsProvider: provider as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },
             syncAction: { try await env.syncNow() }
         ) { config in

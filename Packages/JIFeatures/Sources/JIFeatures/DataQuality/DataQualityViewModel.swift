@@ -130,6 +130,9 @@ public final class DataQualityAccess {
 /// Error precedence and the cancellation contract follow `KpiListViewModel` (CODE-1): a cancelled
 /// load returns to `.idle` rather than reporting a false error, and a live failure with a cache hit
 /// still renders the carried-over report behind a staleness banner.
+/// B-57 W1 r5: the Data quality board's per-source footer (`5 Settings/07 DataQuality.png`).
+public nonisolated let dataQualityProvenanceNote = "Provenance is not scored yet."
+
 @Observable @MainActor
 public final class DataQualityViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, empty, error(String) }
@@ -175,7 +178,13 @@ public final class DataQualityViewModel {
     /// Worst-first rows (oracle `sortedScores`).
     public var sortedScores: [QualityScoreEntry] { dataQualitySortedScores(report?.qualityScore ?? []) }
     public var sourceTrust: [SourceTrustEntry] { report?.sourceTrust ?? [] }
-    public var provenanceGap: String? { report?.provenanceGap }
+    /// B-57 W1 r5: the board's footer copy. The hub's `provenance_gap` is a developer note
+    /// ("E14-3 (provenance)…"); it only tells us provenance carries no sub-score, so the screen
+    /// shows the board sentence and never the raw hub string.
+    public var provenanceGap: String? {
+        guard let gap = report?.provenanceGap, !gap.isEmpty else { return nil }
+        return dataQualityProvenanceNote
+    }
     /// B-57 W1 board: per-source freshness for the summary card and the Sources rows.
     public var sourceSummary: DataQualitySourceSummary { dataQualitySourceSummary(report?.freshness ?? []) }
     /// B-57 W1 r4: the three compact per-source rows; the per-metric detail sits one level down.

@@ -8,6 +8,10 @@ import JIDesign
 ///
 /// Two branches, exactly as the oracle: the live rationale, and the deep-link per-date branch which
 /// deliberately shows less (the persisted `morning_verdict` row has no rules/suggestions/trail).
+/// B-57 W1 Recovery score card copy (board 03). The score is W3; the card shows "—" + Calibrating.
+/// No night count: the threshold is W3's to set, so none is invented here.
+public nonisolated let gateRationaleRecoveryScoreCopy = "One score from overnight HRV, resting HR and sleep (length, deep, REM), each against your normal. It shows a number once all three have enough nights."
+
 public struct GateRationaleView: View {
     @Bindable var model: GateRationaleViewModel
     @Environment(\.jiTheme) private var theme
@@ -37,8 +41,10 @@ public struct GateRationaleView: View {
                     if model.isByDate {
                         byDateReasonCard
                     } else {
-                        // r4 (board 03 GateRationale): What counted → Weekly nutrition → Last 3 days.
-                        // The recovery score is left for W3, so its card is gone (not a placeholder).
+                        // Board 03 GateRationale: Recovery score → What counted → Weekly nutrition →
+                        // Last 3 days. r5: spec §2 L2 keeps the recovery-score card in W1 as
+                        // "— Calibrating"; only the score itself (and its contributor bars) is W3.
+                        recoveryScoreSection
                         whatCountedCard
                         weeklyNutritionSection
                         lastDaysSection
@@ -80,7 +86,8 @@ public struct GateRationaleView: View {
         Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 4) {
                 sectionLabel("Why today is")
-                Text(model.verdict.word)
+                // r5: Decide's user-facing word ("Full" / "Modified" / "Rest"), never the hub's GO.
+                Text(model.verdictWord)
                     .jiNumeral(.numeralLarge, weight: .heavy)
                     .foregroundStyle(theme.color(verdictColorRole(model.verdict.tone)))
                     .minimumScaleFactor(0.4)
@@ -95,6 +102,30 @@ public struct GateRationaleView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Board "Recovery score · last night": the score is W3, so the card shows "—" + Calibrating and
+    /// what the score will be made of — never a number.
+    private var recoveryScoreSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            boardHeader("Recovery score", trailing: "last night")
+            Surface(level: 2, padding: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                        Text(JIMissingReason.calibrating.rawValue).jiFont(.subheadline, weight: .semibold)
+                            .foregroundStyle(theme.color(.muted))
+                    }
+                    Text(gateRationaleRecoveryScoreCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Recovery score")
+            .accessibilityValue("\(JIMissingReason.calibrating.rawValue). \(gateRationaleRecoveryScoreCopy)")
+            .accessibilityIdentifier("gateRationale.recoveryScore")
         }
     }
 
@@ -149,12 +180,12 @@ public struct GateRationaleView: View {
     }
 
     private var energyTile: some View {
-        weeklyTile(title: "Energy balance", systemImage: "flame", tint: .reduced, value: model.energyBalance7d,
+        weeklyTile(title: "Energy balance", systemImage: "flame", tint: metricTintRole("kcal"), value: model.energyBalance7d,
                    signed: true, unit: "kcal/day", id: "gateRationale.energyBalance")
     }
 
     private var proteinTile: some View {
-        weeklyTile(title: "Protein", systemImage: "fork.knife", tint: .text, value: model.protein7d,
+        weeklyTile(title: "Protein", systemImage: "fork.knife", tint: metricTintRole("protein"), value: model.protein7d,
                    signed: false, unit: "g a day", id: "gateRationale.protein")
     }
 

@@ -156,6 +156,44 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     }
 }
 
+/// W-B57-W1 r5 (h2) proof: Energy, KPI detail nutrition and Weekly plan whole-screen at default
+/// size and AX3 (the phone cell clips them). Writes PNGs only when `JI_PROOF_DIR` is set.
+@Test @MainActor func monitorPlanTallProofRender() throws {
+    let outDir = ProcessInfo.processInfo.environment["JI_PROOF_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+    if let outDir { try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true) }
+    let entries = ScreenRegistry.entries.filter { ["energy", "kpi-detail-nutrition", "weekly-plan"].contains($0.slug) }
+    #expect(entries.count == 3)
+    for entry in entries {
+        for cell in [SweepCell(device: "proof-tall", width: 393, height: 2600, dark: true, ax: false),
+                     SweepCell(device: "proof-tall", width: 393, height: 7200, dark: true, ax: true)] {
+            let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+            if let outDir {
+                let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+                let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+                CGImageDestinationAddImage(dest, image, nil)
+                #expect(CGImageDestinationFinalize(dest))
+            }
+        }
+    }
+}
+
+/// W-B57-W1 r5 (h3) proof: Data quality whole-screen (its provenance footer sits below the phone
+/// cell) at default size and AX3. Writes PNGs only when `JI_H3_PROOF_DIR` is set.
+@Test @MainActor func dataQualityTallProofRender() throws {
+    guard let dir = ProcessInfo.processInfo.environment["JI_H3_PROOF_DIR"] else { return }
+    let outDir = URL(fileURLWithPath: dir, isDirectory: true)
+    try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+    let entry = try #require(ScreenRegistry.entries.first { $0.slug == "data-quality" })
+    for cell in [SweepCell(device: "proof-tall", width: 393, height: 2600, dark: true, ax: false),
+                 SweepCell(device: "proof-tall", width: 393, height: 7200, dark: true, ax: true)] {
+        let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+        let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+        let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, image, nil)
+        #expect(CGImageDestinationFinalize(dest))
+    }
+}
+
 @MainActor private func pngBytes(_ image: CGImage) -> Data? {
     let data = NSMutableData()
     guard let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else { return nil }

@@ -9,9 +9,9 @@ import JIDesign
 // `GateConfigSection` (Settings › Preferences) — RN's only entry is its Settings row too.
 /// B-57 W1: the "How the morning call works" card rows.
 public nonisolated let gateConfigMorningCallRows: [(word: String, role: JIColorRole, text: String)] = [
-    ("Full", .go, "Signals sit where they should. Train as planned."),
-    ("Modified", .reduced, "A signal stays low. Same day, easier: intervals become easy Z2."),
-    ("Rest", .danger, "Several signals are off at once. Walk and recover."),
+    (VerdictUserWord.full, .go, "Signals sit where they should. Train as planned."),
+    (VerdictUserWord.modified, .reduced, "A signal stays low. Same day, easier: intervals become easy Z2."),
+    (VerdictUserWord.rest, .danger, "Several signals are off at once. Walk and recover."),
 ]
 
 public struct GateConfigView: View {

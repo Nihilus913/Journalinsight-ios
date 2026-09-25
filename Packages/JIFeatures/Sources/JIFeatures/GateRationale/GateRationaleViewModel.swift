@@ -37,6 +37,7 @@ nonisolated public struct GateDayRow: Equatable, Sendable, Identifiable {
     /// "Wed 23".
     public let dayLabel: String
     public let session: String?
+    /// The user-facing word (`verdictUserWord`), or nil when no verdict was persisted that day.
     public let verdictWord: String?
     public let tone: VerdictTone
     public var id: String { date }
@@ -205,6 +206,9 @@ public final class GateRationaleViewModel {
         verdictParts(isByDate ? verdictForDate?.verdict : morning?.verdict)
     }
 
+    /// B-57 W1 r5: the header's word as Decide says it ("Full" / "Modified" / "Rest").
+    public var verdictWord: String { verdictUserWord(verdict) }
+
     /// `computed_at` ("2026-09-03T05:10:43.887829+02:00") -> "05:10", or nil when unparsable.
     public func computedAtTime(locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
         guard let raw = verdictForDate?.computedAt, let date = Self.parseISO(raw) else { return nil }
@@ -285,7 +289,7 @@ public final class GateRationaleViewModel {
             }
             let parts = verdictParts(row.verdict)
             let session = row.sessionPrescription.flatMap { $0.isEmpty ? nil : $0 } ?? (parts.session.isEmpty ? nil : parts.session)
-            return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: parts.word, tone: parts.tone)
+            return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: verdictUserWord(parts), tone: parts.tone)
         }
     }
 

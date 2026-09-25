@@ -52,11 +52,13 @@ public struct WeeklyPlanView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("The week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 8)
-                    Text(weeklyPlanTrainDaysText(model.plan.trainDays.count))
-                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                // AX3: "The week" and the training-day count stack instead of truncating.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline) { weekTitle.fixedSize(); Spacer(minLength: 8); trainDaysText.fixedSize() }
+                    VStack(alignment: .leading, spacing: 2) {
+                        weekTitle.fixedSize(horizontal: false, vertical: true)
+                        trainDaysText.fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 weekChart
                 legend
@@ -101,7 +103,13 @@ public struct WeeklyPlanView: View {
         .accessibilityIdentifier("weeklyPlan.hero")
     }
     private var heroNumber: some View {
-        Text("\(model.plan.avgKcal)").jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(nutritionKcalTintRole))
+        Text(verbatim: weeklyPlanKcalText(model.plan.avgKcal)).jiNumeral(.numeralDisplay, weight: .heavy).foregroundStyle(theme.color(nutritionKcalTintRole))
+    }
+    private var weekTitle: some View {
+        Text("The week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+    }
+    private var trainDaysText: some View {
+        Text(weeklyPlanTrainDaysText(model.plan.trainDays.count)).jiFont(.footnote).foregroundStyle(theme.color(.muted))
     }
     private var heroUnit: some View { Text("kcal average").jiFont(.body).foregroundStyle(theme.color(.muted)) }
 
@@ -115,7 +123,7 @@ public struct WeeklyPlanView: View {
                 ForEach(days) { day in
                     let isToday = day.day == today
                     VStack(spacing: 6) {
-                        Text("\(day.kcal)")
+                        Text(verbatim: weeklyPlanKcalText(day.kcal))
                             .jiFont(.caption).foregroundStyle(theme.color(.muted))
                             .lineLimit(1).minimumScaleFactor(0.5)
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -195,7 +203,7 @@ public struct WeeklyPlanView: View {
     private func knobValue(_ knob: WeeklyPlanViewModel.Knob) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(weeklyPlanNumberText(model.value(of: knob))).jiNumeral(.numeralSmall, weight: .heavy)
-                .foregroundStyle(theme.color(knob.unit == "kcal" ? nutritionKcalTintRole : .text))
+                .foregroundStyle(theme.color(weeklyPlanKnobTintRole(knob)))
             Text(knob.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
         .accessibilityElement(children: .combine)
@@ -229,6 +237,19 @@ public struct WeeklyPlanView: View {
 
 /// Board footnote under TARGETS.
 public nonisolated let weeklyPlanFootnote = "Carbs fill what is left on each day, and land in the meal after training."
+
+/// B-57 W1 r5: every kcal figure on the screen in one format — plain digits, no locale grouping
+/// ("1907", as the board and the TARGETS values show it).
+public nonisolated func weeklyPlanKcalText(_ kcal: Int) -> String { String(kcal) }
+
+/// A TARGETS value's tint: the JIDesign macro role for what it measures.
+public nonisolated func weeklyPlanKnobTintRole(_ knob: WeeklyPlanViewModel.Knob) -> JIColorRole {
+    switch knob {
+    case .weeklyAvg, .trainKcal: nutritionKcalTintRole
+    case .protein: .protein
+    case .fat: .fat
+    }
+}
 
 /// "The week" header trailing text: the count of training days the schedule sets.
 public nonisolated func weeklyPlanTrainDaysText(_ count: Int) -> String {
