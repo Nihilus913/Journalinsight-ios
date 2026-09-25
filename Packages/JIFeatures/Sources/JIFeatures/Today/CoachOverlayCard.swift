@@ -12,9 +12,14 @@ public struct CoachOverlayCard: View {
     @State private var drag: CGFloat = 0
     @Environment(\.jiTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// A downward drag past this many points dismisses; anything shorter springs back.
     nonisolated static let dismissDistance: CGFloat = 60
+
+    /// W-FIX2 BUG-16: Today is drawn behind the chrome-only TabView, so the bottom overlay has to
+    /// lift itself above the floating tab bar (on a phone) or its sentence sits under the bar.
+    nonisolated static func bottomClearance(_ width: JIWidthClass) -> CGFloat { tabBarBottomClearance(width) }
 
     public init(change: String, onDismiss: @escaping () -> Void) {
         self.change = change; self.onDismiss = onDismiss
@@ -45,6 +50,7 @@ public struct CoachOverlayCard: View {
         }
         .overlay(RoundedRectangle(cornerRadius: theme.radius(.card), style: .continuous).stroke(theme.color(.hairlineOuter)))
         .shadow(color: theme.color(.text).opacity(0.14), radius: 16, y: 6)
+        .padding(.bottom, Self.bottomClearance(sizeClass == .regular ? .regular : .compact))
         .offset(y: max(0, drag))
         .gesture(
             DragGesture(minimumDistance: 8)
