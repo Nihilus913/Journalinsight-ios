@@ -73,7 +73,8 @@ private struct UnassignedSection: SettingsSection {
         #expect(!GroupSettingsView.sections(in: group).isEmpty, "\(group.rawValue) has no sections")
     }
     #expect(GroupSettingsView.sections(in: .widgets).isEmpty)
-    #expect(SettingsGroupId.widgets.placeholder == "Widgets arrive with B-34/B-36")
+    // W-FIX3 BUG-46: widgets shipped (B-34) — the footer says how to add one, not that they are coming.
+    #expect(SettingsGroupId.widgets.placeholder == settingsWidgetsHowTo)
     #expect(SettingsGroupId.sync.placeholder == nil)
 }
 
