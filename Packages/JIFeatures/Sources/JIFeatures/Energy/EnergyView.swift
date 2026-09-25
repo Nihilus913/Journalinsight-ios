@@ -2,8 +2,8 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-57 W1: the board's subtitle and "What you burn" copy (W1 ships the wording; the values stay
-/// hub-sourced until W2's HealthKit reads, so the burn card shows "Not in Health yet").
+/// B-57 W1: the board's subtitle and "What you burn" copy. W-FIX3 BUG-38: the burn value is the
+/// hub's measured per-day burn (`tdee_raw`), averaged over the last 7 complete days.
 public nonisolated let energySubtitle = "What you eat against what you burn, from Apple Health"
 public nonisolated let energyBurnCardCopy = "Resting plus active energy, both read from Apple Health. JI adds them up each day."
 
@@ -15,6 +15,7 @@ public nonisolated let energyBurnCardCopy = "Resting plus active energy, both re
 /// exit criteria, which cover render-from-fixture + states, not window-size adaptivity).
 public struct EnergyView: View {
     @Bindable private var model: EnergyViewModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
 
@@ -23,6 +24,13 @@ public struct EnergyView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // W-FIX3 BUG-33: at AX sizes the navigation subtitle truncates; it moves into the
+                // page as wrapping text instead.
+                if typeSize.isAccessibilitySize {
+                    Text(energySubtitle).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("energy.subtitle")
+                }
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -40,7 +48,7 @@ public struct EnergyView: View {
         // §5: the hand-drawn large title becomes the system one.
         .navigationTitle("Energy")
         #if os(iOS)
-        .navigationSubtitle(energySubtitle)
+        .navigationSubtitle(typeSize.isAccessibilitySize ? "" : energySubtitle)
         #endif
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
@@ -86,8 +94,14 @@ public struct EnergyView: View {
     }
 }
 
-/// B-57 W1 r5: the board's sections in order — hero, "How we calculate this", What you burn,
-/// How we calculate (with the no-medical-judgement note), This week, Daily log. `EnergyView` and
+/// The board's sections above the Daily log, in order. W-FIX3 BUG-39: "How we calculate" once
+/// (the old link row repeated the same explainer right above the full card).
+nonisolated enum EnergySection: CaseIterable, Equatable, Sendable {
+    case hero, whatYouBurn, howWeCalculate, thisWeek
+}
+
+/// B-57 W1 r5: the board's sections in order — hero, What you burn, How we calculate (with the
+/// no-medical-judgement note), This week, Daily log. `EnergyView` and
 /// the registry preview (`EnergyNativePreview`) both render THIS view, so the sweep shows the
 /// same sections the screen does.
 struct EnergySections: View {
@@ -100,12 +114,16 @@ struct EnergySections: View {
         VStack(alignment: .leading, spacing: 16) {
             if let report {
                 // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE".
-                EnergyHero(report: report, goal: goal)
-                HowWeCalculateLink(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-                EnergyBurnCard()
-                HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-                    .accessibilityIdentifier("energy.howWeCalculate")
-                EnergyThisWeek(days: report.days, goal: goal, today: today)
+                ForEach(EnergySection.allCases, id: \.self) { section in
+                    switch section {
+                    case .hero: EnergyHero(report: report, goal: goal)
+                    case .whatYouBurn: EnergyBurnCard(days: report.days, today: today)
+                    case .howWeCalculate:
+                        HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                            .accessibilityIdentifier("energy.howWeCalculate")
+                    case .thisWeek: EnergyThisWeek(days: report.days, goal: goal, today: today)
+                    }
+                }
             }
             JISectionHeader("Daily log")
             Surface(padding: 18) {
@@ -116,10 +134,13 @@ struct EnergySections: View {
     }
 }
 
-/// Board "What you burn": the words ship in W1; resting + active energy from HealthKit arrive in
-/// W2 (the resting / active split is left for W2 too), so the value is "— Not in Health yet".
+/// Board "What you burn": the 7-day average burn the hub already holds (BUG-38), or "— No data"
+/// when no complete day has one. The resting / active split is left for W2.
 struct EnergyBurnCard: View {
+    var days: [EnergyDay] = []
+    var today: String = energyTodayISO()
     private let theme = JITheme.native
+    private var average: Double? { energyBurnAverage(days: days, today: today) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -133,8 +154,8 @@ struct EnergyBurnCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // AX3: the reason takes its own line rather than truncating.
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) { burnDash; burnReason.fixedSize() }
-                        VStack(alignment: .leading, spacing: 4) { burnDash; burnReason.fixedSize(horizontal: false, vertical: true) }
+                        HStack(alignment: .firstTextBaseline, spacing: 6) { burnValue; burnReason.fixedSize() }
+                        VStack(alignment: .leading, spacing: 4) { burnValue; burnReason.fixedSize(horizontal: false, vertical: true) }
                     }
                     Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
@@ -150,9 +171,12 @@ struct EnergyBurnCard: View {
         Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
     }
     private var burnAside: some View { Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
-    private var burnDash: some View { Text("—").jiNumeral(.numeralMedium, tint: .muted) }
+    private var burnValue: some View {
+        Text(verbatim: jiValueText(average, decimals: 0)).jiNumeral(.numeralMedium, tint: average == nil ? .muted : .text)
+    }
+    /// "kcal a day" with a value; the one true reason word without ("No data").
     private var burnReason: some View {
-        Text(JIMissingReason.notInHealthYet.rawValue).jiFont(.subheadline, weight: .semibold)
+        Text(average == nil ? JIMissingReason.noData.rawValue : "kcal a day").jiFont(.subheadline, weight: .semibold)
             .foregroundStyle(theme.color(.muted))
     }
 }
@@ -200,4 +224,18 @@ struct EnergyThisWeek: View {
 public nonisolated func energyGoalHeaderText(_ goal: Double?) -> String {
     guard let goal, goal.isFinite else { return EnergyDayStatus.noGoal.word }
     return "Goal \(jiNumber(goal, 0)) kcal"
+}
+
+/// The last 7 complete days' measured burn (`tdeeRaw`, the device's resting + active total),
+/// averaged; nil when none. The hub's empirical `tdeeCorrected` is a model estimate, not what
+/// the card's copy describes, so it never stands in (rule 5: "— No data", never a guess).
+public nonisolated func energyBurnAverage(days: [EnergyDay], today: String) -> Double? {
+    let burns = energyLogDays(days: days, today: today).prefix(7)
+        .compactMap { d -> Double? in d.tdeeRaw.flatMap { $0.isFinite ? $0 : nil } }
+    return burns.isEmpty ? nil : burns.reduce(0, +) / Double(burns.count)
+}
+
+/// "2300 kcal", or "— No data".
+public nonisolated func energyBurnText(days: [EnergyDay], today: String) -> String {
+    jiValueOrReasonText(energyBurnAverage(days: days, today: today), decimals: 0, unit: "kcal")
 }
