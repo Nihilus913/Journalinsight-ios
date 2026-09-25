@@ -246,9 +246,9 @@ private struct FakeDataQualityProvider: DataQualityProviding {
     }
 }
 
-/// B-57 W1 T30: YAZIO reads as a source through Apple Health.
-@Test func yazioReadsAsViaAppleHealth() {
-    #expect(dataQualitySourceDisplay("yazio") == "YAZIO via Apple Health")
-    #expect(dataQualitySourceDisplay("YAZIO") == "YAZIO via Apple Health")
+/// B-57 W1 T30, W-FIX4 PF-09: the YAZIO source reads as "YAZIO" (its own API).
+@Test func yazioReadsAsYazio() {
+    #expect(dataQualitySourceDisplay("yazio") == "YAZIO")      // W-FIX4 PF-09: the YAZIO API, not HealthKit
+    #expect(dataQualitySourceDisplay("YAZIO") == "YAZIO")
     #expect(dataQualitySourceDisplay("garmin_api") == "garmin_api")      // unknown sources pass through
 }
