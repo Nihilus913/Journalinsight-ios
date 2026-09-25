@@ -197,6 +197,14 @@ public struct TodayGrid: View {
             order = todayGridShownIDs(chipIDs: chips.map(\.id), prefs: tilePrefs)
         }
         .onChange(of: chips.map(\.id)) { _, ids in order = todayGridShownIDs(chipIDs: ids, prefs: tilePrefs) }
+        // W-FIX3 C-a: a sheet closing over Today (Edit Today, My KPIs) fires no onAppear here — the
+        // write itself says so, and the grid re-reads the one selection at once.
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: todayTilePrefsDidChange) {
+                tilePrefs = loadTodayTilePrefs(prefs: prefs)
+                order = todayGridShownIDs(chipIDs: chips.map(\.id), prefs: tilePrefs)
+            }
+        }
     }
 
     /// E12-17 parity — the daily mind check-in promoted onto Today (oracle `MindTile.tsx`). Tap

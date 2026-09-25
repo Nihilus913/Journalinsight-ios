@@ -220,6 +220,15 @@ public final class TodayViewModel {
                  latest: foodValue("kcal_consumed")),
             chip("weight", "Weight", unit: "kg", points: sortedDaily.map { $0.values["weight_kg"] ?? nil }, sourceMissing: false,
                  latest: newestNonNull(daily, date: \.date, value: { $0.values["weight_kg"] ?? nil })),
+            // W-FIX3 C-a: every KPI My KPIs can put "On Today" has a square (TodayTileRegistry.optInIds).
+            chip("body_battery", "Body Battery", unit: nil, points: sortedRec.map(\.bodyBatteryAvg), sourceMissing: false,
+                 latest: lastNight(\.bodyBatteryAvg)),
+            chip("readiness", "Readiness", unit: nil, points: sortedRec.map(\.readinessScore), sourceMissing: false,
+                 latest: lastNight(\.readinessScore)),
+            chip("carbs", "Carbs", unit: "g", points: sortedDaily.map { $0.values["carbs_g"] ?? nil }, sourceMissing: false,
+                 latest: foodValue("carbs_g")),
+            chip("fat", "Fat", unit: "g", points: sortedDaily.map { $0.values["fat_g"] ?? nil }, sourceMissing: false,
+                 latest: foodValue("fat_g")),
         ]
     }
 
@@ -228,6 +237,9 @@ public final class TodayViewModel {
     public var gridChips: [TodayChip] { squareChips }
 
     public func load() async {
+        // W-FIX3 C-a: fold EditToday's set into the one selection before any screen (the gate, My
+        // KPIs) reads it — a no-op once unified.
+        _ = loadTodayTilePrefs(prefs: prefs)
         phase = .loading
         restoreFromCache()
         await fetchLive()
