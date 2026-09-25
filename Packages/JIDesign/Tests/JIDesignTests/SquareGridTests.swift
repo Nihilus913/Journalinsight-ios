@@ -31,6 +31,37 @@ struct SquareGridTests {
         #expect(squareBadgeActionLabel(JISquareItem(id: "s", label: "Steps", value: nil)) == nil)
     }
 
+    /// W-FIX3 BUG-33 (R4-09): at AX sizes the icon sits above the label so the label gets the
+    /// square's full width and "Resting" never hyphenates to "Rest-/ing".
+    @Test func iconStacksAboveTheLabelOnlyAtAXSizes() {
+        #expect(squareLabelStacksIcon(isAccessibilitySize: true))
+        #expect(!squareLabelStacksIcon(isAccessibilitySize: false))
+    }
+
+    /// W-FIX3 BUG-33 (R1-19): the badge glyph is sized from the (scaled) circle, so the "−" never
+    /// overflows its badge at AX3.
+    @Test func badgeGlyphTracksTheCircle() {
+        #expect(squareBadgeGlyphPointSize(side: 24) == 12)
+        #expect(squareBadgeGlyphPointSize(side: 40) == 20)
+        #expect(squareBadgeGlyphPointSize(side: 60) < 60)
+    }
+
+    /// The badge grows a little with the type size but stays a corner badge (24…32 pt), never a
+    /// 60-pt disc over the square's icon at AX3.
+    @Test func badgeSideIsClamped() {
+        #expect(squareBadgeSide(scaled: 24) == 24)
+        #expect(squareBadgeSide(scaled: 28) == 28)
+        #expect(squareBadgeSide(scaled: 60) == 32)
+        #expect(squareBadgeSide(scaled: 18) == 24)
+    }
+
+    @Test @MainActor func rendersAtAX3() {
+        expectRenders("SquareGrid AX3", height: 480) {
+            SquareGrid(items: [hrv, rhr], editing: true, columns: 2, onBadge: { _ in }, onMove: { _, _ in }, onAdd: {})
+                .environment(\.dynamicTypeSize, .accessibility3)
+        }
+    }
+
     @Test @MainActor func renders() {
         expectRenders("SquareGrid", height: 320) { SquareGrid(items: [hrv, rhr, kcal]) }
         expectRenders("SquareGrid editing", height: 320) { SquareGrid(items: [hrv, rhr], editing: true, onBadge: { _ in }, onMove: { _, _ in }, onAdd: {}) }

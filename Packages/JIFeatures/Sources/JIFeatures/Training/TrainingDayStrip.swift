@@ -51,6 +51,10 @@ public struct TrainingDayStrip: View {
     /// the strip reads chronologically (the hub returns newest-first) and can never over-run the
     /// viewport regardless of how many days the hub sends.
     nonisolated static let stripDayCount = 7
+    /// W-FIX3 BUG-33 (R3-13): seven 44-pt chips cannot hold AX3 numerals ("19 20 21…" ran into
+    /// each other and the rings), so the strip itself stops scaling at xxxLarge — as the Fitness
+    /// calendar strip does. The "This week" caption above it keeps full Dynamic Type.
+    nonisolated static let maxTypeSize: DynamicTypeSize = .xxxLarge
 
     nonisolated static func stripWindow(_ daily: [DailyKpiRow]) -> [DailyKpiRow] {
         let chronological = daily.sorted { $0.date < $1.date }
@@ -98,6 +102,7 @@ public struct TrainingDayStrip: View {
                     Text("No training data yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 } else {
                     WeekStrip(days: days, tint: theme.color(.info), selected: selection)
+                        .dynamicTypeSize(...Self.maxTypeSize)
                         .accessibilityIdentifier("training-day-strip")
                 }
             }
