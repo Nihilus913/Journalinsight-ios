@@ -3,6 +3,16 @@ import Observation
 import JICore
 import JIPersistence
 
+/// B-57 W1: one read-only "Next working weight" row. `kg == nil` renders "— No data", never 0.
+public nonisolated struct NextWorkingWeight: Equatable, Sendable { public let name: String; public let kg: Double? }
+
+/// B-57 W1: GoalsSetup's two strength rows, read from the local `strength_state` mirror.
+public nonisolated func nextWorkingWeights(entries: [StrengthStateEntry]) -> [NextWorkingWeight] {
+    ["Bench press", "Bent-over row"].map { name in
+        NextWorkingWeight(name: name, kg: entries.first { $0.exerciseName.localizedCaseInsensitiveCompare(name) == .orderedSame }?.currentWeightKg)
+    }
+}
+
 /// W4-L3 (P-goals), mirrors `mobile/app/goals-setup.tsx` + `mobile/src/data/useGoals.ts`'s
 /// `useGoals`/`useUpdateGoals`. Reads through the frozen `EnergyProviding.goals()` (the same
 /// `GET /planning/goals` route the Energy tab already calls); writes through the new
@@ -20,12 +30,20 @@ public final class GoalsSetupViewModel {
     private let provider: any GoalsSetupProviding
     private let goalStore: GoalStore?
     private let now: () -> Date
+    private let strengthStore: StrengthStateStore
 
-    public init(provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init) {
+    public init(
+        provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
+        strengthStore: StrengthStateStore = StrengthStateStore()
+    ) {
         self.provider = provider
         self.goalStore = goalStore
         self.now = now
+        self.strengthStore = strengthStore
     }
+
+    /// B-57 W1: read-only; updates itself after each logged session.
+    public var nextWorkingWeights: [NextWorkingWeight] { JIFeatures.nextWorkingWeights(entries: strengthStore.entries()) }
 
     public func load() async {
         phase = .loading

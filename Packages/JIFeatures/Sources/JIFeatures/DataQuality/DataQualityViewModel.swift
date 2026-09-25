@@ -130,6 +130,9 @@ public final class DataQualityAccess {
 /// Error precedence and the cancellation contract follow `KpiListViewModel` (CODE-1): a cancelled
 /// load returns to `.idle` rather than reporting a false error, and a live failure with a cache hit
 /// still renders the carried-over report behind a staleness banner.
+/// B-57 W1 r5: the Data quality board's per-source footer (`5 Settings/07 DataQuality.png`).
+public nonisolated let dataQualityProvenanceNote = "Provenance is not scored yet."
+
 @Observable @MainActor
 public final class DataQualityViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, empty, error(String) }
@@ -175,7 +178,17 @@ public final class DataQualityViewModel {
     /// Worst-first rows (oracle `sortedScores`).
     public var sortedScores: [QualityScoreEntry] { dataQualitySortedScores(report?.qualityScore ?? []) }
     public var sourceTrust: [SourceTrustEntry] { report?.sourceTrust ?? [] }
-    public var provenanceGap: String? { report?.provenanceGap }
+    /// B-57 W1 r5: the board's footer copy. The hub's `provenance_gap` is a developer note
+    /// ("E14-3 (provenance)…"); it only tells us provenance carries no sub-score, so the screen
+    /// shows the board sentence and never the raw hub string.
+    public var provenanceGap: String? {
+        guard let gap = report?.provenanceGap, !gap.isEmpty else { return nil }
+        return dataQualityProvenanceNote
+    }
+    /// B-57 W1 board: per-source freshness for the summary card and the Sources rows.
+    public var sourceSummary: DataQualitySourceSummary { dataQualitySourceSummary(report?.freshness ?? []) }
+    /// B-57 W1 r4: the three compact per-source rows; the per-metric detail sits one level down.
+    public var families: [DataQualityFamilyRow] { dataQualityFamilies(report) }
 
     /// The freshness detail paired with a quality row, or nil when the hub's two reports don't
     /// line up for it — the screen then prints "—" rather than inventing a state.
@@ -235,5 +248,109 @@ public final class DataQualityViewModel {
         case .yazioAuthExpired(let detail): "Hub error: \(detail)"
         default: "Couldn't load data quality."
         }
+    }
+}
+
+/// B-57 W1: YAZIO is a source read through Apple Health (v10 change "YAZIO via Apple Health").
+public nonisolated func dataQualitySourceDisplay(_ source: String) -> String {
+    source.lowercased() == "yazio" ? JIExplainers.nutritionSourceLabel : source
+}
+
+// MARK: - B-57 W1 board summary (fixer f3)
+
+/// One source's worst freshness state across its metrics (the board's "Sources" rows).
+nonisolated public struct DataQualitySourceState: Sendable, Equatable, Identifiable {
+    public let source: String
+    public let state: FreshnessState
+    /// Days stale of the worst metric; nil when the hub did not say.
+    public let daysStale: Int?
+    public var id: String { source }
+}
+
+/// The board's "Sources fresh today — n of N" card: one entry per source the hub reports.
+nonisolated public struct DataQualitySourceSummary: Sendable, Equatable {
+    public let sources: [DataQualitySourceState]
+    public var fresh: Int { sources.filter { $0.state == .green }.count }
+    public var stale: Int { sources.count - fresh }
+}
+
+public nonisolated func dataQualitySourceSummary(_ rows: [FreshnessEntry]) -> DataQualitySourceSummary {
+    func rank(_ s: FreshnessState) -> Int { s == .red ? 2 : s == .amber ? 1 : 0 }
+    var worst: [String: DataQualitySourceState] = [:]
+    for row in rows {
+        if let current = worst[row.source] {
+            if rank(row.state) > rank(current.state) {
+                worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: row.daysStale)
+            } else if rank(row.state) == rank(current.state), let d = row.daysStale, d > (current.daysStale ?? -1) {
+                worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: d)
+            }
+        } else {
+            worst[row.source] = DataQualitySourceState(source: row.source, state: row.state, daysStale: row.daysStale)
+        }
+    }
+    return DataQualitySourceSummary(sources: worst.values.sorted { $0.source < $1.source })
+}
+
+// MARK: - B-57 W1 r4 per-source quality rows (fixer g3, board 5/07)
+
+/// The board's three "Per-source quality" rows. The hub reports per (source, metric) with a
+/// `dso_key`; GarminDB (1) and GarminAPI (2) are one Garmin row. A source outside the three
+/// (Manual, a future one) gets an "Other" row so its detail never disappears.
+public nonisolated enum DataQualityFamily: String, Sendable, Equatable, CaseIterable, Identifiable {
+    case appleWatch, garmin, yazio, other
+    public var id: String { rawValue }
+
+    public init(dsoKey: Int, source: String) {
+        switch dsoKey {
+        case 1, 2: self = .garmin
+        case 3: self = .yazio
+        case 4: self = .appleWatch
+        default:
+            let s = source.lowercased()
+            if s.hasPrefix("garmin") { self = .garmin }
+            else if s == "yazio" { self = .yazio }
+            else if s == "applehealth" { self = .appleWatch }
+            else { self = .other }
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .appleWatch: "Apple Watch"
+        case .garmin: "Garmin"
+        case .yazio: "YAZIO"
+        case .other: "Other sources"
+        }
+    }
+}
+
+public nonisolated struct DataQualityFamilyRow: Sendable, Equatable, Identifiable {
+    public let family: DataQualityFamily
+    /// Worst first, as the old flat list was.
+    public let scores: [QualityScoreEntry]
+    public let trust: [SourceTrustEntry]
+    public var id: String { family.id }
+    /// Mean composite of this source's metric rows, 0–100; nil when the hub scored none.
+    public var percent: Int? {
+        guard !scores.isEmpty else { return nil }
+        return Int((scores.map(\.composite).reduce(0, +) / Double(scores.count) * 100).rounded())
+    }
+    public var trailing: String { percent.map { "\($0)%" } ?? "— No data" }
+    public var tone: DataQualityTone? {
+        guard !scores.isEmpty else { return nil }
+        return dataQualityCompositeTone(Double(percent ?? 0) / 100)
+    }
+}
+
+/// Apple Watch · Garmin · YAZIO always (the board's rows; an empty one says "— No data"), plus
+/// "Other sources" only when the hub reported one.
+public nonisolated func dataQualityFamilies(_ report: DataQualityReport?) -> [DataQualityFamilyRow] {
+    let scores = dataQualitySortedScores(report?.qualityScore ?? [])
+    let trust = report?.sourceTrust ?? []
+    return DataQualityFamily.allCases.compactMap { family in
+        let s = scores.filter { DataQualityFamily(dsoKey: $0.dsoKey, source: $0.source) == family }
+        let t = trust.filter { DataQualityFamily(dsoKey: $0.dsoKey, source: $0.sourceLabel) == family }
+        if family == .other, s.isEmpty, t.isEmpty { return nil }
+        return DataQualityFamilyRow(family: family, scores: s, trust: t)
     }
 }

@@ -112,6 +112,12 @@ public final class GateConfigViewModel {
         persistMorning()
     }
 
+    /// B-57 W1 "Use recommended": every local morning field and KPI rule back to its default.
+    public func useRecommended() {
+        resetAllMorning()
+        for rule in defaultKpiRules { resetKpi(kpiRuleKey(rule)) }
+    }
+
     private func persistMorning() {
         if morningOverrides.isEmpty {
             try? prefStore.remove(Self.morningOverridesKey)

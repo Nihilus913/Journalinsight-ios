@@ -30,6 +30,19 @@ nonisolated public struct GateTrailDay: Equatable, Sendable, Identifiable {
     }
 }
 
+/// One row of the board's "Last 3 days" table: the verdict persisted for that exact date, or nil
+/// (the view shows "—" + "No data") when `morning_go.py` did not run that day.
+nonisolated public struct GateDayRow: Equatable, Sendable, Identifiable {
+    public let date: String
+    /// "Wed 23".
+    public let dayLabel: String
+    public let session: String?
+    /// The user-facing word (`verdictUserWord`), or nil when no verdict was persisted that day.
+    public let verdictWord: String?
+    public let tone: VerdictTone
+    public var id: String { date }
+}
+
 /// Gate-rationale screen view model (oracle `mobile/app/gate-rationale.tsx`).
 ///
 /// Two modes, exactly as the oracle's `?date=` branch: with no `date` this is the live rationale
@@ -57,6 +70,9 @@ public final class GateRationaleViewModel {
     public private(set) var morning: MorningResponse?
     public private(set) var recovery: [RecoveryDay] = []
     public private(set) var verdictForDate: MorningVerdict?
+    /// r4: the persisted verdict rows for the last 3 days, keyed by date (only rows whose own
+    /// `date` matches the one asked for — never a neighbouring day's row passed off as this one).
+    public private(set) var recentVerdicts: [String: MorningVerdict] = [:]
     public private(set) var lastError: HubError?
 
     /// W8-L4: DESIGN-7 `ScreenState`, resolved from `phase`/`lastError`. `.noVerdictForDate`
@@ -107,13 +123,14 @@ public final class GateRationaleViewModel {
             gate = gateValue
             morning = morningValue
             recovery = recoveryValue
+            recentVerdicts = await Self.fetchVerdicts(Self.lastThreeDates(anchor: morningValue.verdictDate), provider: provider)
             lastError = nil
             phase = .loaded
         } catch {
             let hubError = Self.asHubError(error)
             lastError = hubError
             // A screen that already holds a rationale keeps showing it rather than collapsing to an
-            // error card (TodayViewModel/ChallengesViewModel branching) — blank is not honest when
+            // error card (the same branching as TodayViewModel) — blank is not honest when
             // we hold real data.
             phase = gate == nil ? .error(Self.describe(hubError)) : .loaded
         }
@@ -135,6 +152,43 @@ public final class GateRationaleViewModel {
         }
     }
 
+    /// Each date's persisted row, fetched concurrently; a failed or mismatched row is simply absent.
+    private static func fetchVerdicts(_ dates: [String], provider: any HealthDataProvider) async -> [String: MorningVerdict] {
+        await withTaskGroup(of: MorningVerdict?.self) { group in
+            for date in dates {
+                group.addTask { (try? await provider.morningVerdict(date: date)).flatMap { $0.date == date ? $0 : nil } }
+            }
+            var out: [String: MorningVerdict] = [:]
+            for await row in group { if let row { out[row.date] = row } }
+            return out
+        }
+    }
+
+    private static var isoCalendar: Calendar {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        return calendar
+    }
+
+    private nonisolated static func parseDay(_ date: String, _ calendar: Calendar) -> Date? {
+        let parts = date.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+    }
+
+    /// The verdict day and the two before it, newest first ("2026-09-01" -> 09-01, 08-31, 08-30).
+    nonisolated static func lastThreeDates(anchor: String?) -> [String] {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        guard let anchor, let day = parseDay(anchor, calendar) else { return [] }
+        return (0..<3).compactMap { back in
+            calendar.date(byAdding: .day, value: -back, to: day).map {
+                let c = calendar.dateComponents([.year, .month, .day], from: $0)
+                return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+            }
+        }
+    }
+
     /// Oracle: a real `.status === 404`, or the mock provider's stand-in plain error whose message
     /// says so. Every other failure (network, 401, …) gets the generic message + Retry.
     private static func isNotFound(_ error: HubError) -> Bool {
@@ -151,6 +205,9 @@ public final class GateRationaleViewModel {
     public var verdict: VerdictParts {
         verdictParts(isByDate ? verdictForDate?.verdict : morning?.verdict)
     }
+
+    /// B-57 W1 r5: the header's word as Decide says it ("Full" / "Modified" / "Rest").
+    public var verdictWord: String { verdictUserWord(verdict) }
 
     /// `computed_at` ("2026-09-03T05:10:43.887829+02:00") -> "05:10", or nil when unparsable.
     public func computedAtTime(locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
@@ -205,6 +262,37 @@ public final class GateRationaleViewModel {
         (gate?.triggeredRules.isEmpty ?? true) ? "No rules triggered — a clean day against every threshold." : nil
     }
 
+    /// Board "Weekly nutrition": the 7-day energy balance (`-deficit`, the sign people read), or nil.
+    public var energyBalance7d: Double? { gate?.averages.avgKcalDeficit7d.map { -$0 } }
+    /// Board "Weekly nutrition": the 7-day average protein, or nil.
+    public var protein7d: Double? { gate?.averages.avgProtein7d }
+
+    /// The caption under the weekly tiles: the weekly gate's own recommendation, its honest counts,
+    /// the humanized triggered rules and the suggestions — what the removed "Weekly nutrition gate",
+    /// "Why — triggered rules" and "Suggestions" cards used to say, now in the board's caption slot.
+    public func weeklyNotes(locale: Locale = .autoupdatingCurrent) -> [String] {
+        guard gate != nil else { return [] }
+        return [recommendationLabel, trackedDaysLine].compactMap { $0 } + humanizedRules(locale: locale) + suggestionLines
+    }
+
+    /// Board "Last 3 days": newest first, from the verdict day back.
+    public func lastDays(locale: Locale = .autoupdatingCurrent) -> [GateDayRow] {
+        let calendar = Self.isoCalendar
+        return Self.lastThreeDates(anchor: morning?.verdictDate).map { date in
+            // "Wed 23" (the board's form), composed so no locale reorders it into "23, Wed".
+            let label = Self.parseDay(date, calendar).map { d in
+                let weekday = d.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated))
+                return "\(weekday) \(calendar.component(.day, from: d))"
+            } ?? date
+            guard let row = recentVerdicts[date] else {
+                return GateDayRow(date: date, dayLabel: label, session: nil, verdictWord: nil, tone: .muted)
+            }
+            let parts = verdictParts(row.verdict)
+            let session = row.sessionPrescription.flatMap { $0.isEmpty ? nil : $0 } ?? (parts.session.isEmpty ? nil : parts.session)
+            return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: verdictUserWord(parts), tone: parts.tone)
+        }
+    }
+
     /// The 3 most recent recovery days, oldest-first for left-to-right reading order, joined to the
     /// morning HRV series by date (recovery arrives newest-first).
     public var trailDays: [GateTrailDay] {
@@ -251,6 +339,8 @@ public extension GateRationaleViewModel {
     static func fixture() -> GateRationaleViewModel {
         let model = GateRationaleViewModel(provider: MockDataProvider())
         model.gate = NativeFixtureStore.decode(fixtureGateJSON, as: GateResponse.self)
+        // Today's shared gate fixture carries no deficit; the rationale's Energy tile needs one.
+        model.gate?.averages.avgKcalDeficit7d = 598
         model.morning = NativeFixtureStore.decode(fixtureRationaleMorningJSON, as: MorningResponse.self)
         model.recovery = (0..<3).map { i in
             RecoveryDay(
@@ -261,11 +351,23 @@ public extension GateRationaleViewModel {
                 hrvWeeklyAvg: [51, 49, 52][i]
             )
         }
+        // 2026-09-19 deliberately absent: the table's "—" + No data row.
+        for (date, verdict, session) in [("2026-09-21", "GO — full session", "Day 2 Full Upper"),
+                                         ("2026-09-20", "REDUCED — easy Z2", "Intervals swapped for easy Z2")] {
+            model.recentVerdicts[date] = NativeFixtureStore.decode(
+                #"{"date":"\#(date)","verdict":"\#(verdict)","session_prescription":"\#(session)","computed_at":"\#(date)T07:41:00+02:00"}"#,
+                as: MorningVerdict.self)
+        }
         model.phase = .loaded
         return model
     }
 }
 
 private let fixtureRationaleMorningJSON = """
-{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"hrv_series":[]}
+{"today_activities":[],"verdict":"GO — full session","verdict_date":"2026-09-21","carb_watch_floor":180,"hrv_series":[],
+ "gate_signals":[
+  {"key":"sleep","label":"Sleep","value":85,"unit":"","threshold":70,"direction":"min","scale_min":0,"scale_max":100,"status":"pass","note":null},
+  {"key":"hrv","label":"HRV","value":52,"unit":"ms","threshold":27,"direction":"min","scale_min":0,"scale_max":80,"status":"pass","note":null},
+  {"key":"rhr","label":"RHR","value":52,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass","note":null},
+  {"key":"sleep_h","label":"Sleep time","value":null,"unit":"h","threshold":6.0,"direction":"min","scale_min":0,"scale_max":10,"status":"missing","note":null}]}
 """

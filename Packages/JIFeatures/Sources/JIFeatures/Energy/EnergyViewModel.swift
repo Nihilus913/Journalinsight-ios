@@ -21,7 +21,8 @@ public final class EnergyViewModel {
 
     private let provider: any EnergyProviding
     private let cache: OfflineCache
-    private let now: () -> Date
+    /// Injected clock (tests); the view reads it for "today" in the week and the log.
+    public let now: () -> Date
     private static let keys = (energy: "energy.report", goals: "energy.goals")
     private var everSynced = false
     private var neverSyncedObserved = false
@@ -55,8 +56,11 @@ public final class EnergyViewModel {
     private var latestDate: String? { report?.days.map(\.date).max() }
     private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
-    /// `days` sorted oldest→newest — the shape both `IntakeTdeeChart` and `DeficitDayList`
-    /// (newest-first for the log, via its own re-sort) want to consume.
+    /// The user's calorie goal from the goals document — the dashed line on "This week" and the
+    /// Daily log's status. `nil` = not set (the screen says "No goal set").
+    public var goalKcal: Double? { goals?.nutrition.kcalGoal }
+
+    /// The report's days, as the hub sends them — "This week" and the Daily log sort for themselves.
     public var days: [EnergyDay] { report?.days ?? [] }
 
     public func load() async {

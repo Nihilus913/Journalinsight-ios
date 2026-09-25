@@ -2,6 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// B-57 W1: board order Weight, Nutrition, Strength (read-only next working weight), Activity.
 /// W4-L3 (P-goals), mirrors `mobile/app/goals-setup.tsx`: the pinned structured-goals editor —
 /// weight target/date, bench/row strength targets, daily steps, and the four nutrition macros.
 /// Seeds its editable fields once from the loaded document (`hydrated`, same "not a live sync"
@@ -57,19 +58,7 @@ public struct GoalsSetupView: View {
                         .foregroundStyle(dateValid ? theme.color(.muted) : theme.color(.danger))
                 }
 
-                Section("Strength") {
-                    Stepper("Bench press: \(benchTarget, specifier: "%.1f") kg", value: $benchTarget, in: 0...500, step: 2.5)
-                        .accessibilityIdentifier("goals-setup-bench-target")
-                    Stepper("Bent-over row: \(rowTarget, specifier: "%.1f") kg", value: $rowTarget, in: 0...500, step: 2.5)
-                        .accessibilityIdentifier("goals-setup-row-target")
-                }
-
-                Section("Activity") {
-                    Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
-                        .accessibilityIdentifier("goals-setup-steps-daily")
-                }
-
-                Section("Nutrition") {
+                Section {
                     Stepper("Calories: \(Int(kcalGoal)) kcal", value: $kcalGoal, in: 1000...6000, step: 50)
                         .accessibilityIdentifier("goals-setup-kcal")
                     Stepper("Protein: \(Int(proteinG)) g", value: $proteinG, in: 0...400, step: 5)
@@ -78,6 +67,34 @@ public struct GoalsSetupView: View {
                         .accessibilityIdentifier("goals-setup-carbs")
                     Stepper("Fat: \(Int(fatG)) g", value: $fatG, in: 0...300, step: 5)
                         .accessibilityIdentifier("goals-setup-fat")
+                } header: {
+                    Text("Nutrition")
+                } footer: {
+                    Text("Carbs sit in the meal after training, never before it.")
+                }
+
+                // B-57 W1: read-only, from the local strength_state mirror. `benchTarget`/`rowTarget`
+                // stay seeded and are sent unchanged by `save()`, so the hub document is not altered.
+                Section {
+                    ForEach(model.nextWorkingWeights, id: \.name) { w in
+                        HStack {
+                            Text(w.name).foregroundStyle(theme.color(.text))
+                            Spacer()
+                            Text(w.kg.map { "\(jiNumber($0, 1)) kg" } ?? "— \(JIMissingReason.noData.rawValue)")
+                                .foregroundStyle(theme.color(w.kg == nil ? .muted : .sleep))
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("goals-setup-next-\(w.name)")
+                    }
+                } header: {
+                    Text("Strength · Next working weight")
+                } footer: {
+                    Text("Updates itself after each logged session. Nothing to type.")
+                }
+
+                Section("Activity") {
+                    Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
+                        .accessibilityIdentifier("goals-setup-steps-daily")
                 }
 
                 Section {

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import JIDesign
 import JIPersistence
 
 // W5a-L3 (P-edit-today). Port of `mobile/app/edit-today.tsx`'s state: every arrow/eye tap applies
@@ -11,11 +12,15 @@ public final class EditTodayViewModel {
     public private(set) var prefs: TodayTilePrefs = .default
     private let store: PrefStore?
 
-    public init(prefs: PrefStore?) { self.store = prefs }
+    /// Today's chips (value, unit, source support) so each square shows what Today shows.
+    /// Empty = no Today data reached this screen; every square then says "— No data".
+    public let chips: [TodayChip]
+
+    public init(prefs: PrefStore?, chips: [TodayChip] = []) { self.store = prefs; self.chips = chips }
 
     public var visibleOrder: [String] { visibleTodayTileOrder(prefs) }
 
-    public func load() { prefs = loadTodayTilePrefs(prefs: store) }
+    public func load() { prefs = loadTodayTilePrefs(prefs: store); pageName = loadTodayPageName(prefs: store) }
 
     public func isHidden(_ id: String) -> Bool { prefs.hidden.contains(id) }
 
@@ -32,6 +37,19 @@ public final class EditTodayViewModel {
 
     public func setHidden(_ id: String, hide: Bool) {
         commit(setTodayTileHidden(prefs, id: id, hide: hide))
+    }
+
+    public private(set) var pageName: String = todayPageNameDefault
+
+    public func setPageName(_ raw: String) {
+        pageName = normalizedTodayPageName(raw)
+        saveTodayPageName(pageName, prefs: store)
+    }
+
+    /// B-57 W1 drag: `moving` lands before `target` inside the VISIBLE order; hidden slots keep.
+    public func moveSquare(_ moving: String, before target: String) {
+        let next = squareGridMove(visibleOrder, moving: moving, before: target)
+        commit(reorderTodayTiles(prefs, newVisibleOrder: next))
     }
 
     private func commit(_ next: TodayTilePrefs) {

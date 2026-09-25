@@ -121,6 +121,79 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     }
 }
 
+/// W-B57-W1 f1 proof: Decide and GateRationale at AX3 in a cell tall enough to hold every
+/// SignalRow (the phone cell clips them below the fold), and a nil HRV night in NormalBarChart.
+/// Renders always; writes PNGs only when `JI_PROOF_DIR` is set (`TEST_RUNNER_JI_PROOF_DIR=…`).
+@Test @MainActor func axTallAndNilNightProofRender() throws {
+    let outDir = ProcessInfo.processInfo.environment["JI_PROOF_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+    if let outDir { try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true) }
+    let tall = SweepCell(device: "proof-tall", width: 393, height: 3400, dark: true, ax: true)
+    var shots: [(ScreenEntry, SweepCell)] = ScreenRegistry.entries
+        .filter { ["today-decide", "readiness-rationale"].contains($0.slug) }
+        .flatMap { [($0, tall), ($0, SweepCell(device: "proof-tall", width: 393, height: 3400, dark: true, ax: false))] }
+    #expect(shots.count == 4)
+    let nights = ScreenEntry(name: "Proof nil night") {
+        AnyView(NormalBarChart(points: [
+            NormalBarPoint(id: "1", label: "Thu", value: 28, isLatest: false),
+            NormalBarPoint(id: "2", label: "Fri", value: nil, isLatest: false),
+            NormalBarPoint(id: "3", label: "Sat", value: 29, isLatest: false),
+            NormalBarPoint(id: "4", label: "Sun", value: nil, isLatest: false, missingReason: .notInHealthYet),
+            NormalBarPoint(id: "5", label: "Mon", value: 27, isLatest: false),
+            NormalBarPoint(id: "6", label: "Tue", value: 30, isLatest: false),
+            NormalBarPoint(id: "7", label: "Wed", value: 25, isLatest: true),
+        ], normal: 27...30, unit: "ms").padding())
+    }
+    shots.append((nights, SweepCell(device: "proof", width: 393, height: 500, dark: true, ax: false)))
+    shots.append((nights, SweepCell(device: "proof", width: 393, height: 900, dark: true, ax: true)))
+    for (entry, cell) in shots {
+        let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+        if let outDir {
+            let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+            let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+            CGImageDestinationAddImage(dest, image, nil)
+            #expect(CGImageDestinationFinalize(dest))
+        }
+    }
+}
+
+/// W-B57-W1 r5 (h2) proof: Energy, KPI detail nutrition and Weekly plan whole-screen at default
+/// size and AX3 (the phone cell clips them). Writes PNGs only when `JI_PROOF_DIR` is set.
+@Test @MainActor func monitorPlanTallProofRender() throws {
+    let outDir = ProcessInfo.processInfo.environment["JI_PROOF_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+    if let outDir { try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true) }
+    let entries = ScreenRegistry.entries.filter { ["energy", "kpi-detail-nutrition", "weekly-plan"].contains($0.slug) }
+    #expect(entries.count == 3)
+    for entry in entries {
+        for cell in [SweepCell(device: "proof-tall", width: 393, height: 2600, dark: true, ax: false),
+                     SweepCell(device: "proof-tall", width: 393, height: 7200, dark: true, ax: true)] {
+            let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+            if let outDir {
+                let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+                let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+                CGImageDestinationAddImage(dest, image, nil)
+                #expect(CGImageDestinationFinalize(dest))
+            }
+        }
+    }
+}
+
+/// W-B57-W1 r5 (h3) proof: Data quality whole-screen (its provenance footer sits below the phone
+/// cell) at default size and AX3. Writes PNGs only when `JI_H3_PROOF_DIR` is set.
+@Test @MainActor func dataQualityTallProofRender() throws {
+    guard let dir = ProcessInfo.processInfo.environment["JI_H3_PROOF_DIR"] else { return }
+    let outDir = URL(fileURLWithPath: dir, isDirectory: true)
+    try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+    let entry = try #require(ScreenRegistry.entries.first { $0.slug == "data-quality" })
+    for cell in [SweepCell(device: "proof-tall", width: 393, height: 2600, dark: true, ax: false),
+                 SweepCell(device: "proof-tall", width: 393, height: 7200, dark: true, ax: true)] {
+        let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+        let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+        let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, image, nil)
+        #expect(CGImageDestinationFinalize(dest))
+    }
+}
+
 @MainActor private func pngBytes(_ image: CGImage) -> Data? {
     let data = NSMutableData()
     guard let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else { return nil }

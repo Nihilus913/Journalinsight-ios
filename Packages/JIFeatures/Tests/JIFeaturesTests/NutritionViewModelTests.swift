@@ -13,8 +13,6 @@ nonisolated struct NutritionFlakyProvider: NutritionProviding {
     init(failing: Bool, error: HubError = .network("simulated")) { self.failing = failing; self.error = error }
     func nutritionDay(date: String) async throws -> NutritionDayDetail? { try guardFail(); return try await inner.nutritionDay(date: date) }
     func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { try guardFail(); return try await inner.nutritionWeek(windowDays: windowDays) }
-    func logFood(_ body: LogFoodBody) async throws -> LogFoodResult { try guardFail(); return try await inner.logFood(body) }
-    func deleteLogItem(itemId: String, date: String?) async throws { try guardFail(); try await inner.deleteLogItem(itemId: itemId, date: date) }
     private func guardFail() throws { if failing { throw error } }
 }
 
@@ -22,18 +20,6 @@ nonisolated struct NutritionFlakyProvider: NutritionProviding {
 nonisolated struct NutritionEmptyProvider: NutritionProviding {
     func nutritionDay(date: String) async throws -> NutritionDayDetail? { nil }
     func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { [] }
-    func logFood(_ body: LogFoodBody) async throws -> LogFoodResult { LogFoodResult(logged: [], date: "2026-09-17") }
-    func deleteLogItem(itemId: String, date: String?) async throws {}
-}
-
-/// A `logFood`/`deleteLogItem` fake that always rejects with a given `HubError` — for the
-/// 409/502 UI-contract tests.
-nonisolated struct NutritionLogRejectingProvider: NutritionProviding {
-    let error: HubError
-    func nutritionDay(date: String) async throws -> NutritionDayDetail? { nil }
-    func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { [] }
-    func logFood(_ body: LogFoodBody) async throws -> LogFoodResult { throw error }
-    func deleteLogItem(itemId: String, date: String?) async throws { throw error }
 }
 
 @Test @MainActor func nutritionLiveLoadPopulatesDayAndWeekAndCaches() async throws {
@@ -87,33 +73,12 @@ nonisolated struct NutritionLogRejectingProvider: NutritionProviding {
     #expect(vm.screenState == .yazioAuthExpired(detail: "token stale"))
 }
 
-// MARK: - LogSheetViewModel (PINNED FOOD-LOG CONTRACT)
-
-@Test @MainActor func logSheetSubmitsTemplateAndReportsSuccess() async throws {
-    let model = LogSheetViewModel(provider: MockDataProvider())
-    let result = await model.submitTemplate("breakfast_default", meal: .breakfast)
-    #expect(result != nil)
-    if case .success = model.state {} else { Issue.record("expected .success, got \(model.state)") }
+/// B-57 W1 (v11 change 2): JI never logs food. The protocol is read-only; a conformer needs only the two reads.
+nonisolated struct ReadOnlyNutritionProvider: NutritionProviding {
+    func nutritionDay(date: String) async throws -> NutritionDayDetail? { nil }
+    func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { [] }
 }
-
-@Test @MainActor func logSheetDuplicateShowsRNCopyVerbatim() async throws {
-    let model = LogSheetViewModel(provider: NutritionLogRejectingProvider(error: .duplicate(detail: "YAZIO_DUPLICATE")))
-    let result = await model.submitTemplate("breakfast_default", meal: .breakfast)
-    #expect(result == nil)
-    #expect(model.state == .failure("Already logged today."))
-}
-
-@Test @MainActor func logSheetAuthExpiredShowsRNCopyVerbatim() async throws {
-    let model = LogSheetViewModel(provider: NutritionLogRejectingProvider(error: .yazioAuthExpired(detail: "YAZIO_AUTH_EXPIRED")))
-    let result = await model.submitTemplate("breakfast_default", meal: .breakfast)
-    #expect(result == nil)
-    #expect(model.state == .failure("YAZIO login expired — reconnect on the Mac."))
-}
-
-@Test @MainActor func logSheetDeleteRoundTrips() async throws {
-    let model = LogSheetViewModel(provider: MockDataProvider())
-    let logged = await model.submitTemplate("breakfast_default", meal: .breakfast)
-    let itemId = try #require(logged?.logged.first?.itemId)
-    let ok = await model.delete(itemId: itemId)
-    #expect(ok)
+@Test func nutritionProvidingIsReadOnly() {
+    let p: any NutritionProviding = ReadOnlyNutritionProvider()
+    #expect(p is ReadOnlyNutritionProvider)
 }

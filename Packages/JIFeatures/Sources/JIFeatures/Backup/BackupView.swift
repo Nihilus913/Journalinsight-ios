@@ -16,21 +16,35 @@ public struct BackupView: View {
 
     public var body: some View {
         Form {
-            Section("Export") {
+            // B-57 W1 board 5/03: the Last-backup card, then Export and Restore.
+            Section {
+                BoardSummaryCard(
+                    systemImage: "archivebox", title: "Last backup",
+                    value: model.lastBackupAt.map { $0.formatted(.dateTime.day().month(.abbreviated).year()) },
+                    status: BoardStatus(word: backupDaysAgoText(model.lastBackupAt, now: Date()), systemImage: "clock",
+                                        role: .muted),
+                    note: "Journal and Mind live only on this phone. This file is their only copy anywhere else."
+                )
+                .accessibilityIdentifier("backup-last")
+            }
+            Section {
                 Button("Export backup") { model.export() }
                     .accessibilityIdentifier("backup-export")
                     .accessibilityHint("Opens the system save sheet for the backup file.")
+                LabeledContent("Includes") {
+                    Text("Journal · Mind · Goals").accessibilityIdentifier("backup-contents")
+                }
                 if let error = model.exportError {
                     Text(error).jiFont(.footnote).foregroundStyle(theme.color(.danger))
                         .accessibilityIdentifier("backup-export-error")
                 }
-            }
-            Section("Restore") {
+            } header: { Text("Export") } footer: { Text("Save it to Files or iCloud Drive, off this phone.") }
+            Section {
                 Button("Choose backup file…") { showImporter = true }
                     .accessibilityIdentifier("backup-choose-file")
                     .accessibilityHint("Opens the system file picker to choose a backup to restore.")
                 importStageView
-            }
+            } header: { Text("Restore") } footer: { Text("Restoring replaces what is on this phone. You will see how many tables came back.") }
         }
         .jiTheme(.native)
         .navigationTitle("Backup & restore")
@@ -39,7 +53,7 @@ public struct BackupView: View {
             document: model.exportDocument,
             contentType: .json,
             defaultFilename: "healthtraining-backup"
-        ) { _ in }
+        ) { result in model.exportFinished(result) }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
             model.pickedFile(result)
         }

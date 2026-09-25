@@ -22,8 +22,8 @@ public struct KpiListView: View {
                 case .error(let msg): errorCard(msg)
                 case .loaded: rows
                 }
-                JISectionHeader("Gate targets")
-                KpiTargetsMirrorSection(targets: model.targets)
+                // B-57 W1 board: no "Gate targets" section here — the gate rules are read-only in
+                // Settings → Local data mirrors and edited per metric on KpiDetail.
                 Button("Reset to defaults") { model.resetSelection() }
                     .buttonStyle(.bordered)
                     .tint(theme.color(.info))
@@ -36,10 +36,6 @@ public struct KpiListView: View {
         .background(theme.color(.bg))
         .jiTheme(.native)
         .navigationTitle("My KPIs")
-        #if os(iOS)
-        // §5: the header's second line becomes the navigation subtitle.
-        .navigationSubtitle("Choose which numbers show on your KPI strip")
-        #endif
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
@@ -63,36 +59,23 @@ public struct KpiListView: View {
     }
 
     private var rows: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            JISectionHeader("My KPIs")
-            Surface(padding: 16) {
-                VStack(spacing: 0) {
-                    ForEach(model.prefs.order) { id in
-                        row(for: id)
-                        if id != model.prefs.order.last { Divider().overlay(theme.color(.hairlineNested)) }
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Every metric is a square. Ticked ones sit on Today; any of them can go on a widget.")
+                .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+            ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
+                let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) })
+                if !items.isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(group.rawValue).jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
+                    SquareGrid(items: items, onBadge: { raw in
+                        guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
+                        _ = model.toggle(id, selected: group != .onToday)
+                    })
                 }
             }
         }
-    }
-
-    private func row(for id: KpiMetricId) -> some View {
-        let def = KpiMetrics.def(id)
-        let visible = model.visibleOrder
-        let selected = !model.prefs.hidden.contains(id)
-        let visibleIndex = visible.firstIndex(of: id)
-        let valueText = formatKpiValue(model.value(for: id), decimals: def.decimals) + (def.unit.isEmpty ? "" : " \(def.unit)")
-
-        return KpiSelectionRow(
-            label: def.label, valueText: valueText, targetText: model.targetText(for: id),
-            selected: selected,
-            canMoveUp: selected && (visibleIndex ?? 0) > 0,
-            canMoveDown: selected && visibleIndex != nil && visibleIndex! < visible.count - 1,
-            showsReorder: selected && visibleIndex != nil,
-            identifierSuffix: id.rawValue,
-            onMoveUp: { model.move(id, direction: -1) },
-            onMoveDown: { model.move(id, direction: 1) },
-            onToggle: { model.toggle(id, selected: $0) }
-        )
     }
 }

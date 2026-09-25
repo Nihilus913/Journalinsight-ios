@@ -2,55 +2,37 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// §8.5 registry entry "Energy" — the cards `EnergyView.loaded` composes, over a fixture report.
+/// §8.5 registry entry "Energy" — the cards `EnergyView.loaded` composes, over a fixture report
+/// (a fixed "today", a fixture goal, one untracked day). Fixture values, not data.
 struct EnergyNativePreview: View {
-    @State private var range: TrendRange = .month
     private let theme = JITheme.native
+    private static let today = "2026-09-23"
+    private static let goal = 1617.0
 
-    private static let days: [EnergyDay] = (0..<28).map { i in
-        let day = 28 - i
-        let date = String(format: "2026-08-%02d", max(1, day))
-        let intake = [2180.0, 2310, 2050, 2620, 2400, 1980, 2290][i % 7]
-        let tdee = 2760.0 + Double((i % 5) * 40)
-        let deficit = tdee - intake
-        return EnergyDay(date: date, kcalConsumed: i % 9 == 0 ? nil : intake,
-                         tdeeRaw: tdee, tdeeCorrected: tdee,
+    private static let days: [EnergyDay] = (0..<7).map { i in
+        let date = String(format: "2026-09-%02d", 17 + i)
+        let intake: Double? = ([1690, 1560, 1720, nil, 1549, 1619, 467] as [Double?])[i]
+        let tdee = 2300.0 + Double((i % 3) * 40)
+        let deficit = intake.map { tdee - $0 }
+        return EnergyDay(date: date, kcalConsumed: intake, tdeeRaw: tdee, tdeeCorrected: tdee,
                          deficitRaw: deficit, deficitCorrected: deficit,
-                         deficitPctRaw: deficit / tdee * 100, deficitPctCorrected: deficit / tdee * 100,
-                         deficitClass: deficit > 700 ? "aggressive" : "mild",
-                         mealsLogged: i % 9 == 0 ? nil : 3)
+                         deficitPctRaw: deficit.map { $0 / tdee * 100 }, deficitPctCorrected: deficit.map { $0 / tdee * 100 },
+                         deficitClass: "mild", mealsLogged: intake == nil ? nil : 3)
     }
 
     private static let report = EnergyReport(
-        days: days, avgDeficitRaw7d: 466, avgDeficitCorrected7d: 466, avgDeficitPct7d: 17,
-        trackingDays: 6, compliant: true, tdeeEmpirical: 2760, goalIntakeKcal: 2400
+        days: days, avgDeficitRaw7d: 598, avgDeficitCorrected7d: 598, avgDeficitPct7d: 26,
+        trackingDays: 6, compliant: true, tdeeEmpirical: 2340, goalIntakeKcal: goal
     )
 
-    private func balancePoints() -> [TrendPoint] {
-        Self.days.sorted { $0.date < $1.date }.suffix(range.days).compactMap { day in
-            guard let deficit = day.deficitCorrected, let date = trainingStripDate(day.date) else { return nil }
-            return TrendPoint(date: date, value: -deficit)
-        }
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            JISectionHeader("Balance")
-            AdaptiveHStack {
-                EnergyHero(report: Self.report)
-                Surface(padding: 18) {
-                    TrendChart(points: balancePoints(), tint: theme.color(.info), unit: "kcal", range: $range, showAll: nil)
-                }
-            }
-            JISectionHeader("Intake vs TDEE")
-            Surface(padding: 18) { IntakeTdeeChart(days: Self.days) }
-            JISectionHeader("Daily log")
-            Surface(padding: 18) { DeficitDayList(days: Array(Self.days.prefix(5))) }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20).padding(.top, 8)
-        .readableColumn()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(theme.color(.bg))
+        // B-57 W1 r5: the same sections `EnergyView.loaded` renders (hero, How we calculate this,
+        // What you burn, How we calculate + the no-medical-judgement note, This week, Daily log).
+        EnergySections(report: Self.report, days: Self.days, goal: Self.goal, today: Self.today)
+            .padding(.horizontal, 20).padding(.top, 8)
+            .readableColumn()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(theme.color(.bg))
+            .jiTheme(.native)
     }
 }

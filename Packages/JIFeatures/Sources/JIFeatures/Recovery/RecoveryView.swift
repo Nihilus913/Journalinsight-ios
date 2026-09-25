@@ -2,17 +2,20 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// Recovery screen (W2b-L2, frozen contract `RecoveryView.init(model:)`). Composes the W2a
-/// primitives: `ReadinessArcGauge` + `SleepCard` + `SleepScoreComponents` + `ContributorBreakdown`,
-/// plus a Swift Charts trend over the `[RecoveryDay]` series. Rule 5 (never render a zero for
-/// missing data) and rule 6 (green reserved for the 0–100 readiness/sleep score; trend marks
-/// neutral `mutedNested`) both apply throughout.
+/// Recovery screen (frozen contract `RecoveryView.init(model:)`). B-57 W1: the v11 board —
+/// "Last night" squares (HRV · Sleep · Resting HR · Load) with Edit / hide / reorder, a
+/// "+ Add a metric" entry into the KPI catalogue, and HRV over the last 7 nights. Rule 5 (never
+/// render a zero for missing data) applies throughout: a missing square is "— No data".
 public struct RecoveryView: View {
     @Bindable private var model: RecoveryViewModel
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
-    @State private var trendRange: TrendRange = .week
+    @AppStorage("recovery.tileOrder") private var orderRaw = ""
+    @AppStorage("recovery.tileHidden") private var hiddenRaw = ""
+    @State private var editing = false
+    @Environment(\.openKpiCatalogue) private var openKpiCatalogue
+    @Environment(\.openKpiDetail) private var openKpiDetail
 
     public init(model: RecoveryViewModel) { self.model = model }
 
@@ -35,6 +38,7 @@ public struct RecoveryView: View {
         // §5: the hand-drawn large title becomes the system one; the date line is the subtitle.
         .navigationTitle("Recovery")
         .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        .toolbar { ToolbarItem(placement: .primaryAction) { Button(editing ? "Done" : "Edit") { editing.toggle() }.accessibilityIdentifier("recovery.edit") } }
         .refreshable { await model.refresh() }
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — mirrors `TodayView.task`.
         .task { if !offscreen, !model.hasLiveResult { await model.load() } }
@@ -72,111 +76,37 @@ public struct RecoveryView: View {
                 }
                 .accessibilityIdentifier("recovery.staleBanner")
             }
-            // §8.1: hero + its one small ring compose side by side in regular width, stack in compact.
-            // §4b: Recovery = hero arc + Sleep ring only — never HRV / RHR / ACWR.
-            AdaptiveHStack {
-                Surface(level: 1, padding: 20) {
-                    HStack {
-                        Spacer()
-                        // RN oracle `ReadinessArcGauge.tsx`: `Readiness ${rounded} — open detail`, else
-                        // `Readiness — open detail` when there is no score.
-                        ReadinessArcGauge(score: model.latestReadiness)
-                            .accessibilityLabel(model.latestReadiness.map { "Readiness \(Int($0.rounded())) — open detail" } ?? "Readiness — open detail")
-                            .accessibilityIdentifier("recovery.readinessGauge")
-                        Spacer()
-                    }
+            HStack { Text("Last night").jiFont(.subheadline).foregroundStyle(theme.color(.muted)); Spacer(); SyncedPill(date: model.fetchedAt) }
+            let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
+            SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
+                       onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
+                       onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
+                       onMove: { moving, target in orderRaw = squareGridMove(layout.visible + layout.hidden, moving: moving, before: target).joined(separator: ",") },
+                       onAdd: layout.hidden.first.map { first in { hiddenRaw = layout.hidden.filter { $0 != first }.joined(separator: ",") } })
+            if let openKpiCatalogue {
+                Button { openKpiCatalogue() } label: {
+                    Label("Add a metric", systemImage: "plus").jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.info))
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .overlay(RoundedRectangle(cornerRadius: theme.radius(.card), style: .continuous)
+                            .strokeBorder(theme.color(.mutedNested), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
                 }
-                .frame(maxWidth: .infinity)
-                VStack(alignment: .leading, spacing: 16) {
-                    sleepRing
-                    SleepCard(durationSec: model.latestSleepDurationSec, score: model.latestSleepScore)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityLabel("Sleep — open detail")
-                        .accessibilityIdentifier("recovery.sleepCard")
-                }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.pressableScale)
+                .accessibilityIdentifier("recovery.addMetric")
             }
-            section("Sleep components") {
-                SleepScoreComponents(components: sleepComponents)
-                    .accessibilityIdentifier("recovery.sleepComponents")
+            HStack(alignment: .firstTextBaseline) {
+                Text("HRV, last 7 nights").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+                Spacer()
             }
-            section("Readiness drivers") {
-                ContributorBreakdown(contributors: contributors)
-                    .accessibilityIdentifier("recovery.readinessDrivers")
+            Surface(level: 1) {
+                NormalBarChart(points: recoveryHrvNights(days: model.days), normal: nil, unit: "ms")
+                    .accessibilityIdentifier("recovery.hrvChart")
             }
-            section("Trend") { trendChart }
         }
-    }
-
-    /// §2/§2b: an uppercase section header above the card, not a caption inside it.
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            JISectionHeader(title)
-            Surface(level: 1) { content().frame(maxWidth: .infinity, alignment: .leading) }
-        }
-    }
-
-    /// §4b: Sleep score 0–100, purple, 44 pt. Rule 5 — no ring value without a score.
-    @ViewBuilder
-    private var sleepRing: some View {
-        Surface(level: 1) {
-            HStack(spacing: 12) {
-                ScoreRing(value: model.latestSleepScore ?? 0, max: 100, tint: model.latestSleepScore == nil ? theme.color(.nested) : theme.color(.sleep))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sleep score").jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    Text(model.latestSleepScore.map { "\(Int($0.rounded()))" } ?? "No data yet")
-                        .jiFont(.subheadline, weight: .semibold)
-                        .foregroundStyle(model.latestSleepScore == nil ? theme.color(.muted) : theme.color(.text))
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(model.latestSleepScore.map { "Sleep score \(Int($0.rounded())) of 100" } ?? "Sleep score, no data yet")
-        .accessibilityIdentifier("recovery.sleepRing")
     }
 
     private var staleVerdictBanner: String? {
         if case .staleVerdictDate(let date) = model.screenState { return date }
         return nil
-    }
-
-    private var sleepComponents: [SleepScoreComponent] {
-        let sorted = model.days.sorted { $0.date > $1.date }
-        let latest = sorted.first
-        return [
-            SleepScoreComponent(id: "duration", label: "Duration", value: latest?.sleepDurationSec.map { $0 / 60 }),
-            SleepScoreComponent(id: "bodyBattery", label: "Body battery", value: latest?.bodyBatteryAvg),
-        ]
-    }
-
-    private var contributors: [ReadinessContributor] {
-        let sorted = model.days.sorted { $0.date > $1.date }
-        let latest = sorted.first
-        return [
-            ReadinessContributor(id: "hrv", label: "HRV", value: latest?.hrvWeeklyAvg, magnitude: latest?.hrvWeeklyAvg ?? 0),
-            ReadinessContributor(id: "rhr", label: "RHR", value: latest?.rhrBpm, magnitude: latest?.rhrBpm ?? 0),
-            ReadinessContributor(id: "acwr", label: "ACWR", value: latest?.acwr, magnitude: (latest?.acwr ?? 0) * 100),
-        ]
-    }
-
-    /// §2b.3: the Health range picker + Swift Charts axis style come from JIDesign now; the
-    /// readiness series is the one bounded 0–100 metric this screen trends.
-    private var trendChart: some View {
-        TrendChart(
-            points: model.days.sorted { $0.date < $1.date }.compactMap { day in
-                day.readinessScore.flatMap { score in
-                    recoveryTrendDate(day.date).map { TrendPoint(date: $0, value: score) }
-                }
-            },
-            tint: theme.color(.go),
-            unit: "score",
-            range: $trendRange,
-            showAll: nil
-        )
-        .accessibilityLabel("Readiness trend")
-        .accessibilityIdentifier("recovery.trendChart")
     }
 }
 

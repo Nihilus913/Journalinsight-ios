@@ -32,6 +32,10 @@ public final class ConnectionSheetModel {
               let host = url.host(), !host.isEmpty, !cleanToken.isEmpty else { return nil }
         return ConnectionConfig(baseURL: url, token: cleanToken)
     }
+    /// B-57 W1 (g3): the saved URL's host (nil = no usable hub set up) — the Settings Hub row's
+    /// subtitle. Never the token (rule 2).
+    public var host: String? { candidate?.baseURL.host() }
+
     public func test() async {
         guard let c = candidate else { status = .other("Enter a valid http(s) URL and a token."); return }
         testing = true; defer { testing = false }

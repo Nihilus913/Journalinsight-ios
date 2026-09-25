@@ -122,3 +122,22 @@ private struct UnassignedSection: SettingsSection {
     }
     #expect(names.contains("Settings developer") == false)
 }
+
+/// B-57 W1 T29: the DATA rows each say what they are for, and the group footer tells them apart.
+@Test func dataGroupExplainsItsRows() {
+    #expect(settingsDataFooter == "Backup is for restoring. Export is for reading elsewhere. The other two show where your numbers come from.")
+    #expect(settingsDataSubtitles["Export"] == "A readable CSV or JSON of what you pick")
+    #expect(settingsDataSubtitles.count == 4)
+}
+
+/// B-57 W1 board: the four DATA rows share ONE card in board order, and Data quality says the
+/// board's subtitle; the connection rows stay their own card.
+@Test @MainActor func dataRowsShareOneCardInBoardOrder() {
+    let ids = GroupSettingsView.sections(in: .sync).map(\.id)
+    let split = settingsPartitionDataSections(ids)
+    #expect(split.data == ["l0.data", "l5.export", "w5b.l4.localMirrors", "w5b.l1.dataQuality"])
+    #expect(split.standalone.allSatisfy { !settingsDataSectionIds.contains($0) })
+    #expect(split.standalone.count + split.data.count == ids.count)
+    #expect(settingsDataSubtitles["Data quality"] == "Which sources are fresh, on, and first in line")
+    #expect(settingsDataSubtitles["Backup & restore"] == "Full copy of Journal and Mind, to restore on a new phone")
+}

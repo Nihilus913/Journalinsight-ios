@@ -40,6 +40,15 @@ public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
     case hairlineOuter, hairlineNested
     /// Reserved: verdict / band / 0–100 score / status ONLY (rule 6). Selection + CTA = info.
     case go, reduced, danger, info, sleep
+    /// B-57 W1 r5: the four macro colours the Monitor / Plan boards tint nutrition figures with
+    /// (Calories orange, Protein pink, Carbs yellow, Fat light blue). Metric colours only —
+    /// never a verdict, so calories are not "Modified" even though both read orange.
+    case kcal, protein, carbs, fat
+}
+
+public nonisolated extension JIColorRole {
+    /// The macro roles, in the boards' table order (Calories, Protein, Carbs, Fat).
+    static let macroRoles: [JIColorRole] = [.kcal, .protein, .carbs, .fat]
 }
 
 public extension JITheme {

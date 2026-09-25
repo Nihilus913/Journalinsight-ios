@@ -102,3 +102,181 @@ public nonisolated enum JournalCalendar {
         return "\(fmtShort(first, withYear: false)) – \(fmtShort(last, withYear: true))"
     }
 }
+
+// MARK: - B-57 W1 board helpers (Journal + JournalCalendar boards, fixer f3)
+//
+// Pure derivations behind the Journal streak card, the check-in row, the entry rows' "n/5" and the
+// JournalCalendar Entries / Average-mood cards. Every value comes from stored entries; a missing
+// input stays nil and renders "—" plus a reason word (rule 5), never a zero.
+
+/// The five journal moods on the board's 1–5 scale (Rough = 1 … Great = 5); nil for no/unknown mood.
+public nonisolated func journalMoodScore(_ raw: String?) -> Int? {
+    guard let raw, let mood = Mood(rawValue: raw) else { return nil }
+    switch mood {
+    case .great: return 5
+    case .good: return 4
+    case .okay: return 3
+    case .bad: return 2
+    case .terrible: return 1
+    }
+}
+
+/// The mood a 1–5 check-in tap stands for; nil outside 1…5.
+public nonisolated func journalMood(forScore score: Int) -> Mood? {
+    switch score {
+    case 5: .great
+    case 4: .good
+    case 3: .okay
+    case 2: .bad
+    case 1: .terrible
+    default: nil
+    }
+}
+
+/// One dot of the streak card's Mon–Sun row.
+public nonisolated struct JournalWeekDot: Sendable, Equatable, Identifiable {
+    public let id: String       // yyyy-MM-dd
+    public let initial: String  // M T W T F S S
+    public let written: Bool
+    public let isToday: Bool
+    public let isFuture: Bool
+}
+
+public nonisolated func journalWeekDots(dates: [String], today: Date) -> [JournalWeekDot] {
+    let set = Set(dates.map { String($0.prefix(10)) })
+    let calendar = JournalCalendarZurich.calendar
+    let todayISO = JournalCalendarZurich.isoDay(today)
+    let monday = JournalCalendar.startOfWeek(today)
+    let initials = ["M", "T", "W", "T", "F", "S", "S"]
+    return (0..<7).map { i in
+        let d = calendar.date(byAdding: .day, value: i, to: monday) ?? monday
+        let iso = JournalCalendarZurich.isoDay(d)
+        return JournalWeekDot(id: iso, initial: initials[i], written: set.contains(iso),
+                              isToday: iso == todayISO, isFuture: iso > todayISO)
+    }
+}
+
+public nonisolated func journalTodayWritten(dates: [String], today: Date) -> Bool {
+    let todayISO = JournalCalendarZurich.isoDay(today)
+    return dates.contains { $0.hasPrefix(todayISO) }
+}
+
+/// The JournalCalendar board's segmented control.
+public nonisolated enum JournalCalendarTab: String, Sendable, CaseIterable, Equatable {
+    case week, month, year
+    public var title: String {
+        switch self {
+        case .week: "Week"
+        case .month: "Month"
+        case .year: "Year"
+        }
+    }
+    var periodWord: String {
+        switch self {
+        case .week: "week"
+        case .month: "month"
+        case .year: "year"
+        }
+    }
+}
+
+/// The Entries / Average-mood cards under the calendar.
+public nonisolated struct JournalPeriodStats: Sendable, Equatable {
+    /// Distinct days with at least one entry, up to today.
+    public let entryDays: Int
+    /// Days of the period that have started (the board's "of 22 days").
+    public let elapsedDays: Int
+    /// Mean 1–5 mood of the period's entries; nil when none carries a mood.
+    public let averageMood: Double?
+    /// "Up on last month" / "Down on last month" / "Steady on last month" / "No trend yet".
+    public let trendWord: String
+}
+
+/// First day (inclusive) and day count of the `tab` period containing `anchor`.
+nonisolated func journalPeriod(_ tab: JournalCalendarTab, anchor: Date) -> (start: Date, days: Int) {
+    let calendar = JournalCalendarZurich.calendar
+    switch tab {
+    case .week:
+        return (JournalCalendar.startOfWeek(anchor), 7)
+    case .month:
+        let c = calendar.dateComponents([.year, .month], from: anchor)
+        let start = calendar.date(from: DateComponents(year: c.year, month: c.month, day: 1)) ?? anchor
+        return (start, calendar.range(of: .day, in: .month, for: start)?.count ?? 30)
+    case .year:
+        let y = calendar.component(.year, from: anchor)
+        let start = calendar.date(from: DateComponents(year: y, month: 1, day: 1)) ?? anchor
+        return (start, calendar.range(of: .day, in: .year, for: start)?.count ?? 365)
+    }
+}
+
+public nonisolated func journalShiftAnchor(_ tab: JournalCalendarTab, anchor: Date, dir: Int) -> Date {
+    let calendar = JournalCalendarZurich.calendar
+    switch tab {
+    case .week: return calendar.date(byAdding: .day, value: 7 * dir, to: anchor) ?? anchor
+    case .month: return JournalCalendar.shiftAnchor(.month, anchor: anchor, dir: dir)
+    case .year: return calendar.date(byAdding: .year, value: dir, to: anchor) ?? anchor
+    }
+}
+
+public nonisolated func journalCalendarTitle(_ tab: JournalCalendarTab, anchor: Date) -> String {
+    switch tab {
+    case .week: JournalCalendar.rangeLabel(.week, anchor: anchor)
+    case .month: JournalCalendarZurich.formatter("MMMM").string(from: anchor)
+    case .year: JournalCalendarZurich.formatter("yyyy").string(from: anchor)
+    }
+}
+
+private nonisolated func journalPeriodISOBounds(_ tab: JournalCalendarTab, anchor: Date) -> (first: String, last: String, days: Int, start: Date) {
+    let (start, days) = journalPeriod(tab, anchor: anchor)
+    let end = JournalCalendarZurich.calendar.date(byAdding: .day, value: days - 1, to: start) ?? start
+    return (JournalCalendarZurich.isoDay(start), JournalCalendarZurich.isoDay(end), days, start)
+}
+
+private nonisolated func journalAverageMood(_ entries: [Entry], first: String, last: String) -> Double? {
+    let scores = entries.filter { $0.date >= first && $0.date <= last }.compactMap { journalMoodScore($0.mood) }
+    guard !scores.isEmpty else { return nil }
+    return Double(scores.reduce(0, +)) / Double(scores.count)
+}
+
+public nonisolated func journalPeriodStats(entries: [Entry], tab: JournalCalendarTab, anchor: Date, today: Date) -> JournalPeriodStats {
+    let b = journalPeriodISOBounds(tab, anchor: anchor)
+    let todayISO = JournalCalendarZurich.isoDay(today)
+    let upTo = min(b.last, todayISO)
+    let entryDays = Set(entries.map { String($0.date.prefix(10)) }.filter { $0 >= b.first && $0 <= upTo }).count
+    let elapsed: Int
+    if todayISO < b.first { elapsed = 0 }
+    else if todayISO > b.last { elapsed = b.days }
+    else {
+        let t = JournalCalendarZurich.date(fromISODay: todayISO) ?? today
+        elapsed = (JournalCalendarZurich.calendar.dateComponents([.day], from: b.start, to: t).day ?? 0) + 1
+    }
+    let average = journalAverageMood(entries, first: b.first, last: b.last)
+    let prev = journalPeriodISOBounds(tab, anchor: journalShiftAnchor(tab, anchor: b.start, dir: -1))
+    let previous = journalAverageMood(entries, first: prev.first, last: prev.last)
+    let trend: String
+    if let average, let previous {
+        let delta = average - previous
+        trend = delta > 0.25 ? "Up on last \(tab.periodWord)"
+            : delta < -0.25 ? "Down on last \(tab.periodWord)" : "Steady on last \(tab.periodWord)"
+    } else {
+        trend = "No trend yet"
+    }
+    return JournalPeriodStats(entryDays: entryDays, elapsedDays: elapsed, averageMood: average, trendWord: trend)
+}
+
+/// "4.0" for a mean mood, "—" when there is none (rule 5).
+public nonisolated func journalAverageMoodText(_ average: Double?) -> String {
+    guard let average else { return "—" }
+    return String(format: "%.1f", average)
+}
+
+/// Distinct entry days per month (index 0 = January) — the Year tab's grid.
+public nonisolated func journalYearMonthCounts(dates: [String], year: Int) -> [Int] {
+    var counts = Array(repeating: 0, count: 12)
+    for iso in Set(dates.map { String($0.prefix(10)) }) {
+        let p = iso.split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3, p[0] == year, (1...12).contains(p[1]) else { continue }
+        counts[p[1] - 1] += 1
+    }
+    return counts
+}

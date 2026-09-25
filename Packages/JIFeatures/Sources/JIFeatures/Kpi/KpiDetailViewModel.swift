@@ -22,7 +22,13 @@ public final class KpiDetailViewModel {
     /// is out of this wave's scope (RN's own `app/gate-config.tsx` handles the full rule list and
     /// isn't part of this card).
     public private(set) var target: KpiTarget?
+    /// The user's goals document (macro goals for the nutrition variant). `nil` = not loaded or
+    /// no goals provider — the screen then says "no goal set", never invents one.
+    public private(set) var goals: Goals?
     public private(set) var hubReachable = true
+    /// When this metric's own source last reached the phone (nutrition for the macros, recovery
+    /// otherwise). Nil until one has — the pill then says so rather than inventing a time.
+    public private(set) var fetchedAt: Date?
     public private(set) var hasLiveResult = false
     public private(set) var lastError: HubError?
 
@@ -47,16 +53,20 @@ public final class KpiDetailViewModel {
     private let healthProvider: any HealthDataProvider
     private let nutritionProvider: any NutritionProviding
     private let targetsProvider: any KpiTargetsProviding
+    private let goalsProvider: (any EnergyProviding)?
     private let cache: OfflineCache
-    private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets")
+    private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals")
 
     public init(
         metric: KpiMetricId,
         healthProvider: any HealthDataProvider,
         nutritionProvider: any NutritionProviding,
         targetsProvider: any KpiTargetsProviding,
-        cache: OfflineCache
+        cache: OfflineCache,
+        goalsProvider: (any EnergyProviding)? = nil
     ) {
+        // The hub provider serves both protocols (the idiom `WeeklyPlanNutritionRow` uses).
+        self.goalsProvider = goalsProvider ?? (nutritionProvider as? any EnergyProviding)
         self.metric = metric
         self.healthProvider = healthProvider
         self.nutritionProvider = nutritionProvider
@@ -86,10 +96,12 @@ public final class KpiDetailViewModel {
 
     private func restoreFromCache() {
         let targetKeys = def.targetMetricKeys
-        if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value }
-        if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value }
+        let macro = isNutritionKpi(metric)
+        if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value; if !macro { fetchedAt = hit.fetchedAt } }
+        if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value; if macro { fetchedAt = hit.fetchedAt } }
         if let hit = try? cache.get(Self.keys.gate, as: GateResponse.self) { dailyRows = hit.value.daily; gateAverages = hit.value.averages }
         if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { target = hit.value.first { targetKeys.contains($0.metric) } }
+        if macro, let hit = try? cache.get(Self.keys.goals, as: Goals.self) { goals = hit.value }
         if hasAnyData { phase = .loaded }
     }
 
@@ -106,11 +118,18 @@ public final class KpiDetailViewModel {
             async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await health.gate(windowDays: windowDays) }
             async let tR = SectionLoader.load(key: Self.keys.targets, cache: cache) { try await targetsProvider.kpiTargets() }
             let (r, n, g, t) = try await (rR, nR, gR, tR)
+            // Goals only matter on the nutrition variant; a failure there is not a screen error
+            // (the hero then says "no goal set").
+            if isNutritionKpi(metric), let goalsProvider {
+                if let hit = try? await SectionLoader.load(key: Self.keys.goals, cache: cache, fetch: { try await goalsProvider.goals() }),
+                   let gv = hit.value { goals = gv }
+            }
 
             if let rv = r.value { recovery = rv }
             if let nv = n.value { nutrition = nv }
             if let gv = g.value { dailyRows = gv.daily; gateAverages = gv.averages }
             if let tv = t.value { target = tv.first { targetKeys.contains($0.metric) } }
+            fetchedAt = (isNutritionKpi(metric) ? n.fetchedAt : (r.fetchedAt ?? g.fetchedAt)) ?? fetchedAt
 
             let errors = [r.error, n.error, g.error, t.error].compactMap { $0 }
             let representative = errors.first { if case .unauthorized = $0 { return true }; return false }

@@ -38,9 +38,25 @@ public final class JournalViewModel {
         self.calendarAnchor = now()
     }
 
+    /// Registry/Gallery preview (B-57 W1 fixer f3): the Journal board as it looks once loaded, with
+    /// fixture entries instead of an unlocked vault — the sweep never runs `load()`, so without this
+    /// the preview could only show its loading spinner. Not reachable from the app.
+    init(previewEntries: [Entry], db: AppDatabase, vault: VaultManager, now: @escaping () -> Date) {
+        self.db = db
+        self.vault = vault
+        self.now = now
+        self.calendarAnchor = now()
+        self.entries = previewEntries
+        self.state = .loaded
+    }
+
     public var filteredEntries: [Entry] { JournalSearch.filterEntries(entries, filters) }
     public var streak: JournalStreak.Stats { JournalStreak.computeStreak(dates: entries.map(\.date), today: now()) }
     public var entryDates: Set<String> { Set(entries.map(\.date)) }
+    /// B-57 W1 board: the streak card's Mon–Sun dots and its "Today open" line.
+    public var weekDots: [JournalWeekDot] { journalWeekDots(dates: entries.map(\.date), today: now()) }
+    public var todayWritten: Bool { journalTodayWritten(dates: entries.map(\.date), today: now()) }
+    public var today: Date { now() }
 
     public func load() async {
         state = .loading
@@ -66,6 +82,19 @@ public final class JournalViewModel {
 
     public func beginNewEntry() {
         presentingSheet = EntrySheetViewModel(today: now())
+    }
+
+    /// B-57 W1 board "Check-in · How is today landing?": a 1–5 tap opens today's new entry with
+    /// that mood already picked (the entry's mood is the Journal's only mood store).
+    public func beginNewEntry(moodScore: Int) {
+        let sheet = EntrySheetViewModel(today: now())
+        sheet.mood = journalMood(forScore: moodScore)
+        presentingSheet = sheet
+    }
+
+    /// The JournalCalendar board's day card: a new entry dated the chosen day.
+    public func beginNewEntry(onDay iso: String) {
+        presentingSheet = EntrySheetViewModel(today: JournalCalendarZurich.date(fromISODay: iso).map { $0.addingTimeInterval(12 * 3600) } ?? now())
     }
 
     public func beginEditEntry(_ entry: Entry) {

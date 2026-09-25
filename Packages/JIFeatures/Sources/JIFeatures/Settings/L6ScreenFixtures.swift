@@ -68,23 +68,34 @@ enum L6Fixtures {
 
     // MARK: - Screens
 
+    /// B-57 W1 (fixer f3): fixture entries so the Journal and JournalCalendar previews show the
+    /// loaded board (streak, check-in, prompt, entries) instead of the vault's loading spinner.
+    static let journalEntryRows: [(String, String?, String)] = [
+        ("2026-09-20", "great", "Long walk after the session; slept well."),
+        ("2026-09-19", "good", "Day 2 felt light — the warm-up helped."),
+        ("2026-09-18", "okay", "Busy at work, short entry."),
+        ("2026-09-16", "good", "Upper body day, steady."),
+        ("2026-09-15", nil, "No mood picked today."),
+        ("2026-09-10", "bad", "Headache in the afternoon."),
+    ]
+    static let journalEntries: [Entry] = journalEntryRows.enumerated().map { i, e in
+        Entry(id: Int64(i + 1), date: e.0, ts: "\(e.0)T19:00:00Z", text: e.2, durationSec: 120, mood: e.1, tags: [])
+    }
+
+    static func journalModel() -> JournalViewModel? {
+        guard let db else { return nil }
+        return JournalViewModel(previewEntries: journalEntries, db: db,
+                                vault: VaultManager(keychain: SecureKeychainService()), now: { today })
+    }
+
     static func journal() -> AnyView {
-        guard let db else { return unavailable("Journal") }
-        return AnyView(JournalView(model: JournalViewModel(db: db, vault: VaultManager(keychain: SecureKeychainService()), now: { today })))
+        guard let model = journalModel() else { return unavailable("Journal") }
+        return AnyView(NavigationStack { JournalView(model: model, deckStore: nil) })
     }
 
     static func journalCalendar() -> AnyView {
-        AnyView(
-            ScrollView {
-                CalendarView(
-                    scope: .month, anchor: today,
-                    entryDates: ["2026-09-18", "2026-09-19", "2026-09-21"],
-                    onSelectDay: { _ in }, onShift: { _ in }
-                )
-                .padding(16)
-                .readableColumn()
-            }
-        )
+        guard let model = journalModel() else { return unavailable("Journal calendar") }
+        return AnyView(NavigationStack { JournalCalendarScreen(model: model) })
     }
 
     static func journalEntry() -> AnyView {
@@ -99,9 +110,16 @@ enum L6Fixtures {
         )
     }
 
+    /// B-57 W1 (fixer f3): the loaded Mind board — today's check-in and a WHO-5 score.
     static func mind() -> AnyView {
-        guard let model = mindModel() else { return unavailable("Mind") }
-        return AnyView(MindView(model: model))
+        guard let db else { return unavailable("Mind") }
+        let model = MindViewModel(
+            checkins: CheckInStore(db: db), eventStore: EventStore(db: db), who5Store: Who5Store(db: db), now: { today },
+            previewToday: CheckIn(date: "2026-09-21", mood: .good, stress: 2, energy: 4, dosed: false,
+                                  irritability: nil, restlessness: nil, appetite: nil, note: nil, updatedAt: "2026-09-21T08:00:00Z"),
+            previewWho5: Who5Entry(id: 1, date: "2026-09-18", items: [4, 3, 3, 3, 3], raw: 16, pct: 64, createdAt: "2026-09-18T08:00:00Z")
+        )
+        return AnyView(NavigationStack { MindView(model: model) })
     }
 
     static func mindCheckIn() -> AnyView {
@@ -119,18 +137,6 @@ enum L6Fixtures {
         return AnyView(Who5Sheet(model: model))
     }
 
-    static func challengesModel() -> ChallengesViewModel {
-        ChallengesViewModel(provider: provider, now: { today })
-    }
-
-    static func challenges() -> AnyView {
-        AnyView(NavigationStack { ChallengesView(model: challengesModel()) })
-    }
-
-    static func challengeEditor() -> AnyView {
-        AnyView(ChallengeEditor(model: ChallengeEditorViewModel(challenges: challengesModel(), now: { today }), onSaved: { _ in }))
-    }
-
     static func goals() -> AnyView {
         guard let store = seededGoalStore else { return unavailable("Goals") }
         return AnyView(NavigationStack { GoalsView(model: GoalsViewModel(store: store), now: { today }) })
@@ -144,7 +150,12 @@ enum L6Fixtures {
 
     static func settings() -> AnyView {
         guard let prefs = prefStore else { return unavailable("Settings") }
-        return AnyView(SettingsView(model: SettingsViewModel(store: connectionStore, prefs: prefs, onSaved: { _ in })))
+        // B-57 W1 r4: the preview carries the same rows the app shows — a Health permission model
+        // (badge) and a sync action (the "Sync now" row; a no-op in the gallery, never the hub).
+        return AnyView(SettingsView(model: SettingsViewModel(
+            store: connectionStore, prefs: prefs,
+            healthPermissionModel: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }),
+            syncAction: {}, onSaved: { _ in })))
     }
 
     /// W-B41 (B-41): one fixture per top-level Settings group screen, so the sweep covers the
@@ -195,8 +206,8 @@ enum L6Fixtures {
         return AnyView(NavigationStack {
             VersionView(model: VersionViewModel(
                 prefs: prefs,
-                info: VersionInfo(appName: "JournalInsight", appVersion: "1.0.0", build: "42", bundleId: "toby913.JournalInsight")
-            ))
+                info: VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "42", bundleId: "toby913.JournalInsight")
+            ), thisInstall: VersionInstallState(hub: "Not set up", hubConnected: false))
         })
     }
 
@@ -205,7 +216,6 @@ enum L6Fixtures {
         return AnyView(NavigationStack {
             LocalMirrorsView(model: LocalMirrorsViewModel(
                 goalStore: seededGoalStore,
-                challengesModel: challengesModel(),
                 decisionLog: DecisionLogStore(db: db)
             ))
         })
@@ -226,14 +236,7 @@ enum L6Fixtures {
 
     static func healthPermission() -> AnyView {
         AnyView(NavigationStack {
-            List {
-                Section("Apple Watch (read)") {
-                    HealthPermissionView(model: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }))
-                }
-            }
-            .jiNativeFormChrome()
-            .jiTheme(.native)
-            .navigationTitle("Health permission")
+            HealthPermissionScreen(model: HealthPermissionViewModel(permission: .notDetermined, requestPermission: { .notDetermined }))
         })
     }
 

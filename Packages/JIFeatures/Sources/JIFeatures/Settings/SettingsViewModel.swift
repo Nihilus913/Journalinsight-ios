@@ -24,10 +24,25 @@ public final class SettingsViewModel {
     public let goalsSetupModel: GoalsSetupViewModel?
     /// Optional (W3b-L2): nil = no hub provider for the KPI list.
     public let kpiListModel: KpiListViewModel?
+    /// B-57 W1 r5: the goals document source the Weekly plan row seeds from — the same
+    /// `EnergyProviding` the Nutrition-tab entry passes. nil = no hub provider (plan uses prefs).
+    public let goalsProvider: (any EnergyProviding)?
+    /// B-57 W1: Today's chips for EditToday's squares (App passes the live Today model's).
+    public let todayChips: @MainActor () -> [TodayChip]
     /// Registered sections in render order (by `sortKey`, stable for equal keys).
     public let sections: [any SettingsSection]
     /// RN `saved` — "Using hub — saved." after a successful save; nil until then.
     public private(set) var savedMessage: String?
+
+    /// B-57 W1 (g3): the board's "Sync now" row. App passes the real action (Apple Health upload,
+    /// then the hub's `POST /api/v1/ingestion/sync` — the same `sync_all` job launchd runs); nil
+    /// (previews, tests without it) = the row is not offered, never a button that does nothing.
+    private let syncAction: (@MainActor () async throws -> Void)?
+    private let now: () -> Date
+    public private(set) var syncing = false
+    public private(set) var syncFailed = false
+    /// When this device last started a sync that the hub accepted.
+    public private(set) var lastSyncStartedAt: Date?
 
     private let onSaved: (ConnectionConfig) -> Void
 
@@ -39,9 +54,15 @@ public final class SettingsViewModel {
         backupModel: BackupViewModel? = nil,
         goalsSetupModel: GoalsSetupViewModel? = nil,
         kpiListModel: KpiListViewModel? = nil,
+        goalsProvider: (any EnergyProviding)? = nil,
+        todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
         sections: [any SettingsSection] = SettingsRegistry.sections,
+        syncAction: (@MainActor () async throws -> Void)? = nil,
+        now: @escaping () -> Date = Date.init,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
+        self.syncAction = syncAction
+        self.now = now
         self.connection = ConnectionSheetModel(store: store)
         self.prefs = prefs
         self.backloadModel = backloadModel
@@ -49,6 +70,8 @@ public final class SettingsViewModel {
         self.backupModel = backupModel
         self.goalsSetupModel = goalsSetupModel
         self.kpiListModel = kpiListModel
+        self.goalsProvider = goalsProvider
+        self.todayChips = todayChips
         // `sorted` is stable in Swift's stdlib (documented since 5.x), so equal keys keep registry order.
         self.sections = sections.sorted { $0.sortKey < $1.sortKey }
         self.onSaved = onSaved
@@ -64,11 +87,41 @@ public final class SettingsViewModel {
         return true
     }
 
+    public var canSyncNow: Bool { syncAction != nil }
+
+    /// The newer of the hub's own last sync (from the connection test) and the last sync this
+    /// device started. nil = unknown → the row shows "—".
+    public var lastSyncDate: Date? {
+        var hubLast: Date?
+        if case .ok(let raw)? = connection.status, let raw { hubLast = parseHubTimestamp(raw) }
+        return [hubLast, lastSyncStartedAt].compactMap { $0 }.max()
+    }
+
+    public func syncNow() async {
+        guard let syncAction, !syncing else { return }
+        syncing = true
+        syncFailed = false
+        let started = now()
+        do {
+            try await syncAction()
+            lastSyncStartedAt = started
+        } catch {
+            syncFailed = true
+        }
+        syncing = false
+    }
+
     /// RN `visibleKpiOrder(prefs).length` — reads W3b-L2's `KpiSelection.prefKey` so the subtitle
     /// matches what `KpiListView` shows.
     public var kpiSelectedCount: Int {
         let raw = try? prefs.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)
         return KpiSelection.visibleOrder(KpiSelection.reconcile(raw)).count
+    }
+
+    /// B-57 W1 r5: the Settings → Weekly plan entry's model — same store file as the Nutrition-tab
+    /// entry and, when the hub speaks it, the same goals provider.
+    public func makeWeeklyPlanModel() -> WeeklyPlanViewModel {
+        WeeklyPlanViewModel(store: WeeklyPlanStore(prefs: prefs), goalsProvider: goalsProvider)
     }
 
     public var kpiSubtitle: String { "\(kpiSelectedCount) selected · Today's stat strip and home-screen widget" }

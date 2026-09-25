@@ -1,8 +1,8 @@
 import Foundation
 
 /// W5b-L1 (P-data-quality) — the Data Quality screen's own hub slice, added fresh rather than
-/// growing the frozen `HealthDataProvider` (same rationale as `KpiTargetsProviding`/
-/// `ChallengesProviding`): each screen lane owns its own protocol so parallel lanes never collide
+/// growing the frozen `HealthDataProvider` (same rationale as `KpiTargetsProviding`):
+/// each screen lane owns its own protocol so parallel lanes never collide
 /// on one shared interface.
 ///
 /// Deliberately ONE method over three hub GETs, exactly as the oracle has it

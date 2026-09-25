@@ -5,7 +5,7 @@ import Foundation
 /// the card title stays primary text and the VALUE carries the metric's colour, so a grid of
 /// cards reads as six metrics rather than six identical white numbers.
 ///
-/// The roles are the existing `JIColorRole` cases only — `NativePalette` is frozen this wave, and
+/// The roles are `JIColorRole` cases only (B-57 W1 r5 added the four macro roles) — `NativePalette` is frozen this wave, and
 /// rule 6's reserved set is respected: `.go`/`.danger` are used for metrics whose own scale is a
 /// status (steps against a goal, resting HR), never invented per card.
 ///
@@ -21,6 +21,11 @@ public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
     case "sleep", "sleepscore", "sleep_score": .sleep
     case "steps": .go
     case "load", "acwr", "trainingload", "training_load": .reduced
+    // B-57 W1 r5: the macros carry their own design roles (boards: KpiDetailNutrition, WeeklyPlan).
+    case "kcal", "calories": .kcal
+    case "protein": .protein
+    case "carbs", "carbohydrates": .carbs
+    case "fat": .fat
     default: .text
     }
 }

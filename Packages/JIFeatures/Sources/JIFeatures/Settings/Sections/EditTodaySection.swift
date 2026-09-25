@@ -18,7 +18,7 @@ private struct EditTodaySectionRows: View {
 
     var body: some View {
         Section {
-            NavigationLink { EditTodayView(model: EditTodayViewModel(prefs: model.prefs)) } label: {
+            NavigationLink { EditTodayView(model: EditTodayViewModel(prefs: model.prefs, chips: model.todayChips())) } label: {
                 SettingsLinkLabel(title: "Edit Today", subtitle: "Choose which tiles show, and their order")
             }
             .accessibilityLabel("Edit Today")

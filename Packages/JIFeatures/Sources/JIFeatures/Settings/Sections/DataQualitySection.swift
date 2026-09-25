@@ -15,8 +15,11 @@ public struct DataQualitySection: SettingsSection {
 }
 
 private struct DataQualitySectionRows: View {
+    /// Stale-source count for the row's badge (nil until the hub answered — no badge, not "0").
+    @State private var stale: Int?
+
     var body: some View {
-        Section {
+        SettingsRowGroup {
             NavigationLink {
                 // Built at push time, not at row-render time, so the installed provider (and a
                 // reconnection that replaced it) is the one the screen reads.
@@ -26,7 +29,13 @@ private struct DataQualitySectionRows: View {
                     DataQualityUnavailableView()
                 }
             } label: {
-                SettingsLinkLabel(title: "Data quality", subtitle: "Per-source freshness, quality score and trust")
+                SettingsLinkLabel(title: "Data quality", subtitle: settingsDataSubtitles["Data quality"] ?? "", systemImage: "checkmark.shield",
+                                  badge: settingsDataQualityBadge(stale: stale))
+            }
+            .task {
+                guard stale == nil, let model = DataQualityAccess.shared.makeViewModel() else { return }
+                await model.load()
+                if model.phase == .loaded, !model.sourceSummary.sources.isEmpty { stale = model.sourceSummary.stale }
             }
             .accessibilityLabel("Data quality")
             .accessibilityIdentifier("settings.row.dataQuality")

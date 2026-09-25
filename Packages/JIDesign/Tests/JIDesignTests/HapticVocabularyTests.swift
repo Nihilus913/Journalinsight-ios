@@ -135,14 +135,14 @@ struct Rig {
 }
 @Test @MainActor func changedFiresAGenuineTwoPulsePattern() async throws {
     let r = Rig(); r.dispatcher.fire(.gateChange(.changed))
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitForPulses { r.fallback.calls.count >= 2 }
     #expect(r.fallback.calls == [.impact(.rigid), .impact(.rigid)])
 }
 @Test @MainActor func theThreeTiersUsePairwiseDistinctShapes() async throws {
     let routine = Rig(); routine.dispatcher.fire(.gateChange(.routine))
     let failed = Rig(); failed.dispatcher.fire(.gateChange(.failed))
     let changed = Rig(); changed.dispatcher.fire(.gateChange(.changed))
-    try await Task.sleep(for: .milliseconds(250))
+    try await waitForPulses { changed.fallback.calls.count >= 2 }
     #expect(routine.fallback.calls.last != failed.fallback.calls.last)
     #expect(changed.fallback.calls.count == 2)
     // Core Haptics side too: three distinct patterns.
@@ -362,4 +362,11 @@ struct Rig {
     #expect(JIHapticsPrefs.reconcile(enabled: false, intensity: nil) == JIHapticsPrefs(enabled: false, intensity: 100))
     let blob = try JSON.encoder.encode(JIHapticsPrefs(enabled: false, intensity: 7))
     #expect(try JSON.decoder.decode(JIHapticsPrefs.self, from: blob) == JIHapticsPrefs(enabled: false, intensity: 7))
+}
+
+/// The "changed" tier's second pulse is scheduled after a gap on the MainActor; a fixed 250 ms sleep
+/// raced it when the suite's render tests load the MainActor (B-57 W1). Poll up to 2 s instead.
+/// Shared with `FeelgateMarkerTests`, which raced the same pulse.
+@MainActor func waitForPulses(_ done: () -> Bool) async throws {
+    for _ in 0..<80 where !done() { try await Task.sleep(for: .milliseconds(25)) }
 }

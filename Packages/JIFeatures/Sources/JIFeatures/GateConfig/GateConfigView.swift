@@ -7,9 +7,17 @@ import JIDesign
 // (local morning-gate thresholds → fixture preview → local KPI rules → live server KPI targets),
 // stepper rows (label · default · − value + · Reset), warn-coloured flipped verdict. Pushed from
 // `GateConfigSection` (Settings › Preferences) — RN's only entry is its Settings row too.
+/// B-57 W1: the "How the morning call works" card rows.
+public nonisolated let gateConfigMorningCallRows: [(word: String, role: JIColorRole, text: String)] = [
+    (VerdictUserWord.full, .go, "Signals sit where they should. Train as planned."),
+    (VerdictUserWord.modified, .reduced, "A signal stays low. Same day, easier: intervals become easy Z2."),
+    (VerdictUserWord.rest, .danger, "Several signals are off at once. Walk and recover."),
+]
+
 public struct GateConfigView: View {
     @State private var model: GateConfigViewModel
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// B-33 §8.5: no hub fetch while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
 
@@ -18,46 +26,56 @@ public struct GateConfigView: View {
     public var body: some View {
         Form {
             Section {
-                Text("Local overrides on the on-device compute ports' thresholds — not yet wired into any live verdict (see the preview below). Server KPI targets further down ARE live.")
-                    .font(.footnote).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("gateConfig.info")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("How the morning call works").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                    ForEach(gateConfigMorningCallRows, id: \.word) { row in
+                        // AX sizes: the word sits above its line, so "Modified" never splits mid-word.
+                        let layout = dynamicTypeSize.isAccessibilitySize
+                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                        layout {
+                            Text(row.word).jiFont(.body, weight: .bold).foregroundStyle(theme.color(row.role))
+                                .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 90, alignment: .leading)
+                            Text(row.text).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("gateConfig.howItWorks")
+            } footer: {
+                Text("Recommended values are already set. Change one only when you know why.")
             }
-            morningSection
+            Section("Safety") {
+                lockedRow("Heart-rate cap", "Sessions never target above it. Not configurable.", value: "\(SessionCoachViewModel.hrSafetyCapBpm) bpm")
+                lockedRow("Zone 5", "No Zone 5 target anywhere in the app.", value: "Off")
+            }
+            ForEach([GateConfigGroup.recoverySignals, .sleep, .fuel], id: \.self) { group in
+                Section(group.rawValue) {
+                    if !model.loaded {
+                        Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
+                    } else {
+                        ForEach(MorningGateOverridableField.allCases.filter { $0.group == group }, id: \.rawValue) { morningRow($0) }
+                    }
+                }
+            }
             previewSection
-            kpiRulesSection
-            serverSection
+            Section {
+                Button { model.useRecommended() } label: { Text("Use recommended").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent).tint(theme.color(.info))
+                    .accessibilityIdentifier("gateConfig.useRecommended")
+            } footer: {
+                Text("Calorie, protein and weight targets live in Goals.")
+            }
+            DisclosureGroup("Advanced") { kpiRulesSection; serverSection }
+                .accessibilityIdentifier("gateConfig.advanced")
         }
         // §5: a `Form` keeps the system grouped background and the inset-grouped cells.
         .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
-        .navigationTitle("Gate config")
+        .navigationTitle("Gate thresholds")
         .task { if !offscreen { await model.load() } }
     }
 
-    // MARK: - Section 1: local morning-gate overrides
-
-    private var morningSection: some View {
-        Section {
-            if !model.loaded {
-                Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
-            } else {
-                ForEach(MorningGateOverridableField.allCases, id: \.rawValue) { field in
-                    morningRow(field)
-                }
-                if !model.morningOverrides.isEmpty {
-                    Button {
-                        model.resetAllMorning()
-                    } label: {
-                        Text("Reset all to defaults").font(.subheadline.weight(.semibold)).foregroundStyle(theme.color(.info))
-                    }
-                    .buttonStyle(.pressableScale)
-                    .accessibilityLabel("Reset all morning gate thresholds to defaults")
-                    .accessibilityIdentifier("gateConfig.morning.resetAll")
-                }
-            }
-        } header: {
-            Text("Morning gate thresholds (local preview)")
-        }
-    }
+    // MARK: - Morning-gate rows (grouped by `GateConfigGroup`)
 
     private func morningRow(_ field: MorningGateOverridableField) -> some View {
         let overridden = model.isOverridden(field)
@@ -65,6 +83,7 @@ public struct GateConfigView: View {
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(field.label).font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(field.explanation).font(.caption2).foregroundStyle(theme.color(.muted))
                 Text("default \(gateConfigFormat(field.value(in: .default)))\(unit)\(overridden ? " · overridden" : "")")
                     .font(.caption2).foregroundStyle(theme.color(.muted))
             }
@@ -231,6 +250,19 @@ public struct GateConfigView: View {
     }
 
     // MARK: - Controls
+
+    /// B-57 W1 Safety rows: locked, never configurable.
+    private func lockedRow(_ title: String, _ subtitle: String, value: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(subtitle).font(.caption2).foregroundStyle(theme.color(.muted))
+            }
+            Spacer()
+            Label(value, systemImage: "lock").font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.danger))
+        }
+        .accessibilityElement(children: .combine)
+    }
 
     /// RN `StepButton` (`PressableScale variant="stepper"`, 30 pt circle on `surface2`); press-in
     /// scale is the button style's job (rule 7).

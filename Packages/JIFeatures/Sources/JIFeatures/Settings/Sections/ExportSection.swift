@@ -27,18 +27,19 @@ private struct ExportSectionRows: View {
     @State private var unavailable = false
 
     var body: some View {
-        Section {
+        SettingsRowGroup {
             if let stores {
                 NavigationLink { ExportView(model: ExportViewModel(stores: stores)) } label: {
-                    SettingsLinkLabel(title: "Export", subtitle: "Share journal, mind and goals as CSV or JSON")
+                    SettingsLinkLabel(title: "Export", subtitle: settingsDataSubtitles["Export"] ?? "", systemImage: "square.and.arrow.up")
                 }
                 .accessibilityLabel("Export")
                 .accessibilityIdentifier("settings.row.export")
             } else if unavailable {
-                SettingsLinkLabel(title: "Export", subtitle: "The on-device vault couldn't be opened — open the Journal tab once, then come back")
+                SettingsLinkLabel(title: "Export", subtitle: settingsDataSubtitles["Export"] ?? "", systemImage: "square.and.arrow.up", trailing: "Locked")
+                    .accessibilityHint("The on-device vault couldn't be opened — open the Journal tab once, then come back")
                     .accessibilityIdentifier("settings.row.export.unavailable")
             } else {
-                SettingsLinkLabel(title: "Export", subtitle: "Preparing…")
+                SettingsLinkLabel(title: "Export", subtitle: settingsDataSubtitles["Export"] ?? "", systemImage: "square.and.arrow.up", trailing: "Preparing…")
                     .accessibilityIdentifier("settings.row.export.preparing")
             }
         }

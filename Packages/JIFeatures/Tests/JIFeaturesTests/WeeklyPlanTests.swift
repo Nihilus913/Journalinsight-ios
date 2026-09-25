@@ -84,16 +84,51 @@ private let periodizedBase = PeriodizedPlanInput(weeklyAvgKcal: 1800, trainKcal:
 }
 
 @Test func everyTrainingDayHitsTargetRestDayBankedDown() {
-    let p = computePeriodizedPlan(periodizedBase)
+    // A target the rest days can fund: 6 × 50 kcal banked off the one rest day.
+    var input = periodizedBase
+    input.trainKcal = 1850
+    let p = computePeriodizedPlan(input)
     for d in p.days where trainingWeekDays.contains(d.day) {
-        #expect(d.kcal == 2200)
+        #expect(d.kcal == 1850)
         #expect(d.high)
     }
     let sun = p.days.first { $0.day == .sun }!
     #expect(!sun.high)
-    #expect(sun.kcal < 1800)
-    #expect(p.trainKcal == 2200)
+    #expect(sun.kcal == 1800 - 6 * 50)
+    #expect(p.trainKcal == 1850)
     #expect(p.restKcal == sun.kcal)
+    #expect(!p.trainCapped)
+}
+
+// MARK: B-57 W1 fixer — the rest day printed "-600" kcal
+//
+// Root cause: the schedule has 6 training days and 1 rest day, so a +400 training-day boost has
+// to be banked entirely off Sunday: 1800 − 6 × 400 = −600. The banking math had no floor.
+
+@Test func restDayNeverDropsBelowTheProteinAndFatHeldEveryDay() {
+    let p = computePeriodizedPlan(periodizedBase)   // 1800 avg, 2200 train, 165 P, 55 F
+    let floor = weeklyPlanDayFloorKcal(proteinG: 165, fatG: 55)
+    #expect(floor == 165 * 4 + 55 * 9)
+    #expect(p.days.allSatisfy { $0.kcal > 0 && Double($0.kcal) >= floor })
+    #expect(p.days.allSatisfy { $0.carbs >= 0 })
+    #expect(p.trainCapped)
+    // The weekly average still holds; the training days take only what the rest day can fund.
+    #expect(p.weeklyKcal == 1800 * 7)
+    #expect(p.trainKcal == 1800 + Int(((1800 - floor) * 1 / 6).rounded(.down)))
+    #expect(weeklyPlanMaxTrainKcal(weeklyAvgKcal: 1800, proteinG: 165, fatG: 55) == Double(p.trainKcal))
+}
+
+@Test func averageBelowTheFloorIsAFlatWeekNeverNegative() {
+    let p = computePeriodizedPlan(PeriodizedPlanInput(weeklyAvgKcal: 1000, trainKcal: 1400, proteinG: 165, fatG: 55))
+    #expect(p.days.allSatisfy { $0.kcal == 1000 })
+}
+
+@Test func capNoteNamesTheHeldTargetAndTheFloor() {
+    let p = computePeriodizedPlan(periodizedBase)
+    let note = weeklyPlanCapNote(p)
+    #expect(note?.contains("\(p.trainKcal) kcal") == true)
+    #expect(note?.contains("1155 kcal") == true)
+    #expect(weeklyPlanCapNote(computePeriodizedPlan(PeriodizedPlanInput(weeklyAvgKcal: 1800, trainKcal: 1800, proteinG: 165, fatG: 55))) == nil)
 }
 
 @Test func periodizedTrainRestDaysMatchClassification() {
@@ -170,7 +205,10 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     #expect(vm.fatG == 59.125)
     #expect(vm.plan.avgKcal == 1935)
     #expect(vm.plan.trainDays == trainingWeekDays)
-    #expect(vm.plan.days.first { $0.day == .mon }!.kcal == 2335)
+    // 1935 + 400 cannot be banked off one rest day; Monday takes what Sunday can fund.
+    #expect(vm.plan.trainCapped)
+    #expect(vm.plan.days.first { $0.day == .mon }!.kcal == 2045)
+    #expect(vm.plan.days.allSatisfy { $0.kcal > 0 })
     // Seeding alone never writes the prefs row (RN only persists on an edit).
     #expect(store.load() == nil)
 }
@@ -194,15 +232,24 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     #expect(vm.fatG == 55)
 }
 
-@Test @MainActor func everyEditWritesThroughImmediately() async throws {
+@Test @MainActor func editsAreStagedUntilSavePlan() async throws {
     let store = WeeklyPlanStore(prefs: PrefStore(db: try AppDatabase.inMemory()))
     let vm = WeeklyPlanViewModel(store: store)
     await vm.load()
     #expect(!vm.hasSaved)
+    // The default 2200 is held at 1907 (see restDayNeverDropsBelow…); a step starts from what
+    // the screen shows, and never climbs past what the rest day can fund.
+    #expect(vm.value(of: .trainKcal) == 1907)
     vm.step(.trainKcal, by: 50)
+    #expect(store.load() == nil) // B-57 W1 r4: "Save plan" is the write, not each tap
+    vm.save()
     #expect(vm.hasSaved)
-    #expect(store.load()?.trainKcal == 2250)
+    #expect(store.load()?.trainKcal == 1907)
+    vm.step(.trainKcal, by: -50)
     vm.step(.protein, by: -5)
+    #expect(!vm.hasSaved)
+    vm.save()
+    #expect(store.load()?.trainKcal == 1857)
     #expect(store.load()?.proteinG == 160)
 }
 
@@ -227,6 +274,7 @@ private let prefsFixture = WeeklyPlanPrefs(weeklyAvgKcal: 1800, trainKcal: 2200,
     vm.step(.weeklyAvg, by: 50) // user edits while goals() is still in flight
     await load.value
     #expect(vm.weeklyAvgKcal == 1850) // the seed did not clobber the edit
+    vm.save()
     #expect(store.load()?.weeklyAvgKcal == 1850)
 }
 
@@ -241,5 +289,33 @@ nonisolated struct SlowGoalsProvider: EnergyProviding {
     func goals() async throws -> Goals {
         try await Task.sleep(for: .milliseconds(50))
         return try await MockDataProvider().goals()
+    }
+}
+
+// MARK: B-57 W1 board restyle (bar per day, board copy)
+
+@Suite @MainActor struct WeeklyPlanBoardTests {
+    @Test func barFractionIsRelativeToTheTallestDay() {
+        let days = [DayPlan(day: .mon, high: true, kcal: 2000, protein: 165, carbs: 200, fat: 55),
+                    DayPlan(day: .tue, high: false, kcal: 1500, protein: 165, carbs: 100, fat: 55)]
+        #expect(weeklyPlanBarFraction(kcal: 2000, days: days) == 1)
+        #expect(weeklyPlanBarFraction(kcal: 1500, days: days) == 0.75)
+        #expect(weeklyPlanBarFraction(kcal: 1500, days: []) == 0)
+    }
+
+    @Test func boardCopyAndLabels() {
+        #expect(WeeklyPlanViewModel.Knob.protein.label == "Protein, every day")
+        #expect(WeeklyPlanViewModel.Knob.fat.label == "Fat, every day")
+        #expect(weeklyPlanTrainDaysText(4) == "4 training days")
+        #expect(weeklyPlanTrainDaysText(1) == "1 training day")
+        let d = DayPlan(day: .sat, high: false, kcal: 1617, protein: 155, carbs: 120, fat: 55)
+        #expect(weeklyPlanDayAccessibilityLabel(d) == "Sat, rest day: 1617 kcal, 155 g protein, 120 g carbs, 55 g fat")
+    }
+
+    @Test func todayMapsToMondayFirstWeekDay() {
+        var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!
+        // 2026-09-24 is a Thursday; 2026-09-27 a Sunday.
+        #expect(weeklyPlanToday(c.date(from: DateComponents(year: 2026, month: 9, day: 24))!, calendar: c) == .thu)
+        #expect(weeklyPlanToday(c.date(from: DateComponents(year: 2026, month: 9, day: 27))!, calendar: c) == .sun)
     }
 }

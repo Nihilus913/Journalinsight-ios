@@ -16,7 +16,7 @@ extension DataCapability {
     public static var appleWatchCapabilities: DataCapability {
         var caps: DataCapability = [
             .gate, .morning, .morningVerdict, .recovery, .sleepSummary, .exercises, .energy,
-            .goals, .kpiTargets, .challenges, .sync, .dataQuality, .hrvSDNN,
+            .goals, .kpiTargets, .sync, .dataQuality, .hrvSDNN,
         ]
         #if canImport(HealthKit)
         if HKReadKind.hrvRMSSDTypeAvailable { caps.insert(.hrvRMSSD) }

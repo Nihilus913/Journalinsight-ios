@@ -32,99 +32,109 @@ public enum EnergyFormat {
     }
 }
 
-/// D2-E1 port — one prominent adjusted-deficit numeral, a filled bar against the sustainable-
-/// deficit zone (0...28%, `DEFICIT_AGGRESSIVE_MAX_PCT`), and raw/adjusted/percent chips beneath.
-/// Below `MIN_TRACKING_DAYS` (4 — `EnergyView`'s min-data gate) the caller shows a "more days
-/// needed" wall instead of this numeral; `trackingDays` and `complianceWarning` are always shown.
+// MARK: - B-57 W1 r5: the board's hero ("7-DAY BALANCE · −598 kcal a day")
+
+/// The hero numeral: the signed 7-day balance (`-deficit`) with a typographic minus, no unit.
+public nonisolated func energyHeroNumeral(_ deficit: Double?) -> String {
+    guard let deficit, deficit.isFinite else { return "—" }
+    let balance = -deficit.rounded()
+    if balance == 0 { return "0" }
+    let r = String(Int(abs(balance)))
+    return balance > 0 ? "+\(r)" : "\u{2212}\(r)"
+}
+
+/// The line under the numeral. Only the sign of the balance — the plan band ("Deep deficit",
+/// "On plan", …) comes from the goal band, which is left for W2.
+public nonisolated struct EnergyHeroDirection: Sendable, Equatable {
+    public let word: String
+    public let symbolName: String
+}
+
+public nonisolated func energyHeroDirection(_ deficit: Double?) -> EnergyHeroDirection? {
+    guard let deficit, deficit.isFinite else { return nil }
+    let r = deficit.rounded()
+    if r > 0 { return EnergyHeroDirection(word: "Deficit", symbolName: "arrow.down") }
+    if r < 0 { return EnergyHeroDirection(word: "Surplus", symbolName: "arrow.up") }
+    return EnergyHeroDirection(word: "Even", symbolName: "equal")
+}
+
+/// The board's explanation line, from real figures only (the sign, the tracked days, the goal).
+public nonisolated func energyHeroExplanation(avgDeficit: Double?, trackingDays: Int, goal: Double?) -> String {
+    guard let avgDeficit, avgDeficit.isFinite else { return "— \(JIMissingReason.noData.rawValue) for the last 7 days yet." }
+    let r = avgDeficit.rounded()
+    let lead = r > 0 ? "You are eating less than you burn" : (r < 0 ? "You are eating more than you burn" : "What you eat matches what you burn")
+    let goalText = goal.flatMap { $0.isFinite && $0 > 0 ? "Your goal is \(Int($0.rounded())) kcal a day." : nil } ?? "No goal set."
+    return "\(lead), averaged over \(trackingDays) of the last 7 days. \(goalText)"
+}
+
+/// Board hero (`2 Monitor/06 Energy.png`): "7-DAY BALANCE", the 7-day average balance large in
+/// the calorie tint with "kcal a day", the direction line and the explanation. Below
+/// `MIN_TRACKING_DAYS` (4) the numeral is "—" with the "more days needed" reason instead.
+/// The old Raw / Adj / Deficit % chips and the sustainable-zone bar are gone (not on the board);
+/// the energy split is left for W2.
 public struct EnergyHero: View {
     private let report: EnergyReport
+    private let goal: Double?
     private let minTrackingDays: Int
     @Environment(\.jiTheme) private var theme
 
-    public init(report: EnergyReport, minTrackingDays: Int = 4) {
-        self.report = report; self.minTrackingDays = minTrackingDays
+    public init(report: EnergyReport, goal: Double? = nil, minTrackingDays: Int = 4) {
+        self.report = report; self.goal = goal ?? report.goalIntakeKcal; self.minTrackingDays = minTrackingDays
     }
 
-    private static let sustainableMaxPct = 22.0
-    private static let aggressiveMaxPct = 28.0
+    private var gated: Bool { report.trackingDays < minTrackingDays }
+    private var deficit: Double? { gated ? nil : report.avgDeficitCorrected7d }
 
     public var body: some View {
-        Surface(level: 1, padding: 18) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("ENERGY BALANCE · LAST 7 DAYS").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text("\(report.trackingDays)/7 tracked").jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.muted))
-                        .accessibilityLabel("\(report.trackingDays) of 7 days tracked")
-                }
-                if report.trackingDays < minTrackingDays {
-                    Text("\(minTrackingDays - report.trackingDays) more day\(minTrackingDays - report.trackingDays == 1 ? "" : "s") needed for reliable averages")
-                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("energy.hero.minDataGate")
-                } else {
-                    numeralAndBar
-                    HStack(spacing: 8) {
-                        chip(label: "Raw", value: "\(EnergyFormat.balanceText(report.avgDeficitRaw7d)) kcal/d")
-                        chip(label: "Adj", value: "\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal/d")
-                        chip(label: pctLabel, value: pctText)
-                    }
-                }
-                if let warning = report.complianceWarning {
-                    Text("⚠ \(warning)").jiFont(.footnote).foregroundStyle(theme.color(.reduced))
-                        .accessibilityLabel("Warning: \(warning)")
-                        .accessibilityIdentifier("energy.hero.complianceWarning")
-                }
-            }
-        }
-    }
-
-    private var isSurplus: Bool { (report.avgDeficitPct7d ?? 0) < 0 }
-    private var pctLabel: String { isSurplus ? "Surplus %" : "Deficit %" }
-    private var pctText: String {
-        guard let pct = report.avgDeficitPct7d else { return "—" }
-        return String(format: "%.1f%%", abs(pct))
-    }
-
-    private var numeralAndBar: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal/d")
-                .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
-                .contentTransition(.numericText())
-                .accessibilityLabel("Adjusted energy balance")
-                .accessibilityValue("\(EnergyFormat.balanceText(report.avgDeficitCorrected7d)) kcal per day")
-                .accessibilityIdentifier("energy.hero.balance")
-            Text(report.avgDeficitCorrected7d == nil ? "—" : (isSurplus ? "surplus" : "deficit"))
-                .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-            bar
-        }
-    }
-
-    private var bar: some View {
-        let magnitude = report.avgDeficitPct7d.map(abs)
-        let fillFrac = min((magnitude ?? 0) / Self.aggressiveMaxPct, 1)
-        let overSustainable = (magnitude ?? 0) > Self.sustainableMaxPct
-        let barColor = isSurplus || overSustainable ? theme.color(.reduced) : theme.color(.info)
-        let markerFrac = min(Self.sustainableMaxPct / Self.aggressiveMaxPct, 1)
-        return GeometryReader { g in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 5).fill(theme.color(.nested)).frame(height: 10)
-                RoundedRectangle(cornerRadius: 5).fill(barColor).frame(width: g.size.width * fillFrac, height: 10)
-                Rectangle().fill(theme.color(.nested)).frame(width: 2, height: 10).offset(x: g.size.width * markerFrac)
+            Text("7-DAY BALANCE").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(nutritionKcalTintRole))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) { numeral; unit }
+                VStack(alignment: .leading, spacing: 2) { numeral; unit }
             }
-        }.frame(height: 10)
-        .accessibilityLabel("Deficit against the sustainable zone")
-        .accessibilityValue(pctText)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("7-day energy balance")
+            .accessibilityValue(deficit == nil ? JIMissingReason.noData.rawValue : "\(EnergyFormat.balanceText(deficit)) kcal a day")
+            .accessibilityIdentifier("energy.hero.balance")
+            if gated {
+                let n = minTrackingDays - report.trackingDays
+                Text("— \(n) more day\(n == 1 ? "" : "s") needed for reliable averages")
+                    .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("energy.hero.minDataGate")
+            } else {
+                if let dir = energyHeroDirection(deficit) {
+                    Label(dir.word, systemImage: dir.symbolName)
+                        .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(nutritionKcalTintRole))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("energy.hero.direction")
+                }
+                Text(energyHeroExplanation(avgDeficit: deficit, trackingDays: report.trackingDays, goal: goal))
+                    .jiFont(.subheadline).foregroundStyle(theme.color(.text))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("energy.hero.explanation")
+            }
+            if let warning = report.complianceWarning {
+                Text("⚠ \(warning)").jiFont(.footnote).foregroundStyle(theme.color(.reduced))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Warning: \(warning)")
+                    .accessibilityIdentifier("energy.hero.complianceWarning")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func chip(label: String, value: String) -> some View {
-        Surface(level: 2, padding: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.muted)).lineLimit(1)
-                Text(value).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(1)
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel(label)
-            .accessibilityValue(value)
-        }
+    private var numeral: some View {
+        Text(energyHeroNumeral(deficit))
+            .jiNumeral(.numeralDisplay, weight: .heavy)
+            .foregroundStyle(theme.color(deficit == nil ? .muted : nutritionKcalTintRole))
+            .contentTransition(.numericText())
+            .lineLimit(1).minimumScaleFactor(0.7)
+    }
+
+    private var unit: some View {
+        Text("kcal a day").jiFont(.body).foregroundStyle(theme.color(.muted))
     }
 }

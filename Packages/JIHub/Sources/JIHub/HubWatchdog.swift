@@ -10,7 +10,7 @@ import JICore
 /// hub has gone away — the exact dishonesty CLAUDE.md rule 5 forbids. The probe deliberately hits
 /// `GET /health` only (unauthenticated on the hub — `app/main.py:75–79`), never a data route, so
 /// it can never mutate, cache, or cost a real query; and it never piggybacks on a data fetch, so
-/// per-screen `hubReachable` flags (`TodayViewModel`, `ChallengesViewModel`) stay exactly as they
+/// per-screen `hubReachable` flags (e.g. `TodayViewModel`) stay exactly as they
 /// are — this is an additional signal, not a replacement for them.
 ///
 /// `reachable` starts `true`: the app has no evidence of an outage before its first probe, and

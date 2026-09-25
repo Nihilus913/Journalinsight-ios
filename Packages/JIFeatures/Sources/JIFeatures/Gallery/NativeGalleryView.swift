@@ -51,6 +51,38 @@ public struct NativeGalleryView: View {
                         JIRow(title: "Steps", systemImage: "figure.walk", tint: .orange) { Text("6,400") }.padding(.horizontal, 16)
                     }
                 }
+                JISectionHeader("Against your normal")
+                Surface {
+                    VStack(alignment: .leading, spacing: 14) {
+                        NormalBarLegend()
+                        NormalBar(value: 127, normal: 120...150, median: 135, goal: 155, unit: "g", tint: .info)
+                        NormalBar(value: 25, normal: nil, unit: "ms", tint: .info)
+                    }
+                }
+                Surface {
+                    NormalBarChart(points: [
+                        NormalBarPoint(id: "1", label: "Thu", value: 29, isLatest: false),
+                        NormalBarPoint(id: "2", label: "Fri", value: 28, isLatest: false),
+                        NormalBarPoint(id: "3", label: "Sat", value: nil, isLatest: false),
+                        NormalBarPoint(id: "4", label: "Wed", value: 25, isLatest: true),
+                    ], normal: 27...30, unit: "ms")
+                }
+                JISectionHeader("Squares")
+                SquareGrid(items: [
+                    JISquareItem(id: "hrv", label: "HRV", systemImage: "waveform.path.ecg", tint: .info, value: 25, unit: "ms", status: .watch, badge: .hide),
+                    JISquareItem(id: "rhr", label: "Resting HR", systemImage: "heart", tint: .danger, value: nil, status: .missing(.noData), badge: .hide),
+                    JISquareItem(id: "load", label: "Load", systemImage: "bolt", tint: .reduced, value: nil, status: .missing(.calibrating), badge: .hide),
+                ], editing: true, onBadge: { _ in }, onMove: { _, _ in }, onAdd: {})
+                JISectionHeader("Signals")
+                Surface {
+                    VStack(spacing: 8) {
+                        SignalRow(label: "Overnight HRV", value: 25, unit: "ms", status: .watch, detail: "threshold 27 ms")
+                        SignalRow(label: "Sleep", value: 7.4, unit: "h", decimals: 1, status: .clear, detail: "floor 7.0 h")
+                        SignalRow(label: "Resting HR", value: nil, unit: "bpm", status: .missing(.noData))
+                    }
+                }
+                HStack { SyncedPill(date: today, now: today, calendar: calendar); SyncedPill(date: today.addingTimeInterval(-86_400), label: .lastSynced, now: today, calendar: calendar) }
+                HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
             }
             .padding(16)
             .readableColumn()

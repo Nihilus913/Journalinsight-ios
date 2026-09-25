@@ -77,15 +77,6 @@ nonisolated private struct IdleBackloader: BackloadRunning {
     #expect(vm.screenState == .idle)
 }
 
-// MARK: - ChallengeEditorViewModel
-
-@Test @MainActor func challengeEditorScreenStateIsIdleForAFreshForm() {
-    let list = ChallengesViewModel(provider: ChallengesFakeProvider())
-    let vm = ChallengeEditorViewModel(challenges: list)
-    #expect(vm.screenState == .idle)
-    #expect(vm.errorMessage == nil)
-}
-
 // MARK: - SessionCoachViewModel
 
 @Test @MainActor func sessionCoachScreenStateIsEmptyWhenTheProviderCannotStreamAndLoadingBeforeTheFirstPoll() {

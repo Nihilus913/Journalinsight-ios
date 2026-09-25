@@ -16,6 +16,8 @@ public struct JISectionHeader: View {
         Text(sectionHeaderTitle(title))
             .jiFont(.cardTitle)
             .foregroundStyle(theme.color(.text))
+            // B-57 W1 r5: a long header wraps at accessibility sizes instead of truncating.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 16)
             .accessibilityAddTraits(.isHeader)

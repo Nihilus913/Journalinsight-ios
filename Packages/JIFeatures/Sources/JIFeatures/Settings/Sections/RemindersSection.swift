@@ -18,13 +18,17 @@ public struct RemindersSection: SettingsSection {
 
 private struct RemindersSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
+    @State private var trailing: String?
 
     var body: some View {
-        Section("Reminders") {
+        SettingsRowGroup(header: "Reminders") {
             NavigationLink {
                 RemindersDestination(prefs: model.prefs)
             } label: {
-                SettingsLinkLabel(title: "Reminders", subtitle: RemindersCopy.header)
+                SettingsLinkLabel(title: "Reminders", systemImage: "bell", trailing: trailing)
+            }
+            .onAppear {
+                trailing = settingsRemindersTrailing((try? model.prefs.get(RemindersPrefs.prefKey, as: RemindersPrefs.self)) ?? nil)
             }
             .accessibilityLabel("Reminders")
             .accessibilityIdentifier("settings.row.reminders")

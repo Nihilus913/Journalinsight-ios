@@ -10,7 +10,7 @@ public struct MacroSummaryCard: View {
     let day: NutritionDayDetail?
     /// W4-L3 — when set, an edit-goals button (mirrors RN's `EditGoalButton`, L117) pushes
     /// `GoalsSetupView`. `nil` (the default) keeps every existing call site source-compatible and
-    /// hides the button, same optional-model pattern as `VerdictHeroView.challengesModel`.
+    /// hides the button (optional-model pattern).
     let goalsSetupModel: GoalsSetupViewModel?
     @State private var showGoalsSetup = false
     @Environment(\.jiTheme) private var theme
@@ -35,9 +35,8 @@ public struct MacroSummaryCard: View {
                         }
                         .accessibilityLabel("Edit nutrition goals")
                         .accessibilityIdentifier("macro-edit-goals")
-                        // Attached locally, same rationale as VerdictHeroView.challengesModel's
-                        // isPresented push — no need for the enclosing NavigationStack's own
-                        // navigationDestination(for:), which lives outside this lane's file list.
+                        // Attached locally (an isPresented push) — no need for the enclosing
+                        // NavigationStack's own navigationDestination(for:).
                         .navigationDestination(isPresented: $showGoalsSetup) {
                             GoalsSetupView(model: goalsSetupModel)
                         }
