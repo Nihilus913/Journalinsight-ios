@@ -17,6 +17,8 @@ public struct TodayView: View {
     @State private var showMorningReview = false
     /// W-FIX3 BUG-28: board 02's "Week review" footer link opens the gate rationale (weekly gate).
     @State private var showWeekReview = false
+    /// W-FIX3 C-g: the Coach card's measured height (it grows with type size and its sentence).
+    @State private var coachCardHeight: CGFloat = 0
     @Environment(\.gateRationaleModel) private var rationaleModel
     /// W-B57b (B-62): Decide's Go / Adjust write, built by the App (nil = Go just advances).
     @Environment(\.verdictOverrideModel) private var verdictOverrideModel
@@ -94,6 +96,7 @@ public struct TodayView: View {
                 }
                 .padding(.horizontal, 16).padding(.bottom, 12)
                 .readableColumn()
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { coachCardHeight = $0 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -159,8 +162,11 @@ public struct TodayView: View {
         .navigationDestination(isPresented: $showWeekReview) {
             if let rationaleModel { gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel) }
         }
-        // Room so the Coach overlay never covers the last card.
-        if model.morningState == .coach || showMorningReview { Color.clear.frame(height: 140).accessibilityHidden(true) }
+        // W-FIX3 C-g: room for the Coach card's real height, so the last squares and the footer
+        // scroll out from under it (a fixed 140 pt left them unreachable behind a taller card).
+        if model.morningState == .coach || showMorningReview {
+            Color.clear.frame(height: todayCoachScrollReserve(cardHeight: coachCardHeight)).accessibilityHidden(true)
+        }
     }
 
     private func footerLabel(_ text: String) -> some View {
@@ -290,6 +296,10 @@ public struct TodayView: View {
         }
     }
 }
+
+/// W-FIX3 C-g: the room kept under Day's content while the Coach card is up — its measured height
+/// plus a gap; never less than the old 140 pt before the card has been measured.
+public nonisolated func todayCoachScrollReserve(cardHeight: CGFloat) -> CGFloat { max(140, cardHeight + 16) }
 
 // MARK: - W-FIX3 BUG-28 Day (board 02)
 
