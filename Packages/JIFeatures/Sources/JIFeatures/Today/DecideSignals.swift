@@ -57,13 +57,16 @@ public nonisolated func decideSignalStatus(_ s: GateSignal) -> JISignalStatus {
     }
 }
 
-/// W-FIX3 BUG-30 (board 01): the board's names — "Resting HR", "Overnight HRV", "Daytime HRV".
+/// W-FIX3 BUG-30 (board 01): the board's names — "Resting HR", "Overnight HRV", "Daytime HRV",
+/// sleep time "Sleep" (and the Garmin score beside it "Sleep score").
 /// An Apple night's "HRV (7-day)" keeps its label: it is a 7-day value, not the night's.
 public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
     switch s.key {
     case "rhr": "Resting HR"
     case "hrv" where s.label == "HRV": "Overnight HRV"
     case "hrv_day": "Daytime HRV"
+    case "sleep_h": "Sleep"
+    case "sleep" where s.label == "Sleep": "Sleep score"
     default: s.label
     }
 }

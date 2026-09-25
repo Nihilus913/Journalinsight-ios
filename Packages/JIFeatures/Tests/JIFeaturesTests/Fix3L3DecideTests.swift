@@ -29,6 +29,8 @@ struct Fix3L3DecideTests {
         // an Apple night's 7-day HRV keeps its honest label
         #expect(decideSignalLabel(s("hrv", "HRV (7-day)", 46, thr: 41, status: .pass)) == "HRV (7-day)")
         #expect(decideSignalLabel(s("hrv_day", "HRV (day)", 31, thr: 0, status: .context)) == "Daytime HRV")
+        #expect(decideSignalLabel(s("sleep_h", "Sleep time", 7.4, thr: 7, status: .pass)) == "Sleep")
+        #expect(decideSignalLabel(s("sleep", "Sleep", 81, thr: 70, status: .pass)) == "Sleep score")
     }
 
     // MARK: BUG-30 reference line: "your normal a–b" / "goal 7 h", never "threshold" / "floor"
