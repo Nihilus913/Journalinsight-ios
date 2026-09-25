@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// Sign-convention helpers shared by `EnergyHero`, `IntakeTdeeChart`, and `DeficitDayList` — ports
@@ -71,19 +72,26 @@ public nonisolated func energyHeroExplanation(avgDeficit: Double?, trackingDays:
 /// the calorie tint with "kcal a day", the direction line and the explanation. Below
 /// `MIN_TRACKING_DAYS` (4) the numeral is "—" with the "more days needed" reason instead.
 /// The old Raw / Adj / Deficit % chips and the sustainable-zone bar are gone (not on the board);
-/// the energy split is left for W2.
+/// B-57 W2 (B-73): once the phone's band has a 7-day Health balance, the hero shows THAT balance,
+/// its plan-band class ("On plan", …), the band sentence and the implied deficit (information
+/// only). Until then it keeps the hub report's balance. `goal` is the user's own target only —
+/// the hub report's seeded `goalIntakeKcal` is never shown.
 public struct EnergyHero: View {
     private let report: EnergyReport
     private let goal: Double?
+    private let band: EnergyBandState
     private let minTrackingDays: Int
     @Environment(\.jiTheme) private var theme
 
-    public init(report: EnergyReport, goal: Double? = nil, minTrackingDays: Int = 4) {
-        self.report = report; self.goal = goal ?? report.goalIntakeKcal; self.minTrackingDays = minTrackingDays
+    public init(report: EnergyReport, goal: Double? = nil, band: EnergyBandState = .none, minTrackingDays: Int = 4) {
+        self.report = report; self.goal = goal; self.band = band; self.minTrackingDays = minTrackingDays
     }
 
-    private var gated: Bool { report.trackingDays < minTrackingDays }
-    private var deficit: Double? { gated ? nil : report.avgDeficitCorrected7d }
+    /// The band's balance (eaten − burned), as a hub-convention deficit (burned − eaten).
+    private var bandDeficit: Double? { band.result?.balanceKcal.map { Double(-$0) } }
+    private var usesBand: Bool { bandDeficit != nil }
+    private var gated: Bool { !usesBand && report.trackingDays < minTrackingDays }
+    private var deficit: Double? { usesBand ? bandDeficit : (gated ? nil : report.avgDeficitCorrected7d) }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -104,6 +112,22 @@ public struct EnergyHero: View {
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("energy.hero.minDataGate")
+            } else if usesBand, let result = band.result {
+                Label(EnergyBandCopy.heroReason(result: result, reason: band.reason), systemImage: energyHeroDirection(deficit)?.symbolName ?? "equal")
+                    .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(nutritionKcalTintRole))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("energy-hero-class")
+                if let sentence = EnergyBandCopy.sentence(result) {
+                    Text(sentence).jiFont(.subheadline).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("energy.hero.explanation")
+                }
+                if let implied = EnergyBandCopy.impliedDeficit(result) {
+                    // Information only: plain muted text, never a verdict colour.
+                    Text(implied).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("energy-implied-deficit")
+                }
             } else {
                 if let dir = energyHeroDirection(deficit) {
                     Label(dir.word, systemImage: dir.symbolName)

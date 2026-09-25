@@ -114,9 +114,9 @@ import JIDesign
 // MARK: - BUG-39: the Daily log uses the explainer's words and the plan band
 
 @Test func dailyLogLabelsFollowTheExplainerRule() {
-    // Band = goal ± 5 %: 1617 → 1536…1698.
-    #expect(energyPlanBandText(1617) == "Plan band 1536–1698 kcal")
-    #expect(energyPlanBandText(nil) == "No goal set")
+    // B-57 W2 (B-73): band = the user's target ± 100 (was ± 5 %): 1617 → 1517…1717.
+    #expect(energyPlanBandText(1617) == "Plan band 1517–1717 kcal")
+    #expect(energyPlanBandText(nil) == "Set your goal")
     #expect(energyDayStatus(intake: 1619, goal: 1617, deficit: 600) == .onPlan)
     #expect(energyDayStatus(intake: 1200, goal: 1617, deficit: 1000) == .deepDeficit)
     #expect(energyDayStatus(intake: 1900, goal: 1617, deficit: 200) == .lightDeficit)
