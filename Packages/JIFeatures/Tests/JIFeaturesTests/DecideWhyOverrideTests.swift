@@ -142,8 +142,8 @@ import JIPersistence
 
 @Suite struct DecideWordTests {
     @Test func decideWordDropsTheParenthetical() {
-        #expect(decideWord(verdictParts("MODIFIED (HRV low) — Easy Z2")) == "MODIFIED")
-        #expect(decideWord(verdictParts("GO — Full Upper")) == "GO")
+        #expect(decideWord(verdictParts("MODIFIED (HRV low) — Easy Z2")) == "Modified")
+        #expect(decideWord(verdictParts("GO — Full Upper")) == "Full")
         #expect(decideWord(verdictParts(nil)) == "—")
     }
 }

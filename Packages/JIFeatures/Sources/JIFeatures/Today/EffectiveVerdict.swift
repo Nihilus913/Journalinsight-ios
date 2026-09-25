@@ -81,3 +81,27 @@ nonisolated private func overrideWord(_ choice: VerdictOverrideChoice) -> String
 nonisolated private func bareVerdictWord(_ parts: VerdictParts) -> String {
     parts.word.replacing(/\(.*\)/, with: "").trimmingCharacters(in: .whitespaces)
 }
+
+// MARK: - B-57 W1 r5: the user-facing verdict word (one source of truth)
+
+/// The three words the boards show for the morning call (Decide, GateRationale, its Last 3 days
+/// table, GateConfig's "How the morning call works" card).
+public nonisolated enum VerdictUserWord {
+    public static let full = "Full"
+    public static let modified = "Modified"
+    public static let rest = "Rest"
+}
+
+/// The hub's verdict word ("GO", "REDUCED (sleep)", "RED", or an override's "FULL" / "MODIFIED" /
+/// "REST") as the user reads it: GO/FULL → Full, REDUCED/MODIFIED → Modified, RED/REST → Rest.
+/// The parenthetical is dropped (the reason lives in the Why rows). No verdict stays "—"; a word the
+/// map does not know is shown as sent, never guessed.
+public nonisolated func verdictUserWord(_ parts: VerdictParts) -> String {
+    let bare = bareVerdictWord(parts)
+    guard !bare.isEmpty else { return parts.word }
+    let upper = bare.uppercased()
+    if upper.hasPrefix("GO") || upper.hasPrefix("FULL") { return VerdictUserWord.full }
+    if upper.hasPrefix("REDUCED") || upper.hasPrefix("MODIFIED") { return VerdictUserWord.modified }
+    if upper.hasPrefix("RED") || upper.hasPrefix("REST") { return VerdictUserWord.rest }
+    return bare
+}

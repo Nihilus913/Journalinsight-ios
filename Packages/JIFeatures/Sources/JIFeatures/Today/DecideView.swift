@@ -68,12 +68,10 @@ public func decideSubmit(model: VerdictOverrideViewModel, date: String, choice: 
                             optimisticSession: localOverrideSession(choice: choice, parts: parts, sessionForToday: sessionForToday))
 }
 
-/// Decide's big word without RN's parenthetical ("MODIFIED (HRV low)" → "MODIFIED"), which never
-/// fits; the reason is carried by the Why rows (or the reason line when there are none).
-public nonisolated func decideWord(_ parts: VerdictParts) -> String {
-    let bare = parts.word.replacing(/\(.*\)/, with: "").trimmingCharacters(in: .whitespaces)
-    return bare.isEmpty ? parts.word : bare
-}
+/// Decide's big word: the user-facing word (`verdictUserWord` — "GO" → "Full", "MODIFIED (HRV low)"
+/// → "Modified"), without RN's parenthetical, which never fits; the reason is carried by the Why
+/// rows (or the reason line when there are none).
+public nonisolated func decideWord(_ parts: VerdictParts) -> String { verdictUserWord(parts) }
 
 /// B-57 W1 Decide "Session" row. The hub sends no session time or exercise list to Today, so W1
 /// shows the session name only (time, exercises and first working weight: W5 progression).
