@@ -38,6 +38,10 @@ enum RootRoute: Hashable, Sendable {
     /// W3b-L2 — the "My KPIs" list/picker. Reachable only from `RootTabView`'s toolbar (no deep
     /// link maps to it; the oracle's `app/kpis.tsx` isn't itself deep-linkable either).
     case kpiList
+    /// W-FIX2 fixer BUG-13: Today's full Trends screen. A path value (not a destination
+    /// `NavigationLink`) so a KPI pushed from Trends stacks on top of it and Back returns to it —
+    /// the path-bound stack dropped the non-path link on the router's push.
+    case trends
 
     static func destination(for link: DeepLink) -> RootRoute? {
         switch link {
@@ -67,11 +71,11 @@ struct TabRouter: Equatable {
     private var paths: [RootTab: [RootRoute]] = [:]
     private var lastPush: [RootTab: Date] = [:]
 
-    /// The tab whose stack a route is pushed onto. Both routes are Today's (the KPI rings/chips
-    /// and the `ji://kpi-detail` deep link, which also focuses Today).
+    /// The tab a DEEP LINK's route is pushed onto (`ji://kpi-detail` focuses Today). A tap inside
+    /// the app pushes on the tab it came from instead (`push(_:on:)`, W-FIX2 BUG-13).
     static func owner(of route: RootRoute) -> RootTab {
         switch route {
-        case .kpiDetail, .kpiList: .today
+        case .kpiDetail, .kpiList, .trends: .today
         }
     }
 
@@ -82,11 +86,21 @@ struct TabRouter: Equatable {
         paths[tab] = path
     }
 
-    /// Pushes `route` onto its owning tab's stack. Returns false (and changes nothing) when the
-    /// route is already on top, or when another push onto that tab is still in flight.
+    /// W-FIX2 DEV-04: `ji://gate` shows Decide at the root of Today's stack.
+    mutating func popToRoot(_ tab: RootTab) { paths[tab] = [] }
+
+    /// Pushes `route` onto its owning tab's stack (the deep-link path).
     @discardableResult
     mutating func push(_ route: RootRoute, now: Date = Date()) -> Bool {
-        let tab = Self.owner(of: route)
+        push(route, on: Self.owner(of: route), now: now)
+    }
+
+    /// W-FIX2 BUG-13: pushes `route` onto `tab`'s stack — the tab the tap came from, so Back
+    /// returns there (a Recovery tile's detail used to land on Today's stack). Returns false (and
+    /// changes nothing) when the route is already on top, or when another push onto that tab is
+    /// still in flight.
+    @discardableResult
+    mutating func push(_ route: RootRoute, on tab: RootTab, now: Date = Date()) -> Bool {
         guard path(for: tab).last != route else { return false }
         if let last = lastPush[tab], now.timeIntervalSince(last) < Self.reentryInterval, now >= last { return false }
         paths[tab, default: []].append(route)

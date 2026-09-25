@@ -41,6 +41,12 @@ public final class EditTodayViewModel {
 
     public private(set) var pageName: String = todayPageNameDefault
 
+    /// W-FIX2 BUG-20: the "Add a square" catalogue (board 04) the dashed Add square opens. It lists
+    /// every square — ✓ = on Today (tap removes), + = hidden (tap adds) — so Add always does something.
+    public var showsAddCatalogue = false
+    public func openAddCatalogue() { showsAddCatalogue = true }
+    public func toggleFromCatalogue(_ id: String) { setHidden(id, hide: !isHidden(id)) }
+
     public func setPageName(_ raw: String) {
         pageName = normalizedTodayPageName(raw)
         saveTodayPageName(pageName, prefs: store)

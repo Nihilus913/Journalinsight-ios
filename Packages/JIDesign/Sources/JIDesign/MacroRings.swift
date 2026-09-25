@@ -30,7 +30,7 @@ public struct MacroRings: View {
 
     public var body: some View {
         ZStack {
-            ring(protein, tint: theme.color(.info), inset: 0)
+            ring(protein, tint: theme.color(.protein), inset: 0)   // W-FIX2: macro role, not the accent
             ring(carbs, tint: theme.color(.reduced), inset: 1)
             ring(fat, tint: theme.color(.sleep), inset: 2)
         }

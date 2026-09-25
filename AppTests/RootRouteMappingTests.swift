@@ -86,3 +86,59 @@ import Foundation
     let pushed9 = router.push(.kpiDetail(metric: "rhr"), now: t0.addingTimeInterval(-60))
     #expect(pushed9)
 }
+
+// MARK: - W-FIX2 BUG-13: a KPI detail pushes on the tab it came from
+
+@Test func fix2KpiDetailPushesOnTheOriginatingTab() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    // A Recovery tile tap: the detail lands on Recovery's stack, Today's stays untouched.
+    let p1 = router.push(.kpiDetail(metric: "hrv"), on: .recovery, now: t0)
+    #expect(p1)
+    #expect(router.path(for: .recovery) == [.kpiDetail(metric: "hrv")])
+    #expect(router.path(for: .today).isEmpty)
+    // Back (the stack's own write) returns to Recovery's root.
+    router.setPath([], for: .recovery)
+    #expect(router.path(for: .recovery).isEmpty)
+}
+
+@Test func fix2ReentryGuardIsPerTab() {
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let p2 = router.push(.kpiDetail(metric: "hrv"), on: .recovery, now: t0)
+    #expect(p2)
+    // A different tab's stack is not blocked by Recovery's in-flight push.
+    let p3 = router.push(.kpiDetail(metric: "rhr"), on: .more, now: t0)
+    #expect(p3)
+    #expect(router.path(for: .more) == [.kpiDetail(metric: "rhr")])
+}
+
+// MARK: - W-FIX2 DEV-04: ji://gate focuses Today at its root and opens Decide
+
+@Test func fix2GateDeepLinkParsesAndPopsTodayToRoot() {
+    #expect(DeepLink.parse(URL(string: "ji://gate")!) == .gate)
+    var router = TabRouter()
+    router.push(.kpiDetail(metric: "hrv"), on: .today, now: Date(timeIntervalSinceReferenceDate: 1_000))
+    router.popToRoot(.today)
+    #expect(router.path(for: .today).isEmpty)
+}
+
+// MARK: - W-FIX2 fixer BUG-13: Trends is a path route, so a KPI pushed from it keeps it underneath
+
+@Test func fix2TrendsIsARouteOwnedByTodayAndSurvivesAKpiPushAndBack() {
+    #expect(TabRouter.owner(of: .trends) == .today)
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let pushedTrends = router.push(.trends, on: .today, now: t0)
+    #expect(pushedTrends)
+    // Trends > Calories: the detail stacks on top of Trends in the same bound path.
+    let pushedKcal = router.push(.kpiDetail(metric: "kcal"), on: .today, now: t0.addingTimeInterval(1))
+    #expect(pushedKcal)
+    #expect(router.path(for: .today) == [.trends, .kpiDetail(metric: "kcal")])
+    // Back (the stack's own write) lands on Trends, not Day.
+    router.setPath([.trends], for: .today)
+    #expect(router.path(for: .today) == [.trends])
+    let pushedHrv = router.push(.kpiDetail(metric: "hrv"), on: .today, now: t0.addingTimeInterval(2))
+    #expect(pushedHrv)
+    #expect(router.path(for: .today) == [.trends, .kpiDetail(metric: "hrv")])
+}

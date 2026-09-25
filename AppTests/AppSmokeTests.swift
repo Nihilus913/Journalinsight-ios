@@ -4,6 +4,12 @@ import UIKit
 
 @Test func appTargetTestsRun() { #expect(1 + 1 == 2) }
 
+/// W-FIX2 fixer BUG-15: Info.plist must not pin the interface style — `UIUserInterfaceStyle: Dark`
+/// overrode Appearance → System, so the app stayed dark with the device in light.
+@Test func infoPlistDoesNotPinTheInterfaceStyle() {
+    #expect(Bundle.main.object(forInfoDictionaryKey: "UIUserInterfaceStyle") == nil)
+}
+
 #if DEBUG
 /// True when some window scene reached `.foregroundActive` — the only state in which
 /// `AppDelegate`'s `UIScene.didActivateNotification` observer has installed the overlay.

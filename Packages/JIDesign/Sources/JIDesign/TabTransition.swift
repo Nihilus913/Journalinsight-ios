@@ -69,6 +69,7 @@ public struct TabTransition<SelectionValue: Hashable, Content: View>: View {
     private let selection: SelectionValue
     private let content: (SelectionValue) -> Content
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     public init(selection: SelectionValue, @ViewBuilder content: @escaping (SelectionValue) -> Content) {
         self.selection = selection
@@ -81,6 +82,13 @@ public struct TabTransition<SelectionValue: Hashable, Content: View>: View {
                 .id(selection)
                 .transition(.jiTabCrossfade)
         }
+        // W-FIX2 BUG-16: this layer sits behind the chrome-only TabView, so the floating bar is
+        // not in its safe area — add it, and every scroll's last control rests above the bar.
+        // Backgrounds still run under the bar (the glass keeps sampling them).
+        // `contentMargins` (environment, reaches every scroll view / List below, across the
+        // per-tab NavigationStacks) — `safeAreaPadding` / `safeAreaInset` on this layer do not
+        // cross the UIKit navigation boundary (sim-verified, W-FIX2).
+        .contentMargins(.bottom, tabBarBottomClearance(sizeClass == .regular ? .regular : .compact), for: .scrollContent)
         .animation(reduceMotion ? JIMotion.press : JIMotion.standard, value: selection)
     }
 }

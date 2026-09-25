@@ -41,6 +41,10 @@ struct JournalInsightApp: App {
     // `providerStore` even though the closure is built once in `init()`.
     @State private var outboxRetry: OutboxRetryScheduler
 
+    // W-FIX2 BUG-15: the Appearance choice (mode, accent, text size), read from `PrefStore` at
+    // launch and live after every Appearance save. Replaces the unconditional `.dark`.
+    @State private var theme: AppThemeModel
+
     // CODE-2: a boot-time Keychain READ error (e.g. transient Secure Enclave/first-unlock failure)
     // must not crash launch — treat it like "no token yet" and let RootTabView present the
     // Connection sheet (env.needsConnection) instead. Only a failure to construct the environment
@@ -54,6 +58,7 @@ struct JournalInsightApp: App {
             } catch { fatalError("AppEnvironment init failed: \(error)") }
         }()
         _env = State(initialValue: builtEnv)
+        _theme = State(initialValue: AppThemeModel(prefs: builtEnv.prefs))
 
         let scheduler = OutboxRetryScheduler(
             drainerSource: {
@@ -71,8 +76,12 @@ struct JournalInsightApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
-                .preferredColorScheme(.dark)
-                .tint(AccentKey.default.color(for: .native))
+                // W-FIX2 BUG-15: system / Light / Dark from Appearance, set as the window override
+                // (`.unspecified` = follow the device). Not `.preferredColorScheme`: once forced, its
+                // nil does not reliably hand the window back to the system.
+                .onChange(of: theme.mode, initial: true) { _, _ in theme.applyToWindows() }
+                .tint(theme.accent)
+                .dynamicTypeSize(theme.dynamicTypeRange)
                 .onOpenURL { url in
                     guard let link = DeepLink.parse(url) else { return }
                     pendingDeepLink = link

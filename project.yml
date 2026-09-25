@@ -45,7 +45,6 @@ targets:
       properties:
         CFBundleDisplayName: JournalInsight
         UILaunchScreen: {}
-        UIUserInterfaceStyle: Dark
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: "JournalInsight talks to your HealthTraining hub on the local network."

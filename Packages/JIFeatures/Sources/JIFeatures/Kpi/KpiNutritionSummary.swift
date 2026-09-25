@@ -130,8 +130,19 @@ struct KpiNutritionPanel: View {
     let rows: [NutritionDailyRow]
     /// The user's goals document (`nil` = not loaded / not set → "no goal set", "— No data").
     var goals: NutritionGoal? = nil
-    @State var macro: KpiMetricId
+    /// BUG-22 (W-FIX2): the segment is the SCREEN's metric (`KpiDetailViewModel.selectMetric`), so
+    /// the title, trend and alert switch with it — no private copy that only the hero follows.
+    @Binding var macro: KpiMetricId
     private let theme = JITheme.native
+
+    init(rows: [NutritionDailyRow], goals: NutritionGoal? = nil, macro: Binding<KpiMetricId>) {
+        self.rows = rows; self.goals = goals; self._macro = macro
+    }
+
+    /// A fixed macro (the §8.5 gallery preview).
+    init(rows: [NutritionDailyRow], goals: NutritionGoal? = nil, macro: KpiMetricId) {
+        self.init(rows: rows, goals: goals, macro: .constant(macro))
+    }
 
     var body: some View {
         let s = kpiMacroSummary(rows: rows, macro: macro)
@@ -164,8 +175,6 @@ struct KpiNutritionPanel: View {
                 .accessibilityIdentifier("kpi-detail-macro-trend")
             JISectionHeader("All macros · goal vs actual")
             Surface { KpiMacroTable(rows: rows, goals: goals) }
-            // Board: "Put on a widget" — the KPI widget is chosen in the system widget editor
-            // (`SelectKpiIntent`); the app has no in-app pin action, so the row is left out.
         }
     }
 }
@@ -296,5 +305,102 @@ struct KpiMacroTable: View {
                 if i < summaries.count - 1 { Divider() }
             }
         }
+    }
+}
+
+// MARK: - BUG-40 (W-FIX2): NormalBar replaces the line chart; the board's two links
+
+/// Spec §1: on KpiDetailNutrition the 7-day `NormalBar` replaces the line `TrendChart` (a smoothed
+/// line drew through days with nothing logged, down to ~0 g). Every other KPI keeps its trend.
+public nonisolated func kpiDetailShowsLineTrend(_ metric: KpiMetricId) -> Bool { !isNutritionKpi(metric) }
+
+/// Board 2/04: the two rows that close KpiDetailNutrition, in board order.
+public nonisolated enum KpiNutritionLink: CaseIterable, Sendable {
+    case widget, macroGoals
+    public var title: String {
+        switch self {
+        case .widget: "Put on a widget"
+        case .macroGoals: "Edit macro goals"
+        }
+    }
+    public var systemImage: String {
+        switch self {
+        case .widget: "square.grid.2x2"
+        case .macroGoals: "target"
+        }
+    }
+}
+
+/// iOS has no API for an app to place a widget, so "Put on a widget" explains the system path to
+/// the app's KPI widget (`configurationDisplayName("KPI")`, metric chosen via `SelectKpiIntent`).
+public nonisolated func kpiWidgetHowTo(metricLabel: String) -> [String] {
+    [
+        "Touch and hold an empty spot on your Home Screen until the apps jiggle.",
+        "Tap Edit, then Add Widget, and pick JournalInsight › KPI.",
+        "Add it, touch and hold the new widget, tap Edit Widget and choose \(metricLabel).",
+    ]
+}
+
+/// The board's closing rows: "Put on a widget" (the system steps, in a sheet) and "Edit macro
+/// goals" (Goals setup). The goals row only shows when there is a goals provider to edit.
+struct KpiNutritionLinks: View {
+    let metricLabel: String
+    let goalsSetupModel: GoalsSetupViewModel?
+    @State private var showWidgetHowTo = false
+    @State private var showGoalsSetup = false
+    private let theme = JITheme.native
+
+    var body: some View {
+        Surface(padding: 0) {
+            VStack(spacing: 0) {
+                Button { showWidgetHowTo = true } label: { row(.widget) }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("kpi-detail-put-on-widget")
+                if goalsSetupModel != nil {
+                    Divider().padding(.leading, 16)
+                    Button { showGoalsSetup = true } label: { row(.macroGoals) }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("kpi-detail-edit-macro-goals")
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showGoalsSetup) {
+            if let goalsSetupModel { GoalsSetupView(model: goalsSetupModel) }
+        }
+        .sheet(isPresented: $showWidgetHowTo) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(Array(kpiWidgetHowTo(metricLabel: metricLabel).enumerated()), id: \.offset) { i, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text("\(i + 1)").jiFont(.body, weight: .bold).foregroundStyle(theme.color(.muted))
+                            Text(step).jiFont(.body).foregroundStyle(theme.color(.text))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(theme.color(.bg))
+                .navigationTitle("Put on a widget")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showWidgetHowTo = false } } }
+            }
+            .presentationDetents([.medium])
+            .jiTheme(.native)
+        }
+    }
+
+    private func row(_ link: KpiNutritionLink) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: link.systemImage).foregroundStyle(theme.color(.muted)).frame(width: 24)
+            Text(link.title).jiFont(.body).foregroundStyle(theme.color(.text))
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+        }
+        .padding(.horizontal, 16).frame(minHeight: 44).padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }

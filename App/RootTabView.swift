@@ -54,6 +54,13 @@ struct RootTabView: View {
     /// B-57 W1 board: the My KPIs row's trailing value.
     static func moreKpiText(count: Int) -> String { "\(count) chosen" }
 
+    /// W-FIX2 BUG-47 (board 4/04): the App card is one Settings row reading "Hub synced 07:41 ›".
+    static func moreSettingsText(fetchedAt: Date?, calendar: Calendar = .current) -> String {
+        guard let fetchedAt else { return "Not synced yet" }
+        let c = calendar.dateComponents([.hour, .minute], from: fetchedAt)
+        return String(format: "Hub synced %02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
+
     /// The same count `KpiListView` and Settings show (`KpiSelection.prefKey`).
     private var moreKpiCount: Int {
         let raw = try? env.prefs.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)
@@ -73,6 +80,14 @@ struct RootTabView: View {
     @State private var showSettings = false
     /// B-46 item 10: "My KPIs" is presented, never pushed — see the toolbar button's comment.
     @State private var showKpiList = false
+    /// W-FIX2 BUG-21: the My KPIs sheet's own stack — a square pushes its detail inside the sheet.
+    @State private var kpiSheetPath: [RootRoute] = []
+    /// W-FIX2 DEV-04: Decide is showing on Today because the day's gate is not answered yet, or
+    /// because `ji://gate` / `-JIForceGate YES` forced it (never clears the stored call).
+    @State private var gateOpen = false
+    @State private var gateForceConsumed = false
+    @State private var goalsSetupModel: GoalsSetupViewModel?
+    @Environment(\.scenePhase) private var scenePhase
     #if DEBUG
     @State private var showDataQuality = false
     #endif
@@ -199,6 +214,13 @@ struct RootTabView: View {
             handle(link)
             pendingDeepLink = nil
         }
+        // W-FIX2 DEV-04: the first launch (or return) after local midnight opens Decide.
+        .onAppear { evaluateGate() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { evaluateGate() } }
+        .onChange(of: todayModel?.morningState) { old, new in
+            // Decide answered inline (a new verdict date mid-day) counts as today's answer too.
+            if old == .decide, let new, new != .decide { recordGateAnswered() }
+        }
         #if DEBUG
         .sheet(isPresented: $showDataQuality) {
             NavigationStack {
@@ -206,8 +228,30 @@ struct RootTabView: View {
             }
         }
         #endif
-        .sheet(isPresented: $showKpiList) {
-            NavigationStack { kpiListDestination.navigationTitle("My KPIs") }
+        .sheet(isPresented: $showKpiList, onDismiss: { kpiSheetPath = [] }) {
+            // W-FIX2 BUG-21: squares open their detail inside the sheet; Done closes it (board 2/02, 2/04).
+            NavigationStack(path: $kpiSheetPath) {
+                kpiListDestination(onSelectKpi: { metric in
+                    let route = RootRoute.kpiDetail(metric: metric)
+                    if kpiSheetPath.last != route { kpiSheetPath.append(route) }
+                })
+                .navigationTitle("My KPIs")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
+                    }
+                }
+                .navigationDestination(for: RootRoute.self) { route in
+                    switch route {
+                    case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
+                    case .kpiList: kpiListDestination(onSelectKpi: nil)
+                    case .trends: trendsDestination(onSelectKpi: { metric in
+                        let route = RootRoute.kpiDetail(metric: metric)
+                        if kpiSheetPath.last != route { kpiSheetPath.append(route) }
+                    })
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil }) {
             if let settingsModel {
@@ -276,11 +320,13 @@ struct RootTabView: View {
                 .toolbar { shellToolbar }
                 // B-57 W1: shell hooks Recovery (L3) reads — the catalogue sheet and a KPI push.
                 .environment(\.openKpiCatalogue, { showKpiList = true })
-                .environment(\.openKpiDetail, { metric in pushKpiDetail(metric) })
+                // W-FIX2 BUG-13: a tile's detail pushes on the tab it sits on (Recovery → Recovery).
+                .environment(\.openKpiDetail, { metric in pushKpiDetail(metric, on: tab) })
                 .navigationDestination(for: RootRoute.self) { route in
                     switch route {
                     case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
-                    case .kpiList: kpiListDestination
+                    case .kpiList: kpiListDestination(onSelectKpi: { metric in pushKpiDetail(metric, on: tab) })
+                    case .trends: trendsDestination(onSelectKpi: { metric in pushKpiDetail(metric, on: tab) })
                     }
                 }
         }
@@ -322,11 +368,14 @@ struct RootTabView: View {
     @ViewBuilder
     private var todayTab: some View {
         if let store = env.providerStore {
-            if let todayModel {
+            if let todayModel, gateOpen, todayModel.phase == .loaded || !todayModel.hasLiveResult {
+                gateScreen(todayModel)
+            } else if let todayModel {
                 TodayView(
                     model: todayModel,
                     onOpenConnection: { showConnection = true },
-                    onSelectKpi: { metric in pushKpiDetail(metric) },
+                    onSelectKpi: { metric in pushKpiDetail(metric, on: .today) },
+                    onOpenTrends: { router.push(.trends, on: .today) },
                     makeGateRespondModel: { recommendation in makeGateRespondModel(recommendation, provider: store.provider) }
                 )
                 .environment(\.gateRationaleModel, gateRationaleModel)
@@ -397,9 +446,15 @@ struct RootTabView: View {
                     MoreRowLabel("Energy", systemImage: RootTab.energy.symbol, value: moreEnergyRow)
                 }
                     .accessibilityIdentifier("more.energy")
+                // W-FIX2 BUG-47: still presented (B-46 item 10), but drawn as the same chevron row
+                // as its neighbours — plain title, muted value, disclosure chevron.
                 Button { showKpiList = true } label: {
-                    LabeledContent { Text(Self.moreKpiText(count: moreKpiCount)) } label: { Label("My KPIs", systemImage: "chart.bar") }
+                    MoreChevronRow {
+                        MoreRowLabel("My KPIs", systemImage: "chart.bar",
+                                     value: MoreRowValue(lead: Self.moreKpiText(count: moreKpiCount), rest: "", style: .muted))
+                    }
                 }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("more.kpis")
                 NavigationLink { moreGoals } label: {
                     MoreRowLabel("Goals", systemImage: "target", value: moreGoalsRow)
@@ -413,10 +468,14 @@ struct RootTabView: View {
                     .accessibilityIdentifier("more.mind")
             }
             Section("App") {
+                // W-FIX2 BUG-47 (board 4/04): one row, "Hub synced 07:41 ›" — text, not a pill.
                 Button { showSettings = true } label: {
-                    // Board: "Hub synced 07:41" — the last sync Today holds, or "Not synced yet".
-                    LabeledContent { SyncedPill(date: todayModel?.fetchedAt) } label: { Label("Settings", systemImage: "slider.horizontal.3") }
+                    MoreChevronRow {
+                        MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
+                                     value: MoreRowValue(lead: Self.moreSettingsText(fetchedAt: todayModel?.fetchedAt), rest: "", style: .muted))
+                    }
                 }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("more.settings")
             }
         }
@@ -437,10 +496,33 @@ struct RootTabView: View {
         moreEnergyValue(avgDeficit7d: energyModel?.report?.avgDeficitCorrected7d, trackingDays: energyModel?.report?.trackingDays ?? 0)
     }
 
+    /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →
+    /// target, from the same hub goals document Settings' row reads (`settingsGoalsTrailing`).
     private var moreGoalsRow: MoreRowValue {
+        Self.moreGoalsRowValue(energyModel?.goals)
+    }
+
+    static func moreGoalsRowValue(_ goals: Goals?) -> MoreRowValue {
+        moreGoalsValue(currentKg: goals?.weight.baseKg, targetKg: goals?.weight.targetKg)
+    }
+
+    /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.
+    private var moreGoalsBoard: GoalsBoardInput? {
+        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult else { return nil }
         let gate = todayModel?.gate
-        let current = KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value
-        return moreGoalsValue(currentKg: current, targetKg: energyModel?.goals?.weight.targetKg)
+        let yesterday = String(Calendar.current.date(byAdding: .day, value: -1, to: Date())!.ISO8601Format().prefix(10))
+        let nutrition = nutritionModel?.week.first { $0.date == yesterday }
+        let energyDay = energyModel.report?.days.first { $0.date == yesterday }
+        let stepsRow = gate?.daily.first { $0.date == yesterday }
+        return GoalsBoardInput(
+            goals: energyModel.goals,
+            latestKg: KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value,
+            avgDeficit7d: energyModel.report?.avgDeficitCorrected7d,
+            trackingDays: energyModel.report?.trackingDays ?? 0,
+            yesterdayKcal: nutrition?.kcalConsumed ?? energyDay?.kcalConsumed,
+            yesterdayProteinG: nutrition?.proteinG,
+            yesterdaySteps: stepsRow?.values["steps"] ?? nil
+        )
     }
 
     private func loadMoreSummaries() async {
@@ -451,6 +533,9 @@ struct RootTabView: View {
             }
             if nutritionModel == nil, let p = store.provider as? any NutritionProviding {
                 nutritionModel = NutritionViewModel(provider: p, cache: env.cache, now: Date.init)
+            }
+            if goalsSetupModel == nil, let p = store.provider as? any GoalsSetupProviding {
+                goalsSetupModel = GoalsSetupViewModel(provider: p)
             }
         }
         if moreMindModel == nil, !moreMindUnavailable { await makeMoreMindModel() }
@@ -465,7 +550,7 @@ struct RootTabView: View {
 
     @ViewBuilder private var moreGoals: some View {
         if let db = journalDB ?? (try? AppDatabase.onDisk()) {
-            GoalsView(model: GoalsViewModel(store: GoalStore(db: db)))
+            GoalsView(model: GoalsViewModel(store: GoalStore(db: db)), board: moreGoalsBoard, setupModel: goalsSetupModel)
         } else {
             screenUnavailable(title: "Goals unavailable", systemImage: "target")
         }
@@ -640,13 +725,13 @@ struct RootTabView: View {
     }
 
     @ViewBuilder
-    private var kpiListDestination: some View {
+    private func kpiListDestination(onSelectKpi: ((String) -> Void)?) -> some View {
         if let store = env.providerStore,
            let nutrition = store.provider as? any NutritionProviding,
            let targets = store.provider as? any KpiTargetsProviding {
             KpiListView(model: KpiListViewModel(
                 healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache
-            ))
+            ), onSelectKpi: onSelectKpi)
         } else {
             screenUnavailable(title: "My KPIs unavailable", systemImage: "list.bullet.rectangle")
         }
@@ -703,9 +788,86 @@ struct RootTabView: View {
         }
     }
 
-    /// B-55: routed into Today's own stack; a second tap inside one push animation is dropped.
-    private func pushKpiDetail(_ metric: String) {
-        router.push(.kpiDetail(metric: metric))
+    /// B-55 + W-FIX2 BUG-13: routed into the ORIGINATING tab's own stack, so Back returns there;
+    /// a second tap inside one push animation is dropped.
+    /// W-FIX2 fixer BUG-13: the Trends screen as a `RootRoute` destination, built from Today's model.
+    @ViewBuilder
+    private func trendsDestination(onSelectKpi: @escaping (String) -> Void) -> some View {
+        if let todayModel {
+            TrendsView(recovery: todayModel.recovery, daily: todayModel.gate?.daily ?? [],
+                       averages: todayModel.gate?.averages, onSelectKpi: onSelectKpi)
+        } else {
+            screenUnavailable(title: "Trends unavailable", systemImage: "chart.line.uptrend.xyaxis")
+        }
+    }
+
+    private func pushKpiDetail(_ metric: String, on tab: RootTab) {
+        router.push(.kpiDetail(metric: metric), on: tab)
+    }
+
+    // MARK: - W-FIX2 DEV-04: start at the gate
+
+    private func evaluateGate() {
+        let forced = !gateForceConsumed && GateLaunch.forcedByArguments(CommandLine.arguments)
+        if forced { gateForceConsumed = true }
+        let last = (try? env.prefs.get(GateLaunch.lastAnsweredKey, as: String.self)) ?? nil
+        if GateLaunch.shouldOpenGate(localDay: GateLaunch.localDay(Date()), lastAnsweredLocalDay: last, forced: forced) {
+            openGate()
+        }
+    }
+
+    /// Today at its root, showing Decide. Nothing stored is cleared: the per-verdict-date morning
+    /// state and the verdict override stay as they are until the user answers.
+    private func openGate() {
+        selectedTab = .today
+        router.popToRoot(.today)
+        gateOpen = true
+    }
+
+    private func recordGateAnswered() {
+        try? env.prefs.set(GateLaunch.lastAnsweredKey, GateLaunch.localDay(Date()))
+    }
+
+    /// Go / Adjust settled on the gate screen: advance a still-undecided morning, remember the
+    /// day, and show the day view.
+    private func answerGate(_ model: TodayViewModel) {
+        if model.morningState == .decide { model.morningEvent(.gateResponded) }
+        recordGateAnswered()
+        gateOpen = false
+    }
+
+    /// Decide as Today's first screen — the same `DecideView` `TodayView` shows in its `.decide` state.
+    @ViewBuilder
+    private func gateScreen(_ model: TodayViewModel) -> some View {
+        let override = overrideForVerdictDate(verdictOverrideModel?.current ?? model.morning?.verdictOverride, verdictDate: model.verdictDate)
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 16) {
+                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
+                if model.phase == .loaded {
+                    DecideView(verdict: model.verdict, readiness: model.readiness,
+                               syncing: model.morning?.verdict == nil,
+                               gateSignals: model.morning?.gateSignals,
+                               verdictDate: model.verdictDate,
+                               sessionForToday: model.morning?.sessionForToday,
+                               override: override,
+                               overrideModel: verdictOverrideModel,
+                               fetchedAt: model.fetchedAt) { answerGate(model) }
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                }
+            }
+            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
+        }
+        .background(theme.color(.bg))
+        .navigationTitle(loadTodayPageName(prefs: model.tileOrderStore))
+        .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        .accessibilityIdentifier("today.gate")
+        .task { if !model.hasLiveResult { await model.load() } }
+        .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
+            guard let verdictOverrideModel else { return }
+            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+        }
     }
 
     /// Entry point for `JournalInsightApp`'s `.onOpenURL` — resolves a parsed `DeepLink` into a
@@ -714,9 +876,28 @@ struct RootTabView: View {
     /// `.kpiDetail` pushes the same route a chip tap would onto the route's owning tab (Today),
     /// deduped against its top of stack and the in-flight push guard (`TabRouter.push`).
     func handle(_ link: DeepLink) {
+        // W-FIX2 DEV-04: `ji://gate` opens Decide on Today without clearing today's stored call.
+        if link == .gate { openGate(); return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)
+    }
+}
+
+/// W-FIX2 BUG-47: a presenting row drawn like a `NavigationLink` row — primary-coloured title and
+/// a trailing disclosure chevron (a bare `Button` row took the tint colour and had no chevron).
+struct MoreChevronRow<Label: View>: View {
+    @ViewBuilder let label: () -> Label
+    var body: some View {
+        HStack(spacing: 8) {
+            label()
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+        }
+        .foregroundStyle(.primary)
+        .contentShape(Rectangle())
     }
 }
 
@@ -733,7 +914,7 @@ struct RootTabView: View {
 ///      the `TabTransition` layer behind instead of being absorbed by a plain `UIView`.
 /// UIKit class names in the chain are private and unstable; nothing here matches on them — only
 /// on "ancestor of the placeholder" and "the view whose next responder is the tab controller".
-private struct TabHostPassThrough: UIViewRepresentable {
+struct TabHostPassThrough: UIViewRepresentable {
     func makeUIView(context: Context) -> MarkerView {
         let view = MarkerView()
         view.isUserInteractionEnabled = false
@@ -744,20 +925,47 @@ private struct TabHostPassThrough: UIViewRepresentable {
     func updateUIView(_ uiView: MarkerView, context: Context) {}
 
     final class MarkerView: UIView {
+        /// The view controller whose root view `view` is. SwiftUI can put its own responders (a
+        /// key-press responder) between a hosting view and its controller, so this follows the
+        /// responder chain past non-view responders instead of reading `view.next` alone.
+        static func owningController(of view: UIView) -> UIViewController? {
+            var responder = view.next
+            while let r = responder, !(r is UIView) {
+                if let vc = r as? UIViewController { return vc.viewIfLoaded === view ? vc : nil }
+                responder = r.next
+            }
+            return nil
+        }
+
         override func didMoveToWindow() {
             super.didMoveToWindow()
             guard window != nil else { return }
-            var child: UIView = self
+            // W-FIX2 BUG-14: only THIS tab's own view-controller view is disabled. The old code
+            // disabled the tab controller's shared content container (the transition view every
+            // tab's view lives in), so once a pass-through tab had mounted, the search-role Tab
+            // (the Journal, which hosts real content) sat inside a disabled container and no
+            // control on it responded until a cold start straight into Search.
+            var chain: [UIView] = []
+            var tabOwnView: UIView?
             var ancestor = superview
             while let view = ancestor {
                 view.backgroundColor = .clear
+                if tabOwnView == nil, let vc = Self.owningController(of: view),
+                   vc.parent is UITabBarController || vc.parent?.parent is UITabBarController {
+                    tabOwnView = view
+                }
                 if view.next is UITabBarController {
-                    child.isUserInteractionEnabled = false          // content container, not the bar
-                    PassThroughHitTest.install(on: view)             // tab controller root view
-                    if let host = view.superview { PassThroughHitTest.install(on: host) } // SwiftUI platform host
+                    (tabOwnView ?? chain.last)?.isUserInteractionEnabled = false   // this tab's content, not the bar
+                    // Every container between the tab's view and the root, the root itself and the
+                    // SwiftUI platform host: a touch no enabled subview claims falls through.
+                    if let tabOwnView, let i = chain.firstIndex(of: tabOwnView) {
+                        for container in chain[(i + 1)...] { PassThroughHitTest.install(on: container) }
+                    }
+                    PassThroughHitTest.install(on: view)
+                    if let host = view.superview { PassThroughHitTest.install(on: host) }
                     break
                 }
-                child = view
+                chain.append(view)
                 ancestor = view.superview
             }
         }
