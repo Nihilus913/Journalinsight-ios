@@ -139,7 +139,10 @@ struct JournalWeekDotsRow: View {
         HStack(spacing: 0) {
             ForEach(dots) { dot in
                 VStack(spacing: 6) {
+                    // W-FIX4 PF-05: at AX sizes the initial and the ring shrink to the column
+                    // (one seventh of the card) instead of pushing the card past the screen.
                     Text(dot.initial).jiFont(.label, tint: .muted)
+                        .lineLimit(1).minimumScaleFactor(0.4)
                     ZStack {
                         if dot.written {
                             Circle().fill(theme.color(.info))
@@ -149,9 +152,10 @@ struct JournalWeekDotsRow: View {
                             Circle().strokeBorder(theme.color(.control), lineWidth: 2)
                         }
                     }
-                    .frame(width: size, height: size)
+                    .frame(maxWidth: size, maxHeight: size)
+                    .aspectRatio(1, contentMode: .fit)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(minWidth: 0, maxWidth: .infinity)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(dot.id)
                 .accessibilityValue(dot.written ? "Written" : dot.isToday ? "Today, open" : dot.isFuture ? "Still to come" : "Not written")
