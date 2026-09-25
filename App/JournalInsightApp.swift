@@ -92,6 +92,10 @@ struct JournalInsightApp: App {
                     // RootTabView's single `.onChange`/`.onAppear` pair (see its doc comment)
                     // handles both sources identically — no second navigation path to keep in sync.
                     notificationDelegate.onDeepLink = { link in pendingDeepLink = link }
+                    #if DEBUG
+                    // W-FIX3 fixer C-h: `-JISeedRMSSD <ms>` — the simulator's live-record RMSSD writer.
+                    await DebugRmssdSeeder.seedIfRequested()
+                    #endif
                     UNUserNotificationCenter.current().delegate = notificationDelegate
                     // W-B47 (L2), same affordance as B-46's `-no-healthkit` above it in
                     // `AppEnvironment.boot()`: `-no-push` suppresses the cold-start notification
