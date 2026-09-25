@@ -71,7 +71,24 @@ public final class TodayViewModel {
     /// `RootTabView`). `TodayGrid` degrades gracefully to an unpersisted default order when nil.
     private let prefs: PrefStore?
     private let now: () -> Date
-    private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery")
+    private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary")
+
+    /// W-FIX2 L5 (FM-08, DEV-02): `/vitals/sleep-summary` — the hub's computed score for last night
+    /// (Apple era), which the Sleep ring shows. `nil` when the provider cannot serve it (not a
+    /// `SleepSummaryProviding`) or has never answered; the ring then keeps `RecoveryDay.sleepScore`.
+    public private(set) var sleepSummary: SleepSummary?
+    /// W-FIX2 L5 (DEV-03): the hub's own last ingestion sync (`/ingestion/status` `last_sync`).
+    public private(set) var hubLastSync: Date?
+    /// W-FIX2 L5 (DEV-03): the app's own uploader record — the last 2xx HealthKit upload POST
+    /// (`hk.upload.lastSuccess`, written by JIHealthKit's `HealthKitUploader` in the App Group).
+    public private(set) var lastUploadAt: Date?
+    private let uploadRecord: UserDefaults?
+    private static let lastUploadKey = "hk.upload.lastSuccess"
+
+    /// W-FIX2 L5 (DEV-03): what the sync chip shows — the newer of the hub's last sync and this
+    /// app's last successful HealthKit upload. `nil` ("Not synced yet") when neither is known —
+    /// never the time the screen happened to fetch.
+    public var syncedAt: Date? { [hubLastSync, lastUploadAt].compactMap { $0 }.max() }
     /// Whether ANY section has ever synced successfully — set once from a warm cache at `restoreFromCache`,
     /// or the first time a live fetch fully succeeds — and never cleared by a later failure. Distinguishes
     /// a truly first-ever empty response (`.neverSynced`) from an established screen going transiently
@@ -87,8 +104,11 @@ public final class TodayViewModel {
     /// public `verdict`/`readiness`/`chips`/`fetchedAt` and builds the `HubSnapshot` itself.
     public var onSectionUpdate: (() -> Void)?
 
-    public init(provider: any HealthDataProvider, cache: OfflineCache, prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init) {
-        self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now
+    /// - Parameter uploadRecord: the App-Group suite holding the uploader's last-success instant
+    ///   (DEV-03); tests inject a scratch suite, `nil` = no record (the chip uses the hub alone).
+    public init(provider: any HealthDataProvider, cache: OfflineCache, prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
+                uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) {
+        self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
     }
 
     /// The `PrefStore` `TodayGrid` persists its drag-reorder tile order to (`today.tileOrder`).
@@ -132,6 +152,25 @@ public final class TodayViewModel {
 
     public var readiness: Double? { lastNight(\.readinessScore)?.value }
 
+    /// DEV-02: the sleep-summary score with its night, whatever its age.
+    private var summarySleep: (value: Double, date: String)? {
+        guard let s = sleepSummary, let v = s.scoreComputed, let d = s.scoreComputedDate else { return nil }
+        return (v, d)
+    }
+
+    private var freshSummarySleep: (value: Double, date: String)? {
+        summarySleep.flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now()) ? $0 : nil }
+    }
+
+    /// W-FIX2 L5 (DEV-01/02): the dated reading behind a Today "My KPIs" cell — the same
+    /// `KpiMetrics.latest` the KPI detail uses (HRV = the night's `hrv_rmssd_ms`, never the 7-day
+    /// mix), except Sleep, which is the hub's sleep-summary score when served (the hero ring's value).
+    public func kpiReading(_ id: KpiMetricId) -> (value: Double, date: String)? {
+        if id == .sleep, let s = summarySleep { return s }
+        return KpiMetrics.latest(for: id, recovery: recovery, nutrition: [],
+                                 dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)
+    }
+
     /// W-FIX1 BUG-12: the Day hero's Load ring — the newest real ACWR only while it is current
     /// (`KpiMetrics.currentAcwr`, ≤ 36 h); the ring has no room for a date, so older is "—".
     public var heroLoad: Double? { KpiMetrics.currentAcwr(recovery, now: now()) }
@@ -150,8 +189,10 @@ public final class TodayViewModel {
                  latest: lastNight { KpiMetrics.nightlyHrvMs($0) }),
             chip("rhr", "RHR", unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false,
                  latest: lastNight(\.rhrBpm)),
-            chip("sleep", "Sleep", unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore),
-                 latest: lastNight(\.sleepScore)),
+            // W-FIX2 DEV-02: the hub's sleep-summary score for last night (89 on 09-25), else the
+            // recovery row's own score — both under the same ≤ 36 h "last night" rule.
+            chip("sleep", "Sleep", unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore) && summarySleep == nil,
+                 latest: freshSummarySleep ?? lastNight(\.sleepScore)),
             chip("steps", "Steps", unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false,
                  latest: steps),
         ]
@@ -196,6 +237,8 @@ public final class TodayViewModel {
         }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
+        if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
+        lastUploadAt = readLastUpload()
         if morning != nil { phase = .loaded }
         syncMorningState()
         if morning != nil || gate != nil || !recovery.isEmpty { onSectionUpdate?() }
@@ -213,7 +256,14 @@ public final class TodayViewModel {
             async let mR = SectionLoader.load(key: Self.keys.morning, cache: cache) { try await provider.morning() }
             async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await provider.gate(windowDays: 28) }
             async let rR = SectionLoader.load(key: Self.keys.recovery, cache: cache) { try await provider.recovery(windowDays: 28) }
+            // W-FIX2 L5: the sleep summary and the hub's sync time are extras — they never drive
+            // `phase`/`hubReachable`, and a failure keeps the last known value.
+            async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
+            async let hR = Self.loadHubLastSync(provider: provider)
             let (m, g, r) = try await (mR, gR, rR)
+            if let sv = await sR { sleepSummary = sv }
+            if let hv = await hR { hubLastSync = hv }
+            lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
             if let gv = g.value { gate = gv }
@@ -269,6 +319,17 @@ public final class TodayViewModel {
             phase = (morning == nil) ? .error(Self.describe(error)) : .loaded
             onSectionUpdate?()
         }
+    }
+
+    private func readLastUpload() -> Date? { parseHubTimestamp(uploadRecord?.string(forKey: Self.lastUploadKey)) }
+
+    nonisolated private static func loadSleepSummary(provider: any HealthDataProvider, cache: OfflineCache) async -> SleepSummary? {
+        guard let sp = provider as? any SleepSummaryProviding else { return nil }
+        return (try? await SectionLoader.load(key: keys.sleepSummary, cache: cache) { try await sp.sleepSummary() })?.value
+    }
+
+    nonisolated private static func loadHubLastSync(provider: any HealthDataProvider) async -> Date? {
+        parseHubTimestamp((try? await provider.syncStatus())?.lastSync)
     }
 
     /// Reduces `event` into `morningState` and persists it under the current verdict date.
@@ -373,3 +434,19 @@ let fixtureGateJSON = """
  "recommendation":"MAINTAIN","tracked_days":7,"total_days":7,"min_tracked_days":5,
  "triggered_rules":["acwr_in_band","protein_on_target"],"suggestions":["Hold the current intake for another week."]}
 """
+
+/// W-FIX2 L5 (DEV-03): the hub's `last_sync` ("2026-09-25 10:02:23.725876+02:00", Postgres text)
+/// or the uploader's ISO-8601 instant, as a `Date`; `nil` for a missing or unreadable value.
+nonisolated func parseHubTimestamp(_ raw: String?) -> Date? {
+    guard var text = raw?.trimmingCharacters(in: .whitespaces), text.count >= 19 else { return nil }
+    if text.count > 10, text[text.index(text.startIndex, offsetBy: 10)] == " " {
+        text.replaceSubrange(text.index(text.startIndex, offsetBy: 10)...text.index(text.startIndex, offsetBy: 10), with: "T")
+    }
+    // Postgres may send more than millisecond precision; the formatter reads at most three digits.
+    if let dot = text.firstIndex(of: "."), let end = text[dot...].firstIndex(where: { !$0.isNumber && $0 != "." }) {
+        let digits = text[text.index(after: dot)..<end]
+        if digits.count > 3 { text.replaceSubrange(text.index(after: dot)..<end, with: digits.prefix(3)) }
+    }
+    let frac = ISO8601DateFormatter(); frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return frac.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+}

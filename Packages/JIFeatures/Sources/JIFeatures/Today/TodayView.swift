@@ -105,7 +105,8 @@ public struct TodayView: View {
 
     @ViewBuilder
     private var dayContent: some View {
-        HStack { Spacer(); SyncedPill(date: model.fetchedAt) }.accessibilityIdentifier("today.day.synced")
+        // W-FIX2 DEV-03: the newer of the hub's last sync and this app's last 2xx HealthKit upload.
+        HStack { Spacer(); SyncedPill(date: model.syncedAt) }.accessibilityIdentifier("today.day.synced")
         MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
                            caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption }) {
             showMorningReview = true
@@ -181,10 +182,8 @@ public struct TodayView: View {
 
     /// B-46 item 3 (fixer): the value AND the day it was actually taken on, so a week-old HRV is
     /// never presented as today's reading (the same `KpiMetrics.latest` the KPI detail screen uses).
-    private func kpiLatest(_ id: KpiMetricId) -> (value: Double, date: String)? {
-        KpiMetrics.latest(for: id, recovery: model.recovery, nutrition: [],
-                          dailyRows: model.gate?.daily ?? [], gateAverages: model.gate?.averages)
-    }
+    /// W-FIX2 DEV-01/02: read through the view model (`kpiReading`) so the cell and the hero agree.
+    private func kpiLatest(_ id: KpiMetricId) -> (value: Double, date: String)? { model.kpiReading(id) }
 
     private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
 
