@@ -544,7 +544,13 @@ struct RootTabView: View {
     private var moreNutritionRow: MoreRowValue {
         let today = String(Date().ISO8601Format().prefix(10))
         let day = nutritionModel?.day.flatMap { $0.date == today ? $0 : nil }
-        return moreNutritionValue(consumedKcal: day?.total.kcal, goalKcal: day?.total.kcalGoal ?? energyModel?.goalKcal)
+        return Self.moreNutritionRowValue(consumedKcal: day?.total.kcal, userGoals: env.energyBand?.goals)
+    }
+
+    /// B-73 (W-B57-W2 fixer MORE-NUTRITION-GOAL): "consumed / goal" against the user's own kcal
+    /// target (`goals.macros`) only — never YAZIO's day goal nor the hub document. Unset = consumed alone.
+    static func moreNutritionRowValue(consumedKcal: Double?, userGoals: MacroGoals?) -> MoreRowValue {
+        moreNutritionValue(consumedKcal: consumedKcal, goalKcal: userGoals?.targetKcal)
     }
 
     private var moreEnergyRow: MoreRowValue {
