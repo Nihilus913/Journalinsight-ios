@@ -795,6 +795,13 @@ struct RootTabView: View {
             backupModel: backup,
             goalsSetupModel: goals,
             kpiListModel: kpis,
+            // W-FIX3 fixer C-e: Settings → My KPIs squares push their detail (same model as the shell's).
+            makeKpiDetailModel: { metric in
+                guard let provider, let nutrition = provider as? any NutritionProviding,
+                      let targets = provider as? any KpiTargetsProviding else { return nil }
+                return KpiDetailViewModel(metric: metric, healthProvider: provider, nutritionProvider: nutrition,
+                                          targetsProvider: targets, cache: env.cache)
+            },
             goalsProvider: provider as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },
             syncAction: { try await env.syncNow() }

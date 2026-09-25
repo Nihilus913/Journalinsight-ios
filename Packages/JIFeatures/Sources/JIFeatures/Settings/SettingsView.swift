@@ -415,7 +415,18 @@ private struct PreferencesLinksRows: View {
                     .accessibilityIdentifier("settings.row.goals.unavailable")
             }
             if let kpis = model.kpiListModel {
-                NavigationLink { KpiListView(model: kpis) } label: {
+                NavigationLink {
+                    // W-FIX3 fixer C-e: a square opens its KPI detail (as the shell's My KPIs sheet).
+                    KpiListView(model: kpis, onSelectKpi: model.kpiSelectAction)
+                        .navigationDestination(item: Binding(get: { model.kpiDetailMetric },
+                                                             set: { model.kpiDetailMetric = $0 })) { metric in
+                            if let detail = model.kpiDetailModel, detail.metric == metric {
+                                KpiDetailView(model: detail)
+                            } else {
+                                ContentUnavailableView("KPI unavailable", systemImage: "chart.line.uptrend.xyaxis")
+                            }
+                        }
+                } label: {
                     SettingsLinkLabel(title: "My KPIs", systemImage: "chart.bar",
                                       trailing: settingsKpisTrailing(model.kpiSelectedCount))
                 }
