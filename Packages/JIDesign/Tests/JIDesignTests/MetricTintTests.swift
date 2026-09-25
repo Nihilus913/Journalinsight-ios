@@ -3,7 +3,7 @@ import Testing
 
 // B-47 — the metric → colour-role map L2's Today grid tints its cards with.
 @Test(arguments: [
-    ("hrv", JIColorRole.info),
+    ("hrv", JIColorRole.hrv),
     ("rhr", .danger), ("Resting HR", .danger), ("resting_hr", .danger),
     ("sleep", .sleep), ("sleep_score", .sleep), ("Sleep score", .sleep),
     ("steps", .go),
@@ -34,7 +34,7 @@ func everythingElseIsPrimaryText(id: String) {
 /// Rule 6: the reserved verdict roles are only ever handed out by this map, never invented per
 /// card — and no metric gets a surface/hairline role by mistake.
 @Test func onlyForegroundRolesAreEverReturned() {
-    let allowed: Set<JIColorRole> = [.info, .danger, .sleep, .go, .reduced, .text, .kcal, .protein, .carbs, .fat]
+    let allowed: Set<JIColorRole> = [.hrv, .danger, .sleep, .go, .reduced, .text, .kcal, .protein, .carbs, .fat]
     for id in ["hrv", "rhr", "sleep", "steps", "load", "acwr", "weight", "kcal", "protein", "carbs", "fat", "zzz"] {
         #expect(allowed.contains(metricTintRole(id)))
     }

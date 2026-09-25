@@ -38,12 +38,17 @@ public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
     case bg, surface, surface2, surface3, nested, control
     case text, muted, mutedNested
     case hairlineOuter, hairlineNested
-    /// Reserved: verdict / band / 0–100 score / status ONLY (rule 6). Selection + CTA = info.
+    /// Reserved: verdict / band / 0–100 score / status ONLY (rule 6). Selection + CTA + links =
+    /// `info`, which since W-FIX2 (BUG-31, boards) resolves to the personalization accent
+    /// (`JIAccent`, green by default) — never a metric colour.
     case go, reduced, danger, info, sleep
     /// B-57 W1 r5: the four macro colours the Monitor / Plan boards tint nutrition figures with
     /// (Calories orange, Protein pink, Carbs yellow, Fat light blue). Metric colours only —
     /// never a verdict, so calories are not "Modified" even though both read orange.
     case kcal, protein, carbs, fat
+    /// W-FIX2 BUG-31: HRV's own metric colour (system blue), split off `info` when `info` became
+    /// the accent, so the HRV numeral does not turn green (rule 6).
+    case hrv
 }
 
 public nonisolated extension JIColorRole {

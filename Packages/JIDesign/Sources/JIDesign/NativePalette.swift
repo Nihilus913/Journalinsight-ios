@@ -25,7 +25,8 @@ enum JINativePalette {
         case .go: Color(uiColor: .systemGreen)
         case .reduced: Color(uiColor: .systemOrange)
         case .danger: Color(uiColor: .systemRed)
-        case .info: Color(uiColor: .systemBlue)
+        case .info: JIAccent.shared.color
+        case .hrv: Color(uiColor: .systemBlue)
         case .sleep: Color(uiColor: .systemPurple)
         case .kcal: Color(uiColor: .systemOrange)
         case .protein: Color(uiColor: .systemPink)
@@ -47,7 +48,8 @@ enum JINativePalette {
         case .go: Color(nsColor: .systemGreen)
         case .reduced: Color(nsColor: .systemOrange)
         case .danger: Color(nsColor: .systemRed)
-        case .info: Color(nsColor: .systemBlue)
+        case .info: JIAccent.shared.color
+        case .hrv: Color(nsColor: .systemBlue)
         case .sleep: Color(nsColor: .systemPurple)
         case .kcal: Color(nsColor: .systemOrange)
         case .protein: Color(nsColor: .systemPink)
@@ -69,7 +71,8 @@ enum JINativePalette {
         case .go: .green
         case .reduced: .orange
         case .danger: .red
-        case .info: .blue
+        case .info: JIAccent.shared.color
+        case .hrv: .blue
         case .sleep: .purple
         case .kcal: .orange
         case .protein: .pink
