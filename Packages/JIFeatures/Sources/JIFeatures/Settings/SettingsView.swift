@@ -257,14 +257,55 @@ public struct SettingsView: View {
     }
 }
 
+// MARK: - W-FIX3 BUG-33 (AX3): nothing truncates, nothing collides
+
+/// At accessibility text sizes a navigation title or subtitle that does not fit is cut ("Home &
+/// widg…", "Everything that is not a daily…"); there the screen shows it as wrapping text at the
+/// top of its list instead, and the bar keeps only the inline title.
+public nonisolated func jiTitleWrapsInList(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
+/// The Settings row icon column. `JIRow`'s fixed 28 pt holds a body-size symbol only up to the
+/// default sizes; at AX3 the glyph is ~50 pt wide and ran into "Hub"/"Haptics". The column grows
+/// with the body text size (≈1.4 × its point size), never below 28.
+public nonisolated func settingsIconColumnWidth(_ size: DynamicTypeSize) -> CGFloat {
+    let body: CGFloat = switch size {
+    case .xSmall: 14
+    case .small: 15
+    case .medium: 16
+    case .large: 17
+    case .xLarge: 19
+    case .xxLarge: 21
+    case .xxxLarge: 23
+    case .accessibility1: 28
+    case .accessibility2: 33
+    case .accessibility3: 40
+    case .accessibility4: 47
+    case .accessibility5: 53
+    @unknown default: 17
+    }
+    return max(28, (body * 1.4).rounded(.up))
+}
+
 /// A pushed Settings screen: the given registry sections, as `GroupSettingsView` draws them.
 struct SettingsSectionsScreen: View {
     let title: String
     let sections: [any SettingsSection]
     var placeholder: String? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Form {
+            if jiTitleWrapsInList(typeSize) {
+                Section {
+                    Text(title)
+                        .jiFont(.title, weight: .bold, tint: .text)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                        .accessibilityIdentifier("settings.screen.title")
+                }
+            }
             ForEach(sections, id: \.id) { section in
                 AnyView(section.body)
                     .accessibilityIdentifier("settings.section.\(section.id)")
@@ -274,6 +315,15 @@ struct SettingsSectionsScreen: View {
             }
         }
         .navigationTitle(title)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(jiTitleWrapsInList(typeSize) ? .inline : .automatic)
+        #endif
+        .toolbar {
+            // AX: the wrapped title above is the heading; an inline copy would only be cut again.
+            if jiTitleWrapsInList(typeSize) {
+                ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+            }
+        }
         .jiTheme(.native)
     }
 }
@@ -295,15 +345,32 @@ struct SettingsLinkLabel: View {
     var badge: BoardStatus? = nil
     var tint: Color? = nil
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.jiTheme) private var theme
     var body: some View {
         if typeSize.isAccessibilitySize, badge != nil || trailing != nil {
             // AX sizes: the value drops under the title instead of squeezing it to a letter a line.
             VStack(alignment: .leading, spacing: 4) {
-                JIRow(title: title, subtitle: subtitle, systemImage: systemImage, tint: tint) { EmptyView() }
+                row { EmptyView() }
                 value
             }
         } else {
-            JIRow(title: title, subtitle: subtitle, systemImage: systemImage, tint: tint) { value }
+            row { value }
+        }
+    }
+
+    /// W-FIX3 BUG-33: the icon sits in its own column sized for the text size
+    /// (`settingsIconColumnWidth`), so at AX3 it no longer overlaps the title.
+    @ViewBuilder private func row<T: View>(@ViewBuilder _ trailing: () -> T) -> some View {
+        if let systemImage {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .foregroundStyle(tint ?? theme.color(.info))
+                    .frame(width: settingsIconColumnWidth(typeSize))
+                    .accessibilityHidden(true)
+                JIRow(title: title, subtitle: subtitle, systemImage: nil, tint: tint, trailing: trailing)
+            }
+        } else {
+            JIRow(title: title, subtitle: subtitle, systemImage: nil, tint: tint, trailing: trailing)
         }
     }
 
