@@ -8,6 +8,46 @@ import JIDesign
 /// Seeds its editable fields once from the loaded document (`hydrated`, same "not a live sync"
 /// rule as the RN oracle's own `useRef` guard) so a background refresh never fights an in-progress
 /// edit. CLAUDE.md rule 5: while loading (no seed yet) the form shows "Loading…", never zeros.
+// W-FIX3 BUG-49: the target date is picked from a calendar and read as a date ("31 Oct 2026"),
+// never typed or shown as the raw "2026-10-31" the hub stores. The wire format is unchanged.
+
+/// Gregorian calendar-day helpers pinned to one time zone, so a picked day never shifts by one.
+nonisolated private func goalsSetupCalendar(_ tz: TimeZone) -> Calendar {
+    var c = Calendar(identifier: .gregorian)
+    c.timeZone = tz
+    return c
+}
+
+/// "2026-10-31" → that calendar day (noon, so no DST edge moves it); nil for blank or anything else.
+public nonisolated func goalsSetupDate(_ iso: String, timeZone: TimeZone = .autoupdatingCurrent) -> Date? {
+    let parts = iso.trimmingCharacters(in: .whitespaces).split(separator: "-", omittingEmptySubsequences: false)
+    guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+          let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]) else { return nil }
+    let cal = goalsSetupCalendar(timeZone)
+    let comps = DateComponents(year: y, month: m, day: d, hour: 12)
+    guard let date = cal.date(from: comps),
+          cal.component(.month, from: date) == m, cal.component(.day, from: date) == d else { return nil }
+    return date
+}
+
+/// The day back to the hub's "YYYY-MM-DD".
+public nonisolated func goalsSetupISO(_ date: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String {
+    let c = goalsSetupCalendar(timeZone).dateComponents([.year, .month, .day], from: date)
+    return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+}
+
+/// "2026-10-31" → "31 Oct 2026" (the VoiceOver value and the row when no picker is shown).
+public nonisolated func goalsSetupDateLabel(_ iso: String) -> String {
+    guard let date = goalsSetupDate(iso, timeZone: TimeZone(identifier: "UTC")!) else {
+        return iso.trimmingCharacters(in: .whitespaces).isEmpty ? "No target date" : iso
+    }
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_GB")
+    f.timeZone = TimeZone(identifier: "UTC")
+    f.dateFormat = "d MMM yyyy"
+    return f.string(from: date)
+}
+
 public struct GoalsSetupView: View {
     @Environment(\.jiTheme) private var theme
     @Bindable var model: GoalsSetupViewModel
@@ -25,16 +65,25 @@ public struct GoalsSetupView: View {
 
     public init(model: GoalsSetupViewModel) { self.model = model }
 
-    private static let dateRE = try! NSRegularExpression(pattern: "^\\d{4}-\\d{2}-\\d{2}$")
-
     private var dateValid: Bool {
-        let trimmed = weightDate.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty { return true }
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        return Self.dateRE.firstMatch(in: trimmed, range: range) != nil
+        weightDate.trimmingCharacters(in: .whitespaces).isEmpty || goalsSetupDate(weightDate) != nil
     }
 
     private var canSave: Bool { dateValid && model.phase != .saving }
+
+    /// On = a date is set (a fresh switch-on starts 12 weeks out); off = no target date.
+    private var hasDateBinding: Binding<Bool> {
+        Binding(
+            get: { !weightDate.trimmingCharacters(in: .whitespaces).isEmpty },
+            set: { on in
+                weightDate = on ? goalsSetupISO(Calendar.current.date(byAdding: .weekOfYear, value: 12, to: Date()) ?? Date()) : ""
+            }
+        )
+    }
+
+    private var dateBinding: Binding<Date> {
+        Binding(get: { goalsSetupDate(weightDate) ?? Date() }, set: { weightDate = goalsSetupISO($0) })
+    }
 
     public var body: some View {
         List {
@@ -44,17 +93,21 @@ public struct GoalsSetupView: View {
                 Section {
                     Stepper("Target weight: \(weightTarget, specifier: "%.1f") kg", value: $weightTarget, in: 30...400, step: 0.5)
                         .accessibilityIdentifier("goals-setup-weight-target")
-                    TextField("YYYY-MM-DD", text: $weightDate)
-                        .accessibilityLabel("Target date (optional)")
-                        .accessibilityIdentifier("goals-setup-weight-date")
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                        .autocorrectionDisabled()
+                    Toggle(isOn: hasDateBinding) {
+                        Text("Target date")
+                    }
+                    .tint(theme.color(.info))
+                    .accessibilityIdentifier("goals-setup-weight-date-toggle")
+                    if goalsSetupDate(weightDate) != nil {
+                        DatePicker("Date", selection: dateBinding, displayedComponents: .date)
+                            .accessibilityLabel("Target date")
+                            .accessibilityValue(goalsSetupDateLabel(weightDate))
+                            .accessibilityIdentifier("goals-setup-weight-date")
+                    }
                 } header: {
                     Text("Weight")
                 } footer: {
-                    Text(dateValid ? "Target date is optional." : "Use YYYY-MM-DD, or leave blank.")
+                    Text(dateValid ? "Target date is optional." : "That date could not be read — pick it again, or switch it off.")
                         .foregroundStyle(dateValid ? theme.color(.muted) : theme.color(.danger))
                 }
 

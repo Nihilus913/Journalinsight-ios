@@ -116,7 +116,7 @@ public nonisolated enum SettingsGroupId: String, CaseIterable, Sendable, Equatab
     /// feature lands (rule 5: never a silently missing row).
     public var placeholder: String? {
         switch self {
-        case .widgets: "Widgets arrive with B-34/B-36"
+        case .widgets: settingsWidgetsHowTo
         default: nil
         }
     }
@@ -131,6 +131,9 @@ public nonisolated enum SettingsGroupId: String, CaseIterable, Sendable, Equatab
         }
     }
 }
+
+/// W-FIX3 BUG-46: widgets shipped with B-34, so the Home & widgets footer says how to add one.
+public nonisolated let settingsWidgetsHowTo = "To add a widget, touch and hold the Home Screen, tap Edit, then Add Widget and pick JournalInsight."
 
 /// The ONE fixed array. Each later lane appends exactly one line (`<Area>Section()`); nothing
 /// else in this file changes. `SettingsView` orders by `sortKey`, never by position here.
