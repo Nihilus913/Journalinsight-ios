@@ -140,6 +140,9 @@ public nonisolated struct ThemePrefs: Codable, Sendable, Equatable {
 /// future build) falls back to ITS default, never the whole blob.
 public nonisolated enum ThemePrefsStore {
     public static let prefKey = "theme.prefs.v1"
+    /// W-FIX2 BUG-15: posted after every successful `save`, so the app root (`AppThemeModel`)
+    /// re-reads the prefs the Appearance screen just wrote.
+    public static let didChange = Notification.Name("ThemePrefsStore.didChange")
 
     /// The raw shape a persisted blob may have — every field optional/untyped so a stale or
     /// partial blob still decodes and reconciles instead of throwing.
@@ -177,5 +180,6 @@ public nonisolated enum ThemePrefsStore {
         var normalized = prefs
         normalized.name = normalizedName(prefs.name)
         try store.set(prefKey, normalized)
+        NotificationCenter.default.post(name: didChange, object: nil)
     }
 }
