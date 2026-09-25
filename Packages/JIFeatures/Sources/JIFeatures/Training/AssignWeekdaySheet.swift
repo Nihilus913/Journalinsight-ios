@@ -39,6 +39,13 @@ public struct AssignWeekdaySheet: View {
         _selection = State(initialValue: session.weekday ?? Self.unassignedTag)
     }
 
+    /// W-FIX2 BUG-48: the rows the picker lists — "Not assigned", then Monday…Sunday — and nothing else.
+    static let pickerOptions: [(tag: Int, title: String)] =
+        [(unassignedTag, "Not assigned")] + planWeekdayNames.enumerated().map { ($0.offset, $0.element) }
+    /// W-FIX2 BUG-48: an inline picker in a `Form` renders its label as a first row ("Weekday");
+    /// the section header already asks the question, so the label stays for VoiceOver only.
+    static let showsPickerLabel = false
+
     private var chosenWeekday: Int? { selection == Self.unassignedTag ? nil : selection }
 
     public var body: some View {
@@ -46,12 +53,12 @@ public struct AssignWeekdaySheet: View {
             Form {
                 Section {
                     Picker("Weekday", selection: $selection) {
-                        Text("Not assigned").tag(Self.unassignedTag)
-                        ForEach(Array(planWeekdayNames.enumerated()), id: \.offset) { index, name in
-                            Text(name).tag(index)
+                        ForEach(Self.pickerOptions, id: \.tag) { option in
+                            Text(option.title).tag(option.tag)
                         }
                     }
                     .pickerStyle(.inline)
+                    .labelsHidden()
                     .accessibilityIdentifier("training-assign-weekday-picker")
                 } header: {
                     Text("Which day is \(session.name)?")
