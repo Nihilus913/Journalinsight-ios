@@ -55,6 +55,23 @@ struct SquareGridTests {
         #expect(squareBadgeSide(scaled: 18) == 24)
     }
 
+    /// W-FIX4 BUG-19 (EditToday − badge): the badge is hosted ABOVE the square's drag source and
+    /// its tap shape — never inside `.draggable` / `.contentShape(Rectangle())`, where the drag
+    /// interaction and the clipped hit area swallowed the "−" tap in the editing branch.
+    @Test func badgeSitsAboveTheDragSourceInEveryBranch() {
+        #expect(squareBadgeHost(editing: true, draggable: true) == .aboveDragSource)
+        #expect(squareBadgeHost(editing: true, draggable: false) == .aboveDragSource)
+        #expect(squareBadgeHost(editing: false, draggable: false) == .aboveDragSource)
+    }
+
+    /// The badge's whole circle is tappable: its hit target is at least 44 pt (HIG) and centred on
+    /// the drawn circle, which straddles the square's top-leading corner.
+    @Test func badgeHitTargetIsAtLeast44Points() {
+        #expect(squareBadgeHitSide(side: 24) >= 44)
+        #expect(squareBadgeHitSide(side: 32) >= 44)
+        #expect(squareBadgeHitSide(side: 50) == 50)
+    }
+
     @Test @MainActor func rendersAtAX3() {
         expectRenders("SquareGrid AX3", height: 480) {
             SquareGrid(items: [hrv, rhr], editing: true, columns: 2, onBadge: { _ in }, onMove: { _, _ in }, onAdd: {})
