@@ -114,8 +114,9 @@ import JIPersistence
 
     // One decimal only when the number actually has one (the StatChip rule, carried over).
     #expect(todayCardValueText(7.4, sourceMissing: false) == "7.4")
-    // Grouping is the current locale's job — assert the precision rule, not a literal separator.
-    #expect(todayCardValueText(8420, sourceMissing: false) == 8420.0.formatted(.number.precision(.fractionLength(0))))
+    // W-FIX4 BUG-36: never grouped — the squares read like My KPIs / KpiDetail ("8420").
+    #expect(todayCardValueText(8420, sourceMissing: false) == "8420")
+    #expect(todayCardValueText(8420, kpiId: "steps", sourceMissing: false) == "8420")
 }
 
 /// Rule 5: a source that cannot produce this metric shows the shared copy, never a zero and never

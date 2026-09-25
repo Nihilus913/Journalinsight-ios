@@ -2,6 +2,26 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// W-FIX4 PF-13: the hub's ISO verdict day as the app writes dates — "Fri 25 Sep" — or "—" when
+/// missing or unreadable (never the raw "2026-09-25").
+public nonisolated func readinessDateText(_ iso: String?, locale: Locale = .autoupdatingCurrent) -> String {
+    guard let iso, iso.count == 10 else { return "—" }
+    var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+    let parts = iso.split(separator: "-").compactMap { Int($0) }
+    guard parts.count == 3,
+          let date = utc.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+          utc.component(.day, from: date) == parts[2] else { return "—" }
+    let style = Date.FormatStyle(locale: locale, timeZone: utc.timeZone).weekday(.abbreviated).day().month(.abbreviated)
+    return date.formatted(style)
+}
+
+/// W-FIX4 PF-13: "Readiness · Fri 25 Sep", or "Readiness from Thu 24 Sep" for a stale verdict.
+public nonisolated func gateDetailDateLine(verdictDate: String?, isStale: Bool,
+                                           locale: Locale = .autoupdatingCurrent) -> String {
+    let day = readinessDateText(verdictDate, locale: locale)
+    return isStale ? "Readiness from \(day)" : "Readiness · \(day)"
+}
+
 /// Slim readiness summary + gate recommendation (oracle: `GateDetailCard.tsx`). No "gate-rationale"
 /// drill-down screen this wave (W3b scope) — the card renders the same two lines without the
 /// tap-through chevron/navigation.
@@ -24,7 +44,7 @@ public struct GateDetailCard: View {
         let v = shown
         Surface {
             VStack(alignment: .leading, spacing: 2) {
-                Text(isStale ? "Readiness from \(morning?.verdictDate ?? "—")" : "Readiness · \(morning?.verdictDate ?? "—")")
+                Text(gateDetailDateLine(verdictDate: morning?.verdictDate, isStale: isStale))
                     .font(.caption.weight(.semibold)).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("gate-detail-date")
                 Text(verdictUserWord(v))

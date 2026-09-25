@@ -59,6 +59,8 @@ public nonisolated func trainingHeroRows(exercises: [Exercise], session: Planned
 /// B-57 W1 Training header, W-FIX3 fixer BUG-44 (board 3/01): "● Full · Wed 23 Sep" with the
 /// synced pill on the same row (stacks at accessibility sizes), then the Watch state.
 struct TrainingSessionHeader: View {
+    /// W-FIX4 PF-04: `fetchedAt` no longer feeds the pill (the one rule does, `OneSyncedPill`);
+    /// kept so `TrainingView`'s call site is unchanged.
     let subtitle: TrainingSubtitle, fetchedAt: Date?, watchLine: String?
     @Environment(\.jiTheme) private var theme
     /// The verdict dot scales with the text and sits on the x-height, not the baseline.
@@ -66,8 +68,8 @@ struct TrainingSessionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) { subtitleText; Spacer(minLength: 8); SyncedPill(date: fetchedAt) }
-                VStack(alignment: .leading, spacing: 6) { subtitleText; SyncedPill(date: fetchedAt) }
+                HStack(alignment: .firstTextBaseline, spacing: 8) { subtitleText; Spacer(minLength: 8); OneSyncedPill() }
+                VStack(alignment: .leading, spacing: 6) { subtitleText; OneSyncedPill() }
             }
             if let watchLine {
                 Label(watchLine, systemImage: "applewatch").jiFont(.subheadline).foregroundStyle(theme.color(.muted))

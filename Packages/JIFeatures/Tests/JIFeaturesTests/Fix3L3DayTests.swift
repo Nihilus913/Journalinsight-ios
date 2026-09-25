@@ -77,7 +77,8 @@ struct Fix3L3DayTests {
     }
 
     @Test func plannedLunchHasNoSourceYet() {
-        #expect(dayPlannedLunchText == "Planned lunch · Not in Health yet")
+        // W-FIX4 PF-10: the true reason — the hub's meal plan does not reach the phone yet.
+        #expect(dayPlannedLunchText == "Planned lunch — meal plan not on the phone yet")
     }
 
     // MARK: Tonight

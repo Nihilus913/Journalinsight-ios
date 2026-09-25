@@ -7,6 +7,18 @@ import JIDesign
 public nonisolated let energySubtitle = "What you eat against what you burn, from Apple Health"
 public nonisolated let energyBurnCardCopy = "Resting plus active energy, both read from Apple Health. JI adds them up each day."
 
+/// W-FIX4 PF-09: Energy's "How we calculate" with the true intake lineage — eaten comes from the
+/// YAZIO API (the hub's `core.nutrition_daily`), not from dietary energy in Apple Health. The
+/// burn and deficit steps are the shared `JIExplainers` copy unchanged.
+public nonisolated let energyHowWeCalculateSteps: [HowWeCalculateStep] = {
+    var steps = JIExplainers.energyBalanceSteps
+    steps[1] = HowWeCalculateStep(title: "Eaten = your YAZIO day total",
+                                  body: "The hub reads it from YAZIO each sync. JI only reads the day total; it never logs food.")
+    steps[2] = HowWeCalculateStep(title: steps[2].title,
+                                  body: "Averaged over the last 7 complete days. Today counts once it ends. A day with no food logged in YAZIO is skipped, not counted as zero.")
+    return steps
+}()
+
 /// Energy tab (W3a-L1, frozen contract `EnergyView.init(model:)` for `RootTabView`'s L4 wiring).
 /// Composes `EnergyHero` + "This week" (`EnergyWeekChart`) + the Daily log (`DeficitDayList`)
 /// from `RecoveryView`'s own
@@ -75,7 +87,7 @@ public struct EnergyView: View {
 
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack { Spacer(); SyncedPill(date: model.fetchedAt, label: .lastSynced) }
+            HStack { Spacer(); OneSyncedPill(label: .lastSynced) }  // W-FIX4 PF-04
             if let staleDate = staleDateBanner {
                 Surface(level: 2) {
                     Text("Showing energy from \(staleDate) — no newer sync yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
@@ -119,7 +131,7 @@ struct EnergySections: View {
                     case .hero: EnergyHero(report: report, goal: goal)
                     case .whatYouBurn: EnergyBurnCard(days: report.days, today: today)
                     case .howWeCalculate:
-                        HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                        HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: energyHowWeCalculateSteps, note: JIExplainers.energyBalanceNote)
                             .accessibilityIdentifier("energy.howWeCalculate")
                     case .thisWeek: EnergyThisWeek(days: report.days, goal: goal, today: today)
                     }

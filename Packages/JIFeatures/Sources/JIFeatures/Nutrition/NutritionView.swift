@@ -26,7 +26,7 @@ public struct NutritionView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("nutrition-subtitle")
                 }
-                HStack { Spacer(); SyncedPill(date: model.fetchedAt, label: .lastSynced) }
+                HStack { Spacer(); OneSyncedPill(label: .lastSynced) }  // W-FIX4 PF-04
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
