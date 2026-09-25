@@ -213,10 +213,6 @@ struct RootTabView: View {
         // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint
         // here used to override it back to the default for every tab and sheet.
         .jiTheme(.native)
-        // B-57 W2 (B-73): every nutrition surface (Nutrition, KpiList, KpiDetail, Trends, the
-        // WeeklyPlan row) draws its goal tick / caption from the user's own goals, via this one
-        // injection. `.unknown` only until the band service exists (built on appear below).
-        .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
         .onAppear { env.makeEnergyBand() }
         .onChange(of: ProviderSwitch.shared.revision) { _, revision in
             guard revision != providerRevision else { return }
@@ -300,6 +296,12 @@ struct RootTabView: View {
                 invalidateProviderScopedModels()
             }
         }
+        // B-57 W2 (B-73): every nutrition surface (Nutrition, KpiList, KpiDetail, Trends, the
+        // WeeklyPlan row) draws its goal tick / caption from the user's own goals, via this one
+        // injection. `.unknown` only until the band service exists (built on appear above).
+        // fixer2 C3-KPI-GOALS: OUTERMOST, after every `.sheet` — a sheet reads the environment
+        // where its modifier sits, so the My KPIs / Settings sheets missed it when it came first.
+        .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
     }
 
     /// Drops every view model that captured `ProviderStore.provider` at init. Deliberately does
