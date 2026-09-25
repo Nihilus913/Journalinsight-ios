@@ -66,6 +66,16 @@ struct RootTabView: View {
     /// W-FIX4 PF-04: the instant More's Settings row names — Today's sync rule, not its fetch time.
     @MainActor static func moreSettingsDate(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
 
+    /// W-FIX4 fixer PF-04: what every tab stack injects as `jiSyncedAt` — Today's one rule.
+    @MainActor static func tabSyncedAt(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
+
+    /// W-FIX4 fixer PF-04: the shell loads Today's model at launch only when it has no live result
+    /// and is not already loading (Today's own `.task` may have started it first).
+    @MainActor static func shouldPrimeShellSync(_ today: TodayViewModel?) -> Bool {
+        guard let today else { return false }
+        return !today.hasLiveResult && today.phase != .loading
+    }
+
     /// W-FIX4 BUG-30: the forced gate is Decide — no "Today" page title and no date subtitle above
     /// its card (the card's date line is the heading), the same as Decide inside `TodayView`.
     static func gateNavigationTitle(pageName: String) -> String { todayNavigationTitle(state: .decide, pageName: pageName) }
@@ -209,6 +219,9 @@ struct RootTabView: View {
             invalidateProviderScopedModels()
         }
         .onAppear { if env.needsConnection { showConnection = true } }
+        // W-FIX4 fixer PF-04: the hub's last sync is known whichever tab opens first (a launch
+        // onto Recovery never mounts Day, which is what used to build and load Today's model).
+        .task(id: providerRevision) { await primeShellSync() }
         #if DEBUG
         .onAppear {
             if let tab = Self.launchArgumentTab() { selectedTab = tab }
@@ -342,6 +355,9 @@ struct RootTabView: View {
                     }
                 }
         }
+        // W-FIX4 fixer PF-04: the one sync instant for every screen's `OneSyncedPill` (root and
+        // pushed), so Recovery/Training/Energy/Nutrition name the hub time Day and More name.
+        .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the
@@ -399,6 +415,14 @@ struct RootTabView: View {
         } else {
             connectionPrompt
         }
+    }
+
+    /// W-FIX4 fixer PF-04: build Today's model if no tab has yet, and load it once, so the shell's
+    /// `jiSyncedAt` carries the hub's last sync on every tab.
+    private func primeShellSync() async {
+        guard let store = env.providerStore else { return }
+        makeTodayModels(store: store)
+        if let today = todayModel, Self.shouldPrimeShellSync(today) { await today.load() }
     }
 
     /// Today's model + its siblings (rationale, override). Shared by the Today tab and More (the
