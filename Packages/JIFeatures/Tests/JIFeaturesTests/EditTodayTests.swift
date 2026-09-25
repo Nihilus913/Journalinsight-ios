@@ -207,8 +207,10 @@ private let ids = gridIds + extraIds
     #expect(byId["weight"]?.value == daily.sorted { $0.date > $1.date }.compactMap { $0.values["weight_kg"] ?? nil }.first)
 }
 
-/// Board: the dashed "+ Add" square closes the grid even when nothing is hidden (then it is inert).
-@Test func addSquareShowsEvenWithNothingHidden() {
-    #expect(editTodayCanAdd(.default) == false)
-    #expect(editTodayCanAdd(setTodayTileHidden(.default, id: "kcal", hide: true)))
+/// Board: the dashed "+ Add" square closes the grid; W-FIX2 BUG-20: it opens the catalogue, which
+/// lists every square (✓ on Today, + hidden), so it is never inert.
+@Test func addSquareCatalogueMarksOnTodayAndHidden() {
+    #expect(editTodayCatalogueItems(.default).allSatisfy { $0.badge == .selected })
+    let p = setTodayTileHidden(.default, id: "kcal", hide: true)
+    #expect(editTodayCatalogueItems(p).filter { $0.badge == .add }.map(\.id) == ["kcal"])
 }
