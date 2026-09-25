@@ -63,6 +63,14 @@ struct Fix3L3RationaleTests {
         #expect(row.sentence == "Inside your 27–30 normal.")
     }
 
+    /// Sim finding: the live rationale had no "Computed" line (only the by-date branch carried one);
+    /// today's persisted verdict row has the time.
+    @Test func computedTimeComesFromTodaysVerdictRow() {
+        let zurich = TimeZone(identifier: "Europe/Zurich")!
+        #expect(gateRationaleComputedTime("2026-09-25T05:41:12.5+00:00", timeZone: zurich) == "07:41")
+        #expect(gateRationaleComputedTime(nil, timeZone: zurich) == nil)
+    }
+
     @Test func theRecoveryScoreCalibratingCardIsGone() {
         #expect(gateRationaleLiveSections == [.whatCounted, .weeklyNutrition, .lastDays])
     }

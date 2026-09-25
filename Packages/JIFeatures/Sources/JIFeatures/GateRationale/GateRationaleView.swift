@@ -61,6 +61,14 @@ public nonisolated func gateRationaleWhySentence(signals: [GateSignal]?) -> Stri
     return joined.prefix(1).uppercased() + joined.dropFirst() + "."
 }
 
+/// Board 03 "Computed 07:41": the verdict row's `computed_at` as a local HH:mm; nil when unknown.
+public nonisolated func gateRationaleComputedTime(_ raw: String?, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
+    guard let date = parseHubTimestamp(raw) else { return nil }
+    var cal = Calendar(identifier: .gregorian); cal.timeZone = timeZone
+    let c = cal.dateComponents([.hour, .minute], from: date)
+    return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+}
+
 /// One "What counted" row (board 03): value + status word + what it did to the call.
 public nonisolated struct GateCountedRow: Identifiable, Equatable, Sendable {
     public let id: String, label: String, value: Double?, unit: String, decimals: Int
@@ -174,7 +182,8 @@ public struct GateRationaleView: View {
         Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 4) {
                 // W-FIX3 BUG-29 (board 03): "Computed 07:41" first, then WHY TODAY IS + the word + a sentence.
-                if let time = model.computedAtTime() {
+                if let time = model.computedAtTime()
+                    ?? gateRationaleComputedTime(model.morning?.verdictDate.flatMap { model.recentVerdicts[$0]?.computedAt }) {
                     Text("Computed \(time)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("gateRationale.computed")
                 }
