@@ -72,6 +72,25 @@ public final class StrengthStateStore: Sendable {
 
     public func getLocal(exerciseId: Int) -> StrengthStateEntry? { readAll()[exerciseId] }
 
+    /// W-FIX1 BUG-11: mirrors the hub's `plan.strength_state` (`GET /planning/exercises`) so
+    /// read-only surfaces (GoalsSetup's "Next working weight") show the hub's weights, offline too.
+    /// Rows come in `synced`. An unsynced local edit is kept (the hub has not seen it yet), and an
+    /// exercise without a weight (bodyweight, core) is not written, never a made-up 0.
+    public func mirrorHub(_ exercises: [Exercise], now: Date = Date()) {
+        var rows = readAll()
+        for ex in exercises {
+            guard let kg = ex.currentWeightKg else { continue }
+            if let existing = rows[ex.exerciseId], !existing.synced { continue }
+            rows[ex.exerciseId] = StrengthStateEntry(
+                exerciseId: ex.exerciseId, exerciseName: ex.exerciseName,
+                currentWeightKg: kg, progressionStepKg: ex.progressionStepKg ?? 0,
+                sets: ex.sets, repsTarget: ex.repsTarget.flatMap(Int.init),
+                updatedAt: now.ISO8601Format(), synced: true
+            )
+        }
+        writeAll(rows)
+    }
+
     /// B-57 W1: every stored exercise, for GoalsSetup's read-only "Next working weight".
     public func entries() -> [StrengthStateEntry] { readAll().values.sorted { $0.exerciseName < $1.exerciseName } }
 

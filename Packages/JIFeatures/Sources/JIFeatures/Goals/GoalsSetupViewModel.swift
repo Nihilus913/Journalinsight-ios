@@ -7,9 +7,20 @@ import JIPersistence
 public nonisolated struct NextWorkingWeight: Equatable, Sendable { public let name: String; public let kg: Double? }
 
 /// B-57 W1: GoalsSetup's two strength rows, read from the local `strength_state` mirror.
+/// W-FIX1 BUG-11: the board labels ("Bench press", "Bent-over row") match the hub's plan names
+/// ("Barbell Bench Press", "Barbell Row") by their movement words, not by exact string. The plan
+/// repeats a lift per session; the most recently updated row wins (the heavier on a tie).
 public nonisolated func nextWorkingWeights(entries: [StrengthStateEntry]) -> [NextWorkingWeight] {
-    ["Bench press", "Bent-over row"].map { name in
-        NextWorkingWeight(name: name, kg: entries.first { $0.exerciseName.localizedCaseInsensitiveCompare(name) == .orderedSame }?.currentWeightKg)
+    let rows: [(name: String, matches: (String) -> Bool)] = [
+        ("Bench press", { $0.contains("bench press") && !$0.contains("incline") && !$0.contains("db ") && !$0.contains("dumbbell") }),
+        ("Bent-over row", { $0 == "bent-over row" || $0 == "barbell row" || $0 == "bent over row" || $0 == "barbell bent-over row" || $0 == "barbell bent over row" }),
+    ]
+    return rows.map { row in
+        let hits = entries.filter { row.matches($0.exerciseName.lowercased()) }
+        let pick = hits.max { a, b in
+            a.updatedAt != b.updatedAt ? a.updatedAt < b.updatedAt : a.currentWeightKg < b.currentWeightKg
+        }
+        return NextWorkingWeight(name: row.name, kg: pick?.currentWeightKg)
     }
 }
 
@@ -43,18 +54,34 @@ public final class GoalsSetupViewModel {
     }
 
     /// B-57 W1: read-only; updates itself after each logged session.
-    public var nextWorkingWeights: [NextWorkingWeight] { JIFeatures.nextWorkingWeights(entries: strengthStore.entries()) }
+    public var nextWorkingWeights: [NextWorkingWeight] {
+        _ = strengthRevision
+        return JIFeatures.nextWorkingWeights(entries: strengthStore.entries())
+    }
 
     public func load() async {
         phase = .loading
         do {
             let result = try await provider.goals()
             goals = result
+            await refreshStrengthState()
             phase = .loaded
         } catch {
             phase = .error(Self.describe(error))
         }
     }
+
+    /// W-FIX1 BUG-11: the hub is the source of `strength_state`; pull it into the local mirror so
+    /// the rows show the hub's weights (and keep them offline). A failure keeps the mirror as is.
+    private func refreshStrengthState() async {
+        guard let training = provider as? any TrainingProviding,
+              let rows = try? await training.exercises() else { return }
+        strengthStore.mirrorHub(rows, now: now())
+        strengthRevision += 1
+    }
+
+    /// Bumps when the mirror is refreshed, so `nextWorkingWeights` re-renders.
+    private var strengthRevision = 0
 
     /// Applies `patch` via `PUT /planning/goals`; on success the server's full document replaces
     /// `goals` (never the local optimistic merge — same "server is source of truth" rule as the
