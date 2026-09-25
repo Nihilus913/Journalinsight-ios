@@ -35,37 +35,7 @@ public struct TodayView: View {
     }
 
     public var body: some View {
-        ScreenScroll {
-            VStack(alignment: .leading, spacing: 16) {
-                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
-                switch model.phase {
-                case .idle, .loading: loading
-                case .error(let msg): errorCard(msg)
-                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
-                    .accessibilityLabel("No data yet — run a sync on the hub.")
-                case .loaded:
-                    // B-57 §2: Decide → Coach → Day, advanced only by what the user does and kept
-                    // per verdict date (`TodayViewModel.morningState`).
-                    switch model.morningState {
-                    case .decide:
-                        DecideView(verdict: model.verdict, readiness: model.readiness,
-                                   syncing: model.morning?.verdict == nil,
-                                   gateSignals: model.morning?.gateSignals,
-                                   verdictDate: model.verdictDate,
-                                   sessionForToday: model.morning?.sessionForToday,
-                                   override: currentOverride,
-                                   overrideModel: verdictOverrideModel,
-                                   syncedAt: model.syncedAt,
-                                   normals: decideSignalNormals(recovery: model.recovery)) { model.morningEvent(.gateResponded) }
-                    case .coach, .day:
-                        // §9: Coach is the Day view plus a bottom overlay card (below), not a step.
-                        dayContent
-                    }
-                }
-            }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
-            .readableColumn()
-        }
+        screen
         .background(theme.color(.bg))
         .refreshable { JIHaptic.fire(.selection); await model.refresh() }   // W8-L1 (P-haptics) — oracle SyncButton.tsx:136 hapticSelection() the instant the sync is kicked off (Swift sync control = pull-to-refresh)
         // §5: the hand-drawn large title becomes the system one; the date line is the subtitle.
@@ -107,6 +77,42 @@ public struct TodayView: View {
             // device's own write is only queued and the hub has not seen it yet.
             guard let verdictOverrideModel else { return }
             if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+        }
+    }
+
+    /// W-FIX4 PF-01: Decide is its own screen (its Go / Adjust bar is pinned above the floating tab
+    /// bar); Coach and Day scroll as one column.
+    @ViewBuilder
+    private var screen: some View {
+        if model.phase == .loaded, model.morningState == .decide {
+            // B-57 §2: Decide → Coach → Day, advanced only by what the user does and kept per
+            // verdict date (`TodayViewModel.morningState`).
+            DecideView(verdict: model.verdict, readiness: model.readiness,
+                       syncing: model.morning?.verdict == nil,
+                       gateSignals: model.morning?.gateSignals,
+                       verdictDate: model.verdictDate,
+                       sessionForToday: model.morning?.sessionForToday,
+                       override: currentOverride,
+                       overrideModel: verdictOverrideModel,
+                       syncedAt: model.syncedAt,
+                       normals: decideSignalNormals(recovery: model.recovery),
+                       banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)) { model.morningEvent(.gateResponded) }
+        } else {
+            ScreenScroll {
+                VStack(alignment: .leading, spacing: 16) {
+                    StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
+                    switch model.phase {
+                    case .idle, .loading: loading
+                    case .error(let msg): errorCard(msg)
+                    case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
+                        .accessibilityLabel("No data yet — run a sync on the hub.")
+                    // §9: Coach is the Day view plus a bottom overlay card (below), not a step.
+                    case .loaded: dayContent
+                    }
+                }
+                .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+                .readableColumn()
+            }
         }
     }
 
@@ -184,7 +190,8 @@ public struct TodayView: View {
 
     /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
     private var nextCard: some View {
-        let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride)
+        let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
+                               plan: model.exercises, weekday: model.todayWeekday)
         return Surface(level: 1, padding: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("NEXT").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.info))
@@ -194,6 +201,15 @@ public struct TodayView: View {
                     Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // W-FIX4 PF-02: the plan's exercises and weights, as Training lists them.
+                ForEach(card.rows) { row in
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline) { nextRowName(row); Spacer(minLength: 8); nextRowLoad(row) }
+                        VStack(alignment: .leading, spacing: 2) { nextRowName(row); nextRowLoad(row) }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("today.day.next.exercise.\(row.id)")
+                }
                 if let exercises = card.exercises {
                     Text(exercises).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
@@ -201,8 +217,18 @@ public struct TodayView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.day.next")
+    }
+
+    private func nextRowName(_ row: TrainingHeroRow) -> some View {
+        Text(row.name).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func nextRowLoad(_ row: TrainingHeroRow) -> some View {
+        Text(row.load).jiFont(.footnote).foregroundStyle(theme.color(.muted)).monospacedDigit()
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Board 02 Fuel today: today's food row (or the latest real one, named by its day), then the
@@ -310,18 +336,39 @@ public nonisolated let daySections: [DaySection] = [.title, .next, .fuel, .tonig
 public nonisolated struct DayNextCard: Equatable, Sendable {
     public let session: String
     public let prescription: String?
-    /// What the phone cannot show yet (exercises, working weights) — said, never invented.
+    /// W-FIX4 PF-02: the session's exercises and working weights from the hub's plan
+    /// (`/planning/exercises`, the rows Training lists) — empty on a rest day or with no plan rows.
+    public let rows: [TrainingHeroRow]
+    /// What the phone cannot show (no plan rows for this session) — said, never invented; nil
+    /// when `rows` carries the exercises or on a rest day.
     public let exercises: String?
 }
 
+/// W-FIX4 PF-02: today's session in the plan — by name first (the hub's `session_for_today` or the
+/// verdict's session, which may carry extras: "Day 3 Full Upper + Z2 60min"), else the session
+/// assigned to today's weekday (Mon = 0), as Training picks it.
+public nonisolated func dayPlannedSession(names: [String?], plan: [Exercise], weekday: Int?) -> PlannedSession? {
+    func norm(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
+    let wanted = names.compactMap { $0 }.map(norm).filter { !$0.isEmpty }
+    let sessions = plan.reduce(into: [Exercise]()) { acc, e in if !acc.contains(where: { $0.sessionName == e.sessionName }) { acc.append(e) } }
+    let byName = sessions
+        .filter { e in let n = norm(e.sessionName); return !n.isEmpty && wanted.contains { $0 == n || $0.contains(n) } }
+        .max { norm($0.sessionName).count < norm($1.sessionName).count }
+    let picked = byName ?? weekday.flatMap { w in plan.first { $0.weekday == w } }
+    return picked.map { PlannedSession(id: $0.sessionId ?? -1, name: $0.sessionName, weekday: $0.weekday ?? -1) }
+}
+
 /// `verdict` is the hub's verdict; the user's call (`override`) decides what shows.
-public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: String?, override: VerdictOverride?) -> DayNextCard {
+public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: String?, override: VerdictOverride?,
+                                    plan: [Exercise] = [], weekday: Int? = nil) -> DayNextCard {
     let shown = effectiveVerdictParts(parts: verdict, override: override)
-    if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, exercises: nil) }
+    if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, rows: [], exercises: nil) }
     let session = override != nil && !shown.session.isEmpty ? shown.session
         : decideSessionRowText(sessionForToday: sessionForToday, verdict: shown).detail
-    return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override),
-                       exercises: "Exercises and weights — \(JIMissingReason.noData.rawValue)")
+    let planned = dayPlannedSession(names: [sessionForToday, shown.session, verdict.session], plan: plan, weekday: weekday)
+    let rows = trainingHeroRows(exercises: plan, session: planned)
+    return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override), rows: rows,
+                       exercises: rows.isEmpty ? "Exercises and weights — \(JIMissingReason.noData.rawValue)" : nil)
 }
 
 public nonisolated struct DayFuel: Equatable, Sendable {
@@ -339,8 +386,9 @@ public nonisolated func dayFuel(daily: [DailyKpiRow], today: String) -> DayFuel 
                    asOf: hasFood ? kpiAsOfLabel(valueDate: row?.date, today: today) : nil)
 }
 
-/// Board 02: no planned-meal source reaches the phone yet (B-57 W1 spec gap) — said, not faked.
-public nonisolated let dayPlannedLunchText = "Planned lunch · \(JIMissingReason.notInHealthYet.rawValue)"
+/// Board 02: meal plans live on the hub (`/meals`), which the phone does not read yet — said with
+/// the true reason (W-FIX4 PF-10: never "Not in Health yet"; Health has no meal plans), not faked.
+public nonisolated let dayPlannedLunchText = "Planned lunch — meal plan not on the phone yet"
 
 public nonisolated struct DayTonight: Equatable, Sendable { public let goalText, lastNightText: String }
 

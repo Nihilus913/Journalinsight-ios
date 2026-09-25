@@ -94,6 +94,14 @@ public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: 
     return ("Today's session", name ?? "— \(JIMissingReason.noData.rawValue)")
 }
 
+/// W-FIX4 PF-01: in the app Go / Adjust are pinned to the bottom of Decide, above the floating tab
+/// bar (the screens live in a layer behind the chrome-only `TabView`, so the bar is not in their
+/// safe area); the sweep (`jiOffscreenRender`) keeps them inline at the end of the card.
+public nonisolated func decideActionsPinned(offscreen: Bool) -> Bool { !offscreen }
+
+/// W-FIX4 PF-01: the room the pinned Go / Adjust bar keeps under itself for the floating tab bar.
+public nonisolated func decideActionBarBottomClearance(_ width: JIWidthClass) -> CGFloat { tabBarBottomClearance(width) }
+
 /// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
 public nonisolated let decideGoForeground = Color.black
 
@@ -117,33 +125,23 @@ public struct DecideView: View {
     let syncedAt: Date?
     /// Normals per gate-signal key for the Why rows (`decideSignalNormals`); empty = calibrating.
     let normals: [String: ClosedRange<Double>]
+    /// Drawn above the card (Today's staleness banner); nil = none.
+    let banner: StalenessBanner?
     let now: Date
     let onAdvance: () -> Void
     @State private var showAdjust = false
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
-                now: Date = Date(), onAdvance: @escaping () -> Void) {
+                banner: StalenessBanner? = nil, now: Date = Date(), onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
-        self.syncedAt = syncedAt; self.normals = normals; self.now = now; self.onAdvance = onAdvance
-    }
-
-    /// Pre-W-FIX3 entry (App `RootTabView.gateScreen`, not this lane's file): it hands the FETCH
-    /// time and keeps showing it until that call site passes `syncedAt: model.syncedAt`
-    /// (W-FIX3 C-f hand-off).
-    @available(*, deprecated, message: "W-FIX3 C-f: pass syncedAt: TodayViewModel.syncedAt")
-    public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
-                verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
-                overrideModel: VerdictOverrideViewModel?, fetchedAt: Date?, now: Date = Date(),
-                onAdvance: @escaping () -> Void) {
-        self.init(verdict: verdict, readiness: readiness, syncing: syncing, gateSignals: gateSignals, verdictDate: verdictDate,
-                  sessionForToday: sessionForToday, override: override, overrideModel: overrideModel, syncedAt: fetchedAt,
-                  now: now, onAdvance: onAdvance)
+        self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -167,9 +165,57 @@ public struct DecideView: View {
         }
     }
 
+    /// Go / Adjust (side by side while both labels fit whole, else stacked full-width — no
+    /// "Ad-just" hyphenation at AX3) and the write's error line.
+    @ViewBuilder
+    private func actionRows(actions: (go: Bool, adjust: Bool), showsAdjust: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: false) }
+            VStack(spacing: 10) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: true) }
+        }
+        .controlSize(.large)
+        if !showAdjust, let message = overrideModel?.errorMessage {
+            Text(message).jiFont(.caption).foregroundStyle(theme.color(.danger))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("today.decide.error")
+        }
+    }
+
+    /// W-FIX4 PF-01: Decide is its own screen — the card scrolls, Go / Adjust stay pinned above the
+    /// floating tab bar (forced gate and first-of-day alike, both schemes, every type size).
     public var body: some View {
         let actions = decideActions(verdict: verdict, syncing: syncing)
         let showsAdjust = actions.adjust && overrideModel != nil && verdictDate != nil
+        let pinned = decideActionsPinned(offscreen: offscreen)
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 16) {
+                if let banner { banner }
+                card(actions: actions, showsAdjust: showsAdjust, inlineActions: !pinned)
+            }
+            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if pinned {
+                VStack(spacing: 8) { actionRows(actions: actions, showsAdjust: showsAdjust) }
+                    .padding(.horizontal, 20).padding(.top, 12)
+                    .readableColumn()
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 12 + decideActionBarBottomClearance(sizeClass == .regular ? .regular : .compact))
+                    .background(theme.color(.bg))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("today.decide.actions")
+            }
+        }
+        .sheet(isPresented: $showAdjust) { adjustSheet }
+        // Advance only when the write actually settled (`.logged` or `.queued`) — never on `.failed`.
+        .onChange(of: overrideModel?.settled ?? false) { _, settled in
+            if settled { showAdjust = false; advance() }
+        }
+    }
+
+    @ViewBuilder
+    private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, inlineActions: Bool) -> some View {
         Surface(level: 1, padding: 24) {
             VStack(alignment: .leading, spacing: 14) {
                 // r4 AX3: side by side while both fit whole; otherwise the pill drops under the date
@@ -237,21 +283,14 @@ public struct DecideView: View {
                     .accessibilityHint("Opens your day")
                     .accessibilityIdentifier("today.decide.session")
                 }
-                // r4 AX3: Go / Adjust side by side while both labels fit whole; otherwise stacked
-                // full-width (no "Ad-just" hyphenation).
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: false) }
-                    VStack(spacing: 10) { decideButtons(actions: actions, showsAdjust: showsAdjust, stacked: true) }
-                }
-                .controlSize(.large)
-                if !showAdjust, let message = overrideModel?.errorMessage {
-                    Text(message).jiFont(.caption).foregroundStyle(theme.color(.danger))
-                        .accessibilityIdentifier("today.decide.error")
-                }
+                if inlineActions { actionRows(actions: actions, showsAdjust: showsAdjust) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .sheet(isPresented: $showAdjust) {
+    }
+
+    @ViewBuilder
+    private var adjustSheet: some View {
             if let overrideModel, let verdictDate {
                 NavigationStack {
                     ScrollView {
@@ -273,11 +312,6 @@ public struct DecideView: View {
                 .jiTheme(theme)
                 .presentationDetents([.medium, .large])
             }
-        }
-        // Advance only when the write actually settled (`.logged` or `.queued`) — never on `.failed`.
-        .onChange(of: overrideModel?.settled ?? false) { _, settled in
-            if settled { showAdjust = false; advance() }
-        }
     }
 
     private func go() {

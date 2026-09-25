@@ -71,7 +71,18 @@ public final class TodayViewModel {
     /// `RootTabView`). `TodayGrid` degrades gracefully to an unpersisted default order when nil.
     private let prefs: PrefStore?
     private let now: () -> Date
-    private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary")
+    private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
+                               exercises: "today.exercises")
+
+    /// W-FIX4 PF-02: the hub's plan (`/planning/exercises`, the rows Training lists) — Day's NEXT card
+    /// names today's exercises and working weights from it. Empty when the provider has no plan
+    /// (not a `TrainingProviding`) or never answered; a failure keeps the last known rows.
+    public private(set) var exercises: [Exercise] = []
+
+    /// Today's weekday in the plan's numbering (Mon = 0 … Sun = 6), for the NEXT card's fallback.
+    public var todayWeekday: Int {
+        (Calendar(identifier: .gregorian).component(.weekday, from: now()) + 5) % 7
+    }
 
     /// W-FIX2 L5 (FM-08, DEV-02): `/vitals/sleep-summary` — the hub's computed score for last night
     /// (Apple era), which the Sleep ring shows. `nil` when the provider cannot serve it (not a
@@ -254,6 +265,7 @@ public final class TodayViewModel {
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
+        if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
         lastUploadAt = readLastUpload()
         if morning != nil { phase = .loaded }
         syncMorningState()
@@ -276,9 +288,11 @@ public final class TodayViewModel {
             // `phase`/`hubReachable`, and a failure keeps the last known value.
             async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
             async let hR = Self.loadHubLastSync(provider: provider)
+            async let eR = Self.loadExercises(provider: provider, cache: cache)
             let (m, g, r) = try await (mR, gR, rR)
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
+            if let ev = await eR { exercises = ev }
             lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
@@ -342,6 +356,11 @@ public final class TodayViewModel {
     nonisolated private static func loadSleepSummary(provider: any HealthDataProvider, cache: OfflineCache) async -> SleepSummary? {
         guard let sp = provider as? any SleepSummaryProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.sleepSummary, cache: cache) { try await sp.sleepSummary() })?.value
+    }
+
+    nonisolated private static func loadExercises(provider: any HealthDataProvider, cache: OfflineCache) async -> [Exercise]? {
+        guard let tp = provider as? any TrainingProviding else { return nil }
+        return (try? await SectionLoader.load(key: keys.exercises, cache: cache) { try await tp.exercises() })?.value
     }
 
     nonisolated private static func loadHubLastSync(provider: any HealthDataProvider) async -> Date? {

@@ -55,11 +55,21 @@ struct RootTabView: View {
     static func moreKpiText(count: Int) -> String { "\(count) chosen" }
 
     /// W-FIX2 BUG-47 (board 4/04): the App card is one Settings row reading "Hub synced 07:41 ›".
-    static func moreSettingsText(fetchedAt: Date?, calendar: Calendar = .current) -> String {
-        guard let fetchedAt else { return "Not synced yet" }
-        let c = calendar.dateComponents([.hour, .minute], from: fetchedAt)
+    /// W-FIX4 PF-04: the time is the one sync-pill rule (`TodayViewModel.syncedAt` — the newer of
+    /// the hub's last sync and the last HealthKit upload 2xx), never the moment Today fetched.
+    static func moreSettingsText(syncedAt: Date?, calendar: Calendar = .current) -> String {
+        guard let syncedAt else { return "Not synced yet" }
+        let c = calendar.dateComponents([.hour, .minute], from: syncedAt)
         return String(format: "Hub synced %02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
+
+    /// W-FIX4 PF-04: the instant More's Settings row names — Today's sync rule, not its fetch time.
+    @MainActor static func moreSettingsDate(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
+
+    /// W-FIX4 BUG-30: the forced gate is Decide — no "Today" page title and no date subtitle above
+    /// its card (the card's date line is the heading), the same as Decide inside `TodayView`.
+    static func gateNavigationTitle(pageName: String) -> String { todayNavigationTitle(state: .decide, pageName: pageName) }
+    static let gateShowsDateSubtitle = todayNavigationSubtitleShown(state: .decide)
 
     /// The same count `KpiListView` and Settings show (`KpiSelection.prefKey`).
     private var moreKpiCount: Int {
@@ -486,7 +496,7 @@ struct RootTabView: View {
                 Button { showSettings = true } label: {
                     MoreChevronRow {
                         MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
-                                     value: MoreRowValue(lead: Self.moreSettingsText(fetchedAt: todayModel?.fetchedAt), rest: "", style: .muted))
+                                     value: MoreRowValue(lead: Self.moreSettingsText(syncedAt: Self.moreSettingsDate(todayModel)), rest: "", style: .muted))
                     }
                 }
                     .buttonStyle(.plain)
@@ -860,31 +870,38 @@ struct RootTabView: View {
     }
 
     /// Decide as Today's first screen — the same `DecideView` `TodayView` shows in its `.decide` state.
+    /// W-FIX4 PF-01: `DecideView` is the whole screen (Go / Adjust pinned above the floating tab bar);
+    /// C-f / PF-04: its pill is `syncedAt` (the Day pill's rule); BUG-30: no page title.
     @ViewBuilder
     private func gateScreen(_ model: TodayViewModel) -> some View {
         let override = overrideForVerdictDate(verdictOverrideModel?.current ?? model.morning?.verdictOverride, verdictDate: model.verdictDate)
-        ScreenScroll {
-            VStack(alignment: .leading, spacing: 16) {
-                StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
-                if model.phase == .loaded {
-                    DecideView(verdict: model.verdict, readiness: model.readiness,
-                               syncing: model.morning?.verdict == nil,
-                               gateSignals: model.morning?.gateSignals,
-                               verdictDate: model.verdictDate,
-                               sessionForToday: model.morning?.sessionForToday,
-                               override: override,
-                               overrideModel: verdictOverrideModel,
-                               fetchedAt: model.fetchedAt) { answerGate(model) }
-                } else {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+        Group {
+            if model.phase == .loaded {
+                DecideView(verdict: model.verdict, readiness: model.readiness,
+                           syncing: model.morning?.verdict == nil,
+                           gateSignals: model.morning?.gateSignals,
+                           verdictDate: model.verdictDate,
+                           sessionForToday: model.morning?.sessionForToday,
+                           override: override,
+                           overrideModel: verdictOverrideModel,
+                           syncedAt: model.syncedAt,
+                           normals: decideSignalNormals(recovery: model.recovery),
+                           banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)) { answerGate(model) }
+            } else {
+                ScreenScroll {
+                    VStack(alignment: .leading, spacing: 16) {
+                        StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                    }
+                    .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+                    .readableColumn()
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
-            .readableColumn()
         }
         .background(theme.color(.bg))
-        .navigationTitle(loadTodayPageName(prefs: model.tileOrderStore))
-        .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        .navigationTitle(Self.gateNavigationTitle(pageName: loadTodayPageName(prefs: model.tileOrderStore)))
+        .navigationSubtitle(Self.gateShowsDateSubtitle ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
+        .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
         .accessibilityIdentifier("today.gate")
         .task { if !model.hasLiveResult { await model.load() } }
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
