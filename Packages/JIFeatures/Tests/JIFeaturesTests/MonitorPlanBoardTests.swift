@@ -12,7 +12,7 @@ import JIPersistence
     @Test func goalTextIsTheUsersGoalOrNoGoalSet() {
         #expect(kpiMacroHeroGoalText(goal: 155, unit: "g", decimals: 0) == "/ 155 g goal")
         #expect(kpiMacroHeroGoalText(goal: 1617, unit: "kcal", decimals: 0) == "/ 1617 kcal goal")
-        #expect(kpiMacroHeroGoalText(goal: nil, unit: "g", decimals: 0) == "no goal set")
+        #expect(kpiMacroHeroGoalText(goal: nil, unit: "g", decimals: 0) == "Set your goal")   // B-73
     }
 
     @Test func goalComesFromTheGoalsDocument() {
@@ -126,14 +126,14 @@ import JIPersistence
     /// W-FIX3 BUG-39: the log speaks the explainer's plan-band words (see Fix3L1Tests).
     @Test func dayStatusAgainstThePlanBand() {
         #expect(energyDayStatus(intake: 1619, goal: 1617) == .onPlan)
-        #expect(energyDayStatus(intake: 1549, goal: 1617) == .onPlan)   // within 5 %
+        #expect(energyDayStatus(intake: 1549, goal: 1617) == .onPlan)   // within the target ± 100 (B-73)
         #expect(energyDayStatus(intake: 1900, goal: 1617, deficit: 300) == .lightDeficit)
         #expect(energyDayStatus(intake: 1200, goal: 1617) == .deepDeficit)
         #expect(energyDayStatus(intake: nil, goal: 1617) == .missing(.noData))
         #expect(energyDayStatus(intake: 1600, goal: nil) == .noGoal)
         #expect(EnergyDayStatus.onPlan.word == "On plan")
         #expect(EnergyDayStatus.missing(.noData).word == "— No data")
-        #expect(EnergyDayStatus.noGoal.word == "No goal set")
+        #expect(EnergyDayStatus.noGoal.word == "Set your goal")   // B-73: unset goal copy
         #expect(EnergyDayStatus.onPlan.role == .go)
     }
 }

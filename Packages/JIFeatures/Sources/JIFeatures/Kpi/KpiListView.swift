@@ -10,6 +10,8 @@ public struct KpiListView: View {
     @Bindable private var model: KpiListViewModel
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
+    /// B-57 W2 (B-73): the user's goals for the nutrition squares' captions.
+    @Environment(\.nutritionGoals) private var nutritionGoals
 
     /// W-FIX2 BUG-21: a square opens its KPI detail (board 2/02). nil = display-only squares.
     private let onSelectKpi: ((String) -> Void)?
@@ -72,7 +74,8 @@ public struct KpiListView: View {
             Text("Every metric is a square. Ticked ones sit on Today; any of them can go on a widget.")
                 .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
             ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
-                let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) })
+                let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
+                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { nutritionGoals.caption(for: $0, value: $1) })
                 if !items.isEmpty {
                     HStack(alignment: .firstTextBaseline) {
                         Text(group.rawValue).jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)

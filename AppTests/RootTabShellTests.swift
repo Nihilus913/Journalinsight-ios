@@ -82,3 +82,24 @@ import UIKit
     #expect(hit == nil || hit === window || hit === host.view)
     window.isHidden = true
 }
+
+// MARK: - W-B57-W2 fixer2 C3-KPI-GOALS: the user's goals reach the modal sheets too
+
+/// A `.sheet` sees the environment where the sheet modifier sits, not modifiers applied inside it.
+/// The nutritionGoals injection sat BEFORE the My KPIs / Settings sheets, so their KpiList tiles
+/// and KPI detail read `.unknown` and said "Set your goal" with goals saved. It must be the
+/// outermost environment write of the shell — after every `.sheet(` in `body`.
+@Test func fixer2NutritionGoalsInjectionWrapsEverySheet() throws {
+    let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+    let bodyStart = try #require(source.range(of: "var body: some View {"))
+    let body = source[bodyStart.upperBound...]
+    let injection = try #require(body.range(of: ".environment(\\.nutritionGoals"))
+    var lastSheet = body.startIndex
+    var cursor = body.startIndex
+    // `body` ends at the first helper declared after it.
+    let bodyEnd = body.range(of: "\n    /// ")?.lowerBound ?? body.endIndex
+    while let r = body.range(of: ".sheet(", range: cursor..<bodyEnd) { lastSheet = r.lowerBound; cursor = r.upperBound }
+    #expect(lastSheet > body.startIndex, "body presents sheets")
+    #expect(injection.lowerBound > lastSheet, "nutritionGoals must be injected after the last .sheet")
+}

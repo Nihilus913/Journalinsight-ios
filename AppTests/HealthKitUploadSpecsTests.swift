@@ -34,6 +34,20 @@ struct HealthKitUploadSpecsTests {
         #expect(byType[HKCategoryTypeIdentifier.sleepAnalysis.rawValue] == "sleep_analysis")
     }
 
+    /// B-57 W2 (A3): basal energy is now an `HKReadKind`, so it uploads off the read vocabulary
+    /// (same type, same metric name, same version-1 anchor — no re-send, no double upload), and
+    /// the food totals JI now reads are never uploaded (the hub gets food from YAZIO; JI reads
+    /// dietary kinds for on-phone energy balance only).
+    @Test func basalRidesTheReadVocabularyAndFoodIsNeverUploaded() {
+        let basal = AppEnvironment.healthKitUploadSpecs.filter { $0.sampleType.identifier == HKQuantityTypeIdentifier.basalEnergyBurned.rawValue }
+        #expect(basal.count == 1)
+        #expect(basal.first?.metricName == "basal_energy_burned")
+        #expect(basal.first?.anchorKey == "hk.upload.anchor.\(HKQuantityTypeIdentifier.basalEnergyBurned.rawValue)")
+        for id: HKQuantityTypeIdentifier in [.dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal] {
+            #expect(byType[id.rawValue] == nil, "\(id.rawValue)")
+        }
+    }
+
     @Test func noTypeIsUploadedTwiceUnderOneAnchor() {
         let keys = AppEnvironment.healthKitUploadSpecs.map(\.anchorKey)
         #expect(Set(keys).count == keys.count)

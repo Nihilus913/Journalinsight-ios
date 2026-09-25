@@ -66,7 +66,7 @@ public final class HealthPermissionViewModel {
         case .denied:
             "Health read access was declined; open Health › Sharing › Apps."
         case .notDetermined:
-            "Connect Apple Health to read Watch sleep, heart rate, HRV and steps."
+            "Connect Apple Health to read Watch sleep, heart rate, HRV, steps, resting and active energy, and the food totals your food app writes there."
         }
     }
 }

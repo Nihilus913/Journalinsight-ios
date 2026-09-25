@@ -47,6 +47,13 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
     ]
 }
 
+/// B-73: a nutrition card's goal tick = the user's own goal for that macro; nil (no tick) when
+/// unset or for a non-nutrition card.
+public nonisolated func trendsGoal(_ card: TrendsCardModel, _ goals: NutritionGoalsSnapshot) -> Double? {
+    guard card.group == .nutrition, let id = KpiMetricId(rawValue: card.id) else { return nil }
+    return goals.goal(for: id)
+}
+
 public nonisolated func trendsCards(_ cards: [TrendsCardModel], filter: TrendsFilter) -> [TrendsCardModel] {
     filter == .all ? cards : cards.filter { $0.group == filter }
 }
@@ -72,6 +79,8 @@ public struct TrendsView: View {
     @State private var editing = false
     @AppStorage("trends.hidden") private var hiddenRaw = ""
     @Environment(\.jiTheme) private var theme
+    /// B-57 W2 (B-73): the user's goals — the nutrition cards' goal tick (unset → no tick).
+    @Environment(\.nutritionGoals) private var nutritionGoals
 
     public init(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?, onSelectKpi: ((String) -> Void)? = nil) {
         self.recovery = recovery; self.daily = daily; self.averages = averages; self.onSelectKpi = onSelectKpi
@@ -128,7 +137,7 @@ public struct TrendsView: View {
                     }
                     Label(c.status.word, systemImage: c.status.symbolName).jiFont(.caption, weight: .semibold)
                         .foregroundStyle(theme.color(c.status.role))
-                    NormalBar(value: c.value, normal: nil, unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
+                    NormalBar(value: c.value, normal: nil, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

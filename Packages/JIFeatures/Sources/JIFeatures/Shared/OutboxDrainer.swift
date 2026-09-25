@@ -14,6 +14,8 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case verdictOverride(VerdictOverride)
     /// W-B57b: a queued override undo the hub has now applied.
     case verdictOverrideCleared
+    /// B-57 W2 (B-73): the hub stored the mirrored macro goals. TEMP bridge until B-50.
+    case goals(Goals)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -34,6 +36,7 @@ public final class OutboxDrainer {
     private let gateRespond: (any GateRespondProviding)?
     private let planWeekday: (any PlanSessionWeekdayProviding)?
     private let verdictOverride: (any VerdictOverrideProviding)?
+    private let goals: (any GoalsProviding)?   // TEMP bridge until B-50: hub weekly gate
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -52,13 +55,15 @@ public final class OutboxDrainer {
         weighIn: (any WeighInProviding)?,
         gateRespond: (any GateRespondProviding)?,
         planWeekday: (any PlanSessionWeekdayProviding)? = nil,
-        verdictOverride: (any VerdictOverrideProviding)? = nil
+        verdictOverride: (any VerdictOverrideProviding)? = nil,
+        goals: (any GoalsProviding)? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
         self.gateRespond = gateRespond
         self.planWeekday = planWeekday
         self.verdictOverride = verdictOverride
+        self.goals = goals
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -69,7 +74,8 @@ public final class OutboxDrainer {
             weighIn: provider,
             gateRespond: provider as? any GateRespondProviding,
             planWeekday: provider as? any PlanSessionWeekdayProviding,
-            verdictOverride: provider as? any VerdictOverrideProviding
+            verdictOverride: provider as? any VerdictOverrideProviding,
+            goals: provider as? any GoalsProviding
         )
     }
 
@@ -80,7 +86,8 @@ public final class OutboxDrainer {
             weighIn: hub as? any WeighInProviding,
             gateRespond: hub as? any GateRespondProviding,
             planWeekday: hub as? any PlanSessionWeekdayProviding,
-            verdictOverride: hub as? any VerdictOverrideProviding
+            verdictOverride: hub as? any VerdictOverrideProviding,
+            goals: hub as? any GoalsProviding
         )
     }
 
@@ -95,8 +102,13 @@ public final class OutboxDrainer {
     /// W-B57b: the morning-verdict override and its undo (`VerdictOverrideViewModel`).
     public nonisolated static let verdictOverrideKind = VerdictOverrideViewModel.verdictOverrideKind
     public nonisolated static let verdictOverrideClearKind = VerdictOverrideViewModel.verdictOverrideClearKind
+    // TEMP bridge until B-50: hub weekly gate
+    /// B-57 W2 (B-73): `PUT /planning/goals` copy of the user's nutrition goals, queued only by
+    /// `GoalsMirror` on a GoalsSetup save. Deleted with B-50.
+    public nonisolated static let goalsKind = "goals_put"
     public nonisolated static let knownKinds: Set<String> = [
         weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
+        goalsKind,
     ]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
@@ -106,6 +118,7 @@ public final class OutboxDrainer {
         if gateRespond != nil { kinds.insert(Self.gateRespondKind); kinds.insert(Self.sessionFeelKind) }
         if planWeekday != nil { kinds.insert(Self.planWeekdayKind) }
         if verdictOverride != nil { kinds.insert(Self.verdictOverrideKind); kinds.insert(Self.verdictOverrideClearKind) }
+        if goals != nil { kinds.insert(Self.goalsKind) }
         return kinds
     }
 
@@ -179,6 +192,11 @@ public final class OutboxDrainer {
                     do { try await verdictOverride.clearVerdictOverride(date: body.date) } catch HubError.http(status: 404, detail: _) {}
                     return .verdictOverrideCleared
                 }
+            case Self.goalsKind:   // TEMP bridge until B-50: hub weekly gate
+                guard let goals, let body = try? JSONDecoder().decode(GoalsUpdate.self, from: row.payload) else { continue }
+                await attempt(row: row, describe: Self.describeGoals, into: &results) {
+                    .goals(try await goals.updateGoals(body))
+                }
             default:
                 continue
             }
@@ -240,6 +258,17 @@ public extension OutboxDrainer {
             error is PlanSessionUpdateUnavailable
                 ? "This hub has no plan-session route yet — the weekday stays queued."
                 : "Couldn't reach the hub — the weekday stays queued."
+        }
+    }
+
+    /// B-73: the hub's own `detail` where it gave one, else a line that says the goals are safe
+    /// on the phone and still queued. TEMP bridge until B-50.
+    nonisolated static func describeGoals(_ error: Error) -> String {
+        switch error as? HubError {
+        case .http(_, let detail) where detail?.isEmpty == false: detail!
+        case .network(let message): message
+        case .unauthorized: "Hub rejected the token — check Settings › Connection."
+        default: "Couldn't reach the hub — your goals are saved on this phone and stay queued."
         }
     }
 

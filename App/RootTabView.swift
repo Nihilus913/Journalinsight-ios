@@ -213,6 +213,7 @@ struct RootTabView: View {
         // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint
         // here used to override it back to the default for every tab and sheet.
         .jiTheme(.native)
+        .onAppear { env.makeEnergyBand() }
         .onChange(of: ProviderSwitch.shared.revision) { _, revision in
             guard revision != providerRevision else { return }
             providerRevision = revision
@@ -295,6 +296,12 @@ struct RootTabView: View {
                 invalidateProviderScopedModels()
             }
         }
+        // B-57 W2 (B-73): every nutrition surface (Nutrition, KpiList, KpiDetail, Trends, the
+        // WeeklyPlan row) draws its goal tick / caption from the user's own goals, via this one
+        // injection. `.unknown` only until the band service exists (built on appear above).
+        // fixer2 C3-KPI-GOALS: OUTERMOST, after every `.sheet` — a sheet reads the environment
+        // where its modifier sits, so the My KPIs / Settings sheets missed it when it came first.
+        .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
     }
 
     /// Drops every view model that captured `ProviderStore.provider` at init. Deliberately does
@@ -539,7 +546,13 @@ struct RootTabView: View {
     private var moreNutritionRow: MoreRowValue {
         let today = String(Date().ISO8601Format().prefix(10))
         let day = nutritionModel?.day.flatMap { $0.date == today ? $0 : nil }
-        return moreNutritionValue(consumedKcal: day?.total.kcal, goalKcal: day?.total.kcalGoal ?? energyModel?.goalKcal)
+        return Self.moreNutritionRowValue(consumedKcal: day?.total.kcal, userGoals: env.energyBand?.goals)
+    }
+
+    /// B-73 (W-B57-W2 fixer MORE-NUTRITION-GOAL): "consumed / goal" against the user's own kcal
+    /// target (`goals.macros`) only — never YAZIO's day goal nor the hub document. Unset = consumed alone.
+    static func moreNutritionRowValue(consumedKcal: Double?, userGoals: MacroGoals?) -> MoreRowValue {
+        moreNutritionValue(consumedKcal: consumedKcal, goalKcal: userGoals?.targetKcal)
     }
 
     private var moreEnergyRow: MoreRowValue {
@@ -579,13 +592,13 @@ struct RootTabView: View {
         if let store = env.providerStore {
             makeTodayModels(store: store)
             if energyModel == nil, let p = store.provider as? any EnergyProviding {
-                energyModel = EnergyViewModel(provider: p, cache: env.cache, now: Date.init)
+                energyModel = EnergyViewModel(provider: p, cache: env.cache, now: Date.init, band: env.makeEnergyBand())
             }
             if nutritionModel == nil, let p = store.provider as? any NutritionProviding {
                 nutritionModel = NutritionViewModel(provider: p, cache: env.cache, now: Date.init)
             }
             if goalsSetupModel == nil, let p = store.provider as? any GoalsSetupProviding {
-                goalsSetupModel = GoalsSetupViewModel(provider: p)
+                goalsSetupModel = makeGoalsSetup(p)
             }
         }
         if moreMindModel == nil, !moreMindUnavailable { await makeMoreMindModel() }
@@ -692,7 +705,7 @@ struct RootTabView: View {
                     EnergyView(model: energyModel)
                 } else {
                     ProgressView()
-                        .task { energyModel = EnergyViewModel(provider: provider, cache: env.cache, now: Date.init) }
+                        .task { energyModel = EnergyViewModel(provider: provider, cache: env.cache, now: Date.init, band: env.makeEnergyBand()) }
                 }
             } else {
                 screenUnavailable(title: "Energy unavailable", systemImage: "flame")
@@ -767,7 +780,8 @@ struct RootTabView: View {
            let nutrition = store.provider as? any NutritionProviding,
            let targets = store.provider as? any KpiTargetsProviding {
             KpiDetailView(model: KpiDetailViewModel(
-                metric: metricId, healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, cache: env.cache
+                metric: metricId, healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, cache: env.cache,
+                makeGoalsSetup: { makeGoalsSetup($0) }
             ))
         } else {
             screenUnavailable(title: "KPI unavailable", systemImage: "chart.line.uptrend.xyaxis")
@@ -785,6 +799,27 @@ struct RootTabView: View {
         } else {
             screenUnavailable(title: "My KPIs unavailable", systemImage: "list.bullet.rectangle")
         }
+    }
+
+    // MARK: - B-57 W2 (B-73): GoalsSetup with the phone's goals store + the save-only hub mirror
+
+    /// Every GoalsSetup the shell builds (More, Settings, KpiDetail "Edit macro goals"): the
+    /// user's nutrition goals save to `goals.macros` on this phone, and ONLY that save pushes the
+    /// temporary one-way copy to the hub. The band service is never connected to the mirror, so a
+    /// foreground recompute never PUTs (Review Focus 4).
+    private func makeGoalsSetup(_ provider: any GoalsSetupProviding) -> GoalsSetupViewModel {
+        GoalsSetupViewModel(
+            provider: provider, macroStore: env.macroGoals,
+            mirror: makeGoalsMirror(),   // TEMP bridge until B-50: hub weekly gate
+            burnSource: { let band = env.makeEnergyBand(); band.recompute(); return band.burnWindow },
+            onNutritionSaved: { Task { await env.refreshEnergyBand() } }
+        )
+    }
+
+    // TEMP bridge until B-50: hub weekly gate
+    private func makeGoalsMirror() -> GoalsMirror? {
+        guard let hub = env.providerStore?.provider, let outbox = try? Outbox(db: .onDisk()) else { return nil }
+        return GoalsMirror(outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: hub))
     }
 
     private func screenUnavailable(title: String, systemImage: String) -> some View {
@@ -807,7 +842,7 @@ struct RootTabView: View {
     // on-disk DB + vault the Journal tab lazily builds (reused if it already did).
     private func makeSettingsModel() async -> SettingsViewModel {
         let provider = env.providerStore?.provider
-        let goals = (provider as? any GoalsSetupProviding).map { GoalsSetupViewModel(provider: $0) }
+        let goals = (provider as? any GoalsSetupProviding).map { makeGoalsSetup($0) }
         var kpis: KpiListViewModel?
         if let provider, let nutrition = provider as? any NutritionProviding, let targets = provider as? any KpiTargetsProviding {
             kpis = KpiListViewModel(healthProvider: provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache)
@@ -834,7 +869,8 @@ struct RootTabView: View {
                 guard let provider, let nutrition = provider as? any NutritionProviding,
                       let targets = provider as? any KpiTargetsProviding else { return nil }
                 return KpiDetailViewModel(metric: metric, healthProvider: provider, nutritionProvider: nutrition,
-                                          targetsProvider: targets, cache: env.cache)
+                                          targetsProvider: targets, cache: env.cache,
+                                          makeGoalsSetup: { makeGoalsSetup($0) })
             },
             goalsProvider: provider as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },

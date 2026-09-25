@@ -58,10 +58,12 @@ public struct GoalsSetupView: View {
     @State private var benchTarget: Double = 100
     @State private var rowTarget: Double = 100
     @State private var stepsDaily: Int = 15000
-    @State private var kcalGoal: Double = 1800
-    @State private var proteinG: Double = 172
-    @State private var carbsG: Double = 160
-    @State private var fatG: Double = 52
+    // B-73: the nutrition goals are the user's own (PrefStore `goals.macros`), never seeded from
+    // the hub document or a default. Every field starts empty ("Set your goal").
+    @State private var nutritionDraft = NutritionDraft(.unset)
+    @State private var nutritionSeeded = false
+    @State private var pendingNutrition: MacroGoals?
+    @State private var askDeficit = false
 
     public init(model: GoalsSetupViewModel) { self.model = model }
 
@@ -69,7 +71,7 @@ public struct GoalsSetupView: View {
         weightDate.trimmingCharacters(in: .whitespaces).isEmpty || goalsSetupDate(weightDate) != nil
     }
 
-    private var canSave: Bool { dateValid && model.phase != .saving }
+    private var canSave: Bool { dateValid && model.phase != .saving && nutritionDraft.canSave }
 
     /// On = a date is set (a fresh switch-on starts 12 weeks out); off = no target date.
     private var hasDateBinding: Binding<Bool> {
@@ -87,8 +89,13 @@ public struct GoalsSetupView: View {
 
     public var body: some View {
         List {
-            if !hydrated {
+            if !hydrated && model.macroGoals == nil {
                 Section { Text("Loading…").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+            } else if !hydrated {
+                // B-73: the hub is down or still loading — the phone-owned nutrition goals stay
+                // editable; the hub-backed sections wait for the hub document.
+                nutritionSection
+                saveSection
             } else {
                 Section {
                     Stepper("Target weight: \(weightTarget, specifier: "%.1f") kg", value: $weightTarget, in: 30...400, step: 0.5)
@@ -111,20 +118,7 @@ public struct GoalsSetupView: View {
                         .foregroundStyle(dateValid ? theme.color(.muted) : theme.color(.danger))
                 }
 
-                Section {
-                    Stepper("Calories: \(Int(kcalGoal)) kcal", value: $kcalGoal, in: 1000...6000, step: 50)
-                        .accessibilityIdentifier("goals-setup-kcal")
-                    Stepper("Protein: \(Int(proteinG)) g", value: $proteinG, in: 0...400, step: 5)
-                        .accessibilityIdentifier("goals-setup-protein")
-                    Stepper("Carbs: \(Int(carbsG)) g", value: $carbsG, in: 0...600, step: 5)
-                        .accessibilityIdentifier("goals-setup-carbs")
-                    Stepper("Fat: \(Int(fatG)) g", value: $fatG, in: 0...300, step: 5)
-                        .accessibilityIdentifier("goals-setup-fat")
-                } header: {
-                    Text("Nutrition")
-                } footer: {
-                    Text("Carbs sit in the meal after training, never before it.")
-                }
+                nutritionSection
 
                 // B-57 W1: read-only, from the local strength_state mirror. `benchTarget`/`rowTarget`
                 // stay seeded and are sent unchanged by `save()`, so the hub document is not altered.
@@ -150,23 +144,10 @@ public struct GoalsSetupView: View {
                         .accessibilityIdentifier("goals-setup-steps-daily")
                 }
 
-                Section {
-                    Button(action: save) {
-                        Text(model.phase == .saving ? "Saving…" : "Save goals").frame(maxWidth: .infinity)
-                    }
-                    .disabled(!canSave)
-                    .accessibilityLabel("Save goals")
-                    .accessibilityIdentifier("goals-setup-save")
-                } footer: {
-                    if case .error = model.phase {
-                        Text("Couldn't save — try again.").foregroundStyle(theme.color(.danger))
-                    } else if let savedAt = model.savedAt, model.phase == .loaded {
-                        Text("Saved \(savedAt.formatted(date: .omitted, time: .shortened)).")
-                    }
-                }
+                saveSection
 
                 if let mirror = model.goals {
-                    GoalTargetsMirrorSection(goals: mirror)
+                    GoalTargetsMirrorSection(goals: mirror, macros: model.macroGoals)
                 }
             }
         }
@@ -174,6 +155,25 @@ public struct GoalsSetupView: View {
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Goals setup")
+        .confirmationDialog("Does your goal already include a deficit?", isPresented: $askDeficit, titleVisibility: .visible) {
+            Button("Yes, it already includes my deficit") {
+                guard var g = pendingNutrition, let goalKcal = g.kcal?.goalKcal else { return }
+                g.kcal = KcalGoal(goalKcal: goalKcal, basis: .includesDeficit)
+                nutritionDraft = NutritionDraft(g)
+                pendingNutrition = nil
+                Task { await model.saveNutrition(g, confirmed: true) }
+            }
+            .accessibilityIdentifier("goals-setup-deficit-check-yes")
+            Button("No, subtract it") {
+                guard let g = pendingNutrition else { return }
+                pendingNutrition = nil
+                Task { await model.saveNutrition(g, confirmed: true) }
+            }
+            .accessibilityIdentifier("goals-setup-deficit-check-no")
+            Button("Cancel", role: .cancel) { pendingNutrition = nil }
+        } message: {
+            Text("Your goal minus this deficit sits far below what Apple Health says you burn.")
+        }
         .task {
             await model.load()
             seedIfNeeded()
@@ -181,7 +181,44 @@ public struct GoalsSetupView: View {
         .onChange(of: model.goals) { _, _ in seedIfNeeded() }
     }
 
+    private var nutritionSection: some View {
+        NutritionGoalsSection(
+            draft: $nutritionDraft,
+            bandPreview: nutritionDraft.goals.flatMap { model.bandPreview(for: $0) },
+            impliedDeficit: nutritionDraft.goals.flatMap { model.impliedDeficitText(for: $0) },
+            bandSettled: model.bandSettled
+        )
+    }
+
+    private var saveSection: some View {
+        Section {
+            Button(action: save) {
+                Text(model.phase == .saving ? "Saving…" : "Save goals").frame(maxWidth: .infinity)
+            }
+            .disabled(!canSave)
+            .accessibilityLabel("Save goals")
+            .accessibilityIdentifier("goals-setup-save")
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                if case .error = model.phase {
+                    Text(hydrated ? "Couldn't save — try again." : "Hub offline — nutrition goals still save on this phone.")
+                        .foregroundStyle(theme.color(hydrated ? .danger : .muted))
+                }
+                if model.hubPending {
+                    // B-73 Review Focus 3: the local save landed; the TEMP hub mirror is still queued.
+                    Text("Saved on this phone · hub sync pending").accessibilityIdentifier("goals-setup-hub-pending")
+                } else if let savedAt = model.savedAt, model.phase == .loaded {
+                    Text("Saved \(savedAt.formatted(date: .omitted, time: .shortened)).")
+                }
+            }
+        }
+    }
+
     private func seedIfNeeded() {
+        if !nutritionSeeded, let m = model.macroGoals {
+            nutritionSeeded = true
+            nutritionDraft = NutritionDraft(m)
+        }
         guard !hydrated, let goals = model.goals else { return }
         hydrated = true
         weightTarget = goals.weight.targetKg
@@ -189,10 +226,6 @@ public struct GoalsSetupView: View {
         benchTarget = goals.strength.first { $0.exercise == "bench" }?.targetKg ?? 100
         rowTarget = goals.strength.first { $0.exercise == "row" }?.targetKg ?? 100
         stepsDaily = goals.stepsDaily ?? 15000
-        kcalGoal = goals.nutrition.kcalGoal ?? 1800
-        proteinG = goals.nutrition.proteinG ?? 172
-        carbsG = goals.nutrition.carbsG ?? 160
-        fatG = goals.nutrition.fatG ?? 52
     }
 
     private func save() {
@@ -204,9 +237,18 @@ public struct GoalsSetupView: View {
                 .init(exercise: "bench", targetKg: benchTarget),
                 .init(exercise: "row", targetKg: rowTarget),
             ],
-            stepsDaily: stepsDaily,
-            nutrition: .init(kcalGoal: kcalGoal, proteinG: proteinG, carbsG: carbsG, fatG: fatG)
+            stepsDaily: stepsDaily
         )
-        Task { await model.save(patch) }
+        let sendHub = hydrated   // never PUT the placeholder weight/steps before the hub document arrived
+        let nutrition = nutritionDraft.goals
+        let unchanged = nutrition == (model.macroGoals ?? .unset)
+        Task {
+            if sendHub { await model.save(patch) }
+            guard let nutrition, !unchanged else { return }
+            if await model.saveNutrition(nutrition) == .needsDeficitCheck {
+                pendingNutrition = nutrition
+                askDeficit = true
+            }
+        }
     }
 }

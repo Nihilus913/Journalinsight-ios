@@ -50,6 +50,8 @@
 		A6D191FD3F18478B1B9601DC /* JIHealthKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9B30070C96629314F0623B13 /* JIHealthKit */; };
 		AAE4BC7486F3D87C27FE39E7 /* VerdictGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
+		B687D8C1EF3A14562FF45FD8 /* AppEnvironmentMacrosSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73B12E7B00A305B76EFBC63 /* AppEnvironmentMacrosSnapshotTests.swift */; };
+		B98F442F287FB7F49DA5C5C9 /* MacrosLeftFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF3EF7B6E5A59DEE0678B936 /* MacrosLeftFace.swift */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
 		C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */ = {isa = PBXBuildFile; productRef = 492768B6A5B02BFF4735FCE3 /* JIWorkouts */; };
 		C1629D337970A6C10E143697 /* SelectKpiIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */; };
@@ -183,9 +185,11 @@
 		D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectKpiIntent.swift; sourceTree = "<group>"; };
 		D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloorTests.swift; sourceTree = "<group>"; };
 		D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiWidget.swift; sourceTree = "<group>"; };
+		D73B12E7B00A305B76EFBC63 /* AppEnvironmentMacrosSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentMacrosSnapshotTests.swift; sourceTree = "<group>"; };
 		D806655451924807AB66B373 /* KpiTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KpiTimelineProvider.swift; sourceTree = "<group>"; };
 		D84B36CD13034CA6AB211274 /* JournalTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTabTests.swift; sourceTree = "<group>"; };
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
+		DF3EF7B6E5A59DEE0678B936 /* MacrosLeftFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacrosLeftFace.swift; sourceTree = "<group>"; };
 		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		ECB808090BFEC147D0BC4C92 /* JICompute */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICompute; path = Packages/JICompute; sourceTree = SOURCE_ROOT; };
@@ -242,6 +246,7 @@
 				D5AC6C0A6F91091C611D5189 /* KpiWidget.swift */,
 				2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */,
 				9592E400266E0385BE90930E /* LiveActivityController.swift */,
+				DF3EF7B6E5A59DEE0678B936 /* MacrosLeftFace.swift */,
 				D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */,
 				55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */,
 				4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */,
@@ -297,6 +302,7 @@
 			children = (
 				8642FE8630849030DFBA12CB /* ApnsPayloadRouterTests.swift */,
 				0FB5DA3ABCBBF1ADE780C358 /* ApnsRegistrationTests.swift */,
+				D73B12E7B00A305B76EFBC63 /* AppEnvironmentMacrosSnapshotTests.swift */,
 				B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */,
 				EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */,
 				BC52750E5363E52D43578DD1 /* DebugRmssdSeederTests.swift */,
@@ -640,6 +646,7 @@
 				FCECBF89D30402A28DE67681 /* KpiWidget.swift in Sources */,
 				8F77B9CD39A926D5F0BA1BC6 /* LiveActivityCapPolicy.swift in Sources */,
 				D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */,
+				B98F442F287FB7F49DA5C5C9 /* MacrosLeftFace.swift in Sources */,
 				C1629D337970A6C10E143697 /* SelectKpiIntent.swift in Sources */,
 				7D0CB0315C8C8DB26373DDC3 /* VerdictLiveActivity.swift in Sources */,
 				F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */,
@@ -652,6 +659,7 @@
 			files = (
 				34FF0D6DE2F7323FA0F59574 /* ApnsPayloadRouterTests.swift in Sources */,
 				91B26AB4C02931B8FC93843A /* ApnsRegistrationTests.swift in Sources */,
+				B687D8C1EF3A14562FF45FD8 /* AppEnvironmentMacrosSnapshotTests.swift in Sources */,
 				1C3FD9E1CD60B28574914D68 /* AppEnvironmentTests.swift in Sources */,
 				2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */,
 				3BA37BC25455C239029EC916 /* DebugRmssdSeederTests.swift in Sources */,

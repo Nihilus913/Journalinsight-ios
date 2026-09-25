@@ -7,8 +7,9 @@ import HealthKit
 /// (`Backload*.swift`, `HealthKitBackloader.swift`, frozen, W2h/W2i) is the other place HK
 /// identifiers may appear; `HKTypesTests.identifierIsolationSourceGrep` enforces this so every
 /// other file in `Sources/JIHealthKit` stays HK-identifier-free and works off `HKReadKind`
-/// instead. Read set per the W2d card: steps, active energy, exercise time, resting HR,
-/// HRV (SDNN + RMSSD), sleep analysis, body mass/fat/lean/BMI, workouts.
+/// instead. Read set per the W2d card plus B-57 W2 (B-73): steps, active energy, exercise time,
+/// resting HR, HRV (SDNN + RMSSD), sleep analysis, body mass/fat/lean/BMI, workouts; resting
+/// (basal) energy; dietary energy, protein, carbohydrates and fat (read-only; JI never logs food).
 public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case stepCount
     case activeEnergy
@@ -25,6 +26,13 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case leanBodyMass
     case bodyMassIndex
     case workouts
+    /// B-73: resting energy — with `.activeEnergy`, the "burned" half of the energy balance.
+    case basalEnergy
+    /// B-73: the day totals the user's food app writes to Health. Read-only.
+    case dietaryEnergy
+    case dietaryProtein
+    case dietaryCarbs
+    case dietaryFat
 
     /// `nil` only for `.hrvRMSSD` when the iOS 27 RMSSD type isn't available — every other kind
     /// always resolves to a concrete `HKSampleType`.
@@ -42,6 +50,11 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         case .leanBodyMass: return HKQuantityType(HKQuantityTypeIdentifier.leanBodyMass)
         case .bodyMassIndex: return HKQuantityType(HKQuantityTypeIdentifier.bodyMassIndex)
         case .workouts: return HKWorkoutType.workoutType()
+        case .basalEnergy: return HKQuantityType(HKQuantityTypeIdentifier.basalEnergyBurned)
+        case .dietaryEnergy: return HKQuantityType(HKQuantityTypeIdentifier.dietaryEnergyConsumed)
+        case .dietaryProtein: return HKQuantityType(HKQuantityTypeIdentifier.dietaryProtein)
+        case .dietaryCarbs: return HKQuantityType(HKQuantityTypeIdentifier.dietaryCarbohydrates)
+        case .dietaryFat: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFatTotal)
         }
     }
 

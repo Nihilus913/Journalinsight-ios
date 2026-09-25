@@ -141,7 +141,9 @@ public final class SettingsViewModel {
     /// B-57 W1 r5: the Settings → Weekly plan entry's model — same store file as the Nutrition-tab
     /// entry and, when the hub speaks it, the same goals provider.
     public func makeWeeklyPlanModel() -> WeeklyPlanViewModel {
-        WeeklyPlanViewModel(store: WeeklyPlanStore(prefs: prefs), goalsProvider: goalsProvider)
+        // B-57 W2 (B-73): the user's own goals (`goals.macros`) seed the plan before the hub's.
+        WeeklyPlanViewModel(store: WeeklyPlanStore(prefs: prefs), goalsProvider: goalsProvider,
+                            jiGoals: { [prefs] in try? MacroGoalsStore(prefs: prefs).load() })
     }
 
     public var kpiSubtitle: String { "\(kpiSelectedCount) selected · Today's stat strip and home-screen widget" }

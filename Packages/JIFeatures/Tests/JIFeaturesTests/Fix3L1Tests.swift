@@ -50,7 +50,7 @@ import JIDesign
     #expect(macroKcalStatus(kcal: 1619, goal: 1617, isToday: false) == "On target")
     #expect(macroKcalStatus(kcal: 1200, goal: 1617, isToday: false) == "Below target")
     #expect(macroKcalStatus(kcal: 1900, goal: 1617, isToday: false) == "Over target")
-    #expect(macroKcalStatus(kcal: 1200, goal: nil, isToday: false) == "No goal set")
+    #expect(macroKcalStatus(kcal: 1200, goal: nil, isToday: false) == "Set your goal")   // B-73
 }
 
 @Test func macroBarsShowValueAgainstGoal() {
@@ -83,7 +83,7 @@ import JIDesign
     #expect(nutritionProteinStatus(protein: 127, goal: 155) == "Below target")
     #expect(nutritionProteinStatus(protein: 150, goal: 155) == "On target")
     #expect(nutritionProteinStatus(protein: nil, goal: 155) == "— No data")
-    #expect(nutritionProteinStatus(protein: 127, goal: nil) == "No goal set")
+    #expect(nutritionProteinStatus(protein: 127, goal: nil) == "Set your goal")   // B-73
 }
 
 // MARK: - BUG-37: WeeklyPlan targets are whole numbers
@@ -114,9 +114,9 @@ import JIDesign
 // MARK: - BUG-39: the Daily log uses the explainer's words and the plan band
 
 @Test func dailyLogLabelsFollowTheExplainerRule() {
-    // Band = goal ± 5 %: 1617 → 1536…1698.
-    #expect(energyPlanBandText(1617) == "Plan band 1536–1698 kcal")
-    #expect(energyPlanBandText(nil) == "No goal set")
+    // B-57 W2 (B-73): band = the user's target ± 100 (was ± 5 %): 1617 → 1517…1717.
+    #expect(energyPlanBandText(1617) == "Plan band 1517–1717 kcal")
+    #expect(energyPlanBandText(nil) == "Set your goal")
     #expect(energyDayStatus(intake: 1619, goal: 1617, deficit: 600) == .onPlan)
     #expect(energyDayStatus(intake: 1200, goal: 1617, deficit: 1000) == .deepDeficit)
     #expect(energyDayStatus(intake: 1900, goal: 1617, deficit: 200) == .lightDeficit)

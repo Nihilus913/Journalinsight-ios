@@ -57,7 +57,8 @@ struct KpiWidgetFace: View {
     @ViewBuilder private var content: some View {
         switch family {
         case .accessoryInline:
-            Text(inlineText)
+            // B-73: "Protein 103 g to goal" for a macro KPI with a user goal; else the KPI text.
+            Text(snapshot?.macros?.inlineText(for: metric) ?? inlineText)
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 0) {
                 Text(def.label)
@@ -68,18 +69,8 @@ struct KpiWidgetFace: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         case .systemMedium:
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(def.label)
-                        .jiFont(.subheadline, weight: .bold)
-                        .foregroundStyle(theme.color(.muted))
-                        .lineLimit(1)
-                    valueRow(numeral: .numeralHero)
-                    Spacer(minLength: 0)
-                    asOf
-                }
-                Spacer(minLength: 0)
-            }
+            // B-73: "Left to your goals" once the user set a goal and Health food is readable.
+            if let macros = snapshot?.macros { MacrosLeftFace(macros: macros) } else { kpiMedium }
         default:
             VStack(alignment: .leading, spacing: 4) {
                 Text(def.label)
@@ -91,6 +82,21 @@ struct KpiWidgetFace: View {
                 asOf
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var kpiMedium: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(def.label)
+                    .jiFont(.subheadline, weight: .bold)
+                    .foregroundStyle(theme.color(.muted))
+                    .lineLimit(1)
+                valueRow(numeral: .numeralHero)
+                Spacer(minLength: 0)
+                asOf
+            }
+            Spacer(minLength: 0)
         }
     }
 
@@ -147,12 +153,27 @@ struct KpiWidgetFace: View {
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .readiness)
 })
 
+#Preview("KPI — medium macros", as: .systemMedium, widget: { KpiWidget() }, timeline: {
+    // Preview data only: goals a user typed, never a shipped default.
+    KpiEntry(date: .now, snapshot: .previewSeedWithMacros, metric: .protein)
+})
+
 #Preview("KPI — rectangular", as: .accessoryRectangular, widget: { KpiWidget() }, timeline: {
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .readiness)
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .weight)
 })
 
 #Preview("KPI — inline", as: .accessoryInline, widget: { KpiWidget() }, timeline: {
+    KpiEntry(date: .now, snapshot: .previewSeedWithMacros, metric: .protein)
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .readiness)
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .weight)
 })
+
+extension HubSnapshot {
+    /// B-73 preview only: `previewSeed` plus macros left against goals a user typed.
+    static var previewSeedWithMacros: HubSnapshot {
+        var s = HubSnapshot.previewSeed
+        s.macros = SnapshotMacros.make(goals: (1800, 155, 144, 49), eatenToday: (650, 52, 90, 20), healthReadable: true, asOf: .now)
+        return s
+    }
+}

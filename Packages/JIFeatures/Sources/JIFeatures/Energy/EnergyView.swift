@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// B-57 W1: the board's subtitle and "What you burn" copy. W-FIX3 BUG-38: the burn value is the
@@ -9,13 +10,15 @@ public nonisolated let energyBurnCardCopy = "Resting plus active energy, both re
 
 /// W-FIX4 PF-09: Energy's "How we calculate" with the true intake lineage — eaten comes from the
 /// YAZIO API (the hub's `core.nutrition_daily`), not from dietary energy in Apple Health. The
-/// burn and deficit steps are the shared `JIExplainers` copy unchanged.
+/// burn step is the shared `JIExplainers` copy unchanged. B-57 W2 (B-73): the band step is the
+/// user's own target ± 100 (`EnergyBandCopy.bandRuleStep`), never a JI-picked number.
 public nonisolated let energyHowWeCalculateSteps: [HowWeCalculateStep] = {
     var steps = JIExplainers.energyBalanceSteps
     steps[1] = HowWeCalculateStep(title: "Eaten = your YAZIO day total",
                                   body: "The hub reads it from YAZIO each sync. JI only reads the day total; it never logs food.")
     steps[2] = HowWeCalculateStep(title: steps[2].title,
                                   body: "Averaged over the last 7 complete days. Today counts once it ends. A day with no food logged in YAZIO is skipped, not counted as zero.")
+    steps[3] = EnergyBandCopy.bandRuleStep
     return steps
 }()
 
@@ -94,7 +97,7 @@ public struct EnergyView: View {
                         .accessibilityLabel("Showing energy from \(staleDate) — no newer sync yet.")
                 }
             }
-            EnergySections(report: model.report, days: model.days, goal: model.goalKcal, today: today)
+            EnergySections(report: model.report, days: model.days, goal: model.goalKcal, today: today, band: model.bandState)
         }
     }
 
@@ -121,6 +124,8 @@ struct EnergySections: View {
     let days: [EnergyDay]
     let goal: Double?
     let today: String
+    /// B-73: the phone's band (user target ± 100, Health burn). `.none` = hub report path only.
+    var band: EnergyBandState = .none
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -128,11 +133,12 @@ struct EnergySections: View {
                 // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE".
                 ForEach(EnergySection.allCases, id: \.self) { section in
                     switch section {
-                    case .hero: EnergyHero(report: report, goal: goal)
-                    case .whatYouBurn: EnergyBurnCard(days: report.days, today: today)
+                    case .hero: EnergyHero(report: report, goal: goal, band: band)
+                    case .whatYouBurn: EnergyBurnCard(days: report.days, today: today, window: band.burn, reason: band.reason)
                     case .howWeCalculate:
                         HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: energyHowWeCalculateSteps, note: JIExplainers.energyBalanceNote)
                             .accessibilityIdentifier("energy.howWeCalculate")
+                        EnergyBandDisclaimers(burn: band.burn)
                     case .thisWeek: EnergyThisWeek(days: report.days, goal: goal, today: today)
                     }
                 }
@@ -146,13 +152,22 @@ struct EnergySections: View {
     }
 }
 
-/// Board "What you burn": the 7-day average burn the hub already holds (BUG-38), or "— No data"
-/// when no complete day has one. The resting / active split is left for W2.
+/// Board "What you burn": B-73 the 7-day Apple Health burn (resting + active, source-merged) with
+/// its split; without it, "—" plus the true reason word ("Not in Health yet", "Calibrating").
+/// fixer2 BUG-38/RF2-BURN: the card's copy names Apple Health, so its one number is the Health
+/// burn only — the hub's `tdee_raw` average never stands in under that copy (it disagreed with the
+/// hero's route expenditure: two burn numbers, one false source line).
 struct EnergyBurnCard: View {
     var days: [EnergyDay] = []
     var today: String = energyTodayISO()
+    /// B-73: the Health burn window (nil fields = calibrating).
+    var window: EnergyBurnWindow? = nil
+    /// The band service's Health-side reason word, used only when no burn is known at all.
+    var reason: String? = nil
     private let theme = JITheme.native
-    private var average: Double? { energyBurnAverage(days: days, today: today) }
+    private var healthBurn: Int? { window?.burnKcal }
+    private var value: (kcal: Int?, caption: String) { energyBurnCardValue(window: window, reason: reason) }
+    private var average: Double? { value.kcal.map(Double.init) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -168,6 +183,13 @@ struct EnergyBurnCard: View {
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) { burnValue; burnReason.fixedSize() }
                         VStack(alignment: .leading, spacing: 4) { burnValue; burnReason.fixedSize(horizontal: false, vertical: true) }
+                    }
+                    if healthBurn != nil {
+                        let split = EnergyBandCopy.burn(window)
+                        Text(verbatim: "Resting \(split.resting) · Active \(split.active) kcal")
+                            .jiFont(.subheadline).foregroundStyle(theme.color(.text))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("energy.whatYouBurn.split")
                     }
                     Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
@@ -188,7 +210,7 @@ struct EnergyBurnCard: View {
     }
     /// "kcal a day" with a value; the one true reason word without ("No data").
     private var burnReason: some View {
-        Text(average == nil ? JIMissingReason.noData.rawValue : "kcal a day").jiFont(.subheadline, weight: .semibold)
+        Text(value.caption).jiFont(.subheadline, weight: .semibold)
             .foregroundStyle(theme.color(.muted))
     }
 }
@@ -232,10 +254,29 @@ struct EnergyThisWeek: View {
     }
 }
 
-/// "Goal 1617 kcal", or "No goal set".
+/// B-73: "Plan 1800 kcal" (the user's own target), or "Set your goal".
 public nonisolated func energyGoalHeaderText(_ goal: Double?) -> String {
-    guard let goal, goal.isFinite else { return EnergyDayStatus.noGoal.word }
-    return "Goal \(jiNumber(goal, 0)) kcal"
+    EnergyBandCopy.planHeader(targetKcal: goal)
+}
+
+/// B-73 disclaimers under "How we calculate" (verbatim, also on GoalsSetup): align the food
+/// tracker's goal, and — until 7 complete Health days — the band-settle note.
+struct EnergyBandDisclaimers: View {
+    let burn: EnergyBurnWindow?
+    private let theme = JITheme.native
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(MacroGoals.trackerDisclaimer).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("energy-disclaimer")
+            if let note = EnergyBandCopy.settleNote(burn) {
+                Text(note).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("energy-settle-note")
+            }
+        }
+    }
 }
 
 /// The last 7 complete days' measured burn (`tdeeRaw`, the device's resting + active total),
@@ -245,6 +286,13 @@ public nonisolated func energyBurnAverage(days: [EnergyDay], today: String) -> D
     let burns = energyLogDays(days: days, today: today).prefix(7)
         .compactMap { d -> Double? in d.tdeeRaw.flatMap { $0.isFinite ? $0 : nil } }
     return burns.isEmpty ? nil : burns.reduce(0, +) / Double(burns.count)
+}
+
+/// fixer2 BUG-38/RF2-BURN: the burn card's value + caption — the Health burn with "kcal a day",
+/// or no number and the band service's reason ("Not in Health yet" when Health is empty).
+public nonisolated func energyBurnCardValue(window: EnergyBurnWindow?, reason: String?) -> (kcal: Int?, caption: String) {
+    if let kcal = window?.burnKcal { return (kcal, "kcal a day") }
+    return (nil, reason ?? JIMissingReason.noData.rawValue)
 }
 
 /// "2300 kcal", or "— No data".

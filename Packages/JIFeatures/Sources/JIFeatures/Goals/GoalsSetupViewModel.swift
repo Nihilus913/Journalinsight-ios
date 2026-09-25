@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import JICore
+import JICompute
 import JIPersistence
 
 /// B-57 W1: one read-only "Next working weight" row. `kg == nil` renders "— No data", never 0.
@@ -24,6 +25,10 @@ public nonisolated func nextWorkingWeights(entries: [StrengthStateEntry]) -> [Ne
     }
 }
 
+/// B-73: what `saveNutrition` did. `.needsDeficitCheck` = nothing was written; the view asks
+/// "Does your goal already include a deficit?" and calls again with `confirmed: true`.
+public enum NutritionSaveOutcome: Equatable, Sendable { case saved, needsDeficitCheck, failed }
+
 /// W4-L3 (P-goals), mirrors `mobile/app/goals-setup.tsx` + `mobile/src/data/useGoals.ts`'s
 /// `useGoals`/`useUpdateGoals`. Reads through the frozen `EnergyProviding.goals()` (the same
 /// `GET /planning/goals` route the Energy tab already calls); writes through the new
@@ -38,19 +43,39 @@ public final class GoalsSetupViewModel {
     public private(set) var goals: Goals?
     public private(set) var savedAt: Date?
 
+    /// B-73: the stored nutrition goals (`.unset` until the user saves some; never a default).
+    /// The phone's `PrefStore` (`goals.macros`) is the source of truth, not the hub document.
+    public private(set) var macroGoals: MacroGoals?
+    /// The 7-day Health burn (nil when Health has nothing). Only used for the implied-deficit line,
+    /// the settle note and the sanity prompt; the band itself needs no Health.
+    public private(set) var burnWindow: EnergyBurnWindow?
+    /// True after a nutrition save whose hub mirror is still queued (offline).
+    public private(set) var hubPending = false
+
     private let provider: any GoalsSetupProviding
     private let goalStore: GoalStore?
     private let now: () -> Date
     private let strengthStore: StrengthStateStore
+    private let macroStore: MacroGoalsStore?
+    private let mirror: GoalsMirror?   // TEMP bridge until B-50: hub weekly gate
+    private let burnSource: (@MainActor () async -> EnergyBurnWindow?)?
+    private let onNutritionSaved: (@MainActor () -> Void)?
 
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
-        strengthStore: StrengthStateStore = StrengthStateStore()
+        strengthStore: StrengthStateStore = StrengthStateStore(),
+        macroStore: MacroGoalsStore? = nil, mirror: GoalsMirror? = nil,
+        burnSource: (@MainActor () async -> EnergyBurnWindow?)? = nil,
+        onNutritionSaved: (@MainActor () -> Void)? = nil
     ) {
         self.provider = provider
         self.goalStore = goalStore
         self.now = now
         self.strengthStore = strengthStore
+        self.macroStore = macroStore
+        self.mirror = mirror
+        self.burnSource = burnSource
+        self.onNutritionSaved = onNutritionSaved
     }
 
     /// B-57 W1: read-only; updates itself after each logged session.
@@ -60,6 +85,10 @@ public final class GoalsSetupViewModel {
     }
 
     public func load() async {
+        // B-73: local first, so the nutrition section never waits on the hub. `load()` never pushes
+        // (Review Focus 4: the only PUT is `saveNutrition`'s mirror on a user save).
+        macroGoals = try? macroStore?.load()
+        burnWindow = await burnSource?()
         phase = .loading
         do {
             let result = try await provider.goals()
@@ -101,6 +130,61 @@ public final class GoalsSetupViewModel {
             phase = .error(Self.describe(error))
             return false
         }
+    }
+
+    /// "The band settles after a full week of Apple Health data." shows while this is false.
+    public var bandSettled: Bool { burnWindow?.settled ?? false }
+
+    /// The plan band for a pending edit: the user's target ± 100 (nil while no valid kcal goal).
+    public func bandPreview(for goals: MacroGoals) -> (low: Int, high: Int)? {
+        guard let k = goals.kcal, k.isValid else { return nil }
+        return EnergyBand.band(targetKcal: Int(k.targetKcal.rounded()))
+    }
+
+    /// "≈ 480 kcal under what you burn" — information only; nil without a burn or a goal.
+    public func impliedDeficitText(for goals: MacroGoals) -> String? {
+        guard let k = goals.kcal, k.isValid, let burn = burnWindow?.burnKcal else { return nil }
+        return EnergyBand.impliedDeficitText(EnergyBand.impliedDeficit(burnKcal: burn, targetKcal: Int(k.targetKcal.rounded())))
+    }
+
+    /// Only for "subtract a deficit" goals, and only when Health knows the burn.
+    public func needsDeficitCheck(_ goals: MacroGoals) -> Bool {
+        guard let k = goals.kcal, case .subtractDeficit(let mode) = k.basis else { return false }
+        return EnergyBand.shouldAskIfGoalIncludesDeficit(goalKcal: k.goalKcal, deficitKcal: mode.kcalPerDay,
+                                                         burnKcal: burnWindow?.burnKcal)
+    }
+
+    /// B-73: saves on the phone first (the source of truth), then pushes the temporary hub mirror.
+    /// `.needsDeficitCheck` writes nothing. `hubPending` says whether the mirror is still queued.
+    @discardableResult
+    public func saveNutrition(_ edited: MacroGoals, confirmed: Bool = false) async -> NutritionSaveOutcome {
+        guard let macroStore else { return .failed }
+        if !confirmed && needsDeficitCheck(edited) { return .needsDeficitCheck }
+        do { try macroStore.save(edited) } catch { phase = .error("Couldn't save on this phone — try again."); return .failed }
+        macroGoals = edited
+        savedAt = now()
+        onNutritionSaved?()
+        // TEMP bridge until B-50: hub weekly gate
+        guard let mirror else { hubPending = false; return .saved }
+        switch await mirror.push(edited) {
+        case .delivered(let server):
+            hubPending = false
+            // fixer2 RF3-STATUS: the hub took the PUT, so a load-time "Hub offline" is stale. Only a
+            // load error is cleared (no hub document yet) — a failed weight/strength save stays.
+            let loadFailed = goals == nil
+            if let server {
+                goals = server
+                try? goalStore?.saveGoalTargetsMirror(server, now: now())
+            } else if loadFailed {
+                goals = try? await provider.goals()
+            }
+            if loadFailed, case .error = phase { phase = .loaded }
+        case .queued:
+            hubPending = true
+        case .nothingToSend:
+            hubPending = false
+        }
+        return .saved
     }
 
     private static func describe(_ error: Error) -> String {
