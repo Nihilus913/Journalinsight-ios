@@ -57,3 +57,9 @@ private func ex(_ id: Int, _ session: String, _ name: String, kg: Double?, sets:
 @Test func trainingHeroIsEmptyWithoutAPlannedSession() {
     #expect(trainingHeroRows(exercises: [ex(1, "Full Upper", "Bench", kg: 50, sets: 3)], session: nil).isEmpty)
 }
+
+@Test func trainingHeroRowsOmitAZeroKgBodyweightLoad() {
+    let rows = trainingHeroRows(exercises: [ex(1, "Full Upper", "Diamond Push-Up", kg: 0, sets: 3)],
+                                session: PlannedSession(id: 99, name: "Full Upper", weekday: 2))
+    #expect(rows.first?.load == "3 sets")
+}

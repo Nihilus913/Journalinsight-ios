@@ -49,7 +49,7 @@ public nonisolated func trainingHeroRows(exercises: [Exercise], session: Planned
     let byId = exercises.filter { $0.sessionId == session.id }
     let picked = byId.isEmpty ? exercises.filter { $0.sessionName == session.name } : byId
     return picked.map { e in
-        let kg = e.currentWeightKg.map { String(format: "%.1f kg", $0) }
+        let kg = e.currentWeightKg.flatMap { $0 > 0 ? String(format: "%.1f kg", $0) : nil }   // 0 kg = bodyweight: no load claimed
         let sets = e.sets.map { "\($0) sets" }
         let load = [kg, sets].compactMap { $0 }.joined(separator: " · ")
         return TrainingHeroRow(id: e.exerciseId, name: e.exerciseName, load: load.isEmpty ? "—" : load)
@@ -61,6 +61,8 @@ public nonisolated func trainingHeroRows(exercises: [Exercise], session: Planned
 struct TrainingSessionHeader: View {
     let subtitle: TrainingSubtitle, fetchedAt: Date?, watchLine: String?
     @Environment(\.jiTheme) private var theme
+    /// The verdict dot scales with the text and sits on the x-height, not the baseline.
+    @ScaledMetric(relativeTo: .subheadline) private var dot: CGFloat = 8
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
@@ -77,7 +79,8 @@ struct TrainingSessionHeader: View {
     private var subtitleText: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             if subtitle.word != nil {
-                Circle().fill(trainingToneColor(subtitle.tone, theme)).frame(width: 8, height: 8)
+                Circle().fill(trainingToneColor(subtitle.tone, theme)).frame(width: dot, height: dot)
+                    .alignmentGuide(.firstTextBaseline) { d in d.height * 1.1 }
                     .accessibilityHidden(true)
             }
             (subtitle.word.map { Text($0).foregroundStyle(trainingToneColor(subtitle.tone, theme)).bold() + Text(" · ") } ?? Text(""))
