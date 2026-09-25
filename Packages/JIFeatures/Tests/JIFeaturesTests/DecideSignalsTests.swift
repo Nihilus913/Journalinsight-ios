@@ -32,16 +32,18 @@ struct DecideSignalsTests {
         #expect(m.detail == "Concerta hours · not used")
     }
 
-    @Test func sleepKeepsFloorWordingInW1() {
+    /// W-FIX3 BUG-30 (board 01): sleep time reads as the goal it is gated on ("goal 7 h").
+    @Test func sleepReadsAsItsGoal() {
         let m = decideSignalRowModel(s("sleep_h", 7.4, thr: 7, unit: "h", status: .pass))
-        #expect(m.detail == "floor 7.0 h")
+        #expect(m.detail == "goal 7 h")
         #expect(m.decimals == 1)
-        #expect(!(m.detail ?? "").contains("goal"))
+        #expect(!(m.detail ?? "").contains("floor"))
     }
 
-    @Test func otherSignalsShowTheirThreshold() {
-        #expect(decideSignalRowModel(s("hrv", 25, thr: 27, unit: "ms", status: .amber)).detail == "threshold 27 ms")
-        #expect(decideSignalRowModel(s("sleep", 74, thr: 70, status: .pass)).detail == "threshold 70")
+    /// W-FIX3 BUG-30: no "threshold" line — the normal, or "calibrating" until there is one.
+    @Test func otherSignalsShowTheirNormalNotAThreshold() {
+        #expect(decideSignalRowModel(s("hrv", 25, thr: 27, unit: "ms", status: .amber)).detail == "your normal — Calibrating")
+        #expect(decideSignalRowModel(s("sleep", 74, thr: 70, status: .pass), normal: 70...85).normal == 70...85)
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 import JIDesign
 import JIPersistence
 
@@ -17,11 +18,23 @@ import JIPersistence
 
 public nonisolated let todayTileHiddenKey = "today.tileHidden"
 
+/// W-FIX3 C-a: set once EditToday's set has been folded into `KpiSelection.prefKey` — from then on
+/// that ONE selection is what Today, EditToday and My KPIs ("On Today") all read and write.
+public nonisolated let todayTilesUnifiedKey = "today.tiles.unified.v1"
+
+/// W-FIX3 C-a: posted after every write of the Today squares, so a Today behind a closing sheet
+/// (Settings → Edit Today, My KPIs) re-reads them at once instead of on its next appearance.
+public nonisolated let todayTilePrefsDidChange = Notification.Name("ji.todayTilePrefsDidChange")
+
 public nonisolated enum TodayTileRegistry {
     /// Every `TodayChip.id` in `TodayViewModel.squareChips` order: Today's four grid chips (= RN
     /// `DEFAULT_TODAY_TILE_ORDER`) then the B-57 board's Load, Protein, Calories, Weight (ids are
     /// `KpiMetricId` raw values, so a tap lands on the same KPI). Tests pin this against a live VM.
-    public static let ids: [String] = ["hrv", "rhr", "sleep", "steps", "acwr", "protein", "kcal", "weight"]
+    /// W-FIX3 C-a: then every other KPI My KPIs can tick (`optInIds`, hidden until picked), so the
+    /// two screens can never disagree — every `KpiMetricId` is a possible Today square.
+    public static let ids: [String] = ["hrv", "rhr", "sleep", "steps", "acwr", "protein", "kcal", "weight"] + optInIds
+    /// Squares added in W-FIX3; a stored set that predates them gets them hidden, never pushed on Today.
+    public static let optInIds: [String] = ["body_battery", "readiness", "carbs", "fat"]
 
     /// RN `TODAY_TILE_LABELS` — `TodayChip.label` for each id.
     public static func label(for id: String) -> String {
@@ -34,6 +47,10 @@ public nonisolated enum TodayTileRegistry {
         case "protein": "Protein"
         case "kcal": "Calories"
         case "weight": "Weight"
+        case "body_battery": "Body Battery"
+        case "readiness": "Readiness"
+        case "carbs": "Carbs"
+        case "fat": "Fat"
         default: id
         }
     }
@@ -58,6 +75,10 @@ public nonisolated enum TodayTileRegistry {
         case "protein": "fork.knife"
         case "kcal": "flame"
         case "weight": "scalemass"
+        case "body_battery": "battery.75percent"
+        case "readiness": "gauge.medium"
+        case "carbs": "leaf"
+        case "fat": "drop"
         default: "square"
         }
     }
@@ -74,14 +95,18 @@ public nonisolated struct TodayTilePrefs: Equatable, Sendable {
         self.hidden = hidden
     }
 
-    public static let `default` = TodayTilePrefs(order: TodayTileRegistry.ids, hidden: [])
+    /// The board's eight squares on Today; the W-FIX3 opt-in KPIs start hidden (My KPIs caps Today at 8).
+    public static let `default` = TodayTilePrefs(order: TodayTileRegistry.ids, hidden: TodayTileRegistry.optInIds)
 
     /// RN `reconcile`: drop ids no longer registered, append (in registry order) any the blob
     /// predates, prune `hidden` to ids still in `order`. `order` is resolved with the same
     /// `resolveTileOrder` `TodayGrid` uses, so both screens agree on a stale blob.
     public static func reconcile(order: [String]?, hidden: [String]?) -> TodayTilePrefs {
+        guard order != nil || hidden != nil else { return .default }
         let resolved = resolveTileOrder(chipIDs: TodayTileRegistry.ids, savedOrder: order)
-        let hiddenSet = Set(hidden ?? [])
+        // W-FIX3: an opt-in square the stored order predates is appended hidden.
+        let known = Set(order ?? [])
+        let hiddenSet = Set(hidden ?? []).union(TodayTileRegistry.optInIds.filter { !known.contains($0) })
         return TodayTilePrefs(order: resolved, hidden: resolved.filter { hiddenSet.contains($0) })
     }
 }
@@ -124,18 +149,52 @@ public nonisolated func reorderTodayTiles(_ prefs: TodayTilePrefs, newVisibleOrd
     return TodayTilePrefs(order: order, hidden: prefs.hidden)
 }
 
-/// Reads both keys and reconciles (RN `loadTodayTilePrefs`). `prefs == nil` → defaults.
-public nonisolated func loadTodayTilePrefs(prefs: PrefStore?) -> TodayTilePrefs {
-    let order = (try? prefs?.get(todayTileOrderKey, as: [String].self)) ?? nil
-    let hidden = (try? prefs?.get(todayTileHiddenKey, as: [String].self)) ?? nil
-    return TodayTilePrefs.reconcile(order: order, hidden: hidden)
+/// W-FIX3 C-a: the ONE selection (`KpiSelection.prefKey`, what My KPIs reads and writes) as
+/// Today squares. Every registry id is a `KpiMetricId`, so the mapping is lossless.
+public nonisolated func todayTilePrefs(from selection: KpiSelectionPrefs) -> TodayTilePrefs {
+    let s = KpiSelection.reconcile(selection)
+    return TodayTilePrefs.reconcile(order: s.order.map(\.rawValue), hidden: s.hidden.map(\.rawValue))
 }
 
-/// Writes both keys (RN `saveTodayTilePrefs`); `order` goes through `TodayGrid`'s own
-/// `saveTileOrder` so the format can't drift. No-op on nil/failed writes, never a crash.
+public nonisolated func kpiSelection(from tiles: TodayTilePrefs) -> KpiSelectionPrefs {
+    KpiSelectionPrefs(order: tiles.order.compactMap(KpiMetricId.init(rawValue:)), hidden: tiles.hidden.compactMap(KpiMetricId.init(rawValue:)))
+}
+
+/// W-FIX3 C-a: Today's squares = My KPIs' "On Today". Once unified, the selection is read. The first
+/// time (a pre-W-FIX3 install), EditToday's own set wins — it is what Today showed — and becomes the
+/// selection; a fresh install seeds it with the board default. `prefs == nil` → the default.
+public nonisolated func loadTodayTilePrefs(prefs: PrefStore?) -> TodayTilePrefs {
+    guard let prefs else { return .default }
+    if ((try? prefs.get(todayTilesUnifiedKey, as: Bool.self)) ?? nil) == true,
+       let selection = (try? prefs.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)) ?? nil {
+        return todayTilePrefs(from: selection)
+    }
+    let order = (try? prefs.get(todayTileOrderKey, as: [String].self)) ?? nil
+    let hidden = (try? prefs.get(todayTileHiddenKey, as: [String].self)) ?? nil
+    let tiles = TodayTilePrefs.reconcile(order: order, hidden: hidden)
+    writeTodayTilePrefs(tiles, prefs: prefs)
+    return tiles
+}
+
+/// Writes the one selection (and EditToday's own keys, kept for older readers) and tells Today.
+/// No-op on nil/failed writes, never a crash.
 public nonisolated func saveTodayTilePrefs(_ value: TodayTilePrefs, prefs: PrefStore?) {
+    writeTodayTilePrefs(value, prefs: prefs)
+    NotificationCenter.default.post(name: todayTilePrefsDidChange, object: nil)
+}
+
+private nonisolated func writeTodayTilePrefs(_ value: TodayTilePrefs, prefs: PrefStore?) {
     saveTileOrder(value.order, prefs: prefs)
     try? prefs?.set(todayTileHiddenKey, value.hidden)
+    try? prefs?.set(KpiSelection.prefKey, kpiSelection(from: value))
+    try? prefs?.set(todayTilesUnifiedKey, true)
+}
+
+/// W-FIX3 C-a: EditToday keeps My KPIs' limits (3…8 on Today) — the same `KpiSelection` rule.
+public nonisolated func todayTileVisibilityAllowed(_ prefs: TodayTilePrefs, id: String, hide: Bool) -> Bool {
+    guard prefs.hidden.contains(id) != hide else { return true }
+    let shown = visibleTodayTileOrder(prefs).count
+    return hide ? shown > KpiSelection.minSelected : shown < KpiSelection.maxSelected
 }
 
 // MARK: - B-57 W1 EditToday squares

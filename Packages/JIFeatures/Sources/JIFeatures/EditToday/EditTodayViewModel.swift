@@ -35,7 +35,9 @@ public final class EditTodayViewModel {
         commit(moveTodayTile(prefs, id: id, direction: direction))
     }
 
+    /// W-FIX3 C-a: refused past My KPIs' limits (at least 3, at most 8 squares on Today).
     public func setHidden(_ id: String, hide: Bool) {
+        guard todayTileVisibilityAllowed(prefs, id: id, hide: hide) else { return }
         commit(setTodayTileHidden(prefs, id: id, hide: hide))
     }
 

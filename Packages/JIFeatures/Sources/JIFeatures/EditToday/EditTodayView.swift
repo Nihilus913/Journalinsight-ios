@@ -43,7 +43,7 @@ public struct EditTodayView: View {
                     Text("Add a square").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
                     SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), onBadge: { model.setHidden($0, hide: false) })
                 }
-                Text("The call on top stays fixed. Hidden squares still count toward it.")
+                Text("The call on top stays fixed. Hidden squares still count toward it. Today holds \(KpiSelection.minSelected) to \(KpiSelection.maxSelected) squares — the same set as My KPIs.")
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
             }
             .padding(.horizontal, 20).padding(.vertical, 12)

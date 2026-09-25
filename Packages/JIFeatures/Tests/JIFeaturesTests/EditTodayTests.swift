@@ -11,7 +11,9 @@ import JIPersistence
 /// Today's four grid chips, then the squares the B-57 EditToday board adds (Load, Protein, Calories, Weight).
 private let gridIds = ["hrv", "rhr", "sleep", "steps"]
 private let extraIds = ["acwr", "protein", "kcal", "weight"]
-private let ids = gridIds + extraIds
+/// W-FIX3 C-a: every other KPI My KPIs can tick — registered, hidden by default.
+private let laterIds = TodayTileRegistry.optInIds
+private let ids = gridIds + extraIds + laterIds
 
 // MARK: registry (todayTileRegistry.test.ts)
 
@@ -32,31 +34,32 @@ private let ids = gridIds + extraIds
 
 // MARK: pure prefs ops (todayTilePrefs.test.ts)
 
-@Test func defaultPrefsAreRegistryOrderWithNothingHidden() {
+/// W-FIX3 C-a: the board's eight on Today, the opt-in KPIs hidden (My KPIs caps Today at 8).
+@Test func defaultPrefsAreRegistryOrderWithTheOptInsHidden() {
     let p = TodayTilePrefs.default
     #expect(p.order == ids)
-    #expect(p.hidden.isEmpty)
+    #expect(p.hidden == laterIds)
 }
 
 @Test func moveSwapsOneSlotAndIsANoOpAtTheEnds() {
     let p = TodayTilePrefs.default
-    #expect(moveTodayTile(p, id: "rhr", direction: -1).order == ["rhr", "hrv", "sleep", "steps"] + extraIds)
-    #expect(moveTodayTile(p, id: "rhr", direction: 1).order == ["hrv", "sleep", "rhr", "steps"] + extraIds)
+    #expect(moveTodayTile(p, id: "rhr", direction: -1).order == ["rhr", "hrv", "sleep", "steps"] + extraIds + laterIds)
+    #expect(moveTodayTile(p, id: "rhr", direction: 1).order == ["hrv", "sleep", "rhr", "steps"] + extraIds + laterIds)
     #expect(moveTodayTile(p, id: "hrv", direction: -1) == p)
-    #expect(moveTodayTile(p, id: "weight", direction: 1) == p)
+    #expect(moveTodayTile(p, id: "fat", direction: 1) == p)
     #expect(moveTodayTile(p, id: "ghost", direction: 1) == p)
 }
 
 @Test func hideKeepsPositionAndShowRestoresIt() {
     var p = TodayTilePrefs.default
     p = setTodayTileHidden(p, id: "rhr", hide: true)
-    #expect(p.hidden == ["rhr"])
+    #expect(p.hidden == ["rhr"] + laterIds)
     #expect(p.order == ids)                                // hiding never moves a tile
     #expect(visibleTodayTileOrder(p) == ["hrv", "sleep", "steps"] + extraIds)
     p = setTodayTileHidden(p, id: "steps", hide: true)
-    #expect(p.hidden == ["rhr", "steps"])                  // hidden is kept in `order` order
+    #expect(p.hidden == ["rhr", "steps"] + laterIds)       // hidden is kept in `order` order
     p = setTodayTileHidden(p, id: "rhr", hide: false)
-    #expect(p.hidden == ["steps"])
+    #expect(p.hidden == ["steps"] + laterIds)
     #expect(visibleTodayTileOrder(p) == ["hrv", "rhr", "sleep"] + extraIds)
     #expect(setTodayTileHidden(p, id: "rhr", hide: false) == p)
 }
@@ -65,14 +68,14 @@ private let ids = gridIds + extraIds
     var p = TodayTilePrefs.default
     p = setTodayTileHidden(p, id: "rhr", hide: true)
     let r = reorderTodayTiles(p, newVisibleOrder: ["steps", "sleep", "hrv"] + extraIds)
-    #expect(r.order == ["steps", "rhr", "sleep", "hrv"] + extraIds)
-    #expect(r.hidden == ["rhr"])
+    #expect(r.order == ["steps", "rhr", "sleep", "hrv"] + extraIds + laterIds)
+    #expect(r.hidden == ["rhr"] + laterIds)
 }
 
 @Test func reconcileDropsUnknownIdsAppendsNewOnesAndPrunesHidden() {
     let p = TodayTilePrefs.reconcile(order: ["ghost", "steps", "hrv"], hidden: ["ghost", "steps"])
-    #expect(p.order == ["steps", "hrv", "rhr", "sleep"] + extraIds)
-    #expect(p.hidden == ["steps"])
+    #expect(p.order == ["steps", "hrv", "rhr", "sleep"] + extraIds + laterIds)
+    #expect(p.hidden == ["steps"] + laterIds)   // W-FIX3: opt-in squares the blob predates arrive hidden
     #expect(TodayTilePrefs.reconcile(order: nil, hidden: nil) == .default)
 }
 
@@ -85,12 +88,12 @@ private let ids = gridIds + extraIds
     #expect(vm.prefs.order == ids)
     vm.move("steps", direction: -1)
     vm.move("steps", direction: -1)
-    #expect(vm.prefs.order == ["hrv", "steps", "rhr", "sleep"] + extraIds)
+    #expect(vm.prefs.order == ["hrv", "steps", "rhr", "sleep"] + extraIds + laterIds)
 
     // TodayGrid's own reader (a fresh PrefStore over the same db) sees exactly what EditToday wrote.
     let grid = loadTileOrder(prefs: PrefStore(db: db), chipIDs: gridIds)
     #expect(grid == ["hrv", "steps", "rhr", "sleep"])
-    #expect(try PrefStore(db: db).get(todayTileOrderKey, as: [String].self) == ["hrv", "steps", "rhr", "sleep"] + extraIds)
+    #expect(try PrefStore(db: db).get(todayTileOrderKey, as: [String].self) == ["hrv", "steps", "rhr", "sleep"] + extraIds + laterIds)
 }
 
 @Test @MainActor func hideShowRoundTripsAndNeverTouchesTheOrder() throws {
@@ -102,16 +105,16 @@ private let ids = gridIds + extraIds
 
     let relaunch = EditTodayViewModel(prefs: PrefStore(db: db))
     relaunch.load()
-    #expect(relaunch.prefs.hidden == ["sleep"])
+    #expect(relaunch.prefs.hidden == ["sleep"] + laterIds)
     #expect(relaunch.visibleOrder == ["hrv", "rhr", "steps"] + extraIds)
-    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == ["sleep"])
+    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == ["sleep"] + laterIds)
     // `today.tileOrder` keeps the FULL order (RN `prefs.order` semantics), so TodayGrid's
     // resolver still yields a stable order with nothing dropped.
     #expect(loadTileOrder(prefs: PrefStore(db: db), chipIDs: gridIds) == gridIds)
 
     relaunch.setHidden("sleep", hide: false)
     #expect(relaunch.prefs == .default)
-    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == [])
+    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == laterIds)
 }
 
 @Test @MainActor func editTodayLoadsAnOrderTodayGridPersisted() throws {
@@ -119,9 +122,9 @@ private let ids = gridIds + extraIds
     saveTileOrder(["steps", "hrv", "rhr", "sleep"], prefs: PrefStore(db: db))   // a Today drag
     let vm = EditTodayViewModel(prefs: PrefStore(db: db))
     vm.load()
-    #expect(vm.prefs.order == ["steps", "hrv", "rhr", "sleep"] + extraIds)
+    #expect(vm.prefs.order == ["steps", "hrv", "rhr", "sleep"] + extraIds + laterIds)
     #expect(vm.canMove("steps", direction: -1) == false)
-    #expect(vm.canMove("weight", direction: 1) == false)
+    #expect(vm.canMove("fat", direction: 1) == false)
     #expect(vm.canMove("hrv", direction: -1))
 }
 
@@ -130,8 +133,8 @@ private let ids = gridIds + extraIds
     vm.load()
     vm.move("rhr", direction: -1)
     vm.setHidden("hrv", hide: true)
-    #expect(vm.prefs.order == ["rhr", "hrv", "sleep", "steps"] + extraIds)
-    #expect(vm.prefs.hidden == ["hrv"])
+    #expect(vm.prefs.order == ["rhr", "hrv", "sleep", "steps"] + extraIds + laterIds)
+    #expect(vm.prefs.hidden == ["hrv"] + laterIds)
 }
 
 @Test @MainActor func editTodaySectionIsRegisteredInThePreferencesBand() {
@@ -210,7 +213,7 @@ private let ids = gridIds + extraIds
 /// Board: the dashed "+ Add" square closes the grid; W-FIX2 BUG-20: it opens the catalogue, which
 /// lists every square (✓ on Today, + hidden), so it is never inert.
 @Test func addSquareCatalogueMarksOnTodayAndHidden() {
-    #expect(editTodayCatalogueItems(.default).allSatisfy { $0.badge == .selected })
+    #expect(editTodayCatalogueItems(.default).filter { $0.badge == .add }.map(\.id) == laterIds)
     let p = setTodayTileHidden(.default, id: "kcal", hide: true)
-    #expect(editTodayCatalogueItems(p).filter { $0.badge == .add }.map(\.id) == ["kcal"])
+    #expect(editTodayCatalogueItems(p).filter { $0.badge == .add }.map(\.id) == ["kcal"] + laterIds)
 }
