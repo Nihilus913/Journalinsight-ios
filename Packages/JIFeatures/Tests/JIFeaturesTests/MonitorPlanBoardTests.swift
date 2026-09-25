@@ -123,17 +123,18 @@ import JIPersistence
         #expect(energyLogDateLabel("2026-09-22") == "Tue 22")
     }
 
-    @Test func dayStatusAgainstTheGoal() {
-        #expect(energyDayStatus(intake: 1619, goal: 1617) == .onTarget)
-        #expect(energyDayStatus(intake: 1549, goal: 1617) == .onTarget)   // within 5 %
-        #expect(energyDayStatus(intake: 1900, goal: 1617) == .overGoal)
-        #expect(energyDayStatus(intake: 1200, goal: 1617) == .underGoal)
+    /// W-FIX3 BUG-39: the log speaks the explainer's plan-band words (see Fix3L1Tests).
+    @Test func dayStatusAgainstThePlanBand() {
+        #expect(energyDayStatus(intake: 1619, goal: 1617) == .onPlan)
+        #expect(energyDayStatus(intake: 1549, goal: 1617) == .onPlan)   // within 5 %
+        #expect(energyDayStatus(intake: 1900, goal: 1617, deficit: 300) == .lightDeficit)
+        #expect(energyDayStatus(intake: 1200, goal: 1617) == .deepDeficit)
         #expect(energyDayStatus(intake: nil, goal: 1617) == .missing(.noData))
         #expect(energyDayStatus(intake: 1600, goal: nil) == .noGoal)
-        #expect(EnergyDayStatus.onTarget.word == "On target")
+        #expect(EnergyDayStatus.onPlan.word == "On plan")
         #expect(EnergyDayStatus.missing(.noData).word == "— No data")
         #expect(EnergyDayStatus.noGoal.word == "No goal set")
-        #expect(EnergyDayStatus.onTarget.role == .go)
+        #expect(EnergyDayStatus.onPlan.role == .go)
     }
 }
 

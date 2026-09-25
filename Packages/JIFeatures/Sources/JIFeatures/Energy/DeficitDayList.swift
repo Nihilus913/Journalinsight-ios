@@ -5,19 +5,24 @@ import JIDesign
 // B-57 W1 r4 (board `2 Monitor/06 Energy.png`): the "This week" bars and the Daily log, over the
 // hub's energy days and the user's calorie goal. Pure helpers first, then the two views.
 
-/// Within this share of the goal a day reads "On target" (the board's 1549 against 1617 does).
+/// W-FIX3 BUG-39: the plan band is the user's calorie goal ± this share (1617 → 1536…1698).
 public nonisolated let energyOnTargetTolerance = 0.05
 
-/// One day of the log against the user's calorie goal.
+/// One day of the log in the explainer's words ("Deficit or surplus" in `JIExplainers`):
+/// inside the plan band = On plan; below it = Deep deficit; above it = Light deficit, and a
+/// balance above 0 = Surplus. Above the band with no burn figure the sign is unknown, so it
+/// says only that ("Above plan band") rather than guessing deficit or surplus.
 public nonisolated enum EnergyDayStatus: Equatable, Sendable {
-    case onTarget, overGoal, underGoal, noGoal
+    case onPlan, deepDeficit, lightDeficit, surplus, abovePlan, noGoal
     case missing(JIMissingReason)
 
     public var word: String {
         switch self {
-        case .onTarget: "On target"
-        case .overGoal: "Over goal"
-        case .underGoal: "Under goal"
+        case .onPlan: "On plan"
+        case .deepDeficit: "Deep deficit"
+        case .lightDeficit: "Light deficit"
+        case .surplus: "Surplus"
+        case .abovePlan: "Above plan band"
         case .noGoal: "No goal set"
         case .missing(let reason): "— \(reason.rawValue)"
         }
@@ -25,28 +30,44 @@ public nonisolated enum EnergyDayStatus: Equatable, Sendable {
 
     public var role: JIColorRole {
         switch self {
-        case .onTarget: .go
-        case .overGoal, .underGoal: .reduced
-        case .noGoal, .missing: .muted
+        case .onPlan: .go
+        case .deepDeficit: .reduced
+        case .lightDeficit: .info
+        case .surplus, .abovePlan, .noGoal, .missing: .muted
         }
     }
 
     public var symbolName: String {
         switch self {
-        case .onTarget: "checkmark"
-        case .overGoal: "arrow.up"
-        case .underGoal: "arrow.down"
+        case .onPlan: "checkmark"
+        case .deepDeficit: "arrow.down"
+        case .lightDeficit: "arrow.down.right"
+        case .surplus, .abovePlan: "arrow.up"
         case .noGoal, .missing: "minus"
         }
     }
 }
 
-public nonisolated func energyDayStatus(intake: Double?, goal: Double?) -> EnergyDayStatus {
+/// The plan band around the calorie goal, or nil without a goal.
+public nonisolated func energyPlanBand(goal: Double?) -> ClosedRange<Double>? {
+    guard let goal, goal.isFinite, goal > 0 else { return nil }
+    return goal * (1 - energyOnTargetTolerance)...goal * (1 + energyOnTargetTolerance)
+}
+
+/// "Plan band 1536–1698 kcal", or "No goal set".
+public nonisolated func energyPlanBandText(_ goal: Double?) -> String {
+    guard let band = energyPlanBand(goal: goal) else { return EnergyDayStatus.noGoal.word }
+    return "Plan band \(jiNumber(band.lowerBound, 0))–\(jiNumber(band.upperBound, 0)) kcal"
+}
+
+/// `deficit` is the hub's `deficit_corrected` (burn − intake; negative = surplus).
+public nonisolated func energyDayStatus(intake: Double?, goal: Double?, deficit: Double? = nil) -> EnergyDayStatus {
     guard let intake, intake.isFinite else { return .missing(.noData) }
-    guard let goal, goal.isFinite, goal > 0 else { return .noGoal }
-    let change = (intake - goal) / goal
-    if abs(change) <= energyOnTargetTolerance { return .onTarget }
-    return change > 0 ? .overGoal : .underGoal
+    guard let band = energyPlanBand(goal: goal) else { return .noGoal }
+    if band.contains(intake) { return .onPlan }
+    if intake < band.lowerBound { return .deepDeficit }
+    guard let deficit, deficit.isFinite else { return .abovePlan }
+    return deficit < 0 ? .surplus : .lightDeficit
 }
 
 /// One bar of "This week" (Monday first). `kcal` is nil for a day with no intake and for days
@@ -188,7 +209,7 @@ struct EnergyWeekChart: View {
     }
 }
 
-/// Board "Daily log": one row per complete day, newest first — "Tue 22 · 1619 kcal · ✓ On target".
+/// Board "Daily log": one row per complete day, newest first — "Tue 22 · 1619 kcal · ✓ On plan".
 /// Display-only (the RN tap-through to Nutrition on that date has no Swift route yet).
 public struct DeficitDayList: View {
     private let days: [EnergyDay]
@@ -203,6 +224,11 @@ public struct DeficitDayList: View {
     public var body: some View {
         let log = energyLogDays(days: days, today: today)
         VStack(alignment: .leading, spacing: 0) {
+            // W-FIX3 BUG-39: the band the words are judged against, not a single goal figure.
+            Text(energyPlanBandText(goal)).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 4)
+                .accessibilityIdentifier("energy.planBand")
             if log.isEmpty {
                 Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .padding(.vertical, 8)
@@ -215,7 +241,7 @@ public struct DeficitDayList: View {
     }
 
     private func row(_ day: EnergyDay) -> some View {
-        let status = energyDayStatus(intake: day.kcalConsumed, goal: goal)
+        let status = energyDayStatus(intake: day.kcalConsumed, goal: goal, deficit: day.deficitCorrected)
         return ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 dateText(day).frame(minWidth: 56, alignment: .leading)
