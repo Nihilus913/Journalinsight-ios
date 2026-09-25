@@ -173,7 +173,7 @@ private struct GateRationaleProvider: HealthDataProvider {
     #expect(vm.isByDate)
     #expect(vm.phase == .loaded)
     #expect(vm.verdict.word == "GO (auto-regulated)")
-    #expect(vm.verdictWord == "Full")
+    #expect(vm.verdictWord == "Modified")   // W-FIX1 BUG-03
     #expect(vm.verdictForDate?.reason?.hasPrefix("Amber (HRV 23, RHR 66)") == true)
     // The rich live-only sections have nothing to draw from.
     #expect(vm.gate == nil)
@@ -225,11 +225,8 @@ private struct GateRationaleProvider: HealthDataProvider {
     p.suggestions = ["Front-load protein earlier in the day"]
     let vm = GateRationaleViewModel(provider: p)
     await vm.load()
-    #expect(vm.weeklyNotes(locale: en) == [
-        "Gate recommends REDUCE",
-        "7-day protein averages 118g against the 130g floor — insufficient protein.",
-        "Front-load protein earlier in the day",
-    ])
+    // W-FIX1 BUG-27: one plain sentence (the why + the gate's own suggestion), no raw hub lines.
+    #expect(vm.weeklyNotes(locale: en) == ["This week (insufficient protein): front-load protein earlier in the day."])
 }
 
 @Test func lastThreeDatesCountBackFromTheVerdictDayNewestFirst() {
@@ -246,9 +243,10 @@ private struct GateRationaleProvider: HealthDataProvider {
     #expect(rows.map(\.date) == ["2026-09-12", "2026-09-11", "2026-09-10"])
     #expect(rows.map(\.dayLabel) == ["Sat 12", "Fri 11", "Thu 10"])
     #expect(rows[0].verdictWord == nil && rows[0].session == nil)
-    #expect(rows[1].verdictWord == "Full")
+    #expect(rows[1].verdictWord == "Modified")   // the mock row is "GO (auto-regulated)" (BUG-03)
     #expect(rows[1].session == "Day 3 Full Upper + Z2 60min")
-    #expect(rows[1].tone == .go)
+    #expect(rows[1].tone == .amber)
+    #expect(rows[1].prescription == "Lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk.")
     #expect(rows[2].verdictWord == nil)
 }
 

@@ -56,7 +56,7 @@ private let modifiedParts = verdictParts("MODIFIED (HRV low) — Easy Z2 30–40
     let e = effectiveVerdict(parts: verdictParts("MODIFIED — Easy Z2 30–40 min"), override: o)
     #expect(e.word == "FULL")
     #expect(e.session == "Full Upper")
-    #expect(e.wasCaption == "was MODIFIED · Feel good despite metrics")
+    #expect(e.wasCaption == "was Modified · Feel good despite metrics")
     #expect(effectiveVerdictTone(parts: modifiedParts, override: o) == .go)
 }
 
@@ -65,7 +65,7 @@ private let modifiedParts = verdictParts("MODIFIED (HRV low) — Easy Z2 30–40
     let e = effectiveVerdict(parts: modifiedParts, override: o)
     #expect(e.word == "REST")
     #expect(e.session == "Rest — walks only")
-    #expect(e.wasCaption == "was MODIFIED")
+    #expect(e.wasCaption == "was Modified")
     #expect(effectiveVerdictTone(parts: modifiedParts, override: o) == .muted)
 }
 
@@ -91,7 +91,7 @@ private let modifiedParts = verdictParts("MODIFIED (HRV low) — Easy Z2 30–40
     let e = effectiveVerdict(parts: go, override: o)
     #expect(e.word == "MODIFIED")
     #expect(e.session == "Easy Z2 30–40 min")
-    #expect(e.wasCaption == "was GO · Schedule constraint")
+    #expect(e.wasCaption == "was Full · Schedule constraint")
 }
 
 @Test func effectiveVerdictWithoutAVerdictCaptionsOnlyTheReason() {

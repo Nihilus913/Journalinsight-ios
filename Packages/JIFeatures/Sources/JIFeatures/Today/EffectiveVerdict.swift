@@ -1,5 +1,6 @@
 import Foundation
 import JICore
+import JICompute
 
 /// W-B57b (B-62) — what Decide / Day / the summary line show once the user has overridden the
 /// morning verdict. Pure: the caller passes the override only when it belongs to the verdict's
@@ -19,11 +20,12 @@ nonisolated public func effectiveVerdict(parts: VerdictParts, override: VerdictO
         ? localOverrideSession(choice: override.choice, parts: parts, sessionForToday: nil)
         : override.session
     let reason = override.reason.flatMap { $0.isEmpty ? nil : $0 }
-    let was = bareVerdictWord(parts)
+    // W-FIX1 BUG-27: the caption speaks the user's words ("was Modified"), never the hub's GO.
+    let was = verdictUserWord(parts)
     let caption: String?
     if parts.tone == .muted {
         caption = reason
-    } else if was == word {
+    } else if was == verdictUserWord({ var p = parts; p.word = word; return p }()) {
         caption = nil
     } else {
         caption = ["was \(was)", reason].compactMap { $0 }.joined(separator: " · ")
@@ -31,11 +33,12 @@ nonisolated public func effectiveVerdict(parts: VerdictParts, override: VerdictO
     return (word, session, caption)
 }
 
-/// The tint for `effectiveVerdict`'s word: the verdict's own tone for no override / `accept`;
-/// full = `.go`, modified = `.amber`, rest = `.muted`.
+/// The tint for `effectiveVerdict`'s word: the verdict's own tone for no override / `accept`
+/// (amber for the hub's auto-regulated GO — W-FIX1 BUG-03); full = `.go`, modified = `.amber`,
+/// rest = `.muted`.
 nonisolated public func effectiveVerdictTone(parts: VerdictParts, override: VerdictOverride?) -> VerdictTone {
     switch override?.choice {
-    case nil, .accept?: parts.tone
+    case nil, .accept?: displayVerdictParts(parts).tone
     case .full?: .go
     case .modified?: .amber
     case .rest?: .muted
@@ -100,8 +103,70 @@ public nonisolated func verdictUserWord(_ parts: VerdictParts) -> String {
     let bare = bareVerdictWord(parts)
     guard !bare.isEmpty else { return parts.word }
     let upper = bare.uppercased()
+    // W-FIX1 BUG-03: "GO (auto-regulated)" is the hub's amber day — a trimmed session, so the
+    // user reads Modified (RN `verdict.ts` keeps the qualifier; dropping it made amber read Full).
+    if isAutoRegulated(parts) { return VerdictUserWord.modified }
     if upper.hasPrefix("GO") || upper.hasPrefix("FULL") { return VerdictUserWord.full }
     if upper.hasPrefix("REDUCED") || upper.hasPrefix("MODIFIED") { return VerdictUserWord.modified }
     if upper.hasPrefix("RED") || upper.hasPrefix("REST") { return VerdictUserWord.rest }
     return bare
+}
+
+// MARK: - W-FIX1 BUG-03: the hub's amber auto-regulation
+
+/// `morning_go.evaluate`'s amber GO: "GO (auto-regulated) — <session>". The day is still trained,
+/// but trimmed (see `autoRegulatedPrescription`).
+public nonisolated func isAutoRegulated(_ parts: VerdictParts) -> Bool {
+    let head = parts.word.lowercased()
+    return head.hasPrefix("go") && head.contains("auto-regulated")
+}
+
+/// The verdict as every screen tints it: the hub's auto-regulated GO is amber (Modified), not the
+/// green of a full GO. Word and session are unchanged (the word map is `verdictUserWord`).
+public nonisolated func displayVerdictParts(_ parts: VerdictParts) -> VerdictParts {
+    guard isAutoRegulated(parts) else { return parts }
+    var out = parts
+    out.tone = .amber
+    return out
+}
+
+/// The reduced prescription of an auto-regulated day, or nil for any other verdict.
+///
+/// Prefers the hub's own persisted reason (`/planning/morning-verdict` `reason`,
+/// "Amber (<why>): <what to do>.") — the text after the amber clause. Without it (Today's
+/// `/morning` carries no reason) it is the hub's fixed amber instruction for the planned session's
+/// type, looked up by name in `sessionByWeekday` (the same table `evaluate` reads): strength →
+/// "lift … 1-2 reps shy of failure; trim Z2 to ~25min or walk", long Z2 → "cap the long run at
+/// ~45min easy, or walk it". A session name the table does not know gets nil — never guessed.
+public nonisolated func autoRegulatedPrescription(_ parts: VerdictParts, reason: String? = nil) -> String? {
+    guard isAutoRegulated(parts) else { return nil }
+    if let reason, let range = reason.range(of: "): ") {
+        let tail = reason[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        if !tail.isEmpty { return capitalizedFirst(tail) }
+    }
+    switch sessionByWeekday.first(where: { $0.name == parts.session })?.type {
+    case .strength?: return AutoRegulatedCopy.strength
+    case .z2?: return AutoRegulatedCopy.longZ2
+    default: return nil
+    }
+}
+
+/// Why the hub auto-regulated ("overnight vitals not synced yet", "HRV 23, RHR 66") — the amber
+/// clause of the persisted reason, or nil when there is none.
+public nonisolated func autoRegulatedWhy(_ parts: VerdictParts, reason: String?) -> String? {
+    guard isAutoRegulated(parts), let reason,
+          let m = reason.firstMatch(of: /^Amber \((.*?)\):/) else { return nil }
+    let why = String(m.1).trimmingCharacters(in: .whitespaces)
+    return why.isEmpty ? nil : why
+}
+
+/// `morning_go.evaluate`'s amber instructions (`MorningGateGate.swift`, verbatim but sentence-cased).
+public nonisolated enum AutoRegulatedCopy {
+    public static let strength = "Lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk."
+    public static let longZ2 = "Cap the long run at ~45min easy, or walk it."
+}
+
+nonisolated private func capitalizedFirst(_ s: String) -> String {
+    guard let first = s.first else { return s }
+    return first.uppercased() + s.dropFirst()
 }

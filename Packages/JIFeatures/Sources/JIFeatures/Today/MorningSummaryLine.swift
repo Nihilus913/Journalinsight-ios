@@ -2,10 +2,12 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-57 §2 Day: the morning's result collapsed to one line — "GO · Full Upper · readiness 78".
+/// B-57 §2 Day: the morning's result collapsed to one line — "Full · Full Upper · readiness 78".
 /// An empty session and a missing readiness are dropped, never rendered as blanks or zeros.
+/// W-FIX1 BUG-27: the lead is the user word (`verdictUserWord`: Full / Modified / Rest), never the
+/// hub's "GO (auto-regulated)".
 public nonisolated func morningSummaryText(verdict: VerdictParts, readiness: Double?) -> String {
-    [verdict.word,
+    [verdictUserWord(verdict),
      verdict.session.isEmpty ? nil : verdict.session,
      readiness.map { "readiness \(todayRingValueText($0))" }]
         .compactMap { $0 }
@@ -28,14 +30,14 @@ public struct MorningSummaryLine: View {
 
     private var rest: String {
         let full = morningSummaryText(verdict: verdict, readiness: readiness)
-        return String(full.dropFirst(verdict.word.count))
+        return String(full.dropFirst(verdictUserWord(verdict).count))
     }
 
     public var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 VStack(alignment: .leading, spacing: 2) {
-                    (Text(verdict.word).foregroundStyle(theme.color(verdictColorRole(verdict.tone)))
+                    (Text(verdictUserWord(verdict)).foregroundStyle(theme.color(verdictColorRole(verdict.tone)))
                      + Text(rest).foregroundStyle(theme.color(.text)))
                         .jiFont(.footnote, weight: .semibold)
                         .lineLimit(2)

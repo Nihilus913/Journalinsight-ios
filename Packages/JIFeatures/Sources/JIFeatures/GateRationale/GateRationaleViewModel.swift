@@ -40,6 +40,9 @@ nonisolated public struct GateDayRow: Equatable, Sendable, Identifiable {
     /// The user-facing word (`verdictUserWord`), or nil when no verdict was persisted that day.
     public let verdictWord: String?
     public let tone: VerdictTone
+    /// W-FIX1 BUG-03: the hub's reduced prescription on an auto-regulated day (from that day's
+    /// persisted `reason`), nil otherwise.
+    public var prescription: String? = nil
     public var id: String { date }
 }
 
@@ -202,9 +205,25 @@ public final class GateRationaleViewModel {
     // MARK: - Derived (pure)
 
     /// The readiness verdict word/session/tone. In by-date mode this is the persisted row's verdict.
+    /// W-FIX1 BUG-03: the hub's auto-regulated GO reads amber (Modified), not a green Full.
     public var verdict: VerdictParts {
-        verdictParts(isByDate ? verdictForDate?.verdict : morning?.verdict)
+        displayVerdictParts(verdictParts(isByDate ? verdictForDate?.verdict : morning?.verdict))
     }
+
+    /// The persisted `/morning-verdict` reason behind `verdict` (by date: that row; live: the
+    /// verdict day's row from `recentVerdicts`), or nil.
+    private var verdictReason: String? {
+        if isByDate { return verdictForDate?.reason }
+        return morning?.verdictDate.flatMap { recentVerdicts[$0]?.reason }
+    }
+
+    /// W-FIX1 BUG-03: what the amber day trims ("Lift at current weights 1-2 reps shy of failure;
+    /// trim Z2 to ~25min or walk."), nil on any other verdict.
+    public var verdictPrescription: String? { autoRegulatedPrescription(verdict, reason: verdictReason) }
+
+    /// W-FIX1 BUG-03: why the hub trimmed the day ("overnight vitals not synced yet"), nil when the
+    /// persisted row carries no amber clause.
+    public var verdictWhy: String? { autoRegulatedWhy(verdict, reason: verdictReason) }
 
     /// B-57 W1 r5: the header's word as Decide says it ("Full" / "Modified" / "Rest").
     public var verdictWord: String { verdictUserWord(verdict) }
@@ -262,17 +281,35 @@ public final class GateRationaleViewModel {
         (gate?.triggeredRules.isEmpty ?? true) ? "No rules triggered — a clean day against every threshold." : nil
     }
 
-    /// Board "Weekly nutrition": the 7-day energy balance (`-deficit`, the sign people read), or nil.
-    public var energyBalance7d: Double? { gate?.averages.avgKcalDeficit7d.map { -$0 } }
+    /// Board "Weekly nutrition": the 7-day energy balance, or nil. B-73 / W-FIX1 BUG-07: balance =
+    /// intake − expenditure (resting + active), both from one source, averaged over 7 days — the
+    /// hub's ONE definition (`avg_kcal_deficit_7d` = expenditure − intake), so the balance is its
+    /// negation. Never the gap to a kcal goal. See `weeklyEnergyBalance`.
+    public var energyBalance7d: Double? { gate.flatMap { weeklyEnergyBalance($0.averages) } }
     /// Board "Weekly nutrition": the 7-day average protein, or nil.
     public var protein7d: Double? { gate?.averages.avgProtein7d }
 
     /// The caption under the weekly tiles: the weekly gate's own recommendation, its honest counts,
     /// the humanized triggered rules and the suggestions — what the removed "Weekly nutrition gate",
     /// "Why — triggered rules" and "Suggestions" cards used to say, now in the board's caption slot.
+    ///
+    /// W-FIX1 BUG-27: ONE plain sentence, never the hub's raw lines ("Gate recommends REDUCE",
+    /// "7-day intake averages 1'456 kcal against the 1'600 kcal floor…"): "This week (<why>):
+    /// <what to do>." when a rule fired or the gate suggested something, else the recommendation in
+    /// words; INSUFFICIENT_DATA carries its honest counts.
     public func weeklyNotes(locale: Locale = .autoupdatingCurrent) -> [String] {
-        guard gate != nil else { return [] }
-        return [recommendationLabel, trackedDaysLine].compactMap { $0 } + humanizedRules(locale: locale) + suggestionLines
+        guard let gate else { return [] }
+        if gate.recommendation == .insufficientData {
+            return ["Not enough tracked days this week for a nutrition call (\(GateInsight.trackedDaysLine(gate)))."]
+        }
+        guard !gate.triggeredRules.isEmpty || !gate.suggestions.isEmpty else {
+            return [weeklyGatePlainSentence(gate.recommendation)]
+        }
+        let reason = gate.triggeredRules.first.flatMap { GateInsight.parseTriggeredRule($0).reason }.flatMap { $0.isEmpty ? nil : $0 }
+        var action = GateInsight.actionForTriggeredRules(gate).trimmingCharacters(in: .whitespaces)
+        if let first = action.first { action = first.lowercased() + action.dropFirst() }
+        if !action.hasSuffix(".") { action += "." }
+        return [reason.map { "This week (\($0)): \(action)" } ?? "This week: \(action)"]
     }
 
     /// Board "Last 3 days": newest first, from the verdict day back.
@@ -287,9 +324,10 @@ public final class GateRationaleViewModel {
             guard let row = recentVerdicts[date] else {
                 return GateDayRow(date: date, dayLabel: label, session: nil, verdictWord: nil, tone: .muted)
             }
-            let parts = verdictParts(row.verdict)
+            let parts = displayVerdictParts(verdictParts(row.verdict))
             let session = row.sessionPrescription.flatMap { $0.isEmpty ? nil : $0 } ?? (parts.session.isEmpty ? nil : parts.session)
-            return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: verdictUserWord(parts), tone: parts.tone)
+            return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: verdictUserWord(parts), tone: parts.tone,
+                              prescription: autoRegulatedPrescription(parts, reason: row.reason))
         }
     }
 
@@ -371,3 +409,9 @@ private let fixtureRationaleMorningJSON = """
   {"key":"rhr","label":"RHR","value":52,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass","note":null},
   {"key":"sleep_h","label":"Sleep time","value":null,"unit":"h","threshold":6.0,"direction":"min","scale_min":0,"scale_max":10,"status":"missing","note":null}]}
 """
+
+/// B-73 / W-FIX1 BUG-07: the 7-day energy balance (intake − expenditure) from the hub's single
+/// definition — `avg_kcal_deficit_7d` is expenditure − intake over the same 7 days — or nil.
+public nonisolated func weeklyEnergyBalance(_ averages: GateAverages) -> Double? {
+    averages.avgKcalDeficit7d.map { -$0 }
+}
