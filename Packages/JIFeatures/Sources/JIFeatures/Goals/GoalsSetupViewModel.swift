@@ -166,12 +166,23 @@ public final class GoalsSetupViewModel {
         onNutritionSaved?()
         // TEMP bridge until B-50: hub weekly gate
         guard let mirror else { hubPending = false; return .saved }
-        if let server = await mirror.push(edited) {
-            goals = server
-            try? goalStore?.saveGoalTargetsMirror(server, now: now())
+        switch await mirror.push(edited) {
+        case .delivered(let server):
             hubPending = false
-        } else {
-            hubPending = GoalsMirror.patch(for: edited) != nil
+            // fixer2 RF3-STATUS: the hub took the PUT, so a load-time "Hub offline" is stale. Only a
+            // load error is cleared (no hub document yet) — a failed weight/strength save stays.
+            let loadFailed = goals == nil
+            if let server {
+                goals = server
+                try? goalStore?.saveGoalTargetsMirror(server, now: now())
+            } else if loadFailed {
+                goals = try? await provider.goals()
+            }
+            if loadFailed, case .error = phase { phase = .loaded }
+        case .queued:
+            hubPending = true
+        case .nothingToSend:
+            hubPending = false
         }
         return .saved
     }

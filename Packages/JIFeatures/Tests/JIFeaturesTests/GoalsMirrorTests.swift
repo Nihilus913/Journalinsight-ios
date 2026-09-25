@@ -29,7 +29,7 @@ private func goals(_ goal: Double, _ basis: KcalGoalBasis, protein: Double? = ni
 /// the user set are sent; kcal_goal is the user's target.
 @Test @MainActor func pushSendsOnlyTheUserEnteredFields() async throws {
     let (mirror, outbox, _, hub) = try fixture()
-    let server = await mirror.push(goals(1600, .includesDeficit, protein: 160))
+    guard case .delivered(let server) = await mirror.push(goals(1600, .includesDeficit, protein: 160)) else { Issue.record("not delivered"); return }
     #expect(hub.patches == [GoalsUpdate(nutrition: .init(kcalGoal: 1600, proteinG: 160, carbsG: nil, fatG: nil))])
     #expect(server?.nutrition.proteinG == 160)
     #expect(try outbox.pending().isEmpty)
@@ -44,7 +44,7 @@ private func goals(_ goal: Double, _ basis: KcalGoalBasis, protein: Double? = ni
 @Test @MainActor func unsetGoalsQueueNothing() async throws {
     let (mirror, outbox, _, hub) = try fixture()
     #expect(GoalsMirror.patch(for: .unset) == nil)
-    #expect(await mirror.push(.unset) == nil)
+    #expect(await mirror.push(.unset) == .nothingToSend)
     #expect(hub.patches.isEmpty)
     #expect(try outbox.pending().isEmpty)
 }
@@ -52,7 +52,7 @@ private func goals(_ goal: Double, _ basis: KcalGoalBasis, protein: Double? = ni
 /// Review Focus 3.
 @Test @MainActor func offlinePushKeepsTheRowQueued() async throws {
     let (mirror, outbox, _, _) = try fixture(hubFails: .network("down"))
-    #expect(await mirror.push(goals(1600, .includesDeficit)) == nil)
+    #expect(await mirror.push(goals(1600, .includesDeficit)) == .queued)
     #expect(try outbox.pending().count == 1)
 }
 

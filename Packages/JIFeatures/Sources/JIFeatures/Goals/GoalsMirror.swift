@@ -25,15 +25,36 @@ public final class GoalsMirror {
                                             carbsG: goals.carbsG, fatG: goals.fatG))
     }
 
-    /// Queues the patch, then tries once. Returns the hub's document when that attempt landed,
-    /// nil when it is still queued (offline), nothing was set, or no drainer exists (preview/mock).
+    /// What a save's push did. `delivered` = the hub has the row (its document when this push's
+    /// own attempt landed; nil when another drainer retired the row first). `queued` = still in
+    /// the outbox (offline / rejected). `nothingToSend` = nothing set, nothing queued.
+    public enum PushOutcome: Equatable, Sendable {
+        case delivered(Goals?)
+        case queued
+        case nothingToSend
+    }
+
+    /// Queues the patch, then drains until its row has an answer. fixer2 RF3-STATUS: a drain that
+    /// joins a pass already in flight (started before this row was enqueued) gets that pass's
+    /// results WITHOUT this row, and a second drainer instance (the retry scheduler) can retire
+    /// the row under us — neither is "offline". Delivery is judged by the row itself: gone from
+    /// the outbox = delivered; a failed attempt still pending = queued; no attempt yet = one more
+    /// pass of our own.
     @discardableResult
-    public func push(_ goals: MacroGoals) async -> Goals? {
-        guard let patch = Self.patch(for: goals),
-              let id = try? outbox.enqueue(kind: OutboxDrainer.goalsKind, payload: patch) else { return nil }
-        guard let drainer else { return nil }
-        let results = await drainer.drainOnce()
-        if case .success(.goals(let server)) = results[id] { return server }
-        return nil
+    public func push(_ goals: MacroGoals) async -> PushOutcome {
+        guard let patch = Self.patch(for: goals) else { return .nothingToSend }
+        guard let id = try? outbox.enqueue(kind: OutboxDrainer.goalsKind, payload: patch) else { return .queued }
+        guard let drainer else { return .queued }
+        for _ in 0..<2 {
+            let results = await drainer.drainOnce()
+            if case .success(.goals(let server)) = results[id] { return .delivered(server) }
+            guard isPending(id) else { return .delivered(nil) }
+            if results[id] != nil { return .queued }   // attempted and failed: still queued
+        }
+        return .queued
+    }
+
+    private func isPending(_ id: Int64) -> Bool {
+        (try? outbox.pending())?.contains { $0.id == id } ?? true
     }
 }
