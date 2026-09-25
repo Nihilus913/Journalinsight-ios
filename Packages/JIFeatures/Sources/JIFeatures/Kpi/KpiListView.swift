@@ -30,7 +30,7 @@ public struct KpiListView: View {
                 }
                 // B-57 W1 board: no "Gate targets" section here — the gate rules are read-only in
                 // Settings → Local data mirrors and edited per metric on KpiDetail.
-                Button("Reset to defaults") { model.resetSelection() }
+                Button("Reset to defaults") { model.resetSelection(); announceTodayChange() }
                     .buttonStyle(.bordered)
                     .tint(theme.color(.info))
                     .accessibilityLabel("Reset My KPIs to defaults")
@@ -46,6 +46,9 @@ public struct KpiListView: View {
         .task { if !model.hasLiveResult { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
     }
+
+    /// W-FIX3 C-a: "On Today" IS Today's squares (one selection) — tell a Today behind this sheet.
+    private func announceTodayChange() { NotificationCenter.default.post(name: todayTilePrefsDidChange, object: nil) }
 
     private var loading: some View {
         Surface(level: 1, padding: 20) {
@@ -78,7 +81,7 @@ public struct KpiListView: View {
                     }
                     SquareGrid(items: items, onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
                         guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
-                        _ = model.toggle(id, selected: group != .onToday)
+                        if model.toggle(id, selected: group != .onToday) { announceTodayChange() }
                     })
                 }
             }

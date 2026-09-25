@@ -24,6 +24,13 @@ public final class SettingsViewModel {
     public let goalsSetupModel: GoalsSetupViewModel?
     /// Optional (W3b-L2): nil = no hub provider for the KPI list.
     public let kpiListModel: KpiListViewModel?
+    /// W-FIX3 fixer C-e: builds a KPI's detail model for Settings → My KPIs square taps. nil =
+    /// no hub provider → the squares stay display-only (never a tap that does nothing).
+    public let makeKpiDetailModel: (@MainActor (KpiMetricId) -> KpiDetailViewModel?)?
+    /// W-FIX3 fixer C-e: the KPI detail pushed over Settings → My KPIs; nil = none.
+    public var kpiDetailMetric: KpiMetricId?
+    /// Built once per tap (not per body pass), so the pushed detail keeps its loaded state.
+    public private(set) var kpiDetailModel: KpiDetailViewModel?
     /// B-57 W1 r5: the goals document source the Weekly plan row seeds from — the same
     /// `EnergyProviding` the Nutrition-tab entry passes. nil = no hub provider (plan uses prefs).
     public let goalsProvider: (any EnergyProviding)?
@@ -54,6 +61,7 @@ public final class SettingsViewModel {
         backupModel: BackupViewModel? = nil,
         goalsSetupModel: GoalsSetupViewModel? = nil,
         kpiListModel: KpiListViewModel? = nil,
+        makeKpiDetailModel: (@MainActor (KpiMetricId) -> KpiDetailViewModel?)? = nil,
         goalsProvider: (any EnergyProviding)? = nil,
         todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
         sections: [any SettingsSection] = SettingsRegistry.sections,
@@ -70,6 +78,7 @@ public final class SettingsViewModel {
         self.backupModel = backupModel
         self.goalsSetupModel = goalsSetupModel
         self.kpiListModel = kpiListModel
+        self.makeKpiDetailModel = makeKpiDetailModel
         self.goalsProvider = goalsProvider
         self.todayChips = todayChips
         // `sorted` is stable in Swift's stdlib (documented since 5.x), so equal keys keep registry order.
@@ -85,6 +94,17 @@ public final class SettingsViewModel {
         onSaved(config)
         savedMessage = "Using hub — saved."
         return true
+    }
+
+    /// W-FIX3 fixer C-e: the `onSelectKpi` Settings hands `KpiListView` — a square tap pushes
+    /// that KPI's detail. nil without a detail factory.
+    public var kpiSelectAction: ((String) -> Void)? {
+        guard makeKpiDetailModel != nil else { return nil }
+        return { [weak self] raw in
+            guard let metric = KpiMetricId(rawValue: raw) else { return }
+            self?.kpiDetailModel = self?.makeKpiDetailModel?(metric)
+            self?.kpiDetailMetric = metric
+        }
     }
 
     public var canSyncNow: Bool { syncAction != nil }

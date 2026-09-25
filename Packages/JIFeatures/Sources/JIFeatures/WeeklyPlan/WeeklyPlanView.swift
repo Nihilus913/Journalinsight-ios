@@ -178,13 +178,22 @@ public struct WeeklyPlanView: View {
     }
 
     private func targetRow(_ knob: WeeklyPlanViewModel.Knob) -> some View {
-        // A wide row keeps label · value · stepper on one line; when that does not fit (large
-        // Dynamic Type), the label takes its own line so nothing truncates.
+        // W-FIX3 BUG-37: the value stays inline with its label (board "Weekly average  1617 kcal").
+        // Widest first: label · value · stepper; then label · value with the stepper on its own
+        // line; only at AX sizes does the label take its own line so nothing truncates.
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
                 knobLabel(knob).fixedSize()
                 Spacer(minLength: 8)
                 knobValue(knob).fixedSize()
+                knobStepper(knob)
+            }
+            VStack(alignment: .trailing, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    knobLabel(knob).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    knobValue(knob).fixedSize()
+                }
                 knobStepper(knob)
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -202,7 +211,7 @@ public struct WeeklyPlanView: View {
 
     private func knobValue(_ knob: WeeklyPlanViewModel.Knob) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(weeklyPlanNumberText(model.value(of: knob))).jiNumeral(.numeralSmall, weight: .heavy)
+            Text(verbatim: weeklyPlanTargetText(model.value(of: knob))).jiNumeral(.numeralSmall, weight: .heavy)
                 .foregroundStyle(theme.color(weeklyPlanKnobTintRole(knob)))
             Text(knob.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
         }
@@ -242,6 +251,12 @@ public nonisolated let weeklyPlanFootnote = "Carbs fill what is left on each day
 /// ("1907", as the board and the TARGETS values show it).
 public nonisolated func weeklyPlanKcalText(_ kcal: Int) -> String { String(kcal) }
 
+/// W-FIX3 BUG-37: a TARGETS figure as a whole number ("185", never the raw goals "184.9" /
+/// "59.125"), plain digits like every other kcal figure here.
+public nonisolated func weeklyPlanTargetText(_ value: Double) -> String {
+    value.isFinite ? jiNumber(value, 0) : "—"
+}
+
 /// A TARGETS value's tint: the JIDesign macro role for what it measures.
 public nonisolated func weeklyPlanKnobTintRole(_ knob: WeeklyPlanViewModel.Knob) -> JIColorRole {
     switch knob {
@@ -264,7 +279,7 @@ public nonisolated func weeklyPlanBarFraction(kcal: Int, days: [DayPlan]) -> CGF
 
 /// Spelled out for VoiceOver: the day, its kind, and all four numbers the old table showed.
 public nonisolated func weeklyPlanDayAccessibilityLabel(_ day: DayPlan) -> String {
-    "\(day.day.label), \(day.high ? "training day" : "rest day"): \(day.kcal) kcal, \(weeklyPlanNumberText(day.protein)) g protein, \(day.carbs) g carbs, \(weeklyPlanNumberText(day.fat)) g fat"
+    "\(day.day.label), \(day.high ? "training day" : "rest day"): \(day.kcal) kcal, \(weeklyPlanTargetText(day.protein)) g protein, \(day.carbs) g carbs, \(weeklyPlanTargetText(day.fat)) g fat"
 }
 
 /// Today's weekday in the plan's Monday-first order.

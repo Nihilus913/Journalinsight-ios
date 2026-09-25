@@ -25,15 +25,12 @@ public struct TrainingView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // B-45 (a): the screen's own date is the REAL device day (mirrors
-                // `TodayView`), so Training never reads as "Monday" because the hub's last
-                // verdict was written on Monday. The hub's `verdict_date` stays where it
-                // belongs — inside the Readiness card, labelled as the verdict's date.
-                Text(model.todayDate.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .jiFont(.subheadline, weight: .semibold)
-                    .foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("training-date-header")
-                TrainingSessionHeader(sessionName: model.plannedSessionForSelectedDay?.name, fetchedAt: model.fetchedAt, watchLine: watchLine)
+                // B-45 (a): the screen's own date is the REAL device day (mirrors `TodayView`).
+                // W-FIX3 fixer BUG-44 (board 3/01): "Full · Wed 23 Sep" + the synced pill on one row;
+                // the verdict word leads only when the hub's verdict is today's.
+                TrainingSessionHeader(
+                    subtitle: trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate),
+                    fetchedAt: model.fetchedAt, watchLine: watchLine)
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -68,15 +65,6 @@ public struct TrainingView: View {
             SessionCoachView(model: SessionCoachViewModel(provider: nil))
         }
         #if canImport(WorkoutKit)
-        .toolbar {
-            if sendToWatch != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showSendToWatch = true } label: { Label("Send to Watch", systemImage: "applewatch.radiowaves.left.and.right") }
-                        .accessibilityLabel("Send to Watch")
-                        .accessibilityIdentifier("training-send-to-watch")
-                }
-            }
-        }
         .sheet(isPresented: $showSendToWatch) {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
         }
@@ -124,14 +112,17 @@ public struct TrainingView: View {
 
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // W-FIX3 fixer BUG-44 (board 3/01): the hero carries the session, its exercises, Send to
+            // Watch and Start session (the live session coach — no separate coach row).
+            TrainingHeroCard(
+                dayLabel: heroDayLabel,
+                sessionName: model.plannedSessionForSelectedDay?.name,
+                rows: trainingHeroRows(exercises: model.exercises, session: model.plannedSessionForSelectedDay),
+                onSendToWatch: sendToWatchAction,
+                onStart: { showSessionCoach = true })
             TrainingDayStrip(daily: model.gate?.daily ?? [], selectedDate: model.selectedDate, onSelect: model.selectDate)
             JISectionHeader("Readiness")
-            // §8.1: the gate hero and the session-coach entry compose side by side in regular
-            // width (Pro Max landscape, Stage Manager) and stack on an iPhone. Same two cards.
-            AdaptiveHStack {
-                GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
-                sessionCoachEntry
-            }
+            GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
             JISectionHeader("This day")
             TrainingDayDetailCard(
                 date: model.selectedDate,
@@ -152,23 +143,17 @@ public struct TrainingView: View {
         }
     }
 
-    /// The oracle's `SessionCoachEntry` opens `app/session-coach.tsx` — W3b-L1 wires the push.
-    private var sessionCoachEntry: some View {
-        Button { showSessionCoach = true } label: {
-            Surface {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("LIVE SESSION COACH").jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
-                        Text("Session coach").jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted))
-                }
-            }
-        }
-        .buttonStyle(.pressableScale)
-        // Oracle `SessionCoachEntry.tsx` L24 label, verbatim.
-        .accessibilityLabel("Open live session coach")
-        .accessibilityIdentifier("session-coach-entry")
+    /// "Today" for the device day, else the selected day's date ("Thu 24 Sep").
+    private var heroDayLabel: String {
+        guard model.selectedDate != model.todayDateString, let date = trainingStripDate(model.selectedDate) else { return "Today" }
+        return date.formatted(Date.FormatStyle(timeZone: trainingStripCalendar.timeZone).weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    private var sendToWatchAction: (() -> Void)? {
+        #if canImport(WorkoutKit)
+        sendToWatch == nil ? nil : { showSendToWatch = true }
+        #else
+        nil
+        #endif
     }
 }

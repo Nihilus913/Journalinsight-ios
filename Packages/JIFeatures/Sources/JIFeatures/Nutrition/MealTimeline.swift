@@ -12,6 +12,7 @@ public struct MealTimeline: View {
     private static let labels: [String: String] = ["breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snack": "Snack"]
 
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
     public init(day: NutritionDayDetail?, onSelectMeal: ((MealDetail) -> Void)? = nil) { self.day = day; self.onSelectMeal = onSelectMeal }
 
     public var body: some View {
@@ -55,10 +56,23 @@ public struct MealTimeline: View {
                 .accessibilityIdentifier("meal-row-\(slot)")
             // §2b.2: each logged item is a 44-pt inset-grouped row.
             ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                JIRow(title: item.name, systemImage: "fork.knife", tint: theme.color(.info)) {
-                    Text(item.kcal.map { "\(Int($0)) kcal" } ?? "—")
-                        .accessibilityLabel(item.kcal.map { "\(Int($0)) kcal" } ?? "no calorie data")
-                }
+                Group { if typeSize.isAccessibilitySize {
+                    // W-FIX3 BUG-33: at AX sizes a name beside its kcal broke mid-word
+                    // ("Schink-/en"); the kcal takes its own line under the whole name.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.name).jiFont(.body).foregroundStyle(theme.color(.text))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(verbatim: mealItemKcalText(item.kcal)).jiFont(.body).foregroundStyle(theme.color(.muted))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: JIRow<EmptyView>.minHeight, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                } else {
+                    JIRow(title: item.name, systemImage: "fork.knife", tint: theme.color(.info)) {
+                        // W-FIX3 BUG-36: the same rounding as My KPIs / KpiDetail / the Meal sheet.
+                        Text(verbatim: mealItemKcalText(item.kcal))
+                            .accessibilityLabel(mealItemKcalText(item.kcal))
+                    }
+                } }
                 .accessibilityLabel(item.name)
                 if idx != items.count - 1 { Divider().overlay(theme.color(.hairlineNested)).padding(.leading, 40) }
             }

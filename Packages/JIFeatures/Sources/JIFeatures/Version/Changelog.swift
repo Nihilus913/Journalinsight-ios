@@ -31,7 +31,7 @@ public nonisolated enum Changelog {
 
     /// The one entry this port adds. Its version is the Swift app line, not an RN build number.
     public static let swiftNativeEntry = ChangelogEntry(
-        version: "2.0.0",
+        version: "2.0.0-beta.1",
         date: "2026-09-17",
         title: "Swift native (Waves W0–W5a)",
         items: [
@@ -42,7 +42,46 @@ public nonisolated enum Changelog {
         ]
     )
 
-    public static let swiftEntries: [ChangelogEntry] = [swiftNativeEntry]
+    // W-FIX3 BUG-43: the changelog stopped at 17 Sep. One entry per Swift milestone since, newest
+    // first. The installed release is `2.0.0` (the About screen marks the entry whose version
+    // equals `CFBundleShortVersionString` "Installed"); the earlier Swift milestones are its
+    // pre-releases, so every id stays unique.
+    public static let fixesEntry = ChangelogEntry(
+        version: "2.0.0",
+        date: "2026-09-25",
+        title: "Regression fixes",
+        items: [
+            "Appearance works everywhere: System, Light and Dark follow your choice across the app and in open sheets, and your accent colour tints every screen",
+            "Goals, KPIs, Today and More agree with each other — the same numbers and the same KPI set on every screen that shows them",
+            "Export starts with Journal, Mind and WHO-5 ticked, and the goal date is picked from a calendar",
+            "Large text sizes: long titles and subtitles wrap instead of being cut off, and Settings icons no longer run into their labels",
+        ]
+    )
+
+    public static let morningFlowEntry = ChangelogEntry(
+        version: "2.0.0-beta.3",
+        date: "2026-09-23",
+        title: "Morning flow and the Apple gate",
+        items: [
+            "Today leads with the morning decision: why the gate says what it says, and a way to override it",
+            "The readiness gate can run on Apple Watch data alone",
+            "Last night's Apple Health data reaches your hub when you open the app",
+        ]
+    )
+
+    public static let nativeLookEntry = ChangelogEntry(
+        version: "2.0.0-beta.2",
+        date: "2026-09-22",
+        title: "Native look, widgets and a Settings menu",
+        items: [
+            "Every screen uses the iOS look: system lists, controls and typography",
+            "Home Screen widgets",
+            "Settings is a menu of smaller screens instead of one long page",
+            "Workouts can be sent to Apple Watch, and backloaded workouts carry their route and heart rate",
+        ]
+    )
+
+    public static let swiftEntries: [ChangelogEntry] = [fixesEntry, morningFlowEntry, nativeLookEntry, swiftNativeEntry]
 
     /// What the screen renders: Swift entries first, then every RN entry (newest first).
     public static let entries: [ChangelogEntry] = swiftEntries + rnEntries

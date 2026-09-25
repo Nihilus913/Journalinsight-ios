@@ -88,6 +88,7 @@ struct RootTabView: View {
     @State private var gateForceConsumed = false
     @State private var goalsSetupModel: GoalsSetupViewModel?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
     #if DEBUG
     @State private var showDataQuality = false
     #endif
@@ -187,10 +188,11 @@ struct RootTabView: View {
             .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
         .background(theme.color(.bg))
-        // B-33 §8.0: the whole shell renders in the native language; §5: tab/selection tint is
-        // the personalization accent resolved for `.native`.
+        // B-33 §8.0: the whole shell renders in the native language. §5: tab/selection tint is
+        // the personalization accent — W-FIX3 C-c: inherited from the app root's
+        // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint
+        // here used to override it back to the default for every tab and sheet.
         .jiTheme(.native)
-        .tint(AccentKey.default.color(for: .native))
         .onChange(of: ProviderSwitch.shared.revision) { _, revision in
             guard revision != providerRevision else { return }
             providerRevision = revision
@@ -437,6 +439,18 @@ struct RootTabView: View {
     /// B-55: rendered inside More's own `tabStack`, so the links push there.
     private var moreTab: some View {
         List {
+            // W-FIX3 BUG-33: at AX sizes the subtitle wraps here instead of being cut in the bar.
+            if jiTitleWrapsInList(typeSize) {
+                Section {
+                    Text(Self.moreSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                        .accessibilityIdentifier("more.subtitle")
+                }
+            }
             Section("Track") {
                 NavigationLink { nutritionTab } label: {
                     MoreRowLabel("Nutrition", systemImage: RootTab.nutrition.symbol, value: moreNutritionRow)
@@ -480,9 +494,11 @@ struct RootTabView: View {
             }
         }
         .navigationTitle("More")
-        .navigationSubtitle("Everything that is not a daily decision")
+        .navigationSubtitle(jiTitleWrapsInList(typeSize) ? "" : Self.moreSubtitle)
         .task { await loadMoreSummaries() }
     }
+
+    static let moreSubtitle = "Everything that is not a daily decision"
 
     // B-57 W1 r5 (h3): the More rows' trailing values read the same models the screens behind
     // them use (built here when More is opened first); missing data is "—" + a reason.
@@ -779,6 +795,13 @@ struct RootTabView: View {
             backupModel: backup,
             goalsSetupModel: goals,
             kpiListModel: kpis,
+            // W-FIX3 fixer C-e: Settings → My KPIs squares push their detail (same model as the shell's).
+            makeKpiDetailModel: { metric in
+                guard let provider, let nutrition = provider as? any NutritionProviding,
+                      let targets = provider as? any KpiTargetsProviding else { return nil }
+                return KpiDetailViewModel(metric: metric, healthProvider: provider, nutritionProvider: nutrition,
+                                          targetsProvider: targets, cache: env.cache)
+            },
             goalsProvider: provider as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },
             syncAction: { try await env.syncNow() }

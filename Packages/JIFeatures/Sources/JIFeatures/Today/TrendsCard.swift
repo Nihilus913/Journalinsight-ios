@@ -51,7 +51,7 @@ public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow
                    colorRole: role)
     }
     return [
-        trend("hrv", "HRV", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms", role: .info),   // W-FIX1 BUG-06
+        trend("hrv", "HRV", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms", role: .hrv),   // W-FIX1 BUG-06; W-FIX3 C-d: HRV's own role, not the accent
         trend("rhr", "Resting HR", rec(\.rhrBpm), unit: "bpm", role: .reduced),
         trend("sleep", "Sleep score", rec(\.sleepScore), role: .sleep),
         trend("steps", "Steps", day("steps"), role: .info),

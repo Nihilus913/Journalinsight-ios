@@ -9,6 +9,9 @@ import JIDesign
 public struct NutritionView: View {
     @Bindable private var model: NutritionViewModel
     @State private var selectedMeal: MealDetail?
+    /// W-FIX3 BUG-35/51: the goals document (read-only GET) for the kcal fallback and macro bars.
+    @State private var goals: NutritionGoal?
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
 
@@ -17,6 +20,12 @@ public struct NutritionView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // AX sizes: the navigation subtitle cannot wrap, so the day line moves into the page.
+                if typeSize.isAccessibilitySize {
+                    Text(subtitle).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("nutrition-subtitle")
+                }
                 HStack { Spacer(); SyncedPill(date: model.fetchedAt, label: .lastSynced) }
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
@@ -36,14 +45,28 @@ public struct NutritionView: View {
         // §5: the hand-drawn large title + date line become the system title and subtitle.
         .navigationTitle("Nutrition")
         #if os(iOS)
-        .navigationSubtitle(model.selectedDate)
+        // W-FIX3 BUG-34: the selected day in words, never the raw ISO date.
+        .navigationSubtitle(typeSize.isAccessibilitySize ? "" : subtitle)
         #endif
-        .refreshable { await model.refresh() }
+        .refreshable { await model.refresh(); await loadGoals() }
         .task { if !model.hasLiveResult { await model.load() } }
+        .task { await loadGoals() }
         .animation(JIMotion.standard, value: model.phase)
         .sheet(item: Binding(get: { selectedMeal.map(IdentifiedMeal.init) }, set: { selectedMeal = $0?.detail })) {
             MealDetailSheet(detail: $0.detail)
         }
+    }
+
+    private var today: String { energyTodayISO() }
+    private var subtitle: String { nutritionSubtitle(selected: model.selectedDate, today: today) }
+    private var weekRow: NutritionDailyRow? { model.week.first { $0.date == model.selectedDate } }
+
+    /// Read-only GET of the goals document (the hub provider conforms to `EnergyProviding`, the
+    /// same cast `WeeklyPlanNutritionRow` uses). Failure leaves the goals unknown — no bars, never
+    /// a guessed goal.
+    private func loadGoals() async {
+        guard let p = model.provider as? any EnergyProviding else { return }
+        if let g = try? await p.goals() { goals = g.nutrition }
     }
 
     private var loading: some View {
@@ -69,10 +92,15 @@ public struct NutritionView: View {
             NutritionWeekStrip(days: model.week, selectedDate: model.selectedDate) { date in
                 Task { await model.selectDate(date) }
             }
-            JISectionHeader("Today")
-            MacroSummaryCard(day: model.day)
+            JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
+            MacroSummaryCard(day: model.day, today: today, kcalGoalFallback: weekRow?.kcalGoal, macroGoals: goals)
             JISectionHeader("Meals")
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
+            if let prev = nutritionPreviousDay(week: model.week, selected: model.selectedDate) {
+                NutritionPreviousDayCards(row: prev, isYesterday: model.selectedDate == today,
+                                          kcalGoal: nutritionKcalGoal(dayGoal: prev.kcalGoal, weekGoal: nil, goalsGoal: goals?.kcalGoal),
+                                          proteinGoal: goals?.proteinG)
+            }
             WeeklyPlanNutritionRow(provider: model.provider) // W5b-L5: RN nutrition.tsx:292 "Weekly kcal / macro plan" row
         }
     }
@@ -83,6 +111,54 @@ public struct NutritionView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("nutrition-readonly-note")
+    }
+}
+
+/// Board 2/07 "Yesterday": the previous day's kcal and protein, each with its status word.
+struct NutritionPreviousDayCards: View {
+    let row: NutritionDailyRow
+    let isYesterday: Bool
+    let kcalGoal: Double?
+    let proteinGoal: Double?
+    private let theme = JITheme.native
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            JISectionHeader(isYesterday ? "Yesterday" : (nutritionDayParts(row.date)?.weekday ?? row.date))
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) { kcalCard; proteinCard }
+                VStack(alignment: .leading, spacing: 12) { kcalCard; proteinCard }
+            }
+        }
+        .accessibilityIdentifier("nutrition-previous-day")
+    }
+
+    private var kcalCard: some View {
+        card(value: nutritionWholeText(row.kcalConsumed), unit: "kcal", role: nutritionKcalTintRole, missing: row.kcalConsumed == nil,
+             status: macroKcalStatus(kcal: row.kcalConsumed, goal: kcalGoal, isToday: false), id: "kcal")
+    }
+
+    private var proteinCard: some View {
+        card(value: nutritionWholeText(row.proteinG), unit: "g protein", role: .protein, missing: row.proteinG == nil,
+             status: nutritionProteinStatus(protein: row.proteinG, goal: proteinGoal), id: "protein")
+    }
+
+    private func card(value: String, unit: String, role: JIColorRole, missing: Bool, status: String, id: String) -> some View {
+        Surface {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(verbatim: value).jiNumeral(.numeralMedium).foregroundStyle(theme.color(missing ? .muted : role))
+                    if !missing { Text(unit).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true) }
+                }
+                Text(status).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(unit == "kcal" ? "Calories" : "Protein")
+        .accessibilityValue("\(missing ? JIMissingReason.noData.rawValue : "\(value) \(unit)"), \(status)")
+        .accessibilityIdentifier("nutrition-previous-\(id)")
     }
 }
 

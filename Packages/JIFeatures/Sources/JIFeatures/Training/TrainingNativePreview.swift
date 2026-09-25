@@ -68,22 +68,16 @@ struct TrainingNativePreview: View {
         ScrollView {
         VStack(alignment: .leading, spacing: 16) {
             // B-57 W1: the preview carries the screen's new header (spec §1 "Registration").
-            TrainingSessionHeader(sessionName: "Full upper A", fetchedAt: previewFetchedAt, watchLine: previewWatchLine)
+            // W-FIX3 fixer BUG-44: the board 3/01 header + hero.
+            TrainingSessionHeader(subtitle: trainingSubtitle(verdict: morning?.verdict, isStale: false, date: previewFetchedAt,
+                                                             timeZone: TimeZone(identifier: "UTC")!),
+                                  fetchedAt: previewFetchedAt, watchLine: previewWatchLine)
+            TrainingHeroCard(dayLabel: "Today", sessionName: "Full upper A",
+                             rows: trainingHeroRows(exercises: exercises, session: PlannedSession(id: -1, name: "Full upper A", weekday: 0)),
+                             onSendToWatch: {}, onStart: {})
             TrainingDayStrip(daily: gate?.daily ?? [], selectedDate: today, today: today) { _ in }
             JISectionHeader("Readiness")
-            AdaptiveHStack {
-                GateDetailCard(morning: morning, gate: gate)
-                Surface {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("LIVE SESSION COACH").jiFont(.micro, weight: .semibold)
-                            Text("Session coach").jiFont(.subheadline, weight: .bold)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                }
-            }
+            GateDetailCard(morning: morning, gate: gate)
             JISectionHeader("This day")
             TrainingDayDetailCard(date: today, detail: dayDetail)
             JISectionHeader("Plan")

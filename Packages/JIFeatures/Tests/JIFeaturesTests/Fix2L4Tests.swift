@@ -35,7 +35,7 @@ import JIPersistence
     let shown = todayGridShownIDs(chipIDs: TodayTileRegistry.ids, prefs: p)
     let dragged = squareGridMove(shown, moving: "weight", before: "hrv")
     let next = todayGridCommitOrder(p, shownOrder: dragged)
-    #expect(next.hidden == ["rhr"])
+    #expect(next.hidden == ["rhr"] + TodayTileRegistry.optInIds)   // W-FIX3: the opt-in KPIs start hidden
     #expect(next.order.count == TodayTileRegistry.ids.count)
     #expect(visibleTodayTileOrder(next) == dragged)
     #expect(next.order[1] == "rhr")   // the hidden square keeps its slot
@@ -63,14 +63,16 @@ import JIPersistence
 
     let items = editTodayCatalogueItems(vm.prefs)
     #expect(items.map(\.id) == TodayTileRegistry.ids)
-    #expect(items.allSatisfy { $0.badge == .selected })
+    // W-FIX3 C-a: the board's eight are on Today (✓); the opt-in KPIs wait with a +.
+    #expect(items.filter { $0.badge == .selected }.map(\.id) == visibleTodayTileOrder(.default))
+    #expect(items.filter { $0.badge == .add }.map(\.id) == TodayTileRegistry.optInIds)
 
     vm.toggleFromCatalogue("protein")            // ✓ → removes it from Today
     #expect(vm.isHidden("protein"))
     #expect(editTodayCatalogueItems(vm.prefs).first { $0.id == "protein" }?.badge == .add)
     vm.toggleFromCatalogue("protein")            // + → adds it back
     #expect(!vm.isHidden("protein"))
-    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == [])
+    #expect(try PrefStore(db: db).get(todayTileHiddenKey, as: [String].self) == TodayTileRegistry.optInIds)
 }
 
 // MARK: - BUG-25
@@ -140,8 +142,8 @@ private func makeTrainingVM(hub: PlanWeekdayFakeProvider, outbox: Outbox) throws
     let vm = TodayViewModel(provider: FlakyProvider(failing: false), cache: OfflineCache(db: try AppDatabase.inMemory()))
     await vm.load()
     #expect(vm.gridChips.map(\.id) == TodayTileRegistry.ids)
-    // Nothing hidden in EditToday (8 of 8) → Today shows all 8 tiles.
+    // EditToday's default (8 of 12 on Today) → Today shows exactly those 8 tiles.
     let shown = todayGridShownIDs(chipIDs: vm.gridChips.map(\.id), prefs: .default)
-    #expect(shown.count == TodayTileRegistry.ids.count)
+    #expect(shown.count == KpiSelection.maxSelected)
     #expect(shown == editTodayVisibleItems(.default).map(\.id))
 }

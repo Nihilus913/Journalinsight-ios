@@ -37,9 +37,11 @@ private let rnChangelogDigest = "322cb458e0e15992e20ec7da5f37718ecedbbf50d2cb324
 
 @Test func changelogLeadsWithTheSwiftNativeEntryThenEveryRnEntry() {
     let all = Changelog.entries
-    #expect(all.first?.id == Changelog.swiftNativeEntry.id)
-    #expect(all.first?.title.contains("Swift native") == true)
-    #expect(Array(all.dropFirst()) == Changelog.rnEntries)
+    // W-FIX3 BUG-43: the Swift entries (newest first) lead; the "Swift native" one is the oldest of them.
+    #expect(all.first?.id == Changelog.swiftEntries.first?.id)
+    #expect(Changelog.swiftEntries.last == Changelog.swiftNativeEntry)
+    #expect(Changelog.swiftNativeEntry.title.contains("Swift native"))
+    #expect(Array(all.dropFirst(Changelog.swiftEntries.count)) == Changelog.rnEntries)
     #expect(Set(all.map(\.id)).count == all.count, "entry ids (versions) must be unique")
     #expect(Changelog.appName == "JournalInsight")
 }
@@ -52,7 +54,7 @@ private let rnChangelogDigest = "322cb458e0e15992e20ec7da5f37718ecedbbf50d2cb324
     #expect(m.versionLine == "Version 1.0 (7)")
     #expect(m.bundleId == "toby913.JournalInsight")
     #expect(m.entries == Changelog.entries)
-    #expect(m.entries.count == 28)
+    #expect(m.entries.count == Changelog.swiftEntries.count + 27)
 }
 
 @Test @MainActor func versionViewModelSeenMarkerPersistsThroughPrefStore() throws {

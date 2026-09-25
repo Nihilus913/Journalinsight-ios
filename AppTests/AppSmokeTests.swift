@@ -10,6 +10,12 @@ import UIKit
     #expect(Bundle.main.object(forInfoDictionaryKey: "UIUserInterfaceStyle") == nil)
 }
 
+/// W-FIX3 fixer BUG-43: About & version reads the bundle's marketing version; it must be the
+/// shipped release `2.0.0` (the Changelog's installed entry), not Xcode's template `1.0`.
+@Test func infoPlistShipsMarketingVersion200() {
+    #expect(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "2.0.0")
+}
+
 #if DEBUG
 /// True when some window scene reached `.foregroundActive` — the only state in which
 /// `AppDelegate`'s `UIScene.didActivateNotification` observer has installed the overlay.

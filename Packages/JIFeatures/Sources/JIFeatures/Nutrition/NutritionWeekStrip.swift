@@ -37,19 +37,19 @@ public struct NutritionWeekStrip: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 WeekStrip(days: stripDays, tint: theme.color(.info), selected: selection)
+                    // W-FIX3 BUG-33: seven rings cannot grow past a seventh of the card; at AX
+                    // sizes they overlapped. The strip caps its type size (each chip keeps its
+                    // full VoiceOver label) and the caption below carries the large text.
+                    .dynamicTypeSize(...DynamicTypeSize.large)
                     .accessibilityIdentifier("nutrition-week-strip")
                 if let day = sorted.first(where: { $0.date == selectedDate }) {
-                    Text(accessibilityLabel(for: day))
+                    Text(verbatim: nutritionWeekCaption(date: day.date, kcal: day.kcalConsumed))
                         .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("nutrition-week-day-\(day.date)")
                 }
             }
         }
-    }
-
-    private func accessibilityLabel(for day: NutritionDailyRow) -> String {
-        let kcal = day.kcalConsumed.map { "\(Int($0)) kcal" } ?? "no data"
-        return "\(day.date), \(kcal)"
     }
 
     /// Not `nonisolated` (this type stays `@MainActor` under JIFeatures' default isolation) but

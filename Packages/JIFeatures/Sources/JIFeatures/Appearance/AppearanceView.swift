@@ -6,8 +6,9 @@ import JIDesign
 /// gone (the system grouped background shows through), and the pills that used to be tinted
 /// rectangles are the system's own controls — a segmented `Picker` for theme mode and text size,
 /// a row of accent swatches, a plain `TextField` row for the greeting name.
-/// `.preferredColorScheme` here still previews the choice inside this presentation; the app root
-/// applies the same `ThemeMode.preferredColorScheme` globally.
+/// W-FIX3 C-b: this screen no longer sets its own `preferredColorScheme` — once a sheet had forced
+/// Dark, SwiftUI's nil did not hand it back, so an open Settings sheet stayed dark after System.
+/// The app root's window override (`AppThemeModel.applyToWindows`) repaints this sheet live.
 /// "Color source" (Android Material You) has no iOS equivalent and is descoped; the pref persists.
 // B-57 W1 r4 (fixer g3, board 5/02): a live PREVIEW card on top (your greeting in your accent, a
 // link sample), then Theme, Accent colour (swatches only), Text size as a SLIDER (A … A) and the
@@ -104,7 +105,6 @@ public struct AppearanceView: View {
         .jiTheme(.native)
         .tint(accent)
         .navigationTitle("Appearance")
-        .preferredColorScheme(model.preferredColorScheme)
         .dynamicTypeSize(model.dynamicTypeSize.map { $0...$0 } ?? DynamicTypeSize.xSmall...DynamicTypeSize.accessibility5)
         .onDisappear { model.commitName() }
     }

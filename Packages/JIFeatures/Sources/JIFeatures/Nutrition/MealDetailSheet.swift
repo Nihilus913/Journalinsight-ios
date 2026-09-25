@@ -20,10 +20,11 @@ public nonisolated func mealDetail(slot: String, items: [NutritionMealItem]) -> 
 
 /// The four macro rows. A missing sum is "— No data" (rule 5: never a bare dash, never a zero).
 public nonisolated func mealDetailRows(_ detail: MealDetail) -> [(title: String, value: String, role: JIColorRole)] {
-    [("Calories", jiValueOrReasonText(detail.kcal, decimals: 0, unit: "kcal"), .reduced),
-     ("Protein", jiValueOrReasonText(detail.protein, decimals: 0, unit: "g"), .info),
-     ("Carbs", jiValueOrReasonText(detail.carbs, decimals: 0, unit: "g"), .reduced),
-     ("Fat", jiValueOrReasonText(detail.fat, decimals: 0, unit: "g"), .sleep)]
+    // W-FIX3 C-d: each row in its macro role (protein = `.protein`), as the rings and KPIs use.
+    [("Calories", jiValueOrReasonText(detail.kcal, decimals: 0, unit: "kcal"), nutritionKcalTintRole),
+     ("Protein", jiValueOrReasonText(detail.protein, decimals: 0, unit: "g"), .protein),
+     ("Carbs", jiValueOrReasonText(detail.carbs, decimals: 0, unit: "g"), .carbs),
+     ("Fat", jiValueOrReasonText(detail.fat, decimals: 0, unit: "g"), .fat)]
 }
 
 /// B-57 W1 (v11 change 2): the old +Log sheet, now a read-only Meal detail. One action: Done.
