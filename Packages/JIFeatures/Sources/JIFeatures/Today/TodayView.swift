@@ -15,6 +15,9 @@ public struct TodayView: View {
     @State private var gateRespondModel: GateRespondViewModel?
     /// B-57 §6/§9: the Day summary line re-opens this morning's Coach overlay, read-only.
     @State private var showMorningReview = false
+    /// W-FIX3 BUG-28: board 02's "Week review" footer link opens the gate rationale (weekly gate).
+    @State private var showWeekReview = false
+    @Environment(\.gateRationaleModel) private var rationaleModel
     /// W-B57b (B-62): Decide's Go / Adjust write, built by the App (nil = Go just advances).
     @Environment(\.verdictOverrideModel) private var verdictOverrideModel
     @Environment(\.jiTheme) private var theme
@@ -118,47 +121,143 @@ public struct TodayView: View {
 
     @ViewBuilder
     private var dayContent: some View {
+        // W-FIX3 BUG-28 (board 02, `daySections`): title line → NEXT → Fuel today → Tonight → the
+        // EditToday squares → footer. The old hero, rings, raw insight, Felt row, EA and Mind are gone.
         // W-FIX2 DEV-03: the newer of the hub's last sync and this app's last 2xx HealthKit upload.
         HStack { Spacer(); SyncedPill(date: model.syncedAt) }.accessibilityIdentifier("today.day.synced")
         MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
-                           caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption }) {
+                           caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
+                           override: currentOverride) {
             showMorningReview = true
         }
-        // §8.1: hero + drivers compose side by side in regular width and stack in compact.
-        // readinessMissing: false — W1 has only the hub provider, which always carries a
-        // readiness field (nil when the hub itself has no score yet); a real "source doesn't
-        // support this metric" case awaits W2+'s additional providers.
-        AdaptiveHStack {
-            VerdictHeroView(verdict: shownVerdict, readiness: model.readiness, readinessMissing: false,
-                            sleepScore: chip("sleep")?.value, load: latestAcwr,
-                            insight: InsightSentence.build(gate: model.gate, morning: model.morning),
-                            gateRespondModel: gateRespondModel, showsRespondRow: false)
-            ringsRow
-        }
+        nextCard
+        fuelCard
+        tonightCard
         // W-FIX2 fixer BUG-19: the grid gets every square EditToday lists (`gridChips`), not the four.
         TodayGrid(chips: model.gridChips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
         // B-57 W1: the Trends card became a full screen, reached from this footer link.
         HStack {
-            Spacer()
             Group {
                 if let onOpenTrends {
-                    Button(action: onOpenTrends) { trendsLabel }
+                    Button(action: onOpenTrends) { footerLabel("Trends") }
                 } else {
                     NavigationLink {
                         TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
-                    } label: { trendsLabel }
+                    } label: { footerLabel("Trends") }
                 }
             }
             .buttonStyle(.pressableScale)
             .accessibilityIdentifier("today.footer.trends")
+            Spacer()
+            // Board 02 "Week review": the weekly gate (nutrition, rules, the weekly answer) lives on the rationale.
+            if rationaleModel != nil {
+                Button { showWeekReview = true } label: { footerLabel("Week review") }
+                    .buttonStyle(.pressableScale)
+                    .accessibilityIdentifier("today.footer.weekReview")
+            }
+        }
+        .navigationDestination(isPresented: $showWeekReview) {
+            if let rationaleModel { gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel) }
         }
         // Room so the Coach overlay never covers the last card.
         if model.morningState == .coach || showMorningReview { Color.clear.frame(height: 140).accessibilityHidden(true) }
     }
 
-    private var trendsLabel: some View {
-        Text("Trends").jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
+    private func footerLabel(_ text: String) -> some View {
+        Text(text).jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
             .frame(minHeight: 44)
+    }
+
+    private func dayCardHeader(_ title: String, trailing: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if let trailing { Text(trailing).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+        }
+    }
+
+    /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
+    private var nextCard: some View {
+        let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride)
+        return Surface(level: 1, padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NEXT").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.info))
+                Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let prescription = card.prescription {
+                    Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let exercises = card.exercises {
+                    Text(exercises).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today.day.next")
+    }
+
+    /// Board 02 Fuel today: today's food row (or the latest real one, named by its day), then the
+    /// planned lunch, which has no source on the phone yet.
+    private var fuelCard: some View {
+        let fuel = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString)
+        return Surface(level: 1, padding: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                dayCardHeader("Fuel today", trailing: fuel.asOf)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(jiValueText(fuel.kcal, decimals: 0)).jiNumeral(.numeralMedium, weight: .heavy)
+                        .foregroundStyle(theme.color(fuel.kcal == nil ? .muted : .kcal))
+                    Text(fuel.kcal == nil ? JIMissingReason.noData.rawValue
+                         : fuel.kcalGoal.map { "/ \(jiNumber($0, 0)) kcal" } ?? "kcal")
+                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Columns(minimum: 88, spacing: 12) {
+                    macro("Protein", fuel.protein, role: .protein)
+                    macro("Carbs", fuel.carbs, role: .carbs)
+                    macro("Fat", fuel.fat, role: .fat)
+                }
+                Divider().overlay(theme.color(.hairlineNested))
+                Text(dayPlannedLunchText).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("today.day.plannedLunch")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.day.fuel")
+    }
+
+    private func macro(_ label: String, _ value: Double?, role: JIColorRole) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(jiValueText(value, decimals: 0)).jiFont(.body, weight: .bold).foregroundStyle(theme.color(value == nil ? .muted : role))
+                if value != nil { Text("g").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+            }
+            Text(value == nil ? "\(label) · \(JIMissingReason.noData.rawValue)" : label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Board 02 Tonight: the sleep goal the morning call uses, and last night against it.
+    private var tonightCard: some View {
+        let t = dayTonight(signals: model.morning?.gateSignals, recovery: model.recovery, now: Date())
+        return Surface(level: 1, padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                dayCardHeader("Tonight")
+                Text(t.goalText).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(t.lastNightText).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today.day.tonight")
     }
 
     /// B-57 §9 Coach: the one change for today, built from the DTOs this screen already holds.
@@ -166,91 +265,7 @@ public struct TodayView: View {
         CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery)
     }
 
-    /// §4b + B-42: the hero's ring trio, then exactly two small rings — no longer hard-wired to
-    /// Sleep/Steps but the user's own first two "My KPIs" (`KpiSelection`, the same `PrefStore`
-    /// selection the KPI list writes), with live values.
-    ///
-    /// A KPI with no bounded scale (HRV, RHR, ACWR, weight, macros — §4b: never a ring, they are
-    /// baseline-relative) renders as a value tile instead of a ring, rather than being forced onto
-    /// an invented 0–100 axis.
-    @ViewBuilder
-    private var ringsRow: some View {
-        Surface(level: 1) {
-            // A ring pair is fixed-width art: `Columns` drops it to one-up at AX sizes rather than
-            // pushing the composition wider (§8.1 "reflows, never clips").
-            Columns(minimum: 96, spacing: 16) {
-                ForEach(myKpis, id: \.self) { id in
-                    let def = KpiMetrics.def(id)
-                    let latest = kpiLatest(id)
-                    kpiCell(def: def, value: latest?.value,
-                            asOf: kpiAsOfLabel(valueDate: latest?.date, today: todayDateString))
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
-
-    /// The first two selected "My KPIs", in the user's own rank order. Falls back to the default
-    /// selection when nothing is persisted yet (or no `PrefStore` is wired at this call site).
-    private var myKpis: [KpiMetricId] {
-        let saved = (try? model.tileOrderStore?.get(KpiSelection.prefKey, as: KpiSelectionPrefs.self)) ?? nil
-        return Array(KpiSelection.visibleOrder(KpiSelection.reconcile(saved)).prefix(2))
-    }
-
-    /// Live value for a KPI, from the sections Today already holds. Nutrition-sourced KPIs
-    /// (kcal/protein/carbs/fat) read `[]` here — this screen never fetches the nutrition week —
-    /// so they show their "No data yet" state rather than a stale number.
-    private func kpiValue(_ id: KpiMetricId) -> Double? { kpiLatest(id)?.value }
-
-    /// B-46 item 3 (fixer): the value AND the day it was actually taken on, so a week-old HRV is
-    /// never presented as today's reading (the same `KpiMetrics.latest` the KPI detail screen uses).
-    /// W-FIX2 DEV-01/02: read through the view model (`kpiReading`) so the cell and the hero agree.
-    private func kpiLatest(_ id: KpiMetricId) -> (value: Double, date: String)? { model.kpiReading(id) }
-
     private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
-
-    private func chip(_ id: String) -> TodayChip? { model.chips.first { $0.id == id } }
-
-    /// The hero trio's Load ring: the current ACWR or "—" (W-FIX1 BUG-12, `TodayViewModel.heroLoad`).
-    private var latestAcwr: Double? { model.heroLoad }
-
-    @ViewBuilder
-    private func kpiCell(def: KpiMetricDef, value: Double?, asOf: String? = nil) -> some View {
-        Button { onSelectKpi(def.id.rawValue) } label: {
-            VStack(spacing: 6) {
-                if let max = todayKpiRingMax(def.id) {
-                    if let value {
-                        ScoreRing(value: value, max: max, tint: theme.color(todayKpiRingRole(def.id)))
-                    } else {
-                        // Rule 5: never a zero ring for missing data.
-                        ScoreRing(value: 0, max: max, tint: theme.color(.nested)).accessibilityHidden(true)
-                    }
-                }
-                Text(def.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(value.map { $0.formatted(.number.precision(.fractionLength(def.decimals))) } ?? "No data yet")
-                        .jiFont(.footnote, weight: .semibold)
-                        .foregroundStyle(value == nil ? theme.color(.muted) : theme.color(.text))
-                    if value != nil, !def.unit.isEmpty {
-                        Text(def.unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    }
-                }
-                .lineLimit(1).minimumScaleFactor(0.6)
-                // B-46 item 3: a fallback reading names its own day — never silently "today".
-                if let asOf {
-                    Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                        .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue).as-of")
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.pressableScale)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(todayKpiCellAccessibilityLabel(label: def.label, value: value, decimals: def.decimals, unit: def.unit, asOf: asOf))
-        .accessibilityIdentifier("today.kpiRing.\(def.id.rawValue)")
-    }
 
     private var loading: some View {
         Surface(level: 1, padding: 20) {
@@ -274,6 +289,60 @@ public struct TodayView: View {
             }
         }
     }
+}
+
+// MARK: - W-FIX3 BUG-28 Day (board 02)
+
+public nonisolated enum DaySection: Equatable, Sendable { case title, next, fuel, tonight, squares, footer }
+/// Board 02's Day, top to bottom. No hero, rings, raw insight, Felt row, EA tile or Mind row.
+public nonisolated let daySections: [DaySection] = [.title, .next, .fuel, .tonight, .squares, .footer]
+
+public nonisolated struct DayNextCard: Equatable, Sendable {
+    public let session: String
+    public let prescription: String?
+    /// What the phone cannot show yet (exercises, working weights) — said, never invented.
+    public let exercises: String?
+}
+
+/// `verdict` is the hub's verdict; the user's call (`override`) decides what shows.
+public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: String?, override: VerdictOverride?) -> DayNextCard {
+    let shown = effectiveVerdictParts(parts: verdict, override: override)
+    if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, exercises: nil) }
+    let session = override != nil && !shown.session.isEmpty ? shown.session
+        : decideSessionRowText(sessionForToday: sessionForToday, verdict: shown).detail
+    return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override),
+                       exercises: "Exercises and weights — \(JIMissingReason.noData.rawValue)")
+}
+
+public nonisolated struct DayFuel: Equatable, Sendable {
+    public let kcal, kcalGoal, protein, carbs, fat: Double?
+    /// "as of Sep 24" when today has no food yet and the latest real day is shown; nil = today.
+    public let asOf: String?
+}
+
+/// Today's food row from the gate's daily rows (`resolveTodayRow`): nil stays nil, never 0.
+public nonisolated func dayFuel(daily: [DailyKpiRow], today: String) -> DayFuel {
+    let row = resolveTodayRow(daily.sorted { $0.date > $1.date }).row
+    func v(_ key: String) -> Double? { row.flatMap { $0.values[key] ?? nil } }
+    let hasFood = v("kcal_consumed") != nil || v("protein_g") != nil
+    return DayFuel(kcal: v("kcal_consumed"), kcalGoal: v("kcal_goal"), protein: v("protein_g"), carbs: v("carbs_g"), fat: v("fat_g"),
+                   asOf: hasFood ? kpiAsOfLabel(valueDate: row?.date, today: today) : nil)
+}
+
+/// Board 02: no planned-meal source reaches the phone yet (B-57 W1 spec gap) — said, not faked.
+public nonisolated let dayPlannedLunchText = "Planned lunch · \(JIMissingReason.notInHealthYet.rawValue)"
+
+public nonisolated struct DayTonight: Equatable, Sendable { public let goalText, lastNightText: String }
+
+/// Board 02 Tonight: the sleep goal the morning call gates on (`sleep_h`) and last night's length
+/// (≤ 36 h old, else "—"). No bedtime: nothing on the phone knows one.
+public nonisolated func dayTonight(signals: [GateSignal]?, recovery: [RecoveryDay], now: Date) -> DayTonight {
+    let missing = "— \(JIMissingReason.noData.rawValue)"
+    let goal = signals?.first { $0.key == "sleep_h" }.map { "\(decideCompactNumber($0.threshold)) h" }
+    let night = recovery.sorted { $0.date > $1.date }.first { $0.sleepDurationSec != nil }
+        .flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0.sleepDurationSec : nil }
+    return DayTonight(goalText: "Sleep goal \(goal ?? missing)",
+                      lastNightText: "Last night \(night.map { "\(jiNumber($0 / 3600, 1)) h" } ?? missing)")
 }
 
 /// W-FIX3 BUG-30 (board 01): Decide has no page title — its card's date line is the only heading.

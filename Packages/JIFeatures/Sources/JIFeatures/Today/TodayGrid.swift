@@ -181,8 +181,9 @@ public struct TodayGrid: View {
     private var jiggling: Bool { jiggleEnabled(isReordering: isReordering, reduceMotion: reduceMotion) }
 
     public var body: some View {
+        // W-FIX3 BUG-28 (board 02): the squares only — no data-quality badge, locked Energy
+        // availability tile or Mind row on Day (Data quality lives in Settings, Mind in More).
         VStack(alignment: .leading, spacing: 16) {
-            DataFreshnessBadge(info: freshness, onTap: dataFreshnessBadgeTapAction(onOpenDataQuality: { showDataQuality = true }))
             LazyVGrid(columns: gridColumns, spacing: todayGridSpacing) {
                 ForEach(orderedChips) { chip in
                     tile(for: chip)
@@ -190,22 +191,12 @@ public struct TodayGrid: View {
             }
             .jiHapticCue(.selection, on: order, when: { _ in draggingID != nil })   // W8-L1 (P-haptics) — oracle DraggableTodayTiles.tsx:179 hapticSelection() on each live swap mid-drag
             .jiHapticCue(.dragDrop, on: draggingID, when: { $0 == nil })         // W8-L1 (P-haptics) — oracle DraggableTodayTiles.tsx:193 hapticDragDrop() when the finger lifts and commits
-            EAGatedTile(label: "Energy availability")
-                .accessibilityLabel("Energy availability")
-                .accessibilityIdentifier("today.tile.energyAvailability")
-            mindTile
         }
         .onAppear {
             tilePrefs = loadTodayTilePrefs(prefs: prefs)
             order = todayGridShownIDs(chipIDs: chips.map(\.id), prefs: tilePrefs)
         }
         .onChange(of: chips.map(\.id)) { _, ids in order = todayGridShownIDs(chipIDs: ids, prefs: tilePrefs) }
-        .navigationDestination(isPresented: $showMind) {
-            if let makeMindViewModel { MindView(model: makeMindViewModel()) }
-        }
-        .navigationDestination(isPresented: $showDataQuality) {
-            if let model = makeDataQualityViewModel() { DataQualityView(model: model) } else { DataQualityUnavailableView() }
-        }
     }
 
     /// E12-17 parity — the daily mind check-in promoted onto Today (oracle `MindTile.tsx`). Tap
