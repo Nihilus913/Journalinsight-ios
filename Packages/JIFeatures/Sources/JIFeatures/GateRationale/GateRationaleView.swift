@@ -154,7 +154,7 @@ public struct GateRationaleView: View {
         if let signals = model.morning?.gateSignals, !signals.isEmpty {
             card("What counted") {
                 VStack(spacing: 6) {
-                    ForEach(signals.map(decideSignalRowModel)) { m in
+                    ForEach(signals.map { decideSignalRowModel($0) }) { m in
                         SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, status: m.status, detail: m.detail)
                     }
                 }

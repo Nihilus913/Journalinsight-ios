@@ -50,7 +50,8 @@ public struct TodayView: View {
                                    sessionForToday: model.morning?.sessionForToday,
                                    override: currentOverride,
                                    overrideModel: verdictOverrideModel,
-                                   fetchedAt: model.fetchedAt) { model.morningEvent(.gateResponded) }
+                                   syncedAt: model.syncedAt,
+                                   normals: decideSignalNormals(recovery: model.recovery)) { model.morningEvent(.gateResponded) }
                     case .coach, .day:
                         // §9: Coach is the Day view plus a bottom overlay card (below), not a step.
                         dayContent
@@ -63,8 +64,12 @@ public struct TodayView: View {
         .background(theme.color(.bg))
         .refreshable { JIHaptic.fire(.selection); await model.refresh() }   // W8-L1 (P-haptics) — oracle SyncButton.tsx:136 hapticSelection() the instant the sync is kicked off (Swift sync control = pull-to-refresh)
         // §5: the hand-drawn large title becomes the system one; the date line is the subtitle.
-        .navigationTitle(loadTodayPageName(prefs: model.tileOrderStore))
-        .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        // W-FIX3 BUG-30: Decide carries its own date line — no second "Today / Friday" title above it.
+        .navigationTitle(todayNavigationTitle(state: shownMorningState, pageName: loadTodayPageName(prefs: model.tileOrderStore)))
+        .navigationSubtitle(todayNavigationSubtitleShown(state: shownMorningState) ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(todayNavigationSubtitleShown(state: shownMorningState) ? .automatic : .inline)
+        #endif
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — a cancelled fetch over a warm cache
         // leaves `phase == .loaded` (restored from cache), so keying off `.idle` alone would never
         // re-fetch live data on the next appearance.
@@ -98,6 +103,9 @@ public struct TodayView: View {
             if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
         }
     }
+
+    /// The state the screen is actually showing: Decide only once loaded (loading / error keep the title).
+    private var shownMorningState: TodayMorningState { model.phase == .loaded ? model.morningState : .day }
 
     /// W-B57b (B-62): the call in effect for the verdict date — this device's latest write, else
     /// the hub's row from `/morning`.
@@ -267,6 +275,15 @@ public struct TodayView: View {
         }
     }
 }
+
+/// W-FIX3 BUG-30 (board 01): Decide has no page title — its card's date line is the only heading.
+/// Coach and Day keep the page name (EditToday's `today.pageName`).
+public nonisolated func todayNavigationTitle(state: TodayMorningState, pageName: String) -> String {
+    state == .decide ? "" : pageName
+}
+
+/// The date subtitle rides with the title: hidden on Decide, shown on Coach / Day.
+public nonisolated func todayNavigationSubtitleShown(state: TodayMorningState) -> Bool { state != .decide }
 
 /// §4b: a Today ring is only ever drawn for a metric with a real, bounded scale — a 0–100 score or
 /// a count against a goal. Everything else (HRV, RHR, ACWR, weight, macros) is baseline-relative

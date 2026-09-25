@@ -94,6 +94,9 @@ public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: 
     return ("Today's session", name ?? "— \(JIMissingReason.noData.rawValue)")
 }
 
+/// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
+public nonisolated let decideGoForeground = Color.black
+
 // MARK: - View
 
 /// B-57 §2 + §9 Decide (W1 board): date + synced pill, the (effective) verdict word + session, the
@@ -109,7 +112,11 @@ public struct DecideView: View {
     /// The override already known for `verdictDate` (hub `/morning` or this device's last write).
     let override: VerdictOverride?
     let overrideModel: VerdictOverrideViewModel?
-    let fetchedAt: Date?
+    /// W-FIX3 C-f: the Day pill's time — the newer of the hub's sync and this app's last HealthKit
+    /// upload (`TodayViewModel.syncedAt`), never the moment the screen fetched.
+    let syncedAt: Date?
+    /// Normals per gate-signal key for the Why rows (`decideSignalNormals`); empty = calibrating.
+    let normals: [String: ClosedRange<Double>]
     let now: Date
     let onAdvance: () -> Void
     @State private var showAdjust = false
@@ -118,12 +125,25 @@ public struct DecideView: View {
 
     public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
-                overrideModel: VerdictOverrideViewModel?, fetchedAt: Date? = nil, now: Date = Date(),
-                onAdvance: @escaping () -> Void) {
+                overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
+                now: Date = Date(), onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
-        self.fetchedAt = fetchedAt; self.now = now; self.onAdvance = onAdvance
+        self.syncedAt = syncedAt; self.normals = normals; self.now = now; self.onAdvance = onAdvance
+    }
+
+    /// Pre-W-FIX3 entry (App `RootTabView.gateScreen`, not this lane's file): it hands the FETCH
+    /// time and keeps showing it until that call site passes `syncedAt: model.syncedAt`
+    /// (W-FIX3 C-f hand-off).
+    @available(*, deprecated, message: "W-FIX3 C-f: pass syncedAt: TodayViewModel.syncedAt")
+    public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
+                verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
+                overrideModel: VerdictOverrideViewModel?, fetchedAt: Date?, now: Date = Date(),
+                onAdvance: @escaping () -> Void) {
+        self.init(verdict: verdict, readiness: readiness, syncing: syncing, gateSignals: gateSignals, verdictDate: verdictDate,
+                  sessionForToday: sessionForToday, override: override, overrideModel: overrideModel, syncedAt: fetchedAt,
+                  now: now, onAdvance: onAdvance)
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -132,7 +152,8 @@ public struct DecideView: View {
 
     @ViewBuilder
     private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
-        Button { go() } label: { Text("Go").lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
+        // W-FIX3 BUG-30 (board 01): black "Go" on the green button, never white.
+        Button { go() } label: { Text("Go").foregroundStyle(decideGoForeground).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
             .buttonStyle(.borderedProminent).tint(theme.color(.go))
             .disabled(!actions.go || submitting)
             .accessibilityIdentifier("today.decide.go")
@@ -159,11 +180,11 @@ public struct DecideView: View {
                     HStack {
                         dateText.fixedSize()
                         Spacer()
-                        SyncedPill(date: fetchedAt, now: now).fixedSize()
+                        SyncedPill(date: syncedAt, now: now).fixedSize()
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         dateText.fixedSize(horizontal: false, vertical: true)
-                        SyncedPill(date: fetchedAt, now: now).fixedSize(horizontal: false, vertical: true)
+                        SyncedPill(date: syncedAt, now: now).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Text("YOUR CALL FOR TODAY").jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
@@ -188,7 +209,7 @@ public struct DecideView: View {
                             .accessibilityIdentifier("today.decide.prescription")
                     }
                     if let gateSignals {
-                        DecideSignalsSection(signals: gateSignals)
+                        DecideSignalsSection(signals: gateSignals, normals: normals)
                     } else if let reason = verdictReasonLine(verdict) {
                         Text(reason).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("today.decide.reason")
