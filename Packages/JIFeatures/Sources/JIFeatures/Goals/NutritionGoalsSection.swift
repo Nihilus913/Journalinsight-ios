@@ -58,6 +58,15 @@ nonisolated struct NutritionDraft: Equatable, Sendable {
     var canSave: Bool { goals != nil }
 }
 
+/// W-B57-W2 fixer BUG-51: GoalsSetup's numbers are plain digits like Nutrition's ("1900", not the
+/// locale's "1'900"), for the typed fields and the Plan band alike.
+nonisolated let goalsSetupWholeNumberFormat = FloatingPointFormatStyle<Double>.number.grouping(.never)
+nonisolated let goalsSetupDecimalFormat = FloatingPointFormatStyle<Double>.number.grouping(.never).precision(.fractionLength(1))
+
+nonisolated func goalsSetupPlanBandText(_ band: (low: Int, high: Int)) -> String {
+    "\(band.low)–\(band.high) kcal"
+}
+
 /// B-73: GoalsSetup's NUTRITION section. The board's "Calories 1617" stepper predates B-73 and is
 /// replaced by the user's own daily kcal goal plus a required answer to "does it already include
 /// my deficit?". The band (target ± 100) is read-only. Protein, carbs and fat are user-set and
@@ -81,7 +90,7 @@ struct NutritionGoalsSection: View {
     var body: some View {
         Section {
             LabeledContent("Daily kcal goal") {
-                TextField(MacroGoals.setGoalCopy, value: $draft.goalKcal, format: .number)
+                TextField(MacroGoals.setGoalCopy, value: $draft.goalKcal, format: goalsSetupWholeNumberFormat)
                     .goalsNumericKeyboard(decimal: false).multilineTextAlignment(.trailing).monospacedDigit()
                     .accessibilityIdentifier("goals-setup-kcal-goal")
             }
@@ -109,13 +118,13 @@ struct NutritionGoalsSection: View {
 
                 if draft.byWeek {
                     LabeledContent("Weekly loss (kg)") {
-                        TextField(MacroGoals.setGoalCopy, value: weeklyKg, format: .number.precision(.fractionLength(1)))
+                        TextField(MacroGoals.setGoalCopy, value: weeklyKg, format: goalsSetupDecimalFormat)
                             .goalsNumericKeyboard(decimal: true).multilineTextAlignment(.trailing)
                             .accessibilityIdentifier("goals-setup-weekly-loss")
                     }
                 } else {
                     LabeledContent("Deficit (kcal a day)") {
-                        TextField(MacroGoals.setGoalCopy, value: deficitKcal, format: .number)
+                        TextField(MacroGoals.setGoalCopy, value: deficitKcal, format: goalsSetupWholeNumberFormat)
                             .goalsNumericKeyboard(decimal: false).multilineTextAlignment(.trailing)
                             .accessibilityIdentifier("goals-setup-deficit")
                     }
@@ -124,7 +133,7 @@ struct NutritionGoalsSection: View {
 
             LabeledContent("Plan band") {
                 if let b = bandPreview {
-                    Text("\(b.low)–\(b.high) kcal").monospacedDigit().foregroundStyle(theme.color(.text))
+                    Text(verbatim: goalsSetupPlanBandText(b)).monospacedDigit().foregroundStyle(theme.color(.text))
                 } else {
                     Text(MacroGoals.setGoalCopy).foregroundStyle(theme.color(.muted))
                 }
@@ -168,7 +177,7 @@ struct NutritionGoalsSection: View {
 
     private func gramsRow(_ title: String, value: Binding<Double?>, id: String) -> some View {
         LabeledContent("\(title) (g)") {
-            TextField(MacroGoals.setGoalCopy, value: value, format: .number)
+            TextField(MacroGoals.setGoalCopy, value: value, format: goalsSetupWholeNumberFormat)
                 .goalsNumericKeyboard(decimal: false).multilineTextAlignment(.trailing).monospacedDigit()
                 .accessibilityIdentifier(id)
         }
