@@ -20,10 +20,9 @@ private struct WeeklyPlanSectionRows: View {
 
     var body: some View {
         Section {
-            // `SettingsViewModel` (frozen) carries no `EnergyProviding`, so this entry seeds from
-            // persisted prefs or the hardcoded fallback only; the Nutrition-tab entry (which has
-            // the provider) is where a first-ever visit seeds from the goals document.
-            NavigationLink { WeeklyPlanView(model: WeeklyPlanViewModel(store: WeeklyPlanStore(prefs: model.prefs))) } label: {
+            // B-57 W1 r5: the same goals provider the Nutrition-tab entry uses, so the plan's
+            // "Matches your goal" reads the real goal instead of "No goal set".
+            NavigationLink { WeeklyPlanView(model: model.makeWeeklyPlanModel()) } label: {
                 SettingsLinkLabel(title: "Weekly kcal / macro plan", subtitle: "Bank rest-day calories for higher-carb training days — the deficit stays fixed")
             }
             .accessibilityLabel("Weekly kcal / macro plan")
