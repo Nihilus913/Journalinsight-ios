@@ -180,12 +180,12 @@ public struct GateRationaleView: View {
     }
 
     private var energyTile: some View {
-        weeklyTile(title: "Energy balance", systemImage: "flame", tint: .reduced, value: model.energyBalance7d,
+        weeklyTile(title: "Energy balance", systemImage: "flame", tint: metricTintRole("kcal"), value: model.energyBalance7d,
                    signed: true, unit: "kcal/day", id: "gateRationale.energyBalance")
     }
 
     private var proteinTile: some View {
-        weeklyTile(title: "Protein", systemImage: "fork.knife", tint: .text, value: model.protein7d,
+        weeklyTile(title: "Protein", systemImage: "fork.knife", tint: metricTintRole("protein"), value: model.protein7d,
                    signed: false, unit: "g a day", id: "gateRationale.protein")
     }
 
