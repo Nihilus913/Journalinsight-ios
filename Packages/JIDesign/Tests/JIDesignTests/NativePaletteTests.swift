@@ -44,7 +44,7 @@ struct NativePaletteTests {
         (.go, .systemGreen),
         (.reduced, .systemOrange),
         (.danger, .systemRed),
-        (.info, .systemBlue),
+        (.hrv, .systemBlue),
         (.sleep, .systemPurple),
         (.kcal, .systemOrange),
         (.protein, .systemPink),

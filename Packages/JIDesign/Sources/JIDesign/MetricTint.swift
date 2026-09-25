@@ -16,7 +16,7 @@ import Foundation
 /// `JIFeatures` (`TodayGrid`) without touching the theme.
 public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
     switch normalizedMetricKey(kpiId) {
-    case "hrv": .info
+    case "hrv": .hrv   // W-FIX2 BUG-31: `.info` is the accent now
     case "rhr", "restinghr", "resting_hr": .danger
     case "sleep", "sleepscore", "sleep_score": .sleep
     case "steps": .go
