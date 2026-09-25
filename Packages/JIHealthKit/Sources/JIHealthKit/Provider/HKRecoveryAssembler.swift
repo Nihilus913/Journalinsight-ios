@@ -7,6 +7,8 @@ import JICore
 /// reads the same DTO whether the bytes came from the Mac hub (T1) or from the watch on this
 /// device (T2).
 ///
+/// `hrvRmssdMs` is the night's own native RMSSD (W-FIX3 C-h), dated to the wake-up day.
+///
 /// What Apple cannot supply is left `nil`, never zeroed (XC `CLAUDE.md` rule 5):
 /// `bodyBatteryAvg`, `readinessScore` and `acwr` are Garmin/Firstbeat-derived — memory
 /// `project_source_agnostic_gate` (Apple and Garmin do not align), and `Capabilities+HK` never
@@ -31,6 +33,7 @@ public enum HKRecoveryAssembler {
         let rhrByDay = dailyMean(restingHeartRate, unit: HKUnit(from: "count/min"), window: window)
         let hrvByDay = dailyMean(hrv, unit: .secondUnit(with: .milli), window: window)
         let nights = HKSleepAssembler.nights(from: sleep, window: window)
+        let rmssdByNight = nightlyRmssd(hrv, window: window)
 
         var out: [RecoveryDay] = []
         out.reserveCapacity(window.days.count)
@@ -42,7 +45,8 @@ public enum HKRecoveryAssembler {
             let lower = max(0, index - (hrvAverageDays - 1))
             let recent = window.days[lower...index].compactMap { hrvByDay[$0] }
             let weekly = recent.isEmpty ? nil : recent.reduce(0, +) / Double(recent.count)
-            guard night != nil || rhr != nil || weekly != nil else { continue }
+            let rmssd = rmssdByNight[day]
+            guard night != nil || rhr != nil || weekly != nil || rmssd != nil else { continue }
             out.append(RecoveryDay(
                 date: day,
                 sleepScore: night?.sleepScore.map(Double.init),
@@ -51,10 +55,37 @@ public enum HKRecoveryAssembler {
                 bodyBatteryAvg: nil,
                 readinessScore: nil,
                 acwr: nil,
-                hrvWeeklyAvg: weekly
+                hrvWeeklyAvg: weekly,
+                hrvRmssdMs: rmssd
             ))
         }
         return out
+    }
+
+    /// Local hour from which an RMSSD reading counts toward the NEXT day's night.
+    static let nightStartHour = 18
+
+    /// W-FIX3 C-h: that night's own RMSSD (`RecoveryDay.hrvRmssdMs`, the hub's `hrv_rmssd_ms`).
+    /// Only native RMSSD samples count — SDNN is a different statistic and never stands in (rule 5:
+    /// no invented values; a day without RMSSD stays `nil`, never 0). A reading is dated to the
+    /// morning you wake up, like `HKSleepAssembler`'s nights: from `nightStartHour` local it
+    /// belongs to the next day, so 23:30 and 03:00 readings land on the same night.
+    static func nightlyRmssd(_ samples: [HKSample], window: HKSampleWindow) -> [String: Double] {
+        guard let rmssdType = HKReadKind.hrvRMSSDQuantityType else { return [:] }
+        let unit = HKUnit.secondUnit(with: .milli)
+        let cal = window.calendar
+        var sums: [String: (total: Double, count: Int)] = [:]
+        for case let sample as HKQuantitySample in samples where sample.quantityType == rmssdType {
+            guard sample.quantity.is(compatibleWith: unit) else { continue }
+            let hour = cal.component(.hour, from: sample.startDate)
+            let nightOf = hour >= nightStartHour
+                ? (cal.date(byAdding: .day, value: 1, to: sample.startDate) ?? sample.startDate)
+                : sample.startDate
+            guard let day = window.dayKey(for: nightOf) else { continue }
+            let existing = sums[day] ?? (0, 0)
+            sums[day] = (existing.total + sample.quantity.doubleValue(for: unit), existing.count + 1)
+        }
+        return sums.mapValues { $0.total / Double($0.count) }
     }
 
     /// Arithmetic mean of each day's quantity samples, bucketed by the local day of `startDate`

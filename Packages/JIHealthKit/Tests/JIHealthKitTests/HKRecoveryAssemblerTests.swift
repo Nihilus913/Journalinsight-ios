@@ -104,6 +104,51 @@ import JICore
         #expect(days.isEmpty)
     }
 
+    // MARK: - hrvRmssdMs (W-FIX3 C-h)
+
+    private func rmssd(_ value: Double, at start: Date) throws -> HKQuantitySample {
+        let type = try #require(HKReadKind.hrvRMSSDQuantityType, "iOS/macOS 27 RMSSD type must resolve on the host")
+        return HKQuantitySample(type: type, quantity: HKQuantity(unit: ms, doubleValue: value), start: start, end: start)
+    }
+
+    @Test func nightlyRmssdFillsHrvRmssdMsOnTheWakeUpDay() throws {
+        let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
+        // Night 17th -> 18th: readings before and after midnight both belong to the 18th.
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [],
+            hrv: [try rmssd(30, at: at(17, 23, 30)), try rmssd(40, at: at(18, 3)), try rmssd(20, at: at(17, 2))],
+            sleep: [])
+        let byDate = Dictionary(uniqueKeysWithValues: days.map { ($0.date, $0) })
+        #expect(byDate["2026-09-18"]?.hrvRmssdMs == 35)
+        #expect(byDate["2026-09-17"]?.hrvRmssdMs == 20)
+        #expect(byDate["2026-09-16"]?.hrvRmssdMs == nil)
+    }
+
+    @Test func rmssdOnlyNightStillYieldsADatedRow() throws {
+        let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [], hrv: [try rmssd(42, at: at(18, 4))], sleep: [])
+        let day = try #require(days.last)
+        #expect(day.date == "2026-09-18")
+        #expect(day.hrvRmssdMs == 42)
+    }
+
+    @Test func sdnnNeverMasqueradesAsRmssdAndAbsenceIsNilNotZero() {
+        let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [rhr(50, at: at(18, 8))], hrv: [hrv(40, at: at(18, 3))], sleep: [])
+        #expect(!days.isEmpty)
+        #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
+    }
+
+    @Test func rmssdAfterTheWindowsLastEveningIsNotInvented() throws {
+        // 18th 20:00 belongs to the night of the 19th — outside a window ending on the 18th.
+        let window = HKSampleWindow(windowDays: 2, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [], hrv: [try rmssd(50, at: at(18, 20))], sleep: [])
+        #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
+    }
+
     // MARK: - dailyMean()
 
     @Test func dailyMeanOfNothingIsEmpty() {
