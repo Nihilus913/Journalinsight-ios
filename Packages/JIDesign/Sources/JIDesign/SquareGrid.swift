@@ -34,6 +34,17 @@ public nonisolated func squareGridColumnCount(preferred: Int, isAccessibilitySiz
     max(1, min(preferred, squareGridColumnCount(isAccessibilitySize: isAccessibilitySize)))
 }
 
+/// W-FIX3 BUG-33 (R4-09): at AX sizes the icon goes above the label, so the label gets the
+/// square's full width and a word like "Resting" wraps whole instead of hyphenating.
+public nonisolated func squareLabelStacksIcon(isAccessibilitySize: Bool) -> Bool { isAccessibilitySize }
+
+/// W-FIX3 BUG-33 (R1-19): the badge glyph is half its circle, and the circle is a `@ScaledMetric`,
+/// so the "−" / "✓" / "+" never overflows the badge at AX3.
+public nonisolated func squareBadgeGlyphPointSize(side: CGFloat) -> CGFloat { side / 2 }
+/// The badge circle follows the type size between 24 and 32 pt — a corner badge, never a disc
+/// that covers the square's icon at AX sizes.
+public nonisolated func squareBadgeSide(scaled: CGFloat) -> CGFloat { min(max(scaled, 24), 32) }
+
 public nonisolated func squareAccessibilityLabel(_ item: JISquareItem) -> String {
     var parts = [item.label]
     if let v = item.value {
@@ -133,12 +144,17 @@ struct MetricSquare: View {
     let onBadge: ((String) -> Void)?
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var minSide: CGFloat = 104
+    @ScaledMetric(relativeTo: .caption) private var scaledBadge: CGFloat = 24
+    private var badgeSide: CGFloat { squareBadgeSide(scaled: scaledBadge) }
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
+            let labelLayout = squareLabelStacksIcon(isAccessibilitySize: typeSize.isAccessibilitySize)
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+            labelLayout {
                 if let symbol = item.systemImage { Image(systemName: symbol).accessibilityHidden(true) }
-                Text(item.label).lineLimit(2).minimumScaleFactor(0.8)
+                Text(item.label).lineLimit(3).minimumScaleFactor(0.8)
             }
             .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(item.value == nil ? .muted : item.tint))
             HStack(alignment: .firstTextBaseline, spacing: 3) {
@@ -163,7 +179,7 @@ struct MetricSquare: View {
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: minSide, alignment: .topLeading)
         .background(theme.color(.surface), in: RoundedRectangle(cornerRadius: theme.radius(.nested), style: .continuous))
-        .overlay(alignment: .topLeading) { badge.offset(x: -8, y: -8) }
+        .overlay(alignment: .topLeading) { badge.offset(x: -badgeSide / 3, y: -badgeSide / 3) }
     }
 
     @ViewBuilder private var badge: some View {
@@ -177,8 +193,11 @@ struct MetricSquare: View {
 
     private func badgeButton(_ symbol: String, fill: JIColorRole, tint: JIColorRole) -> some View {
         Button { onBadge?(item.id) } label: {
-            Image(systemName: symbol).font(.caption.weight(.bold)).foregroundStyle(theme.color(tint))
-                .frame(width: 24, height: 24).background(theme.color(fill), in: Circle())
+            Circle().fill(theme.color(fill)).frame(width: badgeSide, height: badgeSide)
+                .overlay {
+                    Image(systemName: symbol).font(.system(size: squareBadgeGlyphPointSize(side: badgeSide), weight: .bold))
+                        .foregroundStyle(theme.color(tint))
+                }
         }
         .buttonStyle(.pressableScale)
         .disabled(onBadge == nil)
