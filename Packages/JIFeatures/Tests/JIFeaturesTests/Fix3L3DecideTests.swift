@@ -71,6 +71,14 @@ struct Fix3L3DecideTests {
         #expect(decideSignalRowModel(sig).normal == 41...52)
     }
 
+    /// Sim finding: an Apple night's "HRV (7-day)" is a 7-day value — the nightly RMSSD normal does
+    /// not describe it (it read "Inside your 24–32 normal" next to the hub's Watch).
+    @Test func aSevenDayHRVNeverGetsTheNightlyNormal() {
+        let m = decideSignalRowModel(s("hrv", "HRV (7-day)", 24, thr: 26, unit: "ms", status: .amber), normal: 24...32)
+        #expect(m.normal == nil)
+        #expect(m.detail == "your normal — Calibrating")
+    }
+
     @Test func personalNormalIsMedianPlusMinusScaledMAD() {
         // 28 prior nights alternating 27 / 30 → median 28.5, MAD 1.5 → 28.5 ± 2.2 → 26–31 (rounded)
         let prior = (0..<28).map { $0 % 2 == 0 ? 27.0 : 30.0 }

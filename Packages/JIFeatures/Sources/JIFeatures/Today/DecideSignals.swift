@@ -97,7 +97,7 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         if s.value != nil { status = s.status == .pass ? .aboveGoal : .belowGoal }
     } else if s.value == nil {
         detail = "no overnight value yet"
-    } else if let band = decideHubBand(s.note) ?? normal {
+    } else if let band = decideHubBand(s.note) ?? (decideNormalApplies(s) ? normal : nil) {
         shownNormal = band; detail = nil
     } else {
         detail = "your normal — \(JIMissingReason.calibrating.rawValue)"
@@ -105,6 +105,10 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
     return DecideSignalRowModel(id: s.key, label: decideSignalLabel(s), value: s.value, unit: s.unit, decimals: decimals,
                                 status: status, detail: detail, normal: shownNormal)
 }
+
+/// The nightly normals describe single nights; a hub signal over another window ("HRV (7-day)")
+/// only takes the hub's own band.
+nonisolated func decideNormalApplies(_ s: GateSignal) -> Bool { !s.label.contains("(") }
 
 /// W-FIX3 BUG-30 personal normal (spec §3: median ± 1.4826·MAD), display-only — the gate is the
 /// hub's. `nil` until there are `minNights` real readings. Rounded to whole units.
