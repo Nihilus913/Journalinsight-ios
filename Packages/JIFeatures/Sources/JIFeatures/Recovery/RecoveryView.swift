@@ -45,6 +45,10 @@ public struct RecoveryView: View {
         .animation(JIMotion.standard, value: model.phase)
     }
 
+    private var lastNightLabel: some View {
+        Text("Last night").jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+    }
+
     private var loading: some View {
         Surface(level: 1, padding: 20) {
             VStack(alignment: .leading, spacing: 12) { SkeletonBlock(width: 160, height: 160); SkeletonBlock(width: 240); SkeletonBlock(height: 90) }
@@ -76,7 +80,12 @@ public struct RecoveryView: View {
                 }
                 .accessibilityIdentifier("recovery.staleBanner")
             }
-            HStack { Text("Last night").jiFont(.subheadline).foregroundStyle(theme.color(.muted)); Spacer(); SyncedPill(date: model.fetchedAt) }
+            // W-FIX4 PF-04: the one rule, not the fetch time; at AX sizes the pill stacks under
+            // "Last night" instead of breaking "Synced" mid-word.
+            ViewThatFits(in: .horizontal) {
+                HStack { lastNightLabel; Spacer(); OneSyncedPill().fixedSize() }
+                VStack(alignment: .leading, spacing: 6) { lastNightLabel; OneSyncedPill().fixedSize(horizontal: false, vertical: true) }
+            }
             let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
             SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
                        onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
