@@ -153,8 +153,10 @@ struct EnergySections: View {
 }
 
 /// Board "What you burn": B-73 the 7-day Apple Health burn (resting + active, source-merged) with
-/// its split; without a Health window, the 7-day average burn the hub already holds (BUG-38); with
-/// neither, "—" plus the true reason word ("Not in Health yet", "Calibrating", "No data").
+/// its split; without it, "—" plus the true reason word ("Not in Health yet", "Calibrating").
+/// fixer2 BUG-38/RF2-BURN: the card's copy names Apple Health, so its one number is the Health
+/// burn only — the hub's `tdee_raw` average never stands in under that copy (it disagreed with the
+/// hero's route expenditure: two burn numbers, one false source line).
 struct EnergyBurnCard: View {
     var days: [EnergyDay] = []
     var today: String = energyTodayISO()
@@ -164,7 +166,8 @@ struct EnergyBurnCard: View {
     var reason: String? = nil
     private let theme = JITheme.native
     private var healthBurn: Int? { window?.burnKcal }
-    private var average: Double? { healthBurn.map(Double.init) ?? energyBurnAverage(days: days, today: today) }
+    private var value: (kcal: Int?, caption: String) { energyBurnCardValue(window: window, reason: reason) }
+    private var average: Double? { value.kcal.map(Double.init) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -207,7 +210,7 @@ struct EnergyBurnCard: View {
     }
     /// "kcal a day" with a value; the one true reason word without ("No data").
     private var burnReason: some View {
-        Text(average == nil ? (reason ?? JIMissingReason.noData.rawValue) : "kcal a day").jiFont(.subheadline, weight: .semibold)
+        Text(value.caption).jiFont(.subheadline, weight: .semibold)
             .foregroundStyle(theme.color(.muted))
     }
 }
@@ -283,6 +286,13 @@ public nonisolated func energyBurnAverage(days: [EnergyDay], today: String) -> D
     let burns = energyLogDays(days: days, today: today).prefix(7)
         .compactMap { d -> Double? in d.tdeeRaw.flatMap { $0.isFinite ? $0 : nil } }
     return burns.isEmpty ? nil : burns.reduce(0, +) / Double(burns.count)
+}
+
+/// fixer2 BUG-38/RF2-BURN: the burn card's value + caption — the Health burn with "kcal a day",
+/// or no number and the band service's reason ("Not in Health yet" when Health is empty).
+public nonisolated func energyBurnCardValue(window: EnergyBurnWindow?, reason: String?) -> (kcal: Int?, caption: String) {
+    if let kcal = window?.burnKcal { return (kcal, "kcal a day") }
+    return (nil, reason ?? JIMissingReason.noData.rawValue)
 }
 
 /// "2300 kcal", or "— No data".
