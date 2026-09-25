@@ -118,12 +118,12 @@ public struct GateConfigView: View {
                 .font(.caption).foregroundStyle(theme.color(.muted))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Default").font(.caption).foregroundStyle(theme.color(.muted))
-                Text(baseline.verdict).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
+                Text(baseline.displayVerdict).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("gateConfig.preview.baseline")
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("With your overrides").font(.caption).foregroundStyle(theme.color(.muted))
-                Text(withOverrides.verdict)
+                Text(withOverrides.displayVerdict)
                     .font(.subheadline.weight(.heavy))
                     .foregroundStyle(flipped ? theme.color(.reduced) : theme.color(.text))
                     .accessibilityIdentifier("gateConfig.preview.withOverrides")

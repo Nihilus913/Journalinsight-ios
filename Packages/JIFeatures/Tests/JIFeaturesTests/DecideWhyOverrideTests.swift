@@ -52,7 +52,7 @@ import JIPersistence
         let parts = verdictParts("MODIFIED — Easy Z2 30–40 min")
         let o = VerdictOverride(date: "2026-09-23", choice: .rest, reason: nil, session: "Rest — walks only")
         #expect(morningSummaryText(verdict: effectiveVerdictParts(parts: parts, override: o), readiness: 64)
-                == "REST · Rest — walks only · readiness 64")
+                == "Rest · Rest — walks only · readiness 64")
     }
 
     /// Only an override for the verdict's own date counts (a stale one from yesterday never shows).

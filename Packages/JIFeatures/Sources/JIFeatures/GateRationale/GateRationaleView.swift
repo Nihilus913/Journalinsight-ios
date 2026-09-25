@@ -97,6 +97,17 @@ public struct GateRationaleView: View {
                     Text(model.verdict.session).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("gateRationale.verdict.session")
                 }
+                // W-FIX1 BUG-03: an amber (auto-regulated) day says what it trims and why.
+                if let prescription = model.verdictPrescription {
+                    Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("gateRationale.verdict.prescription")
+                }
+                if let why = model.verdictWhy {
+                    Text("Why: \(why)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("gateRationale.verdict.why")
+                }
                 if let time = model.computedAtTime() {
                     Text("Computed \(time)").jiFont(.micro).foregroundStyle(theme.color(.muted))
                 }
@@ -244,9 +255,17 @@ public struct GateRationaleView: View {
 
     private func lastDayRow(_ row: GateDayRow) -> some View {
         let dayText = Text(row.dayLabel).jiFont(.body).foregroundStyle(theme.color(.muted))
-        let session = Text(row.session ?? (row.verdictWord == nil ? "—" : "")).jiFont(.body)
+        let sessionLine = Text(row.session ?? (row.verdictWord == nil ? "—" : "")).jiFont(.body)
             .foregroundStyle(theme.color(row.session == nil ? .muted : .text))
             .fixedSize(horizontal: false, vertical: true)
+        // W-FIX1 BUG-03: an amber day's row carries its trimmed prescription under the session.
+        let session = VStack(alignment: .leading, spacing: 2) {
+            sessionLine
+            if let prescription = row.prescription {
+                Text(prescription).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
         let verdict = Text(row.verdictWord ?? JIMissingReason.noData.rawValue)
             .jiFont(.body, weight: .semibold)
             .foregroundStyle(theme.color(row.verdictWord == nil ? .muted : verdictColorRole(row.tone)))
@@ -264,7 +283,7 @@ public struct GateRationaleView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(row.dayLabel): \(row.session ?? "no session"), \(row.verdictWord ?? "no data")")
+        .accessibilityLabel("\(row.dayLabel): \(row.session ?? "no session")\(row.prescription.map { ", \($0)" } ?? ""), \(row.verdictWord ?? "no data")")
     }
 
     private func boardHeader(_ title: String, trailing: String?) -> some View {

@@ -40,7 +40,7 @@ import JICore
         let g = gate(recommendation: "REDUCE",
                      triggeredRules: ["avg_protein_7d 118.0 vs threshold 130.0 (REDUCE: insufficient protein)"])
         let s = InsightSentence.build(gate: g, morning: morning())
-        #expect(s.contains("REDUCE"))
+        #expect(s.contains("This week (insufficient protein)"))   // W-FIX1 BUG-27: plain words, no REDUCE
         #expect(s.contains("insufficient protein"))
         #expect(s.contains("front-load protein"))
     }
@@ -50,28 +50,28 @@ import JICore
                      triggeredRules: ["acwr 1.4 vs threshold 1.3 (REDUCE: overreaching)"],
                      suggestions: ["Take an extra rest day this week"])
         let s = InsightSentence.build(gate: g, morning: morning())
-        #expect(s.contains("REDUCE"))
+        #expect(s.contains("This week"))
         #expect(s.contains("overreaching"))
         #expect(s.lowercased().contains("take an extra rest day this week"))
     }
 
     @Test func gateReduceWithNoParseableRuleStillProducesANonEmptyImperativeSentence() {
         let s = InsightSentence.build(gate: gate(recommendation: "REDUCE"), morning: morning())
-        #expect(s.contains("REDUCE"))
+        #expect(s.contains("This week: "))
         #expect(s.contains(InsightSentence.defaultAction))
     }
 
     /// E15-5 acceptance case, verbatim: a REDUCED fixture always carries an imperative action.
     @Test func reducedMorningVerdictSentenceContainsAnImperativeAction() {
         let s = InsightSentence.build(gate: gate(), morning: morning(verdict: "REDUCED — deload dose, not a day off"))
-        #expect(s.contains("REDUCED"))
-        #expect(s.contains("keep loads light") || s.contains("skip progression") || s.contains("eat at maintenance"))
+        #expect(!s.contains("REDUCED"))   // W-FIX1 BUG-27: the hero leads with "Modified"
+        #expect(s.contains("Keep loads light") || s.contains("keep loads light") || s.contains("skip progression") || s.contains("eat at maintenance"))
         #expect(s.contains("deload dose, not a day off"))
     }
 
     @Test func modifiedMorningVerdictSurfacesTheSwapAsTheConcreteAction() {
         let s = InsightSentence.build(gate: gate(), morning: morning(verdict: "MODIFIED — swap intervals for easy Z2 30-40min"))
-        #expect(s.contains("MODIFIED"))
+        #expect(!s.contains("MODIFIED"))
         #expect(s.contains("swap intervals for easy Z2 30-40min"))
     }
 
@@ -103,7 +103,7 @@ import JICore
                      triggeredRules: ["sleep_score_7d 50.0 vs threshold 55.0 (REDUCE: poor sleep)"],
                      averages: #"{"avg_protein_7d": 80, "avg_weight_kg": 80, "trends": {}}"#)
         let s = InsightSentence.build(gate: g, morning: morning())
-        #expect(s.contains("REDUCE"))
+        #expect(s.contains("This week (poor sleep)"))
         #expect(!s.contains("Protein is running"))
     }
 
@@ -157,7 +157,7 @@ import JICore
     @Test func neverEmptyAFlatGatePlusAPlainGoVerdictStillSummarisesTheVerdict() {
         let s = InsightSentence.build(gate: gate(), morning: morning(verdict: "GO — Full Upper", carbs3d: nil))
         #expect(!s.isEmpty)
-        #expect(s.contains("GO"))
+        #expect(s.hasPrefix("Full"))   // W-FIX1 BUG-27: the user word, never GO
         #expect(s.contains("Full Upper"))
     }
 

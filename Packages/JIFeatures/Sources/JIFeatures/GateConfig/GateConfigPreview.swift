@@ -1,5 +1,6 @@
 import Foundation
 import JICompute
+import JICore
 
 // W5b-L3 (P-gate-config). The PURE half of the gate-config editor, ported from the RN oracle's
 // `mobile/src/compute/configOverrides.ts` + `mobile/src/compute/gateConfigPreview.ts`.
@@ -274,6 +275,14 @@ public nonisolated struct GatePreviewResult: Equatable, Sendable {
 
     public init(verdict: String, conditions: [String]) {
         self.verdict = verdict; self.conditions = conditions
+    }
+    /// W-FIX1 BUG-27 (W1 carryover): the preview as the user reads it — "Full · Norwegian 4x4
+    /// intervals", "Modified · swap intervals for easy Z2 30-40min" — never the hub's "GO — …".
+    /// `verdict` stays raw: it is what `evaluate()` returned and what the flip compares.
+    public var displayVerdict: String {
+        let parts = verdictParts(verdict)
+        let word = verdictUserWord(parts)
+        return parts.session.isEmpty ? word : "\(word) · \(parts.session)"
     }
 }
 
