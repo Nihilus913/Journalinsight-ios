@@ -45,13 +45,12 @@ public nonisolated func kpiMacroDayHeader(_ summaries: [KpiMacroSummary]) -> Str
 
 // MARK: - B-57 W1 r4: the board's hero, its status line and the Up / Down / Steady line
 
-/// The board's calorie tint (orange). `metricTintRole` has no calorie entry, and the palette is
-/// the Design area's; `.reduced` is the palette's orange, used here as the kcal metric colour on
-/// the nutrition screens (KpiDetailNutrition, WeeklyPlan, Energy) — never as a verdict.
-public nonisolated let nutritionKcalTintRole: JIColorRole = .reduced
+/// The board's calorie tint (orange) on the nutrition screens (KpiDetailNutrition, WeeklyPlan,
+/// Energy). B-57 W1 r5: the JIDesign macro role `.kcal` (a metric colour, never a verdict) —
+/// no longer the verdict role `.reduced` borrowed for it.
+public nonisolated let nutritionKcalTintRole: JIColorRole = .kcal
 
-/// The numeral / label tint for one macro: calories carry `nutritionKcalTintRole`, the rest keep
-/// `metricTintRole`.
+/// The numeral / label tint for one macro: the JIDesign macro roles (kcal / protein / carbs / fat).
 public nonisolated func kpiMacroTintRole(_ macro: KpiMetricId) -> JIColorRole {
     macro == .kcal ? nutritionKcalTintRole : metricTintRole(macro.rawValue)
 }
@@ -144,19 +143,16 @@ struct KpiNutritionPanel: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("kpi-detail-macro-picker")
             KpiMacroHero(summary: s, macro: macro, goal: kpiMacroGoal(goals, macro))
-            HStack(alignment: .firstTextBaseline) {
-                Text("7 days vs 28 days").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
-                Spacer()
-                NormalBarLegend()
+            // AX3: title and legend stack instead of truncating.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) { compareTitle.fixedSize(); Spacer(); NormalBarLegend() }
+                VStack(alignment: .leading, spacing: 4) { compareTitle.fixedSize(horizontal: false, vertical: true); NormalBarLegend() }
             }
             Surface {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Last 7 days").jiFont(.body).foregroundStyle(theme.color(.text))
-                        Spacer()
-                        Text(jiValueText(s.avg7, decimals: def.decimals)).jiFont(.body, weight: .bold)
-                            .foregroundStyle(theme.color(s.avg7 == nil ? .muted : kpiMacroTintRole(macro)))
-                        if s.avg7 != nil { Text("\(def.unit) a day").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline) { last7Label.fixedSize(); Spacer(); last7Value(s, def).fixedSize() }
+                        VStack(alignment: .leading, spacing: 2) { last7Label.fixedSize(horizontal: false, vertical: true); last7Value(s, def) }
                     }
                     // Goal tick (W2) and normal band (W3) are left for later waves.
                     NormalBar(value: s.avg7, normal: nil, unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
@@ -170,6 +166,20 @@ struct KpiNutritionPanel: View {
             Surface { KpiMacroTable(rows: rows, goals: goals) }
             // Board: "Put on a widget" — the KPI widget is chosen in the system widget editor
             // (`SelectKpiIntent`); the app has no in-app pin action, so the row is left out.
+        }
+    }
+}
+
+extension KpiNutritionPanel {
+    fileprivate var compareTitle: some View {
+        Text("7 days vs 28 days").jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+    }
+    fileprivate var last7Label: some View { Text("Last 7 days").jiFont(.body).foregroundStyle(theme.color(.text)) }
+    fileprivate func last7Value(_ s: KpiMacroSummary, _ def: KpiMetricDef) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(jiValueText(s.avg7, decimals: def.decimals)).jiFont(.body, weight: .bold)
+                .foregroundStyle(theme.color(s.avg7 == nil ? .muted : kpiMacroTintRole(macro)))
+            if s.avg7 != nil { Text("\(def.unit) a day").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
         }
     }
 }

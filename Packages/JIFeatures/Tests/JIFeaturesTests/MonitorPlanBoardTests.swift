@@ -185,3 +185,65 @@ import JIPersistence
         #expect(vm.canSave)
     }
 }
+
+// B-57 W1 r5 (h2): Energy hero as the board's "−598 kcal a day", WeeklyPlan's one kcal format,
+// and the macro colour roles on the nutrition screens.
+@Suite struct EnergyHeroBoardTests {
+    @Test func numeralIsTheSignedSevenDayBalanceWithoutUnit() {
+        #expect(energyHeroNumeral(598) == "\u{2212}598")    // deficit reads as a negative balance
+        #expect(energyHeroNumeral(-120.4) == "+120")         // surplus
+        #expect(energyHeroNumeral(0.3) == "0")
+        #expect(energyHeroNumeral(nil) == "—")
+        #expect(energyHeroNumeral(.nan) == "—")
+    }
+
+    @Test func directionFollowsTheSignOnlyNeverABand() {
+        #expect(energyHeroDirection(598)?.word == "Deficit")
+        #expect(energyHeroDirection(598)?.symbolName == "arrow.down")
+        #expect(energyHeroDirection(-50)?.word == "Surplus")
+        #expect(energyHeroDirection(-50)?.symbolName == "arrow.up")
+        #expect(energyHeroDirection(0.2)?.word == "Even")
+        #expect(energyHeroDirection(nil) == nil)
+    }
+
+    @Test func explanationUsesOnlyRealFigures() {
+        #expect(energyHeroExplanation(avgDeficit: 598, trackingDays: 6, goal: 1617)
+                == "You are eating less than you burn, averaged over 6 of the last 7 days. Your goal is 1617 kcal a day.")
+        #expect(energyHeroExplanation(avgDeficit: -200, trackingDays: 7, goal: nil)
+                == "You are eating more than you burn, averaged over 7 of the last 7 days. No goal set.")
+        #expect(energyHeroExplanation(avgDeficit: 0, trackingDays: 5, goal: 1800)
+                == "What you eat matches what you burn, averaged over 5 of the last 7 days. Your goal is 1800 kcal a day.")
+        #expect(energyHeroExplanation(avgDeficit: nil, trackingDays: 5, goal: 1800)
+                == "— No data for the last 7 days yet.")
+    }
+}
+
+@Suite struct NutritionTintAndFormatTests {
+    @Test func kcalCarriesTheMacroKcalRole() {
+        #expect(nutritionKcalTintRole == .kcal)
+        #expect(kpiMacroTintRole(.kcal) == .kcal)
+        #expect(kpiMacroTintRole(.protein) == .protein)
+        #expect(kpiMacroTintRole(.carbs) == .carbs)
+        #expect(kpiMacroTintRole(.fat) == .fat)
+    }
+
+    @Test func weeklyPlanKnobsCarryTheirMacroRole() {
+        #expect(weeklyPlanKnobTintRole(.weeklyAvg) == .kcal)
+        #expect(weeklyPlanKnobTintRole(.trainKcal) == .kcal)
+        #expect(weeklyPlanKnobTintRole(.protein) == .protein)
+        #expect(weeklyPlanKnobTintRole(.fat) == .fat)
+    }
+
+    @Test func weeklyPlanKcalHasNoGroupingLikeTheBoard() {
+        #expect(weeklyPlanKcalText(1907) == "1907")
+        #expect(weeklyPlanKcalText(1617) == "1617")
+        #expect(weeklyPlanKcalText(12000) == "12000")
+    }
+}
+
+@Suite struct EnergyAX3LabelTests {
+    @Test func weekdayShortensToTwoLettersOnlyAtAccessibilitySizes() {
+        #expect(energyWeekdayLabel("Wed", accessibilitySize: false) == "Wed")
+        #expect(energyWeekdayLabel("Wed", accessibilitySize: true) == "We")
+    }
+}
