@@ -8,7 +8,13 @@ import JIDesign
 /// when this metric has a matching gate rule, an inline threshold editor that round-trips through
 /// `KpiTargetsProviding.updateKpiTarget` (PUT).
 public struct KpiDetailView: View {
-    @Bindable private var model: KpiDetailViewModel
+    /// BUG-09 (W-FIX2): the screen OWNS its model. The shell's `navigationDestination` closure
+    /// re-runs on every shell re-render (a deep link focuses the tab, then clears the pending
+    /// link) and builds a brand-new model each time; a plain stored model was swapped for that
+    /// fresh, never-loaded one — the skeleton plus "— No data" stuck on screen, and the phase
+    /// animation re-laid the scroll view mid-push into the safe-area inset loop (the hang).
+    /// `@State` keeps the first model for the screen's lifetime; later ones are discarded.
+    @State private var model: KpiDetailViewModel
     /// The alert stepper's working value (the rule's threshold until the reader steps it).
     @State private var threshold: Double = 0
     /// B-57 W1 board: 7 D / 30 D / 90 D above the trend.
@@ -16,9 +22,17 @@ public struct KpiDetailView: View {
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
 
-    public init(model: KpiDetailViewModel) { self.model = model }
+    public init(model: KpiDetailViewModel) { _model = State(initialValue: model) }
+
+    #if DEBUG
+    /// Test seam (BUG-09): the model the last body evaluation rendered.
+    static weak var debugLastRenderedModel: KpiDetailViewModel?
+    #endif
 
     public var body: some View {
+        #if DEBUG
+        let _ = { Self.debugLastRenderedModel = model }()
+        #endif
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 KpiDetailSourceLine(subtitle: kpiSourceSubtitle(model.metric), fetchedAt: model.fetchedAt,
@@ -43,7 +57,11 @@ public struct KpiDetailView: View {
             syncThreshold()
         }
         .onChange(of: model.target?.threshold) { _, _ in syncThreshold() }
-        .animation(JIMotion.standard, value: model.phase)
+        .onChange(of: model.metric) { _, _ in syncThreshold() }
+        // BUG-09: no implicit animation on `phase`. Animating the skeleton → content swap resized
+        // the scroll view's content while the push was still in flight (a deep link pushes and
+        // loads at once), and UIKit re-entered its safe-area inset update every frame — the main
+        // thread spun at 100 % CPU with the screen frozen mid-push.
     }
 
     private func syncThreshold() {
@@ -84,9 +102,14 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var loaded: some View {
-        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, goals: model.goals?.nutrition, macro: model.metric) }
-        chartSection
+        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, goals: model.goals?.nutrition,
+                                                               macro: Binding(get: { model.metric }, set: { model.selectMetric($0) })) }
+        // BUG-40: on nutrition the panel's 7-day NormalBar replaces the line trend.
+        if kpiDetailShowsLineTrend(model.metric) { chartSection }
         if model.target != nil { editor }
+        if isNutritionKpi(model.metric) {
+            KpiNutritionLinks(metricLabel: model.def.label, goalsSetupModel: model.goalsSetupModel)
+        }
     }
 
     @ViewBuilder

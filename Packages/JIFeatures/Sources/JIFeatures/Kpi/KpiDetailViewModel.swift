@@ -11,7 +11,9 @@ import JIPersistence
 public final class KpiDetailViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, error(String) }
 
-    public let metric: KpiMetricId
+    /// The metric on screen. BUG-22 (W-FIX2): the nutrition segment switches it between the four
+    /// macros (`selectMetric`), so title, trend and alert all follow — never only the hero.
+    public private(set) var metric: KpiMetricId
     public private(set) var phase: Phase = .idle
     public private(set) var recovery: [RecoveryDay] = []
     public private(set) var nutrition: [NutritionDailyRow] = []
@@ -21,7 +23,13 @@ public final class KpiDetailViewModel {
     /// than one rule (e.g. `acwr`'s three), the first match; editing multiple rules for one metric
     /// is out of this wave's scope (RN's own `app/gate-config.tsx` handles the full rule list and
     /// isn't part of this card).
-    public private(set) var target: KpiTarget?
+    public var target: KpiTarget? {
+        let keys = def.targetMetricKeys
+        return targets.first { keys.contains($0.metric) }
+    }
+    /// Every gate rule (`/planning/kpi-targets`); `target` picks this metric's, so a segment switch
+    /// re-resolves the alert without a refetch.
+    private var targets: [KpiTarget] = []
     /// The user's goals document (macro goals for the nutrition variant). `nil` = not loaded or
     /// no goals provider — the screen then says "no goal set", never invents one.
     public private(set) var goals: Goals?
@@ -86,6 +94,24 @@ public final class KpiDetailViewModel {
     private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
     public var history: [(date: String, value: Double?)] { KpiMetrics.history(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows) }
 
+    /// BUG-22: the nutrition segment. Only switches between nutrition macros (they share one data
+    /// source, so nothing refetches); any other metric is ignored.
+    public func selectMetric(_ newMetric: KpiMetricId) {
+        guard newMetric != metric, isNutritionKpi(metric), isNutritionKpi(newMetric) else { return }
+        metric = newMetric
+    }
+
+    /// BUG-40: "Edit macro goals" → Goals setup, when the provider speaks `GoalsSetupProviding`
+    /// (the hub does); nil otherwise, and the link is not shown. Built once.
+    public var goalsSetupModel: GoalsSetupViewModel? {
+        if let cachedGoalsSetupModel { return cachedGoalsSetupModel }
+        guard let provider = nutritionProvider as? any GoalsSetupProviding else { return nil }
+        let model = GoalsSetupViewModel(provider: provider)
+        cachedGoalsSetupModel = model
+        return model
+    }
+    @ObservationIgnored private var cachedGoalsSetupModel: GoalsSetupViewModel?
+
     public func load() async {
         phase = .loading
         restoreFromCache()
@@ -95,19 +121,17 @@ public final class KpiDetailViewModel {
     public func refresh() async { await fetchLive() }
 
     private func restoreFromCache() {
-        let targetKeys = def.targetMetricKeys
         let macro = isNutritionKpi(metric)
         if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value; if !macro { fetchedAt = hit.fetchedAt } }
         if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value; if macro { fetchedAt = hit.fetchedAt } }
         if let hit = try? cache.get(Self.keys.gate, as: GateResponse.self) { dailyRows = hit.value.daily; gateAverages = hit.value.averages }
-        if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { target = hit.value.first { targetKeys.contains($0.metric) } }
+        if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { targets = hit.value }
         if macro, let hit = try? cache.get(Self.keys.goals, as: Goals.self) { goals = hit.value }
         if hasAnyData { phase = .loaded }
     }
 
     private func fetchLive() async {
         let windowDays = min(365, def.maxLiveWindowDays)
-        let targetKeys = def.targetMetricKeys
         do {
             let health = healthProvider
             let nutritionProvider = self.nutritionProvider
@@ -128,7 +152,7 @@ public final class KpiDetailViewModel {
             if let rv = r.value { recovery = rv }
             if let nv = n.value { nutrition = nv }
             if let gv = g.value { dailyRows = gv.daily; gateAverages = gv.averages }
-            if let tv = t.value { target = tv.first { targetKeys.contains($0.metric) } }
+            if let tv = t.value { targets = tv }
             fetchedAt = (isNutritionKpi(metric) ? n.fetchedAt : (r.fetchedAt ?? g.fetchedAt)) ?? fetchedAt
 
             let errors = [r.error, n.error, g.error, t.error].compactMap { $0 }
@@ -173,7 +197,7 @@ public final class KpiDetailViewModel {
             let updated = try await targetsProvider.updateKpiTarget(
                 id: target.targetId, threshold: newThreshold, thresholdHi: target.thresholdHi, description: target.description
             )
-            self.target = updated
+            if let i = targets.firstIndex(where: { $0.targetId == updated.targetId }) { targets[i] = updated } else { targets.append(updated) }
             // Re-fetch the full list rather than caching a synthetic one-row array under the key
             // `KpiListViewModel` also reads — a partial overwrite here would corrupt its cache.
             if let full = try? await targetsProvider.kpiTargets() {
