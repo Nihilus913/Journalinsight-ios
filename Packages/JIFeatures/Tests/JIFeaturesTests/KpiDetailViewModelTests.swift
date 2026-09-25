@@ -6,7 +6,7 @@ import JIPersistence
 
 @Test @MainActor func kpiDetailLoadsHistoryForARecoveryMetric() async throws {
     let vm = KpiDetailViewModel(
-        metric: .hrv, healthProvider: KpiFakeProvider(), nutritionProvider: KpiFakeProvider(),
+        metric: .rhr, healthProvider: KpiFakeProvider(), nutritionProvider: KpiFakeProvider(),
         targetsProvider: KpiFakeProvider(), cache: OfflineCache(db: try AppDatabase.inMemory())
     )
     await vm.load()

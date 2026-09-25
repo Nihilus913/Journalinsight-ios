@@ -14,6 +14,8 @@ public nonisolated struct TrendsCardModel: Identifiable, Sendable, Equatable {
     public let unit: String?, decimals: Int, value: Double?, tint: JIColorRole, status: JISignalStatus
 }
 
+/// `averages` is no longer read (W-FIX1 BUG-04: its `avg_*_7d` follow the hub's `window_days`);
+/// the parameter stays so `TodayView`'s call site is unchanged.
 public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?) -> [TrendsCardModel] {
     func rec(_ f: @escaping (RecoveryDay) -> Double?) -> Double? {
         trendAverage(recovery.map { (date: $0.date, value: f($0)) }, days: trendRecentDays)
@@ -27,15 +29,19 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
                         tint: metricTintRole(id), status: value == nil ? .missing(.noData) : .missing(.calibrating))
     }
     return [
-        card("hrv", .recovery, "HRV", "waveform.path.ecg", rec(\.hrvWeeklyAvg), unit: "ms"),
+        // W-FIX1 BUG-06: nightly HRV only, never the hub's 7-day `hrv_weekly_avg` mix.
+        card("hrv", .recovery, "HRV", "waveform.path.ecg", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms"),
         card("rhr", .recovery, "Resting HR", "heart", rec(\.rhrBpm), unit: "bpm"),
         card("sleep", .recovery, "Sleep", "moon", rec { $0.sleepDurationSec.map { $0 / 3600 } }, unit: "h", decimals: 1),
-        card("load", .recovery, "Load", "bolt", rec(\.acwr), unit: nil, decimals: 2),
-        card("kcal", .nutrition, "Calories", "flame", averages?.avgKcal7d, unit: "kcal"),
-        card("protein", .nutrition, "Protein", "fork.knife", averages?.avgProtein7d, unit: "g"),
-        // Today holds no carbs/fat series; W2 reads dietary carbs/fat from Apple Health.
-        card("carbs", .nutrition, "Carbs", "leaf", nil, unit: "g"),
-        card("fat", .nutrition, "Fat", "drop", nil, unit: "g"),
+        // W-FIX1 BUG-12: an ACWR of 0.00 is the hub's invented ratio (no load source) → "—".
+        card("load", .recovery, "Load", "bolt", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2),
+        // W-FIX1 BUG-04/BUG-32: the macros are the mean of the last 7 daily rows (`gate.daily`),
+        // the same value KpiDetail's "Last 7 days" shows — not the hub's `avg_*_7d`, which is
+        // computed over the whole `window_days` (28 here), and carbs/fat are no longer "No data".
+        card("kcal", .nutrition, "Calories", "flame", day("kcal_consumed"), unit: "kcal"),
+        card("protein", .nutrition, "Protein", "fork.knife", day("protein_g"), unit: "g"),
+        card("carbs", .nutrition, "Carbs", "leaf", day("carbs_g"), unit: "g"),
+        card("fat", .nutrition, "Fat", "drop", day("fat_g"), unit: "g"),
         card("weight", .body, "Weight", "scalemass", day("weight_kg"), unit: "kg", decimals: 1),
         card("steps", .body, "Steps", "figure.walk", day("steps"), unit: nil),
     ]

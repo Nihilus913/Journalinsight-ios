@@ -67,8 +67,11 @@ public final class KpiListViewModel {
 
     public var visibleOrder: [KpiMetricId] { KpiSelection.visibleOrder(prefs) }
 
-    public func value(for id: KpiMetricId) -> Double? {
-        KpiMetrics.value(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+    /// W-FIX1 BUG-05: the latest reading WITH its day, so the My KPIs squares can say "as of Sep 12"
+    /// instead of passing an old number off as today's.
+    public func value(for id: KpiMetricId) -> KpiReading? {
+        KpiMetrics.latest(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+            .map { KpiReading(value: $0.value, date: $0.date) }
     }
 
     public func targetText(for id: KpiMetricId) -> String? {

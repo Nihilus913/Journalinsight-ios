@@ -105,13 +105,6 @@ public final class TodayViewModel {
 
     public var verdict: VerdictParts { verdictParts(morning?.verdict) }
 
-    /// Newest row (by `date`, ascending sort) whose `value` isn't nil — mirrors RN VerdictHero.tsx's
-    /// "newest non-null value per metric" resolution, as opposed to picking a single newest ROW and
-    /// reading every field off it (a null field on the newest row would otherwise blank every metric).
-    private func newestNonNullValue<T>(_ rows: [T], date: (T) -> String, value: (T) -> Double?) -> Double? {
-        newestNonNull(rows, date: date, value: value)?.value
-    }
-
     /// B-46 device feedback 3: the newest non-null reading AND the day it came from, so a chip
     /// can say "as of Sep 21" rather than presenting an older number as today's.
     private func newestNonNull<T>(_ rows: [T], date: (T) -> String, value: (T) -> Double?) -> (value: Double, date: String)? {
@@ -128,12 +121,19 @@ public final class TodayViewModel {
         )
     }
 
-    public var readiness: Double? { newestNonNullValue(recovery, date: \.date, value: \.readinessScore) }
+    /// W-FIX1 BUG-05: "last night" means last night — the newest non-null value is kept only while
+    /// that night is ≤ 36 h old (`KpiMetrics.isLastNightFresh`); older is `nil` ("—"), never a
+    /// four-day-old readiness shown as today's (Day hero ring + summary line).
+    private func lastNight(_ value: (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
+        newestNonNull(recovery, date: \.date, value: value).flatMap {
+            KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now()) ? $0 : nil
+        }
+    }
+
+    public var readiness: Double? { lastNight(\.readinessScore)?.value }
 
     public var chips: [TodayChip] {
         let caps = provider.capabilities
-        let hrvSeries = morning?.hrvSeries ?? []
-        let chron = hrvSeries.sorted { $0.date < $1.date }.suffix(7)
         let rec = recovery.sorted { $0.date < $1.date }.suffix(7)
         let daily = gate?.daily ?? []
         // PARITY-1: steps mirrors RN VerdictHero.tsx:312-323 — newest non-null `values["steps"]` over
@@ -141,12 +141,13 @@ public final class TodayViewModel {
         // ring: it skips null-food rows on purpose, which lands on the wrong date for steps.
         let steps = newestNonNull(daily, date: \.date, value: { $0.values["steps"] ?? nil })
         return [
-            chip("hrv", "HRV", unit: "ms", points: chron.map(\.hrvWeeklyAvg), sourceMissing: !caps.contains(.hrvRMSSD),
-                 latest: newestNonNull(hrvSeries, date: \.date, value: \.hrvWeeklyAvg)),
+            // W-FIX1 BUG-06: last night's HRV, never `hrv_series`' 7-day `hrv_weekly_avg` mix.
+            chip("hrv", "HRV", unit: "ms", points: rec.map { KpiMetrics.nightlyHrvMs($0) }, sourceMissing: !caps.contains(.hrvRMSSD),
+                 latest: lastNight { KpiMetrics.nightlyHrvMs($0) }),
             chip("rhr", "RHR", unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false,
-                 latest: newestNonNull(recovery, date: \.date, value: \.rhrBpm)),
+                 latest: lastNight(\.rhrBpm)),
             chip("sleep", "Sleep", unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore),
-                 latest: newestNonNull(recovery, date: \.date, value: \.sleepScore)),
+                 latest: lastNight(\.sleepScore)),
             chip("steps", "Steps", unit: nil, points: daily.sorted { $0.date < $1.date }.suffix(7).map { $0.values["steps"] ?? nil }, sourceMissing: false,
                  latest: steps),
         ]
@@ -190,7 +191,7 @@ public final class TodayViewModel {
             morning = m.value; fetchedAt = m.fetchedAt; morningFetchedAt = m.fetchedAt; everSynced = true
         }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
-        if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = r.value; recoveryFetchedAt = r.fetchedAt }
+        if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if morning != nil { phase = .loaded }
         syncMorningState()
         if morning != nil || gate != nil || !recovery.isEmpty { onSectionUpdate?() }
@@ -212,7 +213,9 @@ public final class TodayViewModel {
 
             if let mv = m.value { morning = mv; syncMorningState() }
             if let gv = g.value { gate = gv }
-            if let rv = r.value { recovery = rv }
+            // W-FIX1 BUG-12: the hub's invented `acwr` 0.0 is cleared here, so every Day reader of the
+            // rows (the hero Load ring, the EditToday square, Trends) shows "—", never "0.00".
+            if let rv = r.value { recovery = KpiMetrics.honestRecovery(rv) }
             morningFetchedAt = m.fetchedAt ?? morningFetchedAt
             gateFetchedAt = g.fetchedAt ?? gateFetchedAt
             recoveryFetchedAt = r.fetchedAt ?? recoveryFetchedAt
@@ -307,7 +310,8 @@ public extension TodayViewModel {
     /// gallery. Fixtures never persist — the state is set directly.
     static func fixture(morningState: TodayMorningState, morningJSON: String? = nil) -> TodayViewModel? {
         guard let cache = NativeFixtureStore.cache else { return nil }
-        let model = TodayViewModel(provider: MockDataProvider(), cache: cache)
+        // Pinned to the fixture's verdict day so its nights read as last night (BUG-05 freshness).
+        let model = TodayViewModel(provider: MockDataProvider(), cache: cache, now: { Date(timeIntervalSince1970: 1_789_992_000) })
         model.morning = NativeFixtureStore.decode(morningJSON ?? fixtureMorningJSON, as: MorningResponse.self)
         model.gate = NativeFixtureStore.decode(fixtureGateJSON, as: GateResponse.self)
         model.recovery = (0..<7).map { i in

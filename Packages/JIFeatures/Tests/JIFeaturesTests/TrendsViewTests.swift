@@ -24,20 +24,24 @@ struct TrendsViewTests {
         let rec = (1...7).map { RecoveryDay(date: String(format: "2026-09-%02d", $0), sleepScore: nil, sleepDurationSec: 25_200,
                                             rhrBpm: 54, bodyBatteryAvg: nil, readinessScore: nil, acwr: nil, hrvWeeklyAvg: 50) }
         let cards = trendsCards(recovery: rec, daily: [], averages: nil)
-        let hrv = cards.first { $0.id == "hrv" }!
-        #expect(hrv.value == 50)
-        #expect(hrv.status == .missing(.calibrating))
+        let rhr = cards.first { $0.id == "rhr" }!
+        #expect(rhr.value == 54)
+        #expect(rhr.status == .missing(.calibrating))
+        // W-FIX1 BUG-06: `hrv_weekly_avg` is a 7-day mix, never shown as HRV.
+        #expect(cards.first { $0.id == "hrv" }?.value == nil)
         let sleep = cards.first { $0.id == "sleep" }!
         #expect(sleep.value == 7)              // hours, from sleepDurationSec
         #expect(sleep.unit == "h")
     }
 
-    @Test func nutritionReadsTheGateSevenDayAveragesOnly() {
+    /// W-FIX1 BUG-04: the hub's `avg_*_7d` follow its `window_days` (28 here), so Trends never
+    /// reads them; with no daily rows the macros are "— No data".
+    @Test func nutritionNeverReadsTheHubWindowAverages() {
         let avg = try! JSON.decoder.decode(GateAverages.self, from: Data(#"{"avg_kcal_7d":1619,"avg_protein_7d":127,"trends":{}}"#.utf8))
         let cards = trendsCards(recovery: [], daily: [], averages: avg)
-        #expect(cards.first { $0.id == "kcal" }?.value == 1619)
-        #expect(cards.first { $0.id == "protein" }?.value == 127)
-        #expect(cards.first { $0.id == "carbs" }?.status == .missing(.noData))   // W2 reads dietary carbs from Health
+        #expect(cards.first { $0.id == "kcal" }?.value == nil)
+        #expect(cards.first { $0.id == "protein" }?.value == nil)
+        #expect(cards.first { $0.id == "carbs" }?.status == .missing(.noData))
     }
 }
 

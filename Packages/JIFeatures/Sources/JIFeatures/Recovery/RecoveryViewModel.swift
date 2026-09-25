@@ -65,15 +65,16 @@ public final class RecoveryViewModel {
     private var latestDate: String? { days.map(\.date).max() }
     private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
-    /// Newest day's readiness score — `nil` only when there is no day with a non-nil score, never
-    /// coerced to `0` (rule 5).
+    /// Newest day's readiness score — `nil` when no day has a non-nil score, never coerced to `0`
+    /// (rule 5), and `nil` once that night is older than 36 h (W-FIX1 BUG-05: a stale night is never
+    /// passed off as last night's).
     public var latestReadiness: Double? { newestNonNil(\.readinessScore) }
     public var latestSleepScore: Double? { newestNonNil(\.sleepScore) }
     public var latestSleepDurationSec: Double? { newestNonNil(\.sleepDurationSec) }
 
     private func newestNonNil(_ value: (RecoveryDay) -> Double?) -> Double? {
         for day in days.sorted(by: { $0.date > $1.date }) {
-            if let v = value(day) { return v }
+            if let v = value(day) { return KpiMetrics.isLastNightFresh(nightDate: day.date, now: now()) ? v : nil }
         }
         return nil
     }
@@ -154,9 +155,12 @@ public extension RecoveryViewModel {
     static func fixture() -> RecoveryViewModel? {
         guard let cache = NativeFixtureStore.cache else { return nil }
         let model = RecoveryViewModel(provider: MockDataProvider(), cache: cache)
+        // The week ends last night (relative to the clock), so the screen's "Last night" squares —
+        // which read the clock themselves — show the fixture's values rather than the BUG-05 "—".
+        let lastNight = Date()
         model.days = (0..<7).map { i in
             RecoveryDay(
-                date: "2026-09-\(15 + i)",
+                date: String(lastNight.addingTimeInterval(Double(i - 6) * 86_400).ISO8601Format().prefix(10)),
                 sleepScore: [78, 81, 74, 88, 83, 79, 85][i],
                 sleepDurationSec: [25_200, 26_400, 23_400, 28_200, 27_000, 25_800, 27_600][i],
                 rhrBpm: [54, 53, 55, 52, 53, 54, 52][i],

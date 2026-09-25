@@ -18,11 +18,13 @@ private func decodeJSON<T: Decodable>(_ json: String, as type: T.Type) -> T {
 
 @Test func recoverySourcedValueUsesLatestDayByDate() {
     let days: [RecoveryDay] = [
-        decodeJSON(#"{"date":"2026-09-10","hrv_weekly_avg":40}"#, as: RecoveryDay.self),
-        decodeJSON(#"{"date":"2026-09-12","hrv_weekly_avg":45}"#, as: RecoveryDay.self),
+        decodeJSON(#"{"date":"2026-09-10","rhr_bpm":40,"hrv_weekly_avg":40}"#, as: RecoveryDay.self),
+        decodeJSON(#"{"date":"2026-09-12","rhr_bpm":45,"hrv_weekly_avg":45}"#, as: RecoveryDay.self),
     ]
-    let value = KpiMetrics.value(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil)
+    let value = KpiMetrics.value(for: .rhr, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil)
     #expect(value == 45)
+    // W-FIX1 BUG-06: `hrv_weekly_avg` is the hub's 7-day Garmin/Apple mix, never shown as HRV.
+    #expect(KpiMetrics.value(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil) == nil)
 }
 
 @Test func nutritionSourcedValueUsesLatestDay() {

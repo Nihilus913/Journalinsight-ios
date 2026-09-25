@@ -48,14 +48,15 @@ private func dailyRow(_ date: String, kcal: Double?) -> DailyKpiRow {
     // Today's row exists but carries no HRV (no Garmin sync since the 18th). The old code read
     // the latest row and took the field off it, so the headline was "—".
     let days: [RecoveryDay] = [
-        decodeJSON(#"{"date":"2026-09-20","hrv_weekly_avg":47}"#, as: RecoveryDay.self),
-        decodeJSON(#"{"date":"2026-09-21","hrv_weekly_avg":52}"#, as: RecoveryDay.self),
+        // W-FIX1 BUG-06: HRV no longer reads the 7-day `hrv_weekly_avg`; the fallback rule is RHR's.
+        decodeJSON(#"{"date":"2026-09-20","rhr_bpm":47}"#, as: RecoveryDay.self),
+        decodeJSON(#"{"date":"2026-09-21","rhr_bpm":52}"#, as: RecoveryDay.self),
         decodeJSON(#"{"date":"2026-09-22"}"#, as: RecoveryDay.self),
     ]
-    let latest = KpiMetrics.latest(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil)
+    let latest = KpiMetrics.latest(for: .rhr, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil)
     #expect(latest?.value == 52)
     #expect(latest?.date == "2026-09-21")
-    #expect(KpiMetrics.value(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil) == 52)
+    #expect(KpiMetrics.value(for: .rhr, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil) == 52)
 }
 
 @Test func kpiCurrentValueIsStillNilWhenNoDayEverHadAReading() {
@@ -78,11 +79,11 @@ private func dailyRow(_ date: String, kcal: Double?) -> DailyKpiRow {
 @Test @MainActor func todayChipsCarryTheDayTheirFallbackValueCameFrom() async throws {
     let vm = TodayViewModel(provider: MockDataProvider(), cache: OfflineCache(db: try AppDatabase.inMemory()), prefs: PrefStore(db: try AppDatabase.inMemory()))
     await vm.load()
-    let hrv = try #require(vm.chips.first { $0.id == "hrv" })
-    #expect(hrv.value != nil)
-    // The fixture's newest HRV is 2026-09-21; whatever "today" is when the suite runs, the label
-    // is either absent (same day) or names that day — never a different one.
-    if let asOf = hrv.asOf { #expect(asOf.hasPrefix("as of ")) }
+    // W-FIX1: HRV is nightly-only now (and a night older than 36 h is "—"), so read RHR; whatever
+    // "today" is when the suite runs, the label is either absent or names the value's own day.
+    let rhr = try #require(vm.chips.first { $0.id == "rhr" })
+    if let asOf = rhr.asOf { #expect(asOf.hasPrefix("as of ")) }
+    #expect(rhr.asOf == nil || rhr.value != nil)
 }
 
 // MARK: - Item 4: the threshold editor showed the raw plan.kpi_target column key
@@ -263,10 +264,10 @@ private func makeB45VM(
 /// concept at all. They now read `KpiMetrics.latest`, so the day comes with the number.
 @Test func myKpiCellsCarryTheDayTheirValueWasTakenOn() throws {
     let days: [RecoveryDay] = [
-        decodeJSON(#"{"date":"2026-09-15","hrv_weekly_avg":28}"#, as: RecoveryDay.self),
+        decodeJSON(#"{"date":"2026-09-15","rhr_bpm":28}"#, as: RecoveryDay.self),
         decodeJSON(#"{"date":"2026-09-22"}"#, as: RecoveryDay.self),
     ]
-    let latest = try #require(KpiMetrics.latest(for: .hrv, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil))
+    let latest = try #require(KpiMetrics.latest(for: .rhr, recovery: days, nutrition: [], dailyRows: [], gateAverages: nil))
     #expect(latest.value == 28)
     let asOf = try #require(kpiAsOfLabel(valueDate: latest.date, today: "2026-09-22"))
     #expect(asOf.hasPrefix("as of "))
