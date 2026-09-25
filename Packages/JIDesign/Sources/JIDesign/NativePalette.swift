@@ -27,6 +27,10 @@ enum JINativePalette {
         case .danger: Color(uiColor: .systemRed)
         case .info: Color(uiColor: .systemBlue)
         case .sleep: Color(uiColor: .systemPurple)
+        case .kcal: Color(uiColor: .systemOrange)
+        case .protein: Color(uiColor: .systemPink)
+        case .carbs: Color(uiColor: .systemYellow)
+        case .fat: Color(uiColor: .systemCyan)
         }
         #elseif os(macOS)
         switch role {
@@ -45,6 +49,10 @@ enum JINativePalette {
         case .danger: Color(nsColor: .systemRed)
         case .info: Color(nsColor: .systemBlue)
         case .sleep: Color(nsColor: .systemPurple)
+        case .kcal: Color(nsColor: .systemOrange)
+        case .protein: Color(nsColor: .systemPink)
+        case .carbs: Color(nsColor: .systemYellow)
+        case .fat: Color(nsColor: .systemCyan)
         }
         #else
         switch role {
@@ -63,6 +71,10 @@ enum JINativePalette {
         case .danger: .red
         case .info: .blue
         case .sleep: .purple
+        case .kcal: .orange
+        case .protein: .pink
+        case .carbs: .yellow
+        case .fat: .cyan
         }
         #endif
     }

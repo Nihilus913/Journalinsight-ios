@@ -46,6 +46,10 @@ struct NativePaletteTests {
         (.danger, .systemRed),
         (.info, .systemBlue),
         (.sleep, .systemPurple),
+        (.kcal, .systemOrange),
+        (.protein, .systemPink),
+        (.carbs, .systemYellow),
+        (.fat, .systemCyan),
     ])
     func nativeRoleIsTheSystemSemanticColour(role: JIColorRole, expected: UIColor) {
         #expect(JITheme.native.color(role) == Color(uiColor: expected))
