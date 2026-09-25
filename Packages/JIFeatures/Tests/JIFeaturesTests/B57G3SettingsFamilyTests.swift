@@ -186,7 +186,8 @@ private func q(_ source: String, _ dso: Int, _ metric: String, _ composite: Doub
 @Test func versionHighlightsAreTheLatestThreeAndMarkTheInstalledOne() {
     let rows = versionHighlights(Changelog.entries, appVersion: "2.0.0")
     #expect(rows.count == 3)
-    #expect(rows.map(\.entry.version) == ["2.0.0", "1.18.2", "1.18.1"])
+    // W-FIX3 BUG-43: the Swift milestones since 17 Sep lead the list.
+    #expect(rows.map(\.entry.version) == ["2.0.0", "2.0.0-beta.3", "2.0.0-beta.2"])
     #expect(rows.map(\.installed) == [true, false, false])
     #expect(versionShortDate("2026-09-17") == "17 Sep")
     #expect(versionShortDate("garbage") == "garbage")
