@@ -6,6 +6,9 @@ public struct TodayView: View {
     @Bindable private var model: TodayViewModel
     private let onOpenConnection: () -> Void
     private let onSelectKpi: (String) -> Void
+    /// W-FIX2 fixer BUG-13: the shell's router push for Trends (a path route, so a KPI opened from
+    /// Trends returns to Trends). Nil (previews, package tests) keeps the local `NavigationLink`.
+    private let onOpenTrends: (() -> Void)?
     /// W5b-L4 (P-gate-respond) close-out wiring: builds the gate answer card's model for the loaded
     /// gate's recommendation (the App supplies outbox + decision log); `nil` = no card, as before.
     private let makeGateRespondModel: (GateRecommendation) -> GateRespondViewModel?
@@ -19,8 +22,10 @@ public struct TodayView: View {
     @Environment(\.jiOffscreenRender) private var offscreen
 
     public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in },
+                onOpenTrends: (() -> Void)? = nil,
                 makeGateRespondModel: @escaping (GateRecommendation) -> GateRespondViewModel? = { _ in nil }) {
         self.model = model; self.onOpenConnection = onOpenConnection; self.onSelectKpi = onSelectKpi
+        self.onOpenTrends = onOpenTrends
         self.makeGateRespondModel = makeGateRespondModel
     }
 
@@ -122,21 +127,30 @@ public struct TodayView: View {
                             gateRespondModel: gateRespondModel, showsRespondRow: false)
             ringsRow
         }
-        TodayGrid(chips: model.chips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+        // W-FIX2 fixer BUG-19: the grid gets every square EditToday lists (`gridChips`), not the four.
+        TodayGrid(chips: model.gridChips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
         // B-57 W1: the Trends card became a full screen, reached from this footer link.
         HStack {
             Spacer()
-            NavigationLink {
-                TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
-            } label: {
-                Text("Trends").jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
-                    .frame(minHeight: 44)
+            Group {
+                if let onOpenTrends {
+                    Button(action: onOpenTrends) { trendsLabel }
+                } else {
+                    NavigationLink {
+                        TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
+                    } label: { trendsLabel }
+                }
             }
             .buttonStyle(.pressableScale)
             .accessibilityIdentifier("today.footer.trends")
         }
         // Room so the Coach overlay never covers the last card.
         if model.morningState == .coach || showMorningReview { Color.clear.frame(height: 140).accessibilityHidden(true) }
+    }
+
+    private var trendsLabel: some View {
+        Text("Trends").jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
+            .frame(minHeight: 44)
     }
 
     /// B-57 §9 Coach: the one change for today, built from the DTOs this screen already holds.

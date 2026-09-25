@@ -245,6 +245,10 @@ struct RootTabView: View {
                     switch route {
                     case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
                     case .kpiList: kpiListDestination(onSelectKpi: nil)
+                    case .trends: trendsDestination(onSelectKpi: { metric in
+                        let route = RootRoute.kpiDetail(metric: metric)
+                        if kpiSheetPath.last != route { kpiSheetPath.append(route) }
+                    })
                     }
                 }
             }
@@ -322,6 +326,7 @@ struct RootTabView: View {
                     switch route {
                     case .kpiDetail(let metric): kpiDetailDestination(metric: metric)
                     case .kpiList: kpiListDestination(onSelectKpi: { metric in pushKpiDetail(metric, on: tab) })
+                    case .trends: trendsDestination(onSelectKpi: { metric in pushKpiDetail(metric, on: tab) })
                     }
                 }
         }
@@ -370,6 +375,7 @@ struct RootTabView: View {
                     model: todayModel,
                     onOpenConnection: { showConnection = true },
                     onSelectKpi: { metric in pushKpiDetail(metric, on: .today) },
+                    onOpenTrends: { router.push(.trends, on: .today) },
                     makeGateRespondModel: { recommendation in makeGateRespondModel(recommendation, provider: store.provider) }
                 )
                 .environment(\.gateRationaleModel, gateRationaleModel)
@@ -784,6 +790,17 @@ struct RootTabView: View {
 
     /// B-55 + W-FIX2 BUG-13: routed into the ORIGINATING tab's own stack, so Back returns there;
     /// a second tap inside one push animation is dropped.
+    /// W-FIX2 fixer BUG-13: the Trends screen as a `RootRoute` destination, built from Today's model.
+    @ViewBuilder
+    private func trendsDestination(onSelectKpi: @escaping (String) -> Void) -> some View {
+        if let todayModel {
+            TrendsView(recovery: todayModel.recovery, daily: todayModel.gate?.daily ?? [],
+                       averages: todayModel.gate?.averages, onSelectKpi: onSelectKpi)
+        } else {
+            screenUnavailable(title: "Trends unavailable", systemImage: "chart.line.uptrend.xyaxis")
+        }
+    }
+
     private func pushKpiDetail(_ metric: String, on tab: RootTab) {
         router.push(.kpiDetail(metric: metric), on: tab)
     }

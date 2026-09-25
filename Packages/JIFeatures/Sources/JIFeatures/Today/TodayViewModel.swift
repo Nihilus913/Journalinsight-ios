@@ -201,7 +201,7 @@ public final class TodayViewModel {
     /// B-57 W1 EditToday board: Today's four chips plus the squares the board adds — Load (newest
     /// ACWR), Protein and Calories (today's food row, or the latest real one with its "as of" day,
     /// `resolveTodayRow`), Weight (newest `weight_kg`). Nil stays nil: the square says why.
-    /// `chips` itself is unchanged, so Today's grid and the widget snapshot keep their four.
+    /// `chips` itself is unchanged (hero sleep, widget snapshot); Today's grid reads `gridChips`.
     public var squareChips: [TodayChip] {
         let daily = gate?.daily ?? []
         let food = resolveTodayRow(daily).row
@@ -222,6 +222,10 @@ public final class TodayViewModel {
                  latest: newestNonNull(daily, date: \.date, value: { $0.values["weight_kg"] ?? nil })),
         ]
     }
+
+    /// W-FIX2 fixer BUG-19: what Today's `TodayGrid` is handed — every EditToday square (the grid
+    /// then filters/orders them by EditToday's prefs), so EditToday's 8 of 8 = Today's 8 tiles.
+    public var gridChips: [TodayChip] { squareChips }
 
     public func load() async {
         phase = .loading

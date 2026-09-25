@@ -122,3 +122,23 @@ import Foundation
     router.popToRoot(.today)
     #expect(router.path(for: .today).isEmpty)
 }
+
+// MARK: - W-FIX2 fixer BUG-13: Trends is a path route, so a KPI pushed from it keeps it underneath
+
+@Test func fix2TrendsIsARouteOwnedByTodayAndSurvivesAKpiPushAndBack() {
+    #expect(TabRouter.owner(of: .trends) == .today)
+    var router = TabRouter()
+    let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
+    let pushedTrends = router.push(.trends, on: .today, now: t0)
+    #expect(pushedTrends)
+    // Trends > Calories: the detail stacks on top of Trends in the same bound path.
+    let pushedKcal = router.push(.kpiDetail(metric: "kcal"), on: .today, now: t0.addingTimeInterval(1))
+    #expect(pushedKcal)
+    #expect(router.path(for: .today) == [.trends, .kpiDetail(metric: "kcal")])
+    // Back (the stack's own write) lands on Trends, not Day.
+    router.setPath([.trends], for: .today)
+    #expect(router.path(for: .today) == [.trends])
+    let pushedHrv = router.push(.kpiDetail(metric: "hrv"), on: .today, now: t0.addingTimeInterval(2))
+    #expect(pushedHrv)
+    #expect(router.path(for: .today) == [.trends, .kpiDetail(metric: "hrv")])
+}

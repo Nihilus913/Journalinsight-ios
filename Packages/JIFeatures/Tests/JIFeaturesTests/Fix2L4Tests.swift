@@ -133,3 +133,15 @@ private func makeTrainingVM(hub: PlanWeekdayFakeProvider, outbox: Outbox) throws
     #expect(AssignWeekdaySheet.pickerOptions.map(\.tag) == [-1, 0, 1, 2, 3, 4, 5, 6])
     #expect(AssignWeekdaySheet.showsPickerLabel == false)
 }
+
+// MARK: - W-FIX2 fixer BUG-19: Today's grid is handed every EditToday square, not the four chips
+
+@Test @MainActor func todayGridIsHandedEveryEditTodaySquare() async throws {
+    let vm = TodayViewModel(provider: FlakyProvider(failing: false), cache: OfflineCache(db: try AppDatabase.inMemory()))
+    await vm.load()
+    #expect(vm.gridChips.map(\.id) == TodayTileRegistry.ids)
+    // Nothing hidden in EditToday (8 of 8) → Today shows all 8 tiles.
+    let shown = todayGridShownIDs(chipIDs: vm.gridChips.map(\.id), prefs: .default)
+    #expect(shown.count == TodayTileRegistry.ids.count)
+    #expect(shown == editTodayVisibleItems(.default).map(\.id))
+}

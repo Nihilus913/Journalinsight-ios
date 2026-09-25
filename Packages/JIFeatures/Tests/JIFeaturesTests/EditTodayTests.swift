@@ -26,7 +26,7 @@ private let ids = gridIds + extraIds
     await vm.load()
     #expect(vm.squareChips.map(\.id) == TodayTileRegistry.ids)
     #expect(vm.squareChips.map(\.label) == TodayTileRegistry.ids.map { TodayTileRegistry.label(for: $0) })
-    // Today's grid (and the widget snapshot) keep exactly the four chips.
+    // `chips` (hero + widget snapshot) keeps exactly the four; Today's grid reads `gridChips`.
     #expect(vm.chips.map(\.id) == gridIds)
 }
 

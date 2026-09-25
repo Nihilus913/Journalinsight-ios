@@ -38,6 +38,10 @@ enum RootRoute: Hashable, Sendable {
     /// W3b-L2 — the "My KPIs" list/picker. Reachable only from `RootTabView`'s toolbar (no deep
     /// link maps to it; the oracle's `app/kpis.tsx` isn't itself deep-linkable either).
     case kpiList
+    /// W-FIX2 fixer BUG-13: Today's full Trends screen. A path value (not a destination
+    /// `NavigationLink`) so a KPI pushed from Trends stacks on top of it and Back returns to it —
+    /// the path-bound stack dropped the non-path link on the router's push.
+    case trends
 
     static func destination(for link: DeepLink) -> RootRoute? {
         switch link {
@@ -71,7 +75,7 @@ struct TabRouter: Equatable {
     /// the app pushes on the tab it came from instead (`push(_:on:)`, W-FIX2 BUG-13).
     static func owner(of route: RootRoute) -> RootTab {
         switch route {
-        case .kpiDetail, .kpiList: .today
+        case .kpiDetail, .kpiList, .trends: .today
         }
     }
 
