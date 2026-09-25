@@ -74,21 +74,7 @@ public struct EnergyView: View {
                         .accessibilityLabel("Showing energy from \(staleDate) — no newer sync yet.")
                 }
             }
-            if let report = model.report {
-                // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE" —
-                // the hero, then the week's bars and the daily log against the user's goal.
-                EnergyHero(report: report)
-                HowWeCalculateLink(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-                EnergyBurnCard()
-                HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
-                    .accessibilityIdentifier("energy.howWeCalculate")
-                EnergyThisWeek(days: report.days, goal: model.goalKcal, today: today)
-            }
-            JISectionHeader("Daily log")
-            Surface(padding: 18) {
-                DeficitDayList(days: model.days, goal: model.goalKcal, today: today)
-                    .accessibilityIdentifier("energy.dailyLog")
-            }
+            EnergySections(report: model.report, days: model.days, goal: model.goalKcal, today: today)
         }
     }
 
@@ -100,6 +86,36 @@ public struct EnergyView: View {
     }
 }
 
+/// B-57 W1 r5: the board's sections in order — hero, "How we calculate this", What you burn,
+/// How we calculate (with the no-medical-judgement note), This week, Daily log. `EnergyView` and
+/// the registry preview (`EnergyNativePreview`) both render THIS view, so the sweep shows the
+/// same sections the screen does.
+struct EnergySections: View {
+    let report: EnergyReport?
+    let days: [EnergyDay]
+    let goal: Double?
+    let today: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let report {
+                // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE".
+                EnergyHero(report: report, goal: goal)
+                HowWeCalculateLink(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                EnergyBurnCard()
+                HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
+                    .accessibilityIdentifier("energy.howWeCalculate")
+                EnergyThisWeek(days: report.days, goal: goal, today: today)
+            }
+            JISectionHeader("Daily log")
+            Surface(padding: 18) {
+                DeficitDayList(days: days, goal: goal, today: today)
+                    .accessibilityIdentifier("energy.dailyLog")
+            }
+        }
+    }
+}
+
 /// Board "What you burn": the words ship in W1; resting + active energy from HealthKit arrive in
 /// W2 (the resting / active split is left for W2 too), so the value is "— Not in Health yet".
 struct EnergyBurnCard: View {
@@ -107,25 +123,37 @@ struct EnergyBurnCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                Spacer()
-                Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) { burnTitle.fixedSize(); Spacer(minLength: 8); burnAside.fixedSize() }
+                VStack(alignment: .leading, spacing: 2) {
+                    burnTitle.fixedSize(horizontal: false, vertical: true); burnAside.fixedSize(horizontal: false, vertical: true)
+                }
             }
             Surface(level: 1) {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
-                        Label(JIMissingReason.notInHealthYet.rawValue, systemImage: "minus").jiFont(.subheadline, weight: .semibold)
-                            .foregroundStyle(theme.color(.muted))
+                    // AX3: the reason takes its own line rather than truncating.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) { burnDash; burnReason.fixedSize() }
+                        VStack(alignment: .leading, spacing: 4) { burnDash; burnReason.fixedSize(horizontal: false, vertical: true) }
                     }
                     Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("energy.whatYouBurn")
             }
         }
+    }
+
+    private var burnTitle: some View {
+        Text("What you burn").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+    }
+    private var burnAside: some View { Text("7-day average").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+    private var burnDash: some View { Text("—").jiNumeral(.numeralMedium, tint: .muted) }
+    private var burnReason: some View {
+        Text(JIMissingReason.notInHealthYet.rawValue).jiFont(.subheadline, weight: .semibold)
+            .foregroundStyle(theme.color(.muted))
     }
 }
 
@@ -140,21 +168,31 @@ struct EnergyThisWeek: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("This week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
-                Text(energyGoalHeaderText(goal)).jiFont(.footnote, weight: .semibold)
-                    .foregroundStyle(theme.color(goal == nil ? .muted : .text))
-                    .accessibilityIdentifier("energy.goal")
+            // AX3: "This week" and the goal stack instead of truncating.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) { weekTitle.fixedSize(); Spacer(minLength: 8); goalText.fixedSize() }
+                VStack(alignment: .leading, spacing: 2) {
+                    weekTitle.fixedSize(horizontal: false, vertical: true); goalText.fixedSize(horizontal: false, vertical: true)
+                }
             }
             Surface(padding: 16) {
                 EnergyWeekChart(bars: energyWeekBars(days: days, today: today), goal: goal)
             }
             if let caption = energyFillingInCaption(days: days, today: today) {
                 Text(caption).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("energy.fillingIn")
             }
         }
+    }
+
+    private var weekTitle: some View {
+        Text("This week").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
+    }
+    private var goalText: some View {
+        Text(energyGoalHeaderText(goal)).jiFont(.footnote, weight: .semibold)
+            .foregroundStyle(theme.color(goal == nil ? .muted : .text))
+            .accessibilityIdentifier("energy.goal")
     }
 }
 
