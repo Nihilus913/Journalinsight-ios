@@ -12,7 +12,7 @@ import JIPersistence
     @Test func goalTextIsTheUsersGoalOrNoGoalSet() {
         #expect(kpiMacroHeroGoalText(goal: 155, unit: "g", decimals: 0) == "/ 155 g goal")
         #expect(kpiMacroHeroGoalText(goal: 1617, unit: "kcal", decimals: 0) == "/ 1617 kcal goal")
-        #expect(kpiMacroHeroGoalText(goal: nil, unit: "g", decimals: 0) == "no goal set")
+        #expect(kpiMacroHeroGoalText(goal: nil, unit: "g", decimals: 0) == "Set your goal")   // B-73
     }
 
     @Test func goalComesFromTheGoalsDocument() {

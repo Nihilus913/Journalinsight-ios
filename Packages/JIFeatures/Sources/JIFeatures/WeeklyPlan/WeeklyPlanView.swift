@@ -41,6 +41,12 @@ public struct WeeklyPlanView: View {
             VStack(alignment: .leading, spacing: 6) {
                 averageHero
                 statusLine(model.goalStatus).accessibilityIdentifier("weeklyPlan.goalStatus")
+                // C3 amendment (B-73): the plan runs on fallback numbers until the user sets goals.
+                if model.usesDefaultGoals {
+                    Text(WeeklyPlanViewModel.defaultsDisclaimer).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("weeklyPlan.defaultsDisclaimer")
+                }
                 // The held training-day target keeps its truth, in the board's status-line form.
                 if let held = weeklyPlanCapStatus(model.plan) {
                     statusLine(held).accessibilityIdentifier("weeklyPlan.capNote")

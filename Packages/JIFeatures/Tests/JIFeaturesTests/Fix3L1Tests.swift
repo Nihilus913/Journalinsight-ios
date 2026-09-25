@@ -50,7 +50,7 @@ import JIDesign
     #expect(macroKcalStatus(kcal: 1619, goal: 1617, isToday: false) == "On target")
     #expect(macroKcalStatus(kcal: 1200, goal: 1617, isToday: false) == "Below target")
     #expect(macroKcalStatus(kcal: 1900, goal: 1617, isToday: false) == "Over target")
-    #expect(macroKcalStatus(kcal: 1200, goal: nil, isToday: false) == "No goal set")
+    #expect(macroKcalStatus(kcal: 1200, goal: nil, isToday: false) == "Set your goal")   // B-73
 }
 
 @Test func macroBarsShowValueAgainstGoal() {
@@ -83,7 +83,7 @@ import JIDesign
     #expect(nutritionProteinStatus(protein: 127, goal: 155) == "Below target")
     #expect(nutritionProteinStatus(protein: 150, goal: 155) == "On target")
     #expect(nutritionProteinStatus(protein: nil, goal: 155) == "— No data")
-    #expect(nutritionProteinStatus(protein: 127, goal: nil) == "No goal set")
+    #expect(nutritionProteinStatus(protein: 127, goal: nil) == "Set your goal")   // B-73
 }
 
 // MARK: - BUG-37: WeeklyPlan targets are whole numbers

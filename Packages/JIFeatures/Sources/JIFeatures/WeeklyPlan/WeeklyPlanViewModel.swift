@@ -3,9 +3,11 @@ import Observation
 import JICore
 import JIDesign
 
-// W5b-L5 (P-weekly-plan). Port of `mobile/app/weekly-plan.tsx`'s state. Seeding priority is the
-// oracle's, verbatim: 1) a persisted prefs row from a prior save, 2) the goals document
-// (`EnergyProviding.goals()` — consumed, never redefined), 3) the hardcoded fallback.
+// W5b-L5 (P-weekly-plan). Port of `mobile/app/weekly-plan.tsx`'s state. Seeding priority:
+// 1) a persisted prefs row from a prior save, 2) B-57 W2 (B-73): the user's own JI goals
+// (`goals.macros`; unset fields skipped), 3) the hub goals document (`EnergyProviding.goals()`),
+// 4) the fallback. C3 amendment (Toby 2026-09-24): WeeklyPlan is a compute surface, so the
+// fallback stays, but it is disclosed on screen (`usesDefaultGoals` + `defaultsDisclaimer`).
 // B-57 W1 r4 (board `3 Plan & train/04 WeeklyPlan.png`): edits are staged and "Save plan"
 // persists them (it replaced RN's write-through-on-every-tap).
 
@@ -24,20 +26,28 @@ public final class WeeklyPlanViewModel {
     /// The user's calorie goal from the goals document — what "Matches your goal" is checked
     /// against. `nil` when there is no goals provider, it failed, or no goal is set.
     public private(set) var goalKcal: Double?
+    /// C3 amendment: true while the kcal plan runs on the fallback (no JI goal, no hub goal) —
+    /// the screen then shows `defaultsDisclaimer`.
+    public private(set) var usesDefaultGoals = true
+    public nonisolated static let defaultsDisclaimer = "Default values in use. Set your own in Goals."
     /// What the store holds (nil = never saved) — "Save plan" is live only when the screen differs.
     private var savedPrefs: WeeklyPlanPrefs?
 
     private let store: WeeklyPlanStore
     private let goalsProvider: (any EnergyProviding)?
+    /// B-73: the user's own goals (PrefStore `goals.macros`). nil closure = not wired.
+    private let jiGoals: (@MainActor () -> MacroGoals?)?
     /// RN `goalsSeeded` ref. Set by the seed itself AND by the first user edit: `goals()` can
     /// still be in flight when the user makes that edit (slow network, cold cache), and without
     /// this the response landing a moment later would silently clobber it. A user edit always
     /// wins over a lagging seed, unconditionally.
     private var goalsSeeded = false
 
-    public init(store: WeeklyPlanStore, goalsProvider: (any EnergyProviding)? = nil) {
+    public init(store: WeeklyPlanStore, goalsProvider: (any EnergyProviding)? = nil,
+                jiGoals: (@MainActor () -> MacroGoals?)? = nil) {
         self.store = store
         self.goalsProvider = goalsProvider
+        self.jiGoals = jiGoals
     }
 
     /// Board status line under the hero: the plan's weekly average against the user's goal.
@@ -74,12 +84,33 @@ public final class WeeklyPlanViewModel {
             fatG = prefs.fatG
             savedPrefs = prefs
             goalsSeeded = true
+            usesDefaultGoals = false
+        }
+        // B-73: the user's own goals come before the hub document. Only fields the user set are
+        // used; an all-unset goal falls through. With JI goals wired, "Matches your goal" checks
+        // the user's target only — the hub's seeded kcal is never shown as the goal.
+        if let jiGoals {
+            let ji = jiGoals()
+            goalKcal = ji?.targetKcal
+            if let ji, ji.kcal != nil || ji.proteinG != nil || ji.fatG != nil {
+                if ji.targetKcal != nil { usesDefaultGoals = false }
+                if !goalsSeeded {
+                    goalsSeeded = true
+                    let avg = ji.targetKcal ?? weeklyAvgKcal
+                    weeklyAvgKcal = avg
+                    trainKcal = avg + Self.defaultTrainBoost
+                    if let p = ji.proteinG { proteinG = p }
+                    if let f = ji.fatG { fatG = f }
+                }
+                return
+            }
         }
         guard let goalsProvider else { return }
         // A hub failure here is not an error state: the screen is fully usable on the fallback
         // numbers (rule 5 — never a zero, never a blank screen); the status line says "No goal set".
         guard let goals = try? await goalsProvider.goals() else { return }
-        goalKcal = goals.nutrition.kcalGoal
+        if jiGoals == nil { goalKcal = goals.nutrition.kcalGoal }
+        if goals.nutrition.kcalGoal != nil { usesDefaultGoals = false }
         guard !goalsSeeded else { return }
         goalsSeeded = true
         let avg = goals.nutrition.kcalGoal ?? 1800
@@ -150,6 +181,7 @@ public final class WeeklyPlanViewModel {
     /// A user edit always wins over a lagging goals seed; the "Saved." line goes until the next save.
     private func edited() {
         goalsSeeded = true
+        usesDefaultGoals = false   // the numbers on screen are now the user's own
         hasSaved = false
     }
 }

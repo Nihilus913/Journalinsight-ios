@@ -42,14 +42,24 @@ public nonisolated struct KpiReading: Sendable, Equatable {
 }
 
 /// A reading from another day carries "as of Sep 12" under its number (the square's caption).
+/// B-57 W2 (B-73): `goalCaption` is the square's goal line for the nutrition ids
+/// (`NutritionGoalsSnapshot.caption`: "/ 155 g", "On goal", "Set your goal"); it joins the
+/// "as of" label when both exist.
 public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
                                           today: String = String(Date().ISO8601Format().prefix(10))) -> [JISquareItem] {
+    kpiCatalogueItems(group: group, visible: visible, value: value, today: today, goalCaption: { _, _ in nil })
+}
+
+public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
+                                          today: String, goalCaption: (KpiMetricId, Double?) -> String?) -> [JISquareItem] {
     func square(_ id: KpiMetricId, badge: JISquareBadge) -> JISquareItem {
         let def = KpiMetrics.def(id)
         let reading = value(id)
+        let caption = [goalCaption(id, reading?.value), kpiAsOfLabel(valueDate: reading?.date, today: today)]
+            .compactMap { $0 }.joined(separator: " · ")
         return JISquareItem(id: id.rawValue, label: def.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
                             value: reading?.value, decimals: def.decimals, unit: def.unit.isEmpty ? nil : def.unit,
-                            goalText: kpiAsOfLabel(valueDate: reading?.date, today: today),
+                            goalText: caption.isEmpty ? nil : caption,
                             status: reading == nil ? .missing(.noData) : nil, badge: badge)
     }
     if group == .onToday { return visible.map { square($0, badge: .selected) } }

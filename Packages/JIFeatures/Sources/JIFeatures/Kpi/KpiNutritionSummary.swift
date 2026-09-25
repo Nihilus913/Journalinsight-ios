@@ -24,10 +24,11 @@ public nonisolated func kpiMacroSummary(rows: [NutritionDailyRow], macro: KpiMet
                            avg7: trendAverage(series, days: 7), avg28: trendAverage(series, days: 28))
 }
 
-/// The goal / latest / 7 d / 28 d cells of one table row. The goal is the user's goals document;
-/// a goal not set, or a missing actual, is "— No data" (rule 5).
+/// The goal / latest / 7 d / 28 d cells of one table row. B-73: the goal is the user's own
+/// (GoalsSetup); unset reads "Set your goal". A missing actual is "— No data" (rule 5).
 public nonisolated func kpiMacroTableCells(_ s: KpiMacroSummary, decimals: Int, unit: String? = nil, goal: Double? = nil) -> [String] {
-    [goal, s.latest, s.avg7, s.avg28].map { jiValueOrReasonText($0, decimals: decimals, unit: unit) }
+    [goal.map { jiValueOrReasonText($0, decimals: decimals, unit: unit) } ?? MacroGoals.setGoalCopy]
+        + [s.latest, s.avg7, s.avg28].map { jiValueOrReasonText($0, decimals: decimals, unit: unit) }
 }
 
 /// The table's unit per macro: grams carry "g" (board: "127 g"); calories are bare numbers.
@@ -66,9 +67,9 @@ public nonisolated func kpiMacroGoal(_ goal: NutritionGoal?, _ macro: KpiMetricI
     }
 }
 
-/// Beside the hero numeral: "/ 155 g goal", or "no goal set" — never an invented goal.
+/// Beside the hero numeral: "/ 155 g goal", or "Set your goal" (B-73) — never an invented goal.
 public nonisolated func kpiMacroHeroGoalText(goal: Double?, unit: String, decimals: Int) -> String {
-    guard let goal, goal.isFinite else { return "no goal set" }
+    guard let goal, goal.isFinite else { return MacroGoals.setGoalCopy }
     return "/ \(jiNumber(goal, decimals)) \(unit) goal"
 }
 
@@ -128,20 +129,21 @@ public nonisolated func kpiMacroTrendLine(avg7: Double?, avg28: Double?) -> Stri
 /// goal / latest / 7 d / 28 d table over `NutritionDailyRow`s.
 struct KpiNutritionPanel: View {
     let rows: [NutritionDailyRow]
-    /// The user's goals document (`nil` = not loaded / not set → "no goal set", "— No data").
-    var goals: NutritionGoal? = nil
+    /// B-57 W2 (B-73): the user's own goals (GoalsSetup), injected at the app root. Unset → no
+    /// tick, "Set your goal". The hub goals document is no longer read here.
+    @Environment(\.nutritionGoals) private var nutritionGoals
     /// BUG-22 (W-FIX2): the segment is the SCREEN's metric (`KpiDetailViewModel.selectMetric`), so
     /// the title, trend and alert switch with it — no private copy that only the hero follows.
     @Binding var macro: KpiMetricId
     private let theme = JITheme.native
 
-    init(rows: [NutritionDailyRow], goals: NutritionGoal? = nil, macro: Binding<KpiMetricId>) {
-        self.rows = rows; self.goals = goals; self._macro = macro
+    init(rows: [NutritionDailyRow], macro: Binding<KpiMetricId>) {
+        self.rows = rows; self._macro = macro
     }
 
     /// A fixed macro (the §8.5 gallery preview).
-    init(rows: [NutritionDailyRow], goals: NutritionGoal? = nil, macro: KpiMetricId) {
-        self.init(rows: rows, goals: goals, macro: .constant(macro))
+    init(rows: [NutritionDailyRow], macro: KpiMetricId) {
+        self.init(rows: rows, macro: .constant(macro))
     }
 
     var body: some View {
@@ -153,7 +155,7 @@ struct KpiNutritionPanel: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("kpi-detail-macro-picker")
-            KpiMacroHero(summary: s, macro: macro, goal: kpiMacroGoal(goals, macro))
+            KpiMacroHero(summary: s, macro: macro, goal: nutritionGoals.goal(for: macro))
             // AX3: title and legend stack instead of truncating.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) { compareTitle.fixedSize(); Spacer(); NormalBarLegend() }
@@ -165,8 +167,8 @@ struct KpiNutritionPanel: View {
                         HStack(alignment: .firstTextBaseline) { last7Label.fixedSize(); Spacer(); last7Value(s, def).fixedSize() }
                         VStack(alignment: .leading, spacing: 2) { last7Label.fixedSize(horizontal: false, vertical: true); last7Value(s, def) }
                     }
-                    // Goal tick (W2) and normal band (W3) are left for later waves.
-                    NormalBar(value: s.avg7, normal: nil, unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
+                    // B-73: the user's goal tick (nil = unset, no tick). Normal band: W3.
+                    NormalBar(value: s.avg7, normal: nil, goal: nutritionGoals.goal(for: macro), unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
                 }
             }
             Text(kpiMacroTrendLine(avg7: s.avg7, avg28: s.avg28))
@@ -174,7 +176,7 @@ struct KpiNutritionPanel: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("kpi-detail-macro-trend")
             JISectionHeader("All macros · goal vs actual")
-            Surface { KpiMacroTable(rows: rows, goals: goals) }
+            Surface { KpiMacroTable(rows: rows, goals: nutritionGoals) }
         }
     }
 }
@@ -242,7 +244,7 @@ struct KpiMacroHero: View {
 /// fit, so each macro becomes its own labelled block.
 struct KpiMacroTable: View {
     let rows: [NutritionDailyRow]
-    var goals: NutritionGoal? = nil
+    var goals: NutritionGoalsSnapshot = .unknown
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     private static let macros: [KpiMetricId] = [.kcal, .protein, .carbs, .fat]
@@ -259,7 +261,7 @@ struct KpiMacroTable: View {
 
     private func cells(_ i: Int, _ s: KpiMacroSummary) -> [String] {
         let m = Self.macros[i]
-        return kpiMacroTableCells(s, decimals: KpiMetrics.def(m).decimals, unit: kpiMacroTableUnit(m), goal: kpiMacroGoal(goals, m))
+        return kpiMacroTableCells(s, decimals: KpiMetrics.def(m).decimals, unit: kpiMacroTableUnit(m), goal: goals.goal(for: m))
     }
 
     private func grid(_ summaries: [KpiMacroSummary], headers: [String]) -> some View {
