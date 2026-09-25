@@ -59,7 +59,10 @@ import UniformTypeIdentifiers
                                      goalsProvider: MockDataProvider(), onSaved: { _ in })
     let plan = settings.makeWeeklyPlanModel()
     await plan.load()
-    #expect(plan.goalKcal == 1935)
+    // B-57 W2 (B-73): the hub document still seeds the plan's numbers, but its seeded kcal is not
+    // the user's goal — with no JI goal saved, "Matches your goal" has nothing to match.
+    #expect(plan.weeklyAvgKcal == 1935)
+    #expect(plan.goalKcal == nil)
 
     let bare = SettingsViewModel(store: ConnectionConfigStore(secrets: InMemorySecretStore()),
                                  prefs: PrefStore(db: try AppDatabase.inMemory()), onSaved: { _ in })

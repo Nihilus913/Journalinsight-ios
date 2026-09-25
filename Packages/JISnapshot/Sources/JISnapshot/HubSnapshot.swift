@@ -53,6 +53,9 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
     /// Last known hub sync time, if any.
     public var lastSync: Date?
 
+    /// B-57 W2 (B-73): macros left to the user's own JI goals. Optional, so older snapshots decode (nil).
+    public var macros: SnapshotMacros?
+
     public init(
         verdictWord: String,
         verdictSession: String,
@@ -62,7 +65,8 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
         kpis: [SnapshotKPI],
         allKpis: [SnapshotKPI]? = nil,
         fetchedAt: Date,
-        lastSync: Date?
+        lastSync: Date?,
+        macros: SnapshotMacros? = nil
     ) {
         self.verdictWord = verdictWord
         self.verdictSession = verdictSession
@@ -73,11 +77,65 @@ public struct HubSnapshot: Codable, Equatable, Sendable {
         self.allKpis = allKpis
         self.fetchedAt = fetchedAt
         self.lastSync = lastSync
+        self.macros = macros
     }
 
     /// W-B34 (B-36): the snapshot entry for one KPI — `allKpis` first, then Today's `kpis`, matched
     /// by `id` (never by label). nil when neither carries it (e.g. a pre-W-B34 snapshot).
     public func kpi(_ id: KpiMetricId) -> SnapshotKPI? {
         allKpis?.first { $0.id == id } ?? kpis.first { $0.id == id }
+    }
+}
+
+/// B-57 W2 (B-73): one macro's goal and what is left of it today (never negative).
+public struct SnapshotMacro: Codable, Equatable, Sendable {
+    public var goal: Double
+    public var left: Double
+    public init(goal: Double, left: Double) { self.goal = goal; self.left = left }
+}
+
+/// B-73: "Left to your goals" for KpiWidget medium/inline. The goals are the user's own
+/// (`MacroGoals`; kcal = the user's target); "eaten" is today's Health dietary total. A goal the
+/// user has not set is nil here and omitted, never a number.
+public struct SnapshotMacros: Codable, Equatable, Sendable {
+    public var kcal, protein, carbs, fat: SnapshotMacro?
+    public var asOf: Date?
+
+    public init(kcal: SnapshotMacro?, protein: SnapshotMacro?, carbs: SnapshotMacro?, fat: SnapshotMacro?, asOf: Date?) {
+        self.kcal = kcal; self.protein = protein; self.carbs = carbs; self.fat = fat; self.asOf = asOf
+    }
+
+    /// nil when Health food is not readable (never granted / nothing in the window) or no goal
+    /// exists: rule 5, the widget then shows its KPI face instead of a made-up "left".
+    public static func make(
+        goals: (kcal: Double?, protein: Double?, carbs: Double?, fat: Double?),
+        eatenToday: (kcal: Double?, protein: Double?, carbs: Double?, fat: Double?),
+        healthReadable: Bool, asOf: Date?
+    ) -> SnapshotMacros? {
+        guard healthReadable else { return nil }
+        func one(_ goal: Double?, _ eaten: Double?) -> SnapshotMacro? {
+            guard let goal, goal.isFinite, goal > 0 else { return nil }
+            return SnapshotMacro(goal: goal, left: max(0, goal - (eaten ?? 0)))
+        }
+        let m = SnapshotMacros(kcal: one(goals.kcal, eatenToday.kcal), protein: one(goals.protein, eatenToday.protein),
+                               carbs: one(goals.carbs, eatenToday.carbs), fat: one(goals.fat, eatenToday.fat), asOf: asOf)
+        return [m.kcal, m.protein, m.carbs, m.fat].allSatisfy { $0 == nil } ? nil : m
+    }
+
+    /// Board 6/09 KpiWidgetInline: "Protein 103 g to goal", "1150 kcal to goal", "Carbs goal met";
+    /// nil for a non-macro KPI or an unset goal (the face then falls back to its KPI text).
+    public func inlineText(for id: KpiMetricId) -> String? {
+        let (macro, name, unit): (SnapshotMacro?, String, String)
+        switch id {
+        case .kcal: (macro, name, unit) = (kcal, "kcal", "kcal")
+        case .protein: (macro, name, unit) = (protein, "Protein", "g")
+        case .carbs: (macro, name, unit) = (carbs, "Carbs", "g")
+        case .fat: (macro, name, unit) = (fat, "Fat", "g")
+        default: return nil
+        }
+        guard let macro else { return nil }
+        let left = Int(macro.left.rounded())
+        if left == 0 { return "\(name) goal met" }
+        return id == .kcal ? "\(left) kcal to goal" : "\(name) \(left) \(unit) to goal"
     }
 }

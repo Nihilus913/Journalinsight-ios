@@ -102,7 +102,7 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var loaded: some View {
-        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition, goals: model.goals?.nutrition,
+        if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition,
                                                                macro: Binding(get: { model.metric }, set: { model.selectMetric($0) })) }
         // BUG-40: on nutrition the panel's 7-day NormalBar replaces the line trend.
         if kpiDetailShowsLineTrend(model.metric) { chartSection }

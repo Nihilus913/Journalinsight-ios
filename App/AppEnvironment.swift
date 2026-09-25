@@ -64,6 +64,9 @@ final class AppEnvironment {
     /// `.utility`; a second call while one runs is a no-op. No uploader (no connection) or
     /// `-no-healthkit` (scripted sim runs) → nothing. Never prompts: `syncAll` only reads.
     func foregroundHealthUpload() {
+        // B-73: recompute the plan band on the phone on every foreground, even while an upload is
+        // in flight. Health read + local math only; it never talks to the hub (Review Focus 4).
+        Task { @MainActor [weak self] in await self?.refreshEnergyBand() }
         guard !uploadInFlight, let uploader = healthKitUploader,
               !CommandLine.arguments.contains("-no-healthkit") else { return }
         uploadInFlight = true
@@ -258,15 +261,18 @@ final class AppEnvironment {
             (.bodyFatPercentage, HAEMetricName.bodyFatPercentage, "%", HKSampleMapping.perSample(unit: .percent())),
             (.leanBodyMass, HAEMetricName.leanBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
             (.bodyMassIndex, HAEMetricName.bodyMassIndex, "count", HKSampleMapping.perSample(unit: .count())),
+            // B-57 W2 (A3): basal energy is an `HKReadKind` now (read for the on-phone energy
+            // balance), so it moves here from the identifier list below — same type, metric name
+            // and v1 anchor. The dietary kinds are read-only for the phone and never uploaded.
+            (.basalEnergy, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
         ]
-        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`,
-        // `calories_bmr_avg`, `vo2max`, all 14/14 null) that `HKReadKind` has no case for yet, so
+        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`, `vo2max`,
+        // all 14/14 null) that `HKReadKind` has no case for yet, so
         // they are named by identifier here. Health Auto Export metric names; SpO2 goes as
         // HealthKit's 0–1 fraction (the hub side scales it, like body fat).
         let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
             (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
-            (.basalEnergyBurned, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
             (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested
@@ -291,6 +297,7 @@ final class AppEnvironment {
     /// `[weak self]` only — the closures are owned by the VMs, not by `self`, so there is no
     /// retain cycle to worry about the other way.
     func bind(today: TodayViewModel?, recovery: RecoveryViewModel?) {
+        boundToday = today; boundRecovery = recovery
         // Either side may be nil: the tabs build their view models lazily, so this is called
         // after each construction and re-binds whichever pair exists at that moment.
         today?.onSectionUpdate = { [weak self, weak today, weak recovery] in
@@ -308,6 +315,50 @@ final class AppEnvironment {
     /// (`verdict`, `readiness`, `chips`, `fetchedAt`) rather than reaching into hub responses
     /// directly, so the connection token (never present on these VMs' public API) can't leak into
     /// the widget-facing snapshot even by accident.
+    /// The pair `bind` last wired, so a band refresh can republish the widget macros.
+    @ObservationIgnored private weak var boundToday: TodayViewModel?
+    @ObservationIgnored private weak var boundRecovery: RecoveryViewModel?
+
+    // MARK: - B-57 W2 (B-73): the user's nutrition goals + the phone's plan band
+
+    /// The user's nutrition goals (`goals.macros`, unset until saved) over the same on-disk prefs DB.
+    @ObservationIgnored lazy var macroGoals = MacroGoalsStore(prefs: prefs)
+    /// Health totals + the user's target → plan band. Built once by `makeEnergyBand()`;
+    /// `-no-healthkit` runs get a nil reader (cache only). It never pushes to the hub: the only
+    /// hub push is the save-only goals mirror inside GoalsSetup (TEMP bridge until B-50).
+    var energyBand: EnergyBandService?
+
+    @discardableResult
+    func makeEnergyBand() -> EnergyBandService {
+        if let energyBand { return energyBand }
+        let reader: (any HealthDailyTotalsProviding)? = CommandLine.arguments.contains("-no-healthkit")
+            ? nil : HealthDailyTotalsAdapter(reader: HKDailyTotalsReader(store: RealHealthStoreReader()))
+        let service = EnergyBandService(reader: reader, store: macroGoals, cache: cache)
+        service.recompute()   // goals + cached totals before the first Health read lands
+        energyBand = service
+        return service
+    }
+
+    /// Foreground hook: re-read Health, recompute the band, republish the widget macros.
+    func refreshEnergyBand() async {
+        await makeEnergyBand().refresh()
+        if let today = boundToday { publishSnapshot(today: today, recovery: boundRecovery) }
+    }
+
+    /// Macros left today for the widget, from the band service's Health totals. nil = no goal set
+    /// or no Health food readable (the widget keeps its KPI face; never a default).
+    func currentMacrosSnapshot() -> SnapshotMacros? {
+        guard let band = energyBand else { return nil }
+        let g = band.goals
+        let t = band.today
+        return SnapshotMacros.make(
+            goals: (g?.targetKcal, g?.proteinG, g?.carbsG, g?.fatG),
+            eatenToday: (t?.dietaryKcal, t?.proteinG, t?.carbsG, t?.fatG),
+            healthReadable: band.totals.contains { $0.dietaryKcal != nil },
+            asOf: band.fetchedAt
+        )
+    }
+
     private func publishSnapshot(today: TodayViewModel?, recovery: RecoveryViewModel?) {
         let verdict = today?.verdict
         let readiness = today?.readiness ?? recovery?.latestReadiness
@@ -323,7 +374,8 @@ final class AppEnvironment {
             kpis: kpis,
             allKpis: allKpis,
             fetchedAt: now(),
-            lastSync: lastSync
+            lastSync: lastSync,
+            macros: currentMacrosSnapshot()
         )
         snapshotStore.write(snapshot)
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
@@ -356,6 +408,18 @@ final class AppEnvironment {
         case .amber: "amber"
         case .red: "red"
         case .muted, .none: "muted"
+        }
+    }
+}
+
+/// B-57 W2 (B-73): JIHealthKit's `HKDailyTotalsReader` rows as JICore `HealthDailyTotals` (a
+/// field-for-field copy), so JIFeatures' `EnergyBandService` never imports HealthKit.
+struct HealthDailyTotalsAdapter: HealthDailyTotalsProviding {
+    let reader: HKDailyTotalsReader
+    func dailyTotals(days: Int) async throws -> [HealthDailyTotals] {
+        try await reader.dailyRows(days: days).map {
+            HealthDailyTotals(date: $0.date, basalKcal: $0.basalKcal, activeKcal: $0.activeKcal, dietaryKcal: $0.dietaryKcal,
+                              proteinG: $0.proteinG, carbsG: $0.carbsG, fatG: $0.fatG)
         }
     }
 }

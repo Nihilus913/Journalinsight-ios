@@ -89,3 +89,9 @@ import JIHealthKit
     let vm = HealthPermissionViewModel(appleWatchCapabilities: [.hrvSDNN, .hrvRMSSD], requestPermission: { .granted })
     #expect(vm.isGated(.hrvRMSSD) == false)
 }
+
+@Test @MainActor func notDeterminedCopyNamesFoodAndEnergy() {
+    let copy = HealthPermissionViewModel.statusCopy(for: .notDetermined)
+    #expect(copy.contains("resting and active energy"))
+    #expect(copy.contains("food totals"))
+}

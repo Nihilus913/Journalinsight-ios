@@ -10,8 +10,25 @@ import JICore
         let expected: Set<HKReadKind> = [
             .stepCount, .activeEnergy, .exerciseTime, .restingHeartRate, .hrvSDNN, .hrvRMSSD,
             .sleepAnalysis, .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex, .workouts,
+            .basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat,
         ]
         #expect(Set(HKReadKind.allCases) == expected)
+    }
+
+    /// B-57 W2 (B-73): resting energy + the food-app day totals are read as quantity types, so
+    /// `HKDailyTotalsReader` can sum them with `HKStatisticsCollectionQuery .cumulativeSum`.
+    @Test func b73NutritionAndBasalKindsAreQuantityTypes() {
+        for kind in [HKReadKind.basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat] {
+            #expect(kind.sampleType is HKQuantityType)
+        }
+    }
+
+    /// B-73: the five new kinds join the authorization request (existing installs see them as
+    /// not determined until they re-connect — Review Focus 2).
+    @Test func b73KindsAreInTheReadRequest() {
+        for kind in [HKReadKind.basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat] {
+            #expect(HKReadKind.allReadTypes.contains(kind.sampleType!))
+        }
     }
 
     @Test func everyKindExceptRMSSDAlwaysResolves() {

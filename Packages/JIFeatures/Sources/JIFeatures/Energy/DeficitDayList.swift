@@ -1,12 +1,14 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 // B-57 W1 r4 (board `2 Monitor/06 Energy.png`): the "This week" bars and the Daily log, over the
 // hub's energy days and the user's calorie goal. Pure helpers first, then the two views.
 
-/// W-FIX3 BUG-39: the plan band is the user's calorie goal ± this share (1617 → 1536…1698).
-public nonisolated let energyOnTargetTolerance = 0.05
+/// B-57 W2 (B-73): the plan band is the user's own kcal target ± 100 (`EnergyBand.halfWidthKcal`),
+/// the same band the hero and GoalsSetup show (was ± 5 % of the hub goal, W-FIX3 BUG-39).
+public nonisolated let energyPlanBandHalfWidth = Double(EnergyBand.halfWidthKcal)
 
 /// One day of the log in the explainer's words ("Deficit or surplus" in `JIExplainers`):
 /// inside the plan band = On plan; below it = Deep deficit; above it = Light deficit, and a
@@ -23,7 +25,7 @@ public nonisolated enum EnergyDayStatus: Equatable, Sendable {
         case .lightDeficit: "Light deficit"
         case .surplus: "Surplus"
         case .abovePlan: "Above plan band"
-        case .noGoal: "No goal set"
+        case .noGoal: MacroGoals.setGoalCopy
         case .missing(let reason): "— \(reason.rawValue)"
         }
     }
@@ -48,13 +50,14 @@ public nonisolated enum EnergyDayStatus: Equatable, Sendable {
     }
 }
 
-/// The plan band around the calorie goal, or nil without a goal.
+/// The plan band around the user's kcal target, or nil without one.
 public nonisolated func energyPlanBand(goal: Double?) -> ClosedRange<Double>? {
     guard let goal, goal.isFinite, goal > 0 else { return nil }
-    return goal * (1 - energyOnTargetTolerance)...goal * (1 + energyOnTargetTolerance)
+    let t = goal.rounded()
+    return (t - energyPlanBandHalfWidth)...(t + energyPlanBandHalfWidth)
 }
 
-/// "Plan band 1536–1698 kcal", or "No goal set".
+/// "Plan band 1700–1900 kcal", or "Set your goal".
 public nonisolated func energyPlanBandText(_ goal: Double?) -> String {
     guard let band = energyPlanBand(goal: goal) else { return EnergyDayStatus.noGoal.word }
     return "Plan band \(jiNumber(band.lowerBound, 0))–\(jiNumber(band.upperBound, 0)) kcal"

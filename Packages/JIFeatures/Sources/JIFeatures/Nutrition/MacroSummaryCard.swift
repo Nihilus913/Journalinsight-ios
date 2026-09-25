@@ -2,10 +2,10 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// (W3a-L2, mirrors `mobile/src/components/nutrition/MacroSummaryCard.tsx`, trimmed to the fields
-/// this port's `NutritionProviding` actually carries — protein/carbs/fat *goals* come from a
-/// separate `planning/goals` endpoint the RN oracle reads that this screen's contract does not
-/// list, so only the kcal goal renders here this wave). Rule 5: a missing value renders "—", never 0.
+/// (W3a-L2, mirrors `mobile/src/components/nutrition/MacroSummaryCard.tsx`). B-57 W2 (B-73): every
+/// goal on this card is the user's own (`@Environment(\.nutritionGoals)`, GoalsSetup's
+/// `goals.macros`). YAZIO's day goal and the hub goals document are no longer displayed; an unset
+/// goal reads "Set your goal". Rule 5: a missing value renders "—", never 0.
 public struct MacroSummaryCard: View {
     let day: NutritionDayDetail?
     /// W4-L3 — when set, an edit-goals button (mirrors RN's `EditGoalButton`, L117) pushes
@@ -14,23 +14,16 @@ public struct MacroSummaryCard: View {
     let goalsSetupModel: GoalsSetupViewModel?
     /// W-FIX3 BUG-34: the device's today, so a past day is titled by its weekday, never "today".
     let today: String?
-    /// W-FIX3 BUG-35 / BUG-51: the kcal goal when the day payload has none (week row or goals
-    /// document), and the macro goals for the board's "52 / 155 g" bars.
-    let kcalGoalFallback: Double?
-    let macroGoals: NutritionGoal?
     @State private var showGoalsSetup = false
     @Environment(\.jiTheme) private var theme
+    /// B-73: the user's goals (unset → "Set your goal", no bar).
+    @Environment(\.nutritionGoals) private var nutritionGoals
 
-    public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil, today: String? = nil,
-                kcalGoalFallback: Double? = nil, macroGoals: NutritionGoal? = nil) {
+    public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil, today: String? = nil) {
         self.day = day
         self.goalsSetupModel = goalsSetupModel
         self.today = today
-        self.kcalGoalFallback = kcalGoalFallback
-        self.macroGoals = macroGoals
     }
-
-    private var goals: NutritionGoal? { macroGoals ?? goalsSetupModel?.goals?.nutrition }
     private var isToday: Bool { guard let day, let today else { return true }; return day.date == today }
 
     public var body: some View {
@@ -61,7 +54,7 @@ public struct MacroSummaryCard: View {
                 if let day {
                     kcalHero(day.total)
                     Divider().overlay(theme.color(.hairlineNested))
-                    ForEach(macroSummaryRows(day.total, goal: goals), id: \.label) { macroBar($0) }
+                    ForEach(macroSummaryRows(day.total, goals: nutritionGoals), id: \.label) { macroBar($0) }
                 } else {
                     Text("No nutrition data yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("macro-empty")
@@ -74,7 +67,7 @@ public struct MacroSummaryCard: View {
     /// first meal ("— / 1739 kcal", BUG-35). AX3: the goal and status wrap under the numeral as
     /// whole words instead of hyphenating ("re-/main-", BUG-33).
     private func kcalHero(_ total: NutritionDayTotal) -> some View {
-        let goal = nutritionKcalGoal(dayGoal: total.kcalGoal, weekGoal: kcalGoalFallback, goalsGoal: goals?.kcalGoal)
+        let goal = nutritionGoals.kcalGoal   // B-73: the user's target; YAZIO's day goal is not shown
         let status = macroKcalStatus(kcal: total.kcal, goal: goal, isToday: isToday)
         return VStack(alignment: .leading, spacing: 4) {
             ViewThatFits(in: .horizontal) {
@@ -188,10 +181,10 @@ public nonisolated func nutritionKcalGoal(dayGoal: Double?, weekGoal: Double?, g
 nonisolated let nutritionOnTargetTolerance = 0.05
 
 /// The hero's status word. Today is still filling in, so it reads "On track" until it passes
-/// the goal; a finished day is judged against the goal ± 5 %.
+/// the goal; a finished day is judged against the goal ± 5 %. No goal: "Set your goal" (B-73).
 public nonisolated func macroKcalStatus(kcal: Double?, goal: Double?, isToday: Bool) -> String {
     guard let kcal, kcal.isFinite else { return "— \(JIMissingReason.noData.rawValue)" }
-    guard let goal, goal.isFinite, goal > 0 else { return "No goal set" }
+    guard let goal, goal.isFinite, goal > 0 else { return MacroGoals.setGoalCopy }
     if isToday {
         let over = (kcal - goal).rounded()
         return kcal <= goal * (1 + nutritionOnTargetTolerance) ? "On track" : "\(jiNumber(over, 0)) kcal over goal"
@@ -203,6 +196,16 @@ public nonisolated func macroKcalStatus(kcal: Double?, goal: Double?, isToday: B
 
 /// The three macro bars in the board's order, each in its macro role (C-d).
 public nonisolated func macroSummaryRows(_ total: NutritionDayTotal, goal: NutritionGoal?) -> [MacroSummaryRow] {
+    macroSummaryRows(total, protein: goal?.proteinG, carbs: goal?.carbsG, fat: goal?.fatG, unsetCopy: false)
+}
+
+/// B-73: the bars against the user's own goals. An unset goal draws no bar and says so after the
+/// value ("52 g · Set your goal"), never a bar against a number JI made up.
+public nonisolated func macroSummaryRows(_ total: NutritionDayTotal, goals: NutritionGoalsSnapshot) -> [MacroSummaryRow] {
+    macroSummaryRows(total, protein: goals.goal(for: .protein), carbs: goals.goal(for: .carbs), fat: goals.goal(for: .fat), unsetCopy: true)
+}
+
+nonisolated func macroSummaryRows(_ total: NutritionDayTotal, protein: Double?, carbs: Double?, fat: Double?, unsetCopy: Bool) -> [MacroSummaryRow] {
     func row(_ label: String, _ value: Double?, _ goal: Double?, _ role: JIColorRole) -> MacroSummaryRow {
         guard let value, value.isFinite else {
             return MacroSummaryRow(label: label, text: "— \(JIMissingReason.noData.rawValue)", role: role, fraction: nil)
@@ -211,17 +214,18 @@ public nonisolated func macroSummaryRows(_ total: NutritionDayTotal, goal: Nutri
             return MacroSummaryRow(label: label, text: "\(nutritionWholeText(value)) / \(nutritionWholeText(goal)) g",
                                    role: role, fraction: value / goal)
         }
-        return MacroSummaryRow(label: label, text: "\(nutritionWholeText(value)) g", role: role, fraction: nil)
+        let tail = unsetCopy ? " · \(MacroGoals.setGoalCopy)" : ""
+        return MacroSummaryRow(label: label, text: "\(nutritionWholeText(value)) g\(tail)", role: role, fraction: nil)
     }
-    return [row("Protein", total.proteinG, goal?.proteinG, .protein),
-            row("Carbs", total.carbsG, goal?.carbsG, .carbs),
-            row("Fat", total.fatG, goal?.fatG, .fat)]
+    return [row("Protein", total.proteinG, protein, .protein),
+            row("Carbs", total.carbsG, carbs, .carbs),
+            row("Fat", total.fatG, fat, .fat)]
 }
 
 /// Protein against its goal, in the board's words ("Below target").
 public nonisolated func nutritionProteinStatus(protein: Double?, goal: Double?) -> String {
     guard let protein, protein.isFinite else { return "— \(JIMissingReason.noData.rawValue)" }
-    guard let goal, goal.isFinite, goal > 0 else { return "No goal set" }
+    guard let goal, goal.isFinite, goal > 0 else { return MacroGoals.setGoalCopy }
     return protein >= goal * (1 - nutritionOnTargetTolerance) ? "On target" : "Below target"
 }
 

@@ -21,6 +21,9 @@ public final class EnergyViewModel {
 
     private let provider: any EnergyProviding
     private let cache: OfflineCache
+    /// B-73: the phone's band service (the user's own target + Health burn). nil = none wired
+    /// (tests / previews): no user goal, so goal slots read "Set your goal".
+    private let band: EnergyBandService?
     /// Injected clock (tests); the view reads it for "today" in the week and the log.
     public let now: () -> Date
     private static let keys = (energy: "energy.report", goals: "energy.goals")
@@ -29,8 +32,9 @@ public final class EnergyViewModel {
 
     public var onSectionUpdate: (() -> Void)?
 
-    public init(provider: any EnergyProviding, cache: OfflineCache, now: @escaping () -> Date = Date.init) {
-        self.provider = provider; self.cache = cache; self.now = now
+    public init(provider: any EnergyProviding, cache: OfflineCache, now: @escaping () -> Date = Date.init,
+                band: EnergyBandService? = nil) {
+        self.provider = provider; self.cache = cache; self.now = now; self.band = band
     }
 
     public var screenState: ScreenState {
@@ -56,9 +60,16 @@ public final class EnergyViewModel {
     private var latestDate: String? { report?.days.map(\.date).max() }
     private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
-    /// The user's calorie goal from the goals document — the dashed line on "This week" and the
-    /// Daily log's status. `nil` = not set (the screen says "No goal set").
-    public var goalKcal: Double? { goals?.nutrition.kcalGoal }
+    /// B-73: the user's own kcal target (GoalsSetup, `goals.macros`) — the dashed line on "This
+    /// week" and the Daily log's band. Never the hub goals document (its kcal is a seeded TEMP
+    /// bridge, not the user's input). `nil` = not set: the screen says "Set your goal".
+    public var goalKcal: Double? { band?.kcalTarget }
+
+    /// B-73: band, Health burn and the Health-side reason word for the hero and "What you burn".
+    public var bandState: EnergyBandState {
+        guard let band else { return .none }
+        return EnergyBandState(result: band.result, burn: band.burnWindow, reason: band.reasonWord, targetKcal: band.kcalTarget)
+    }
 
     /// The report's days, as the hub sends them — "This week" and the Daily log sort for themselves.
     public var days: [EnergyDay] { report?.days ?? [] }
@@ -66,10 +77,14 @@ public final class EnergyViewModel {
     public func load() async {
         phase = .loading
         restoreFromCache()
+        await band?.refresh()
         await fetchLive()
     }
 
-    public func refresh() async { await fetchLive() }
+    public func refresh() async {
+        await band?.refresh()
+        await fetchLive()
+    }
 
     private func restoreFromCache() {
         if let hit = try? cache.get(Self.keys.energy, as: EnergyReport.self) {

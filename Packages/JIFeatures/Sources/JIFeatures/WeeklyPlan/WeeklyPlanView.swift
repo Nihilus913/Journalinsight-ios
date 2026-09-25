@@ -41,6 +41,12 @@ public struct WeeklyPlanView: View {
             VStack(alignment: .leading, spacing: 6) {
                 averageHero
                 statusLine(model.goalStatus).accessibilityIdentifier("weeklyPlan.goalStatus")
+                // C3 amendment (B-73): the plan runs on fallback numbers until the user sets goals.
+                if model.usesDefaultGoals {
+                    Text(WeeklyPlanViewModel.defaultsDisclaimer).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("weeklyPlan.defaultsDisclaimer")
+                }
                 // The held training-day target keeps its truth, in the board's status-line form.
                 if let held = weeklyPlanCapStatus(model.plan) {
                     statusLine(held).accessibilityIdentifier("weeklyPlan.capNote")
@@ -299,12 +305,20 @@ nonisolated func weeklyPlanToday(_ date: Date = Date(), calendar: Calendar = .au
 public struct WeeklyPlanNutritionRow: View {
     private let goalsProvider: (any EnergyProviding)?
     @Environment(\.jiTheme) private var theme
+    /// B-57 W2 (B-73): the user's own goals seed the plan before the hub's (nil = not injected).
+    @Environment(\.nutritionGoals) private var nutritionGoals
 
     public init(provider: any NutritionProviding) { goalsProvider = provider as? any EnergyProviding }
 
+    private var jiGoals: (@MainActor () -> MacroGoals?)? {
+        guard let macros = nutritionGoals.macros else { return nil }
+        return { macros }
+    }
+
     public var body: some View {
         NavigationLink {
-            WeeklyPlanView(model: WeeklyPlanViewModel(store: .onDisk, goalsProvider: goalsProvider))
+            WeeklyPlanView(model: WeeklyPlanViewModel(store: .onDisk, goalsProvider: goalsProvider,
+                                                      jiGoals: jiGoals))
         } label: {
             Surface(padding: 18) {
                 JIRow(title: "Weekly kcal / macro plan",

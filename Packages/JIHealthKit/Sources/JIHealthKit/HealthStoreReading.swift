@@ -41,7 +41,8 @@ public struct HKAnchoredPage: Sendable {
 }
 
 public final class RealHealthStoreReader: HealthStoreReading, @unchecked Sendable {
-    private let store = HKHealthStore()
+    /// Internal (not private) so `HKDailyTotalsReader.swift`'s statistics extension can run its query.
+    let store = HKHealthStore()
     public init() {}
 
     public var isHealthDataAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
