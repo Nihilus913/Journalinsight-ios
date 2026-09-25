@@ -24,6 +24,8 @@ private nonisolated enum LocalMirrorsDatabase {
     static let db: AppDatabase? = try? AppDatabase.onDisk()
     static let decisionLog: DecisionLogStore? = db.map(DecisionLogStore.init(db:))
     static let goalStore: GoalStore? = db.map(GoalStore.init(db:))
+    /// W-FIX1 BUG-24: the server cache (`cache.sqlite`) where the KPI list persists its targets.
+    static let cache: OfflineCache? = (try? AppDatabase.cache()).map(OfflineCache.init(db:))
 }
 
 private struct LocalMirrorsSectionRows: View {
@@ -54,6 +56,7 @@ private struct LocalMirrorsSectionRows: View {
             goals: model.goalsSetupModel?.goals,
             goalStore: LocalMirrorsDatabase.goalStore,
             targets: model.kpiListModel?.targets ?? [],
+            targetsCache: LocalMirrorsDatabase.cache,
             decisionLog: LocalMirrorsDatabase.decisionLog
         )
     }

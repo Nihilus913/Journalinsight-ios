@@ -19,21 +19,33 @@ public nonisolated func recoveryTileLayout(orderRaw: String, hiddenRaw: String) 
     return RecoveryTileLayout(visible: order.filter { !hidden.contains($0) }, hidden: order.filter { hidden.contains($0) })
 }
 
-private nonisolated func newest(_ days: [RecoveryDay], _ f: (RecoveryDay) -> Double?) -> Double? {
-    days.sorted { $0.date > $1.date }.lazy.compactMap(f).first
+/// The newest non-nil reading and the night it came from.
+private nonisolated func newest(_ days: [RecoveryDay], _ f: (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
+    for d in days.sorted(by: { $0.date > $1.date }) { if let v = f(d) { return (v, d.date) } }
+    return nil
 }
 
-public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryTileLayout, editing: Bool) -> [JISquareItem] {
+/// W-FIX1 BUG-05/06/12: the "Last night" squares show a night's value only while it IS last night
+/// (≤ 36 h, `KpiMetrics.isLastNightFresh`), with its date when that is not today; older is "— No
+/// data", never a stale number passed off as current. HRV is the nightly value (never the hub's
+/// 7-day `hrv_weekly_avg` mix) and Load a real ACWR (never the hub's invented 0.00).
+public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryTileLayout, editing: Bool, now: Date = Date()) -> [JISquareItem] {
+    let today = String(now.ISO8601Format().prefix(10))
+    func night(_ f: (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
+        newest(days, f).flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0 : nil }
+    }
     func item(_ id: String) -> JISquareItem {
-        let (label, symbol, value, unit, decimals): (String, String, Double?, String?, Int) = switch id {
-        case "hrv": ("HRV", "waveform.path.ecg", newest(days) { $0.hrvWeeklyAvg }, "ms", 0)
-        case "sleep": ("Sleep", "moon", newest(days) { $0.sleepDurationSec.map { ($0 / 3600 * 10).rounded() / 10 } }, "h", 1)
-        case "rhr": ("Resting HR", "heart", newest(days) { $0.rhrBpm }, "bpm", 0)
-        default: ("Load", "bolt", newest(days) { $0.acwr }, nil, 2)
+        let (label, symbol, reading, unit, decimals): (String, String, (value: Double, date: String)?, String?, Int) = switch id {
+        case "hrv": ("HRV", "waveform.path.ecg", night { KpiMetrics.nightlyHrvMs($0) }, "ms", 0)
+        case "sleep": ("Sleep", "moon", night { $0.sleepDurationSec.map { ($0 / 3600 * 10).rounded() / 10 } }, "h", 1)
+        case "rhr": ("Resting HR", "heart", night { $0.rhrBpm }, "bpm", 0)
+        default: ("Load", "bolt", night { KpiMetrics.honestAcwr($0.acwr) }, nil, 2)   // BUG-12: stale Load = "—"
         }
+        let value = reading?.value
         // W1: a real value carries no status word (the normal is W3); missing = "— No data".
         return JISquareItem(id: id, label: label, systemImage: symbol, tint: metricTintRole(id), value: value, decimals: decimals,
-                            unit: unit, status: value == nil ? .missing(.noData) : nil, badge: editing ? .hide : .none)
+                            unit: unit, goalText: kpiAsOfLabel(valueDate: reading?.date, today: today),
+                            status: value == nil ? .missing(.noData) : nil, badge: editing ? .hide : .none)
     }
     return layout.visible.map(item)
 }
@@ -48,6 +60,6 @@ public nonisolated func recoveryNightLabel(_ day: String) -> String {
 public nonisolated func recoveryHrvNights(days: [RecoveryDay]) -> [NormalBarPoint] {
     let last = days.sorted { $0.date < $1.date }.suffix(7)
     return last.enumerated().map { i, d in
-        NormalBarPoint(id: d.date, label: recoveryNightLabel(d.date), value: d.hrvWeeklyAvg, isLatest: i == last.count - 1)
+        NormalBarPoint(id: d.date, label: recoveryNightLabel(d.date), value: KpiMetrics.nightlyHrvMs(d), isLatest: i == last.count - 1)
     }
 }

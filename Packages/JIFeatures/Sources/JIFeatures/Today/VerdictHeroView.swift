@@ -49,7 +49,8 @@ public struct VerdictHeroView: View {
     }
 
     private var line: (lead: String, rest: String) {
-        insightLine(word: verdict.word, sentence: insight.isEmpty ? verdict.session : insight)
+        // W-FIX1 BUG-27: the tinted lead is the user word (Full / Modified / Rest).
+        insightLine(word: verdictUserWord(verdict), sentence: insight.isEmpty ? verdict.session : insight)
     }
 
     public var body: some View {

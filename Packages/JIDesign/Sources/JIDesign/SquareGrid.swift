@@ -148,7 +148,10 @@ struct MetricSquare: View {
                 if item.value != nil, let unit = item.unit, !unit.isEmpty {
                     Text(unit).jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
-                if let goal = item.goalText { Text(goal).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1) }
+            }
+            // W-FIX1 BUG-05: the caption ("as of Sep 21", goal) gets its own line so it never squeezes the number.
+            if let goal = item.goalText {
+                Text(goal).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
             if let status = item.status {

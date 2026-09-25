@@ -8,34 +8,42 @@ import JICompute
 /// (`gate` + `morning`): no extra round-trip, no model call. Bevel's narrative card, filled from
 /// our own structured gate reasoning.
 ///
-/// Priority order (safety/cap first, then the day's single biggest lever):
-///   1. `gate.recommendation == .reduce`   -> triggered rules / suggestions
+/// Priority order (today's training call first, then the week's single biggest lever):
+///   1. morning verdict auto-regulated     -> the hub's trimmed prescription (W-FIX1 BUG-03)
 ///   2. morning verdict REDUCED            -> today's session was capped
 ///   3. morning verdict MODIFIED           -> today's session was swapped
-///   4. glycogen / carb-watch floor breach -> `carbs3dAvg` vs `carbWatchFloor`
-///   5. `gate.recommendation == .progress` -> the gate's own suggestion (the lever)
-///   6. protein gap vs the 2 g/kg goal     -> `gate.averages`
-///   7. weight trend                       -> `gate.averages`
-///   8. fallback: summarises the verdict itself (never empty)
+///   4. `gate.recommendation == .reduce`   -> "<session>. This week: <action>." — the WEEKLY
+///      nutrition gate as its own sentence, never glued onto the training word (W-FIX1 BUG-27)
+///   5. glycogen / carb-watch floor breach -> `carbs3dAvg` vs `carbWatchFloor`
+///   6. `gate.recommendation == .progress` -> the gate's own suggestion (the lever)
+///   7. protein gap vs the 2 g/kg goal     -> `gate.averages`
+///   8. weight trend                       -> `gate.averages`
+///   9. fallback: summarises the verdict itself (never empty)
 ///
 /// E15-5 (oracle): whenever a REDUCE/REDUCED/MODIFIED branch fires, the sentence carries one
-/// concrete, imperative action — never just a warning.
+/// concrete, imperative action — never just a warning. W-FIX1 BUG-27: no raw hub word (GO,
+/// REDUCE, REDUCED, MODIFIED, PROGRESS) is ever part of the sentence; the hero leads it with the
+/// user word (Full / Modified / Rest).
 public nonisolated enum InsightSentence {
     /// The one-sentence Today insight. Never empty.
     public static func build(gate: GateResponse?, morning: MorningResponse?) -> String {
         guard let gate, let morning else { return noVerdictCopy }
-        if gate.recommendation == .reduce { return gateReduce(gate) }
 
         let v = verdictParts(morning.verdict)
+        if isAutoRegulated(v) { return autoRegulatedMorning(v) }
         if let verdict = morning.verdict {
             if verdict.hasPrefix("REDUCED") { return reducedMorning(session: v.session) }
             if verdict.hasPrefix("MODIFIED") { return modifiedMorning(session: v.session) }
+        }
+        if gate.recommendation == .reduce {
+            let weekly = gateReduce(gate)
+            return v.session.isEmpty ? weekly : "\(v.session). \(weekly)"
         }
 
         if let carbWatch = carbWatch(carbs3dAvg: morning.carbs3dAvg, floor: morning.carbWatchFloor) { return carbWatch }
 
         if gate.recommendation == .progress, let first = gate.suggestions.first {
-            return "On track for PROGRESS — \(lowerFirst(first))."
+            return "On track to progress — \(lowerFirst(first))."
         }
 
         if let protein = proteinGap(avgProtein7d: gate.averages.avgProtein7d, avgWeightKg: gate.averages.avgWeightKg) { return protein }
@@ -80,27 +88,37 @@ public nonisolated enum InsightSentence {
         return gate.suggestions.first ?? parsed.flatMap { actionByMetric[$0.metric] } ?? defaultAction
     }
 
+    /// The weekly nutrition gate's REDUCE as one plain sentence: "This week (<reason>): <action>."
     static func gateReduce(_ gate: GateResponse) -> String {
         let parsed = gate.triggeredRules.first.map(parseTriggeredRule)
         let action = actionForTriggeredRules(gate)
         if let reason = parsed?.reason, !reason.isEmpty {
-            return "Gate says REDUCE (\(reason)) — \(lowerFirst(action))."
+            return "This week (\(reason)): \(lowerFirst(action))."
         }
-        return "Gate says REDUCE — \(lowerFirst(action))."
+        return "This week: \(lowerFirst(action))."
+    }
+
+    /// W-FIX1 BUG-03: the hub's amber GO — the session plus its trimmed prescription.
+    static func autoRegulatedMorning(_ v: VerdictParts) -> String {
+        let head = v.session.isEmpty ? "Today's session" : v.session
+        guard let prescription = autoRegulatedPrescription(v) else {
+            return "\(head), trimmed — keep it easy today."
+        }
+        return "\(head), trimmed: \(lowerFirst(prescription))"
     }
 
     static func reducedMorning(session: String) -> String {
         // `session` is the verdict's own post-dash text (e.g. "deload dose, not a day off") —
         // reused rather than restated, so the sentence stays honest to what evaluate() decided.
         let why = session.isEmpty ? "" : " (\(session))"
-        return "Verdict is REDUCED\(why) — keep loads light, skip progression attempts, and eat at maintenance today."
+        return "Keep loads light, skip progression attempts, and eat at maintenance today\(why)."
     }
 
     static func modifiedMorning(session: String) -> String {
         // The swap itself IS the concrete action — surface it instead of re-deriving one.
         session.isEmpty
-            ? "Verdict is MODIFIED — today's session was swapped for a safer alternative."
-            : "Verdict is MODIFIED — \(session)."
+            ? "Today's session was swapped for a safer alternative."
+            : "Today's session was swapped: \(session)."
     }
 
     static let refluxSafeCarbs = "rice, potato, banana, or berries"
@@ -141,7 +159,8 @@ public nonisolated enum InsightSentence {
     static func fallback(_ morning: MorningResponse) -> String {
         guard let verdict = morning.verdict, !verdict.isEmpty else { return noVerdictCopy }
         let v = verdictParts(verdict)
-        return v.session.isEmpty ? "Verdict: \(v.word)." : "Verdict: \(v.word) — \(v.session)."
+        let word = verdictUserWord(v)
+        return v.session.isEmpty ? word : "\(word) — \(v.session)."
     }
 
     // MARK: - Helpers

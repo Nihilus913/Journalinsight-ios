@@ -23,6 +23,7 @@ public final class LocalMirrorsViewModel {
 
     private let decisionLog: DecisionLogStore?
     private let goalStore: GoalStore?
+    private let targetsCache: OfflineCache?
 
     /// Oracle `useRecentDecisions(10)` — the section's bounded window.
     public nonisolated static let recentLimit = 10
@@ -35,19 +36,30 @@ public final class LocalMirrorsViewModel {
         goals: Goals? = nil,
         goalStore: GoalStore? = nil,
         targets: [KpiTarget] = [],
+        targetsCache: OfflineCache? = nil,
         decisionLog: DecisionLogStore?
     ) {
         self.goals = goals
         self.goalStore = goalStore
         self.targets = targets
+        self.targetsCache = targetsCache
         self.decisionLog = decisionLog
     }
 
     public func load() async {
         if goals == nil, let goalStore { goals = try? goalStore.loadGoalTargetsMirror() }
+        // W-FIX1 BUG-24: the persisted copy the KPI list writes on every online load — the
+        // in-memory list is empty whenever Settings opens without the KPI screen having run.
+        if targets.isEmpty, let targetsCache,
+           let hit = try? targetsCache.get(localMirrorsKpiTargetsCacheKey, as: [KpiTarget].self) {
+            targets = hit.value
+        }
         decisions = (try? decisionLog?.recent(limit: Self.recentLimit)) ?? []
     }
 }
+
+/// W-FIX1 BUG-24: the `OfflineCache` key `KpiListViewModel` stores `plan.kpi_target` under.
+public nonisolated let localMirrorsKpiTargetsCacheKey = "kpi.targets"
 
 // MARK: - B-57 W1 board summary (fixer f3)
 

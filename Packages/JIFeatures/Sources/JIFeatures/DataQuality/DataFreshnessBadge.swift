@@ -34,7 +34,13 @@ nonisolated func parseHubTimestamp(_ raw: String) -> Date? {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.timeZone = TimeZone(identifier: "UTC")
-    for format in ["yyyy-MM-dd HH:mm:ss.SSSSSS", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"] {
+    // W-FIX1 BUG-23: the hub's `str(timestamptz)` carries a space separator AND an offset
+    // ("2026-09-25 10:02:23.725876+02:00", or "+00" / "+0200"), so the zoned shapes come first;
+    // an explicit offset wins over the UTC default.
+    for format in ["yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX", "yyyy-MM-dd HH:mm:ssXXXXX",
+                   "yyyy-MM-dd HH:mm:ss.SSSSSSX", "yyyy-MM-dd HH:mm:ssX",
+                   "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",
+                   "yyyy-MM-dd HH:mm:ss.SSSSSS", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"] {
         formatter.dateFormat = format
         if let date = formatter.date(from: raw) { return date }
     }

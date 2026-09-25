@@ -47,7 +47,7 @@ private func makeModel(failing: Bool = false) -> KpiListViewModel {
     // Recovery + nutrition sourced metrics resolve to a real value from the mock's fixtures
     // (never crash, never a fabricated 0 — rule 5); `.value(for:)` is callable for every id.
     for id in KpiMetricId.allCases { _ = vm.value(for: id) }
-    #expect(vm.value(for: .hrv) != nil)
+    #expect(vm.value(for: .rhr) != nil)             // W-FIX1 BUG-06: HRV has no nightly value yet
     #expect(vm.value(for: .kcal) != nil)
     #expect(vm.targets.isEmpty == false)
 }

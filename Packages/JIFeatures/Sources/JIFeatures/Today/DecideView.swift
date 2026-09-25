@@ -21,7 +21,7 @@ public nonisolated func overrideForVerdictDate(_ o: VerdictOverride?, verdictDat
 /// `effectiveVerdict` + `effectiveVerdictTone` folded into a `VerdictParts`, so every existing
 /// verdict view (Decide, the Day hero, the summary line) shows the user's call unchanged.
 public nonisolated func effectiveVerdictParts(parts: VerdictParts, override: VerdictOverride?) -> VerdictParts {
-    guard override != nil else { return parts }
+    guard override != nil else { return displayVerdictParts(parts) }
     let e = effectiveVerdict(parts: parts, override: override)
     var out = parts
     out.word = e.word
@@ -33,6 +33,8 @@ public nonisolated func effectiveVerdictParts(parts: VerdictParts, override: Ver
 /// The verdict's own reason — RN's parenthetical ("MODIFIED (HRV low)" → "HRV low") — shown on
 /// Decide when the hub sent no gate signals (a verdict written before migration 048).
 public nonisolated func verdictReasonLine(_ parts: VerdictParts) -> String? {
+    // W-FIX1 BUG-03: "(auto-regulated)" is not a reason — Decide shows the trimmed prescription.
+    guard !isAutoRegulated(parts) else { return nil }
     guard let open = parts.word.firstIndex(of: "("), let close = parts.word.lastIndex(of: ")"), open < close else { return nil }
     let inner = parts.word[parts.word.index(after: open)..<close].trimmingCharacters(in: .whitespaces)
     return inner.isEmpty ? nil : inner
@@ -75,6 +77,18 @@ public nonisolated func decideWord(_ parts: VerdictParts) -> String { verdictUse
 
 /// B-57 W1 Decide "Session" row. The hub sends no session time or exercise list to Today, so W1
 /// shows the session name only (time, exercises and first working weight: W5 progression).
+/// W-FIX1 BUG-03: the line under Decide's session on an amber (auto-regulated) day — the hub's
+/// reduced prescription, so "Modified" says what changed. nil on every other verdict and once the
+/// user made another call (full / modified / rest).
+public nonisolated func decidePrescriptionLine(verdict: VerdictParts, override: VerdictOverride?) -> String? {
+    if let override, override.choice != .accept { return nil }
+    return autoRegulatedPrescription(verdict)
+}
+
+/// W-FIX1 BUG-17: Decide's "Today's session" row links to Day (spec §2 L2) — live whenever the
+/// verdict is in (while syncing there is no Day to show yet).
+public nonisolated func decideSessionRowOpensDay(syncing: Bool) -> Bool { !syncing }
+
 public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: VerdictParts) -> (title: String, detail: String) {
     let name = [sessionForToday, verdict.session].compactMap { $0 }.first { !$0.isEmpty }
     return ("Today's session", name ?? "— \(JIMissingReason.noData.rawValue)")
@@ -168,6 +182,11 @@ public struct DecideView: View {
                         .accessibilityIdentifier("today.decide.was")
                 }
                 if !syncing {
+                    if let prescription = decidePrescriptionLine(verdict: verdict, override: override) {
+                        Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("today.decide.prescription")
+                    }
                     if let gateSignals {
                         DecideSignalsSection(signals: gateSignals)
                     } else if let reason = verdictReasonLine(verdict) {
@@ -175,18 +194,26 @@ public struct DecideView: View {
                             .accessibilityIdentifier("today.decide.reason")
                     }
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
-                    Surface(level: 2) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "dumbbell").foregroundStyle(theme.color(.info)).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
-                                Text(row.detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
+                    Button { openDay() } label: {
+                        Surface(level: 2) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "dumbbell").foregroundStyle(theme.color(.info)).accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                                    Text(row.detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted)).accessibilityHidden(true)
                             }
-                            Spacer(minLength: 0)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.pressableScale)
+                    .disabled(!decideSessionRowOpensDay(syncing: syncing) || submitting)
                     .accessibilityElement(children: .combine)
+                    .accessibilityHint("Opens your day")
                     .accessibilityIdentifier("today.decide.session")
                 }
                 // r4 AX3: Go / Adjust side by side while both labels fit whole; otherwise stacked
@@ -239,6 +266,11 @@ public struct DecideView: View {
             _ = await decideSubmit(model: overrideModel, date: verdictDate, choice: .accept, reason: "",
                                    parts: verdict, sessionForToday: sessionForToday)
         }   // onChange(settled) advances
+    }
+
+    private func openDay() {
+        guard decideSessionRowOpensDay(syncing: syncing) else { return }
+        onAdvance()
     }
 
     private func advance() {
@@ -336,16 +368,22 @@ public struct VerdictAdjustForm: View {
         .accessibilityIdentifier("today.decide.adjust.choice.\(option.choice.rawValue)")
     }
 
+    /// W-FIX1 BUG-18: padding, width and background sit INSIDE the Button's label (with a
+    /// rectangular content shape), so a tap anywhere on the full-width row selects the reason —
+    /// not only on its text, as the choice rows above already do.
     private func reasonRow(_ r: String) -> some View {
         let selected = reasonChoice == r
-        return Button(r) { reasonChoice = r }
+        return Button { reasonChoice = r } label: {
+            Text(r)
+                .jiFont(.footnote, weight: .semibold)
+                .foregroundStyle(selected ? theme.color(.info) : theme.color(.text))
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
+                .overlay(RoundedRectangle(cornerRadius: theme.radius(.control)).stroke(selected ? theme.color(.info) : .clear))
+                .contentShape(Rectangle())
+        }
             .buttonStyle(.pressableScale)
-            .jiFont(.footnote, weight: .semibold)
-            .foregroundStyle(selected ? theme.color(.info) : theme.color(.text))
-            .padding(.horizontal, 12).padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control)))
-            .overlay(RoundedRectangle(cornerRadius: theme.radius(.control)).stroke(selected ? theme.color(.info) : .clear))
             .accessibilityLabel(r)
             .accessibilityAddTraits(selected ? [.isSelected] : [])
             .accessibilityIdentifier("today.decide.adjust.reason.\(r)")

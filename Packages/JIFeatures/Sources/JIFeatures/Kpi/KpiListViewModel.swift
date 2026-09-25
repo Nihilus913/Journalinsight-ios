@@ -45,6 +45,7 @@ public final class KpiListViewModel {
     private let targetsProvider: any KpiTargetsProviding
     private let prefStore: PrefStore
     private let cache: OfflineCache
+    private let now: () -> Date
     /// W-B34 L1: the `OfflineCache` key the last-fetched `[NutritionDailyRow]` lives under —
     /// public so `AppEnvironment.publishSnapshot` can fill the widget snapshot's nutrition KPIs
     /// from cache (never a new fetch).
@@ -56,8 +57,10 @@ public final class KpiListViewModel {
         nutritionProvider: any NutritionProviding,
         targetsProvider: any KpiTargetsProviding,
         prefStore: PrefStore,
-        cache: OfflineCache
+        cache: OfflineCache,
+        now: @escaping () -> Date = Date.init
     ) {
+        self.now = now
         self.healthProvider = healthProvider
         self.nutritionProvider = nutritionProvider
         self.targetsProvider = targetsProvider
@@ -67,8 +70,13 @@ public final class KpiListViewModel {
 
     public var visibleOrder: [KpiMetricId] { KpiSelection.visibleOrder(prefs) }
 
-    public func value(for id: KpiMetricId) -> Double? {
-        KpiMetrics.value(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+    /// W-FIX1 BUG-05: the latest reading WITH its day, so the My KPIs squares can say "as of Sep 12"
+    /// instead of passing an old number off as today's.
+    public func value(for id: KpiMetricId) -> KpiReading? {
+        // W-FIX1 BUG-12: Load is "—" once it is not current; the rest keep their "as of" date.
+        KpiMetrics.currentReading(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows,
+                                  gateAverages: gateAverages, now: now())
+            .map { KpiReading(value: $0.value, date: $0.date) }
     }
 
     public func targetText(for id: KpiMetricId) -> String? {

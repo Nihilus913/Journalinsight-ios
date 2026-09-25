@@ -51,11 +51,11 @@ public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow
                    colorRole: role)
     }
     return [
-        trend("hrv", "HRV", rec(\.hrvWeeklyAvg), unit: "ms", role: .info),
+        trend("hrv", "HRV", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms", role: .info),   // W-FIX1 BUG-06
         trend("rhr", "Resting HR", rec(\.rhrBpm), unit: "bpm", role: .reduced),
         trend("sleep", "Sleep score", rec(\.sleepScore), role: .sleep),
         trend("steps", "Steps", day("steps"), role: .info),
-        trend("load", "Load (ACWR)", rec(\.acwr), decimals: 2, role: .reduced),
+        trend("load", "Load (ACWR)", rec { KpiMetrics.honestAcwr($0.acwr) }, decimals: 2, role: .reduced),   // W-FIX1 BUG-12
         trend("weight", "Weight", day("weight_kg"), unit: "kg", decimals: 1, role: .muted),
     ]
 }

@@ -99,12 +99,7 @@ public nonisolated enum KpiMetrics {
         gateAverages: GateAverages?
     ) -> Double? {
         switch id {
-        case .hrv: return latestRecovery(recovery)?.hrvWeeklyAvg
-        case .rhr: return latestRecovery(recovery)?.rhrBpm
-        case .sleep: return latestRecovery(recovery)?.sleepScore
-        case .bodyBattery: return latestRecovery(recovery)?.bodyBatteryAvg
-        case .readiness: return latestRecovery(recovery)?.readinessScore
-        case .acwr: return latestRecovery(recovery)?.acwr
+        case .hrv, .rhr, .sleep, .bodyBattery, .readiness, .acwr: return latestRecovery(recovery).flatMap { recoveryField($0, id) }
         case .weight: return latestDailyValue(dailyRows, key: "weight_kg") ?? gateAverages?.avgWeightKg
         case .steps: return latestDailyValue(dailyRows, key: "steps")
         case .kcal: return latestNutrition(nutrition)?.kcalConsumed
@@ -149,14 +144,78 @@ public nonisolated enum KpiMetrics {
 
     private static func recoveryField(_ d: RecoveryDay, _ id: KpiMetricId) -> Double? {
         switch id {
-        case .hrv: d.hrvWeeklyAvg
+        case .hrv: nightlyHrvMs(d)
         case .rhr: d.rhrBpm
         case .sleep: d.sleepScore
         case .bodyBattery: d.bodyBatteryAvg
         case .readiness: d.readinessScore
-        case .acwr: d.acwr
+        case .acwr: honestAcwr(d.acwr)
         default: nil
         }
+    }
+
+    // MARK: - W-FIX1 L3 honest values (BUG-05 / BUG-06 / BUG-12)
+
+    /// BUG-06: HRV is the night's RMSSD, never a 7-day mix. `RecoveryDay.hrvWeeklyAvg` is the hub's
+    /// 7-day average, which its own docstring says conflates Garmin RMSSD with Apple SDNN
+    /// (`app/vitals/readiness_composite.py`), so it is not a night. The night is `hrvRmssdMs`
+    /// (`/vitals/recovery` `hrv_rmssd_ms` = `core.daily_vitals.hrv_rmssd_ms`); nil stays "—".
+    public static func nightlyHrvMs(_ day: RecoveryDay) -> Double? { day.hrvRmssdMs }
+
+    /// BUG-12 (B-70(a)): the hub's ACWR is computed only from Garmin Training Effect, and with no
+    /// source rows it serves `0.0` for every day — an invented ratio, not a load. A ratio of zero
+    /// (or less) is "no load data", shown as "—", never "0.00".
+    public static func honestAcwr(_ value: Double?) -> Double? {
+        guard let value, value.isFinite, value > 0 else { return nil }
+        return value
+    }
+
+    /// BUG-12: the Load shown as today's — the newest real ACWR only while it is current (the same
+    /// ≤ 36 h rule as a "last night" value, `isLastNightFresh`). A 15-day-old ratio is "—", never
+    /// an undated number on the Day hero ring.
+    public static func currentAcwr(_ days: [RecoveryDay], now: Date) -> Double? {
+        guard let newest = days.sorted(by: { $0.date > $1.date }).first(where: { honestAcwr($0.acwr) != nil }),
+              isLastNightFresh(nightDate: newest.date, now: now) else { return nil }
+        return honestAcwr(newest.acwr)
+    }
+
+    /// `latest(for:…)` for the "current value" squares (My KPIs): every metric keeps its dated
+    /// reading, except Load, which is "—" once it is not current (`currentAcwr`, BUG-12).
+    public static func currentReading(
+        for id: KpiMetricId,
+        recovery: [RecoveryDay],
+        nutrition: [NutritionDailyRow],
+        dailyRows: [DailyKpiRow],
+        gateAverages: GateAverages?,
+        now: Date
+    ) -> (value: Double, date: String)? {
+        let hit = latest(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: gateAverages)
+        guard id == .acwr else { return hit }
+        guard let hit, isLastNightFresh(nightDate: hit.date, now: now) else { return nil }
+        return hit
+    }
+
+    /// The same days with every invented ACWR (`honestAcwr`) cleared, for screens that read the
+    /// raw `acwr` column off the rows (Today's hero Load ring).
+    public static func honestRecovery(_ days: [RecoveryDay]) -> [RecoveryDay] {
+        days.map { var d = $0; d.acwr = honestAcwr(d.acwr); return d }
+    }
+
+    /// BUG-05 (card rule): a value labelled "last night" carries its date, or shows "—" once it is
+    /// older than 36 h. A night dated D is read that morning (taken as 06:00 UTC on D).
+    public static let lastNightMaxAgeHours: Double = 36
+
+    public static func isLastNightFresh(nightDate: String, now: Date) -> Bool {
+        guard let read = nightReadAt(nightDate) else { return false }
+        return now.timeIntervalSince(read) <= lastNightMaxAgeHours * 3600
+    }
+
+    private static func nightReadAt(_ day: String) -> Date? {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard day.count == 10, parts.count == 3 else { return nil }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        return cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 6))
     }
 
     private static func nutritionField(_ n: NutritionDailyRow, _ id: KpiMetricId) -> Double? {

@@ -6,7 +6,7 @@ import JICore
 /// "Full", GateRationale "Why today is Full", the Last 3 days table "Full" / "Modified").
 @Test(arguments: [
     ("GO — Full Upper", "Full"),
-    ("GO (auto-regulated) — Day 3", "Full"),
+    ("GO (auto-regulated) — Day 3", "Modified"),   // W-FIX1 BUG-03: amber = trimmed
     ("FULL", "Full"),
     ("REDUCED (sleep) — deload dose, not a day off", "Modified"),
     ("MODIFIED (HRV low) — Easy Z2", "Modified"),
