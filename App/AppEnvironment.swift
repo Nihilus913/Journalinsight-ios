@@ -239,9 +239,11 @@ final class AppEnvironment {
     /// contract, W2d card). W8-L4 (B-12): keyed by `HKReadKind` (JIHealthKit's single read
     /// vocabulary) instead of constructing `HKQuantityTypeIdentifier`s here a second time, so the
     /// upload set can never drift from the permission set. A kind whose type doesn't resolve on
-    /// this OS (`sampleType == nil`) is skipped rather than crashed on. Still the W2d upload
-    /// subset plus native RMSSD (appended below) — no body-comp/workout upload.
-    private static var healthKitUploadSpecs: [HKMetricSpec] {
+    /// this OS (`sampleType == nil`) is skipped rather than crashed on. The W2d upload subset,
+    /// native RMSSD (appended below) and, since W-FIX2 (FM-10), body composition, respiration,
+    /// SpO2, basal energy and VO2max. Workouts stay out (B-70). Internal (not private) so
+    /// `HealthKitUploadSpecsTests` can pin the list.
+    static var healthKitUploadSpecs: [HKMetricSpec] {
         let specs: [(HKReadKind, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.stepCount, HAEMetricName.stepCount, "count", HKSampleMapping.perSample(unit: .count())),
             (.activeEnergy, HAEMetricName.activeEnergy, "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
@@ -250,16 +252,34 @@ final class AppEnvironment {
             (.hrvSDNN, HAEMetricName.heartRateVariability, "ms", HKSampleMapping.perSample(unit: .secondUnit(with: .milli))),
             (.sleepAnalysis, HAEMetricName.sleepAnalysis, "hr", HKSampleMapping.sleepAnalysis()),
             (.bodyMass, HAEMetricName.weightBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
+            // W-FIX2 FM-10: read-authorized and mapped by the hub (`hae_bridge.py` body_fat_pct /
+            // lean_mass_kg), but never uploaded since the HAE era (last row 07-23). Body fat goes as
+            // HealthKit's 0–1 fraction; the hub scales ≤ 1 to percent.
+            (.bodyFatPercentage, HAEMetricName.bodyFatPercentage, "%", HKSampleMapping.perSample(unit: .percent())),
+            (.leanBodyMass, HAEMetricName.leanBodyMass, "kg", HKSampleMapping.perSample(unit: .gramUnit(with: .kilo))),
+            (.bodyMassIndex, HAEMetricName.bodyMassIndex, "count", HKSampleMapping.perSample(unit: .count())),
+        ]
+        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`,
+        // `calories_bmr_avg`, `vo2max`, all 14/14 null) that `HKReadKind` has no case for yet, so
+        // they are named by identifier here. Health Auto Export metric names; SpO2 goes as
+        // HealthKit's 0–1 fraction (the hub side scales it, like body fat).
+        let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
+            (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
+            (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
+            (.basalEnergyBurned, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
+            (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested
         // (`appendingNativeRMSSD`, UploaderRMSSDTests) but never wired here, so the hub's
         // hrv_rmssd_ms stayed empty for the Apple Watch — the metric the Apple gate (B-65) needs.
-        return specs.compactMap { kind, metricName, units, mapSamples in
+        return (specs.compactMap { kind, metricName, units, mapSamples in
             guard let sampleType = kind.sampleType else { return nil }
             // B-65: v2 = one 120-day re-send so the hub gets sleep segments for the whole baseline window.
             let anchorVersion = kind == .sleepAnalysis ? 2 : 1
             return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, anchorVersion: anchorVersion, mapSamples: mapSamples)
-        }.appendingNativeRMSSD()
+        } + extra.map { id, metricName, units, mapSamples in
+            HKMetricSpec(sampleType: HKQuantityType(id), metricName: metricName, units: units, backgroundFrequency: .hourly, mapSamples: mapSamples)
+        }).appendingNativeRMSSD()
     }
 
     /// P-snapshot-wiring (W2c-L1): wires both hub-backed view models' `onSectionUpdate` hooks
