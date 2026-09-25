@@ -31,6 +31,28 @@ public nonisolated func saveTileOrder(_ order: [String], prefs: PrefStore?) {
     try? prefs?.set(todayTileOrderKey, order)
 }
 
+/// W-FIX2 BUG-19: the ids Today's grid shows = EditToday's "On Today" (`visibleTodayTileOrder`),
+/// in EditToday's order, limited to the chips this grid was handed (never an invented square).
+/// A chip the registry does not know is appended rather than dropped.
+public nonisolated func todayGridShownIDs(chipIDs: [String], prefs: TodayTilePrefs) -> [String] {
+    let available = Set(chipIDs)
+    let known = Set(prefs.order)
+    return visibleTodayTileOrder(prefs).filter { available.contains($0) } + chipIDs.filter { !known.contains($0) }
+}
+
+/// W-FIX2 BUG-19: folds a Today drag (the shown order) back into the full prefs — hidden squares
+/// keep their slots and stay hidden, visible squares this grid did not show keep theirs.
+public nonisolated func todayGridCommitOrder(_ prefs: TodayTilePrefs, shownOrder: [String]) -> TodayTilePrefs {
+    let visible = visibleTodayTileOrder(prefs)
+    let visibleSet = Set(visible)
+    let moved = shownOrder.filter { visibleSet.contains($0) }
+    let movedSet = Set(moved)
+    guard movedSet.count == moved.count else { return prefs }
+    var next = moved.makeIterator()
+    let newVisible = visible.map { movedSet.contains($0) ? (next.next() ?? $0) : $0 }
+    return reorderTodayTiles(prefs, newVisibleOrder: newVisible)
+}
+
 /// Whether the reorder jiggle should currently animate. Reduce Motion suppresses it
 /// unconditionally (rule 4/7 — no scale/jiggle while Reduce Motion is on); a no-op/opacity-only
 /// resting state is used instead.
@@ -85,8 +107,8 @@ public nonisolated func dataFreshnessBadgeTapAction(onOpenDataQuality: @escaping
     { onOpenDataQuality() }
 }
 
-/// Story 1: the full Today tile grid — the four `TodayViewModel.chips` (fixed default order
-/// hrv, rhr, sleep, steps) as `StatChip`s, plus the energy-availability `EAGatedTile` (not
+/// Story 1: the full Today tile grid — the chips it is handed (W-FIX2 BUG-19: `TodayViewModel.squareChips`,
+/// filtered and ordered by EditToday's prefs via `todayGridShownIDs`) as summary cards, plus the energy-availability `EAGatedTile` (not
 /// computable from the current source — rule 5's gated idiom, not a bare zero). B-7: no
 /// `DriverBars` here — the RN oracle (mobile/app/(tabs)/index.tsx) has no driver bars on Today,
 /// and repeating hrv/rhr/sleep/steps there duplicated the chips above. `DriverBars` (JIDesign)
@@ -117,6 +139,9 @@ public struct TodayGrid: View {
     let makeDataQualityViewModel: () -> DataQualityViewModel?
 
     @State private var order: [String] = []
+    /// W-FIX2 BUG-19: EditToday's prefs (order + hidden), re-read on every appearance so a change
+    /// made in Settings → Edit Today shows the moment Today is back on screen.
+    @State private var tilePrefs: TodayTilePrefs = .default
     @State private var isReordering = false
     @State private var draggingID: String?
     @State private var showMind = false
@@ -170,8 +195,11 @@ public struct TodayGrid: View {
                 .accessibilityIdentifier("today.tile.energyAvailability")
             mindTile
         }
-        .onAppear { order = loadTileOrder(prefs: prefs, chipIDs: chips.map(\.id)) }
-        .onChange(of: chips.map(\.id)) { _, ids in order = resolveTileOrder(chipIDs: ids, savedOrder: order.isEmpty ? nil : order) }
+        .onAppear {
+            tilePrefs = loadTodayTilePrefs(prefs: prefs)
+            order = todayGridShownIDs(chipIDs: chips.map(\.id), prefs: tilePrefs)
+        }
+        .onChange(of: chips.map(\.id)) { _, ids in order = todayGridShownIDs(chipIDs: ids, prefs: tilePrefs) }
         .navigationDestination(isPresented: $showMind) {
             if let makeMindViewModel { MindView(model: makeMindViewModel()) }
         }
@@ -230,7 +258,8 @@ public struct TodayGrid: View {
             }
             .onDrop(of: [.text], delegate: TodayTileDropDelegate(item: chip.id, order: $order, draggingID: $draggingID) {
                 isReordering = false
-                saveTileOrder(order, prefs: prefs)
+                tilePrefs = todayGridCommitOrder(tilePrefs, shownOrder: order)
+                saveTodayTilePrefs(tilePrefs, prefs: prefs)
             })
             #endif
     }
