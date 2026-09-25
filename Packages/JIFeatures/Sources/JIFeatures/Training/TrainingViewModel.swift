@@ -343,6 +343,23 @@ public final class TrainingViewModel {
         pendingSessionSync = ids
     }
 
+    /// W-FIX2 BUG-25: `.task` reloads only while `!hasLiveResult`, so a tab switch back after a
+    /// drain by another owner never reached `reconcilePendingSync`. Every appearance reconciles.
+    public func screenAppeared() { reconcilePendingSync() }
+
+    /// W-FIX2 BUG-25: while a weekday is still queued and the screen is up, re-read the outbox
+    /// every `interval` so a drain by ANY owner (watchdog, retry scheduler, foreground) clears the
+    /// glyph within one beat. Returns as soon as nothing is pending (or the task is cancelled);
+    /// with no outbox wired there is nothing to watch.
+    public func watchPendingSync(every interval: Duration = .seconds(2)) async {
+        guard outbox != nil else { return }
+        while !pendingSessionSync.isEmpty, !Task.isCancelled {
+            try? await Task.sleep(for: interval)
+            if Task.isCancelled { return }
+            reconcilePendingSync()
+        }
+    }
+
     /// The hub refused THIS row (4xx other than 401, or an old hub with no such route) — as
     /// opposed to being unreachable, which is what the outbox exists for.
     private func isRefusal(_ error: Error) -> Bool {

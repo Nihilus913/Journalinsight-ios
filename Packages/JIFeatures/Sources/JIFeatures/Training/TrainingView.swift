@@ -53,6 +53,10 @@ public struct TrainingView: View {
         .navigationTitle("Training")
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
+        // W-FIX2 BUG-25: the pending glyph clears after ANY drain — on every appearance, and while
+        // a weekday is queued and the screen is up (the watcher ends once nothing is pending).
+        .onAppear { model.screenAppeared() }
+        .task(id: model.pendingSessionSync.isEmpty) { await model.watchPendingSync() }
         .animation(JIMotion.standard, value: model.phase)
         // W3b-L1 (P-session-coach): `TrainingView.init(model:)` is a frozen contract and
         // `TrainingViewModel` (not this lane's file) has no accessor onto its private hub
