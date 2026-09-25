@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import JICore
 import JIDesign
@@ -24,11 +25,13 @@ struct RecoveryTilesTests {
 
     @Test func tilesTakeTheNewestNonNilValue() {
         let days = [day(22, hrv: 30, rhr: 55, sleepSec: 27_000, acwr: 1.1), day(23, hrv: 25, rhr: nil, sleepSec: 26_640)]
-        let items = recoveryTileItems(days: days, layout: recoveryTileLayout(orderRaw: "", hiddenRaw: ""), editing: false)
-        #expect(items.first { $0.id == "hrv" }?.value == 25)
+        // 2026-09-23 09:00 UTC: both nights are inside the 36 h "last night" window (W-FIX1 BUG-05).
+        let now = Date(timeIntervalSince1970: 1_790_154_000)
+        let items = recoveryTileItems(days: days, layout: recoveryTileLayout(orderRaw: "", hiddenRaw: ""), editing: false, now: now)
+        #expect(items.first { $0.id == "hrv" }?.value == nil)      // W-FIX1 BUG-06: never the 7-day mix
         #expect(items.first { $0.id == "sleep" }?.value == 7.4)
         #expect(items.first { $0.id == "rhr" }?.value == 55)      // newest NON-nil
-        #expect(items.first { $0.id == "hrv" }?.status == nil)     // a real value carries no word until W3
+        #expect(items.first { $0.id == "sleep" }?.status == nil)   // a real value carries no word until W3
     }
 
     @Test func editingShowsHideBadgesOnlyThen() {
@@ -42,7 +45,8 @@ struct RecoveryTilesTests {
         let pts = recoveryHrvNights(days: days)
         #expect(pts.count == 7)
         #expect(pts.last?.isLatest == true)
-        #expect(pts.last?.value == 20)
+        #expect(pts.last?.id == "2026-09-20")
+        #expect(pts.allSatisfy { $0.value == nil })             // W-FIX1 BUG-06: no nightly RMSSD yet
         #expect(recoveryNightLabel("2026-09-24") == "Thu")
     }
 }

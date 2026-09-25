@@ -32,15 +32,32 @@ private nonisolated func kpiSymbol(_ id: KpiMetricId) -> String {
     }
 }
 
-public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> Double?) -> [JISquareItem] {
+/// W-FIX1 BUG-05: a KPI square's value and the day it was read on, so a square never presents an
+/// older reading (Sep 12's RHR, yesterday's calories) as today's.
+public nonisolated struct KpiReading: Sendable, Equatable {
+    public let value: Double
+    /// `yyyy-MM-dd`; empty for the weight-average fallback, which has no single day.
+    public let date: String
+    public init(value: Double, date: String) { self.value = value; self.date = date }
+}
+
+/// A reading from another day carries "as of Sep 12" under its number (the square's caption).
+public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
+                                          today: String = String(Date().ISO8601Format().prefix(10))) -> [JISquareItem] {
     func square(_ id: KpiMetricId, badge: JISquareBadge) -> JISquareItem {
         let def = KpiMetrics.def(id)
-        let v = value(id)
+        let reading = value(id)
         return JISquareItem(id: id.rawValue, label: def.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
-                            value: v, decimals: def.decimals, unit: def.unit.isEmpty ? nil : def.unit,
-                            status: v == nil ? .missing(.noData) : nil, badge: badge)
+                            value: reading?.value, decimals: def.decimals, unit: def.unit.isEmpty ? nil : def.unit,
+                            goalText: kpiAsOfLabel(valueDate: reading?.date, today: today),
+                            status: reading == nil ? .missing(.noData) : nil, badge: badge)
     }
     if group == .onToday { return visible.map { square($0, badge: .selected) } }
     let rest = KpiMetricId.allCases.filter { kpiCatalogueGroup($0) == group && !visible.contains($0) }.map { square($0, badge: .add) }
     return group == .nutrition ? rest + kpiCatalogueExtras : rest
+}
+
+/// Undated values (fixtures and previews): no "as of" caption.
+public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> Double?) -> [JISquareItem] {
+    kpiCatalogueItems(group: group, visible: visible, value: { (id: KpiMetricId) -> KpiReading? in value(id).map { KpiReading(value: $0, date: "") } })
 }
