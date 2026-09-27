@@ -75,8 +75,11 @@ import Testing
     let spark: [Double?] = [4100, 5200, 3900, 6800, 5100, 4700, 6420]
     #expect(renderedHeight(190) { stepsCard("6'420", sparkline: spark) }
             > renderedHeight(190) { stepsCard("6'420") })
+    // W-GUI S1/T3: the sparkline now carries its axis words (taller than the value row), so at
+    // full width the card grows by the sparkline's own height — but it stays BESIDE the value:
+    // the full-width card is never as tall as the half-width (stacked) one.
     #expect(renderedHeight(361) { stepsCard("6'420", sparkline: spark) }
-            == renderedHeight(361) { stepsCard("6'420") })
+            < renderedHeight(190) { stepsCard("6'420", sparkline: spark) })
 }
 
 @Test @MainActor func summaryCardRendersAtHalfWidth() {
