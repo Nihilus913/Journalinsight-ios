@@ -81,10 +81,10 @@ public nonisolated extension JITheme {
 /// `Surface(level:)` → fill role + radius role. Any unknown level falls back to the card
 /// surface (CONTEXT §7). `theme` is kept in the signature: the mapping is a theme concern and
 /// every call site already has one to hand.
-public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole) {
+public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole, material: Bool) {
     switch level {
-    case 2: (.surface2, .nested)
-    case 3: (.control, .control)
-    default: (.surface, .card)
+    case 2: (.surface2, .nested, false)
+    case 3: (.control, .control, false)
+    default: (.surface, .card, true)   // W-GUI F2: level 1 is the one material card (never nested)
     }
 }
