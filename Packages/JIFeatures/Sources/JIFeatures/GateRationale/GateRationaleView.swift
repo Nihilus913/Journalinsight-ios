@@ -78,7 +78,8 @@ public nonisolated struct GateCountedRow: Identifiable, Equatable, Sendable {
 /// context — it is not part of the morning call). A missing value is "No data" and left out.
 public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals: [String: ClosedRange<Double>],
                                                  recoveryNormals: [String: ClosedRange<Double>] = [:],
-                                                 load: Double?, loadMissing: JIMissingReason = .noData) -> [GateCountedRow] {
+                                                 load: Double?, loadMissing: JIMissingReason = .noData,
+                                                 loadReading: RecoveryLoadReading? = nil) -> [GateCountedRow] {
     var rows: [GateCountedRow] = (signals ?? []).map { sig in
         let m = decideSignalRowModel(sig, normal: normals[sig.key], recoveryNormal: recoveryNormals[sig.key])
         let sentence: String
@@ -99,6 +100,18 @@ public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals
         }
         return GateCountedRow(id: sig.key, label: m.label, value: sig.value, unit: sig.unit, decimals: m.decimals,
                               status: m.status, sentence: sentence)
+    }
+    // W-FIX5 WD-3: without a current ACWR the row reads the gate-input Load — the 7-day minutes +
+    // band the Today / Recovery Load square shows — instead of "No current load reading".
+    if load == nil, let loadReading {
+        let band = loadReading.normal.map { n -> String in
+            let range = "\(jiNumber(n.low, 0))–\(jiNumber(n.high, 0))"
+            return loadReading.minutes < n.low ? "under your \(range) normal" : loadReading.minutes > n.high ? "above your \(range) normal" : "inside your \(range) normal"
+        } ?? "your normal is still calibrating"
+        rows.append(GateCountedRow(id: "load", label: "Load", value: loadReading.minutes, unit: recoveryLoadUnit, decimals: 0,
+                                   status: .contextOnly,
+                                   sentence: "Exercise minutes over the last 7 days, \(band). Shown for context; load is not part of the morning call."))
+        return rows
     }
     rows.append(GateCountedRow(id: "load", label: "Load", value: load, unit: "", decimals: 2,
                                status: load == nil ? .missing(loadMissing) : .contextOnly,
@@ -173,6 +186,7 @@ public struct GateRationaleView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { if !offscreen { await model.load() } }
+        .task { if !offscreen { await recoveryInsight?.refreshIfStale() } }
     }
 
     // MARK: - Cards
@@ -253,7 +267,8 @@ public struct GateRationaleView: View {
                                             normals: decideSignalNormals(recovery: model.recovery),
                                             recoveryNormals: decideRecoveryNormals(recoveryInsight),
                                             load: KpiMetrics.currentAcwr(model.recovery, now: Date()),
-                                            loadMissing: gateRationaleLoadMissingReason(recoveryInsight?.result))
+                                            loadMissing: gateRationaleLoadMissingReason(recoveryInsight?.result),
+                                            loadReading: recoveryInsight?.loadReading)
         VStack(alignment: .leading, spacing: 0) {
             boardHeader("What counted", trailing: nil)
             Surface(level: 1, padding: 0) {

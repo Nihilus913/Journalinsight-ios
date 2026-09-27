@@ -1,5 +1,6 @@
 import Foundation
 import JICore
+import JICompute
 
 // W-B34 L1: the KPI registry moved to `JICore/Kpi/KpiMetrics.swift`; these two screen-copy helpers
 // stay in JIFeatures (`kpiAsOfLabel` uses JIFeatures' `trainingStripDate`).
@@ -47,4 +48,50 @@ public nonisolated func kpiAlertStep(decimals: Int) -> Double {
     case 1: 0.1
     default: 0.05
     }
+}
+
+// MARK: - W-FIX5 L1 (WD-1): the gate-input Load on the KPI detail
+
+/// What the KPI detail shows for its metric: the registry entry (`KpiMetricDef`), or — WD-1 — the
+/// Load in minutes. Same member names as `KpiMetricDef`, so the screen reads `model.def.label`.
+public nonisolated struct KpiDetailDef: Sendable, Equatable {
+    public let id: KpiMetricId
+    public let label: String
+    public let unit: String
+    public let decimals: Int
+    public let maxLiveWindowDays: Int
+    public let targetMetricKeys: [String]
+    public init(_ d: KpiMetricDef) {
+        self.init(id: d.id, label: d.label, unit: d.unit, decimals: d.decimals, maxLiveWindowDays: d.maxLiveWindowDays,
+                  targetMetricKeys: d.targetMetricKeys)
+    }
+    public init(id: KpiMetricId, label: String, unit: String, decimals: Int, maxLiveWindowDays: Int, targetMetricKeys: [String]) {
+        self.id = id; self.label = label; self.unit = unit; self.decimals = decimals
+        self.maxLiveWindowDays = maxLiveWindowDays; self.targetMetricKeys = targetMetricKeys
+    }
+}
+
+/// The Load detail's definition while no current ACWR exists: the same 7-day minutes the Today /
+/// Recovery Load square shows (`RecoveryLoadReading`), whole minutes, and no gate rule (the ACWR
+/// rules are ratios — their editor never edits minutes).
+public nonisolated let kpiLoadMinutesDef = KpiDetailDef(id: .acwr, label: "Training load", unit: recoveryLoadUnit, decimals: 0,
+                                                        maxLiveWindowDays: 365, targetMetricKeys: [])
+
+/// The Load detail's series: for each day D the 7-day load ending D (`RecoveryScore.load7`, the
+/// number the Load square and the recovery score use), from the first full week through
+/// yesterday. A week with too few logged days is nil (a gap), never 0.
+public nonisolated func kpiLoadHistory(days: [RecoveryInputDay], today: String) -> [(date: String, value: Double?)] {
+    guard !today.isEmpty else { return [] }
+    var daily: [String: Double] = [:]
+    for d in days { if let v = d.loadMin, v.isFinite, v >= 0 { daily[d.date] = v } }
+    guard let first = daily.keys.min(),
+          var d = try? CalendarMath.addDays(first, 6),
+          let yesterday = try? CalendarMath.addDays(today, -1) else { return [] }
+    var out: [(date: String, value: Double?)] = []
+    while d <= yesterday {
+        out.append((d, (try? RecoveryScore.load7(daily, end: d)) ?? nil))
+        guard let next = try? CalendarMath.addDays(d, 1) else { break }
+        d = next
+    }
+    return out
 }
