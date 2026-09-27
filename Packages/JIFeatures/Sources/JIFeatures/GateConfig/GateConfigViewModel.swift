@@ -38,14 +38,29 @@ public final class GateConfigViewModel {
     /// RN `updateServerTarget.isError` → "Couldn't save — reverted." Cleared on the next save.
     public private(set) var serverSaveError: String?
 
+    // MARK: B-57 W4 gate settings (preset, optional user cap, user zones, Avoid Zone 5)
+
+    /// The user's own settings (PrefStore `gate.settings`). Nothing is filled in by the app.
+    public private(set) var gateSettings = GateSettings()
+
     private let targetsProvider: (any KpiTargetsProviding)?
     private let prefStore: PrefStore
+    private let mirror: GateSettingsMirror?
+    private let reminderCenter: (any ReminderNotificationCenter)?
+    private let today: () -> String
 
     /// `targetsProvider` is optional so the screen still works with no hub connection saved: the
     /// two local blocks and the preview never need the network; the server block explains itself.
-    public init(targetsProvider: (any KpiTargetsProviding)?, prefStore: PrefStore) {
+    /// `mirror` copies gate-settings changes to the hub; `reminderCenter` (re)schedules the 8-week
+    /// cap re-check. Both nil in the gallery / tests that do not exercise them.
+    public init(targetsProvider: (any KpiTargetsProviding)?, prefStore: PrefStore,
+                mirror: GateSettingsMirror? = nil, reminderCenter: (any ReminderNotificationCenter)? = nil,
+                today: @escaping () -> String = { ReminderScheduler.todayISO() }) {
         self.targetsProvider = targetsProvider
         self.prefStore = prefStore
+        self.mirror = mirror
+        self.reminderCenter = reminderCenter
+        self.today = today
     }
 
     public var hasServerProvider: Bool { targetsProvider != nil }
@@ -62,6 +77,7 @@ public final class GateConfigViewModel {
         morningOverrides = (morning ?? nil) ?? MorningGateOverrides()
         let kpi: KpiRuleOverrides?? = try? prefStore.get(Self.kpiOverridesKey, as: KpiRuleOverrides.self)
         kpiOverrides = (kpi ?? nil) ?? KpiRuleOverrides()
+        gateSettings = GateSettingsStore(prefs: prefStore).load()
         loaded = true
     }
 
@@ -79,7 +95,7 @@ public final class GateConfigViewModel {
 
     // MARK: - Morning-gate overrides
 
-    public var effectiveConfig: MorningGateConfig { applyMorningGateOverrides(morningOverrides) }
+    public var effectiveConfig: MorningGateConfig { gateSettings.apply(to: applyMorningGateOverrides(morningOverrides)) }
 
     public func value(for field: MorningGateOverridableField) -> Double {
         morningOverrides[field] ?? field.value(in: .default)
@@ -113,9 +129,106 @@ public final class GateConfigViewModel {
     }
 
     /// B-57 W1 "Use recommended": every local morning field and KPI rule back to its default.
+    /// B-57 W4: the preset goes back to Balanced; the cap and the zones are the user's and stay.
     public func useRecommended() {
         resetAllMorning()
         for rule in defaultKpiRules { resetKpi(kpiRuleKey(rule)) }
+        if gateSettings.preset != .balanced { Task { await setPreset(.balanced) } }
+    }
+
+    // MARK: - B-57 W4 gate settings
+
+    /// A change that has not reached the hub yet (GateConfig: "Not on the hub yet").
+    public var hubPending: Bool { mirror?.hubPending ?? false }
+
+    public var capValueText: String { gateSettings.hrCapBpm.map { "\($0) bpm" } ?? "None" }
+
+    public var capSubtitle: String {
+        switch (gateSettings.hasCap, gateSettings.hrCapChosen) {
+        case (true, true): "You chose it in setup. The app never raises it."
+        case (true, false): "From your earlier setup. Confirm or change it — the app never raises it."
+        case (false, true): "You chose no limit. Tap to add one — only you change it."
+        case (false, false): "No limit set. Tap to add one — only you change it."
+        }
+    }
+
+    /// nil when there is no cap: the re-check row is not shown (Toby 2026-09-24).
+    public var recheckSubtitle: String? {
+        guard gateSettings.hasCap else { return nil }
+        return "Confirm your HR cap every \(GateSettings.recheckWeeks) weeks. "
+            + (gateSettings.hrCapConfirmedOn.map { "Last confirmed \($0)." } ?? "Not confirmed yet.")
+            + " JI asks; you decide."
+    }
+
+    public func setPreset(_ preset: GatePreset) async {
+        gateSettings.preset = preset
+        await persistSettings()
+    }
+
+    /// `nil` = the user removes the cap. Otherwise only a whole number is accepted (no range —
+    /// the user's choice). Either answer counts as a confirmation.
+    public func changeHrCap(_ text: String?) async -> Bool {
+        if let text {
+            guard let cap = parseHrCap(text) else { return false }
+            gateSettings.hrCapBpm = cap
+        } else {
+            gateSettings.hrCapBpm = nil
+        }
+        await confirmHrCap()
+        return true
+    }
+
+    public func confirmHrCap() async {
+        gateSettings.hrCapConfirmedOn = today()
+        await persistSettings()
+        guard let reminderCenter else { return }
+        let scheduler = ReminderScheduler(center: reminderCenter)
+        if let cap = gateSettings.hrCapBpm {
+            _ = try? await scheduler.scheduleHrCapCheck(confirmedOn: today(), capBpm: cap, today: today())
+        } else {
+            scheduler.cancelHrCapCheck()          // no cap: nothing to re-check
+        }
+    }
+
+    /// Zones from the user's own max HR or LTHR (derived; each floor editable afterwards).
+    public func setZones(anchor: HrZoneAnchor, bpmText: String) async -> Bool {
+        guard let bpm = parseHrCap(bpmText), bpm > 0 else { return false }
+        let zones = HrZones.derived(anchor: anchor, bpm: bpm)
+        guard zones.isValid else { return false }
+        gateSettings.zones = zones
+        await persistSettings()
+        return true
+    }
+
+    /// One boundary changed by hand; rejected (nothing saved) when the floors stop ascending.
+    public func editZone(_ zone: Int, floorText: String) async -> Bool {
+        guard let floor = parseHrCap(floorText),
+              let next = gateSettings.zones?.editing(zone: zone, floorBpm: floor) else { return false }
+        gateSettings.zones = next
+        await persistSettings()
+        return true
+    }
+
+    public func clearZones() async {
+        gateSettings.zones = nil
+        gateSettings.avoidZone5 = false
+        await persistSettings()
+    }
+
+    /// Optional user toggle; it needs zones (there is no built-in Zone 5).
+    public func setAvoidZone5(_ on: Bool) async {
+        guard !on || gateSettings.zones != nil else { return }
+        gateSettings.avoidZone5 = on
+        await persistSettings()
+    }
+
+    /// "Walk me through it again": the onboarding flow over the stored settings.
+    public func makeOnboardingModel() -> OnboardingViewModel {
+        OnboardingViewModel(prefs: prefStore, mirror: mirror, reminderCenter: reminderCenter, today: today)
+    }
+
+    private func persistSettings() async {
+        if let mirror { await mirror.save(gateSettings) } else { try? GateSettingsStore(prefs: prefStore).save(gateSettings) }
     }
 
     private func persistMorning() {
@@ -135,7 +248,7 @@ public final class GateConfigViewModel {
 
     /// RN `withOverrides` — recomputed on every edit.
     public var previewWithOverrides: GatePreviewResult {
-        (try? previewMorningGateVerdict(morningOverrides)) ?? Self.baselinePreview
+        (try? previewMorningGateVerdict(morningOverrides, base: gateSettings.apply(to: .default))) ?? Self.baselinePreview
     }
 
     public var verdictFlipped: Bool { previewWithOverrides.verdict != Self.baselinePreview.verdict }

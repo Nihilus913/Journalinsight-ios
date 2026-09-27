@@ -19,6 +19,11 @@ public nonisolated enum RemindersCopy {
     public static let workoutTitle = "Workout reminders"
     public static let workoutCaption = "Independent on/off + time per weekday — separate from the reminders above."
     public static let noReminder = "No reminder scheduled."
+    /// B-57 W4 — the medication reminder needs the user's medication (name + time) first.
+    public static let medicationMissing = "Add a medication name and time under Medication first."
+    public static let safetyFooter = "JI asks whether your cap is still right. It never changes the number for you."
+    public static let noCapLine = "No heart-rate limit set · off"
+    public static let noCapFooter = "You have no heart-rate limit, so there is nothing to re-check. Add one any time in Gate thresholds."
 }
 
 public nonisolated struct RemindersPrefs: Codable, Equatable, Sendable {
@@ -62,17 +67,30 @@ public final class RemindersViewModel {
     /// Authorization is `.denied` at load — RN's denied copy rendered as a screen-level banner.
     public private(set) var permissionDenied = false
     public private(set) var loaded = false
+    /// B-57 W4 — the user's medication (nil = none entered). Drives the `.dose` reminder.
+    public private(set) var medication: MedicationEntry?
+    /// Due date of the pending 8-week HR cap re-check, nil = off.
+    public private(set) var hrCapCheckDue: String?
+    /// The user's cap, nil = no cap (then the re-check is off).
+    public private(set) var hrCapBpm: Int?
+
+    public var hrCapCheckLine: String {
+        guard let hrCapBpm else { return RemindersCopy.noCapLine }
+        return "Confirm your HR cap (\(hrCapBpm)) every \(GateSettings.recheckWeeks) weeks · " + (hrCapCheckDue.map { "next \($0)" } ?? "off")
+    }
 
     private let scheduler: ReminderScheduler
     private let prefs: PrefStore
     private let today: () -> String
+    private var medicationStore: MedicationStore { MedicationStore(prefs: prefs) }
+    private var gateSettingsStore: GateSettingsStore { GateSettingsStore(prefs: prefs) }
 
     public init(scheduler: ReminderScheduler, prefs: PrefStore, today: @escaping () -> String = { ReminderScheduler.todayISO() }) {
         self.scheduler = scheduler
         self.prefs = prefs
         self.today = today
         var daily: [ReminderKind: DailyState] = [:]
-        for kind in ReminderKind.allCases { daily[kind] = DailyState(time: kind.defaultTime) }
+        for kind in ReminderKind.dailyCases { daily[kind] = DailyState(time: kind.defaultTime) }
         self.daily = daily
         var workouts: [Weekday: WorkoutState] = [:]
         for wd in Weekday.allCases { workouts[wd] = WorkoutState() }
@@ -84,14 +102,17 @@ public final class RemindersViewModel {
     /// Prefs first (edited-but-disabled times), then the centre wins for anything pending.
     public func load() async {
         if let saved = try? prefs.get(RemindersPrefs.prefKey, as: RemindersPrefs.self) {
-            for kind in ReminderKind.allCases {
+            for kind in ReminderKind.dailyCases {
                 if let e = saved.daily[kind.rawValue] { daily[kind]?.enabled = e.enabled; daily[kind]?.time = e.time }
             }
             for wd in Weekday.allCases {
                 if let e = saved.workouts[String(wd.rawValue)] { workouts[wd]?.enabled = e.enabled; workouts[wd]?.time = e.time }
             }
         }
-        for kind in ReminderKind.allCases {
+        medication = medicationStore.load()
+        if let t = medication?.usualTime { daily[.dose]?.time = t }
+        hrCapBpm = gateSettingsStore.load().hrCapBpm
+        for kind in ReminderKind.dailyCases {
             if let current = await scheduler.scheduledTime(for: kind) {
                 daily[kind]?.scheduled = current
                 daily[kind]?.enabled = true
@@ -105,6 +126,8 @@ public final class RemindersViewModel {
         for wd in Weekday.allCases {
             if let t = all[wd] { workouts[wd]?.enabled = true; workouts[wd]?.time = t } else { workouts[wd]?.enabled = false }
         }
+        if hrCapBpm == nil { scheduler.cancelHrCapCheck() }   // no cap: nothing to re-check
+        hrCapCheckDue = await scheduler.hrCapCheckDue()
         permissionDenied = await scheduler.isDenied()
         loaded = true
     }
@@ -122,13 +145,23 @@ public final class RemindersViewModel {
         defer { daily[kind]?.busy = false; persist() }
         do {
             if next {
+                var time = state.time
+                if kind == .dose {
+                    // B-57 W4: never a made-up time — the medication's own name and time first.
+                    guard let med = medication, med.isNamed, let t = med.usualTime else {
+                        daily[kind]?.notice = RemindersCopy.medicationMissing
+                        return
+                    }
+                    time = t
+                    daily[kind]?.time = t
+                }
                 guard await scheduler.requestPermission() else {
                     daily[kind]?.notice = RemindersCopy.permissionDenied
                     permissionDenied = await scheduler.isDenied()
                     return
                 }
-                try await scheduler.schedule(kind, at: state.time, today: today())
-                daily[kind]?.scheduled = state.time
+                try await scheduler.schedule(kind, at: time, today: today(), medication: kind == .dose ? medication : nil)
+                daily[kind]?.scheduled = time
                 daily[kind]?.enabled = true
             } else {
                 scheduler.cancel(kind)
@@ -174,7 +207,7 @@ public final class RemindersViewModel {
         daily[kind]?.busy = true; daily[kind]?.notice = nil
         defer { daily[kind]?.busy = false }
         do {
-            try await scheduler.schedule(kind, at: time, today: today())
+            try await scheduler.schedule(kind, at: time, today: today(), medication: kind == .dose ? medication : nil)
             daily[kind]?.scheduled = time
             daily[kind]?.enabled = true
         } catch {
@@ -185,6 +218,41 @@ public final class RemindersViewModel {
     private func wrap(_ v: Int, min: Int, max: Int) -> Int {
         let span = max - min + 1
         return min + (((v - min) % span) + span) % span
+    }
+
+    // MARK: medication + HR cap check (B-57 W4)
+
+    /// Stores the user's medication (nil clears it). An enabled medication reminder follows the
+    /// new time, or switches off when the name or time is gone.
+    public func setMedication(_ entry: MedicationEntry?) async {
+        medication = entry
+        try? medicationStore.save(entry)
+        if let t = entry?.usualTime { daily[.dose]?.time = t }
+        if daily[.dose]?.enabled == true {
+            if let t = entry?.usualTime, entry?.isNamed == true {
+                await applySchedule(.dose, t)
+            } else {
+                scheduler.cancel(.dose)
+                daily[.dose]?.enabled = false
+                daily[.dose]?.scheduled = nil
+            }
+        }
+        persist()
+    }
+
+    /// The SAFETY group toggle. Reads the cap fresh (GateConfig may have changed it); no cap =
+    /// nothing to re-check, so it stays off.
+    public func setHrCapCheckEnabled(_ on: Bool) async {
+        if on {
+            let s = gateSettingsStore.load()
+            hrCapBpm = s.hrCapBpm
+            guard let cap = s.hrCapBpm else { scheduler.cancelHrCapCheck(); hrCapCheckDue = nil; return }
+            guard await scheduler.requestPermission() else { permissionDenied = await scheduler.isDenied(); return }
+            hrCapCheckDue = try? await scheduler.scheduleHrCapCheck(confirmedOn: s.hrCapConfirmedOn ?? today(), capBpm: cap, today: today())
+        } else {
+            scheduler.cancelHrCapCheck()
+            hrCapCheckDue = nil
+        }
     }
 
     // MARK: workouts

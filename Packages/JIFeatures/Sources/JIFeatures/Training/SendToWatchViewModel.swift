@@ -41,6 +41,8 @@ public final class SendToWatchViewModel {
     private let calendar: Calendar
     /// Auth-denied escape hatch: the app wires `UIApplication.openSettingsURLString` here.
     public let openSettings: () -> Void
+    /// B-57 W4: the user's own limits (optional cap, optional Zone 5 avoidance); `.none` = no check.
+    public let limits: WorkoutHrLimits
 
     public init(
         provider: any WorkoutTemplatesProviding,
@@ -52,8 +54,10 @@ public final class SendToWatchViewModel {
         // B-33 §8.5: `ImageRenderer` runs no `.task`, so the sweep would only ever photograph the
         // pre-load empty state. A seed lets the screenshot entry start from a loaded list; the app
         // never passes it (default `[]`), and `load()` overwrites it on the first real fetch.
-        seededTemplates: [WorkoutTemplate] = []
+        seededTemplates: [WorkoutTemplate] = [],
+        limits: WorkoutHrLimits = .none
     ) {
+        self.limits = limits
         self.provider = provider
         self.sender = sender
         self.builder = builder
@@ -71,7 +75,7 @@ public final class SendToWatchViewModel {
             state = .idle
         } catch {
             templates = []
-            state = .error(Self.describe(error))
+            state = .error(describe(error))
         }
     }
 
@@ -116,18 +120,28 @@ public final class SendToWatchViewModel {
             sentNames = plans.map(\.name)
             state = .sent(plans.count)
         } catch {
-            state = .error(Self.describe(error))
+            state = .error(describe(error))
         }
     }
 
-    private static func describe(_ error: Error) -> String {
+    private func describe(_ error: Error) -> String {
         switch error {
         case HubError.unauthorized: "Hub rejected the token — check Settings › Connection."
         case let e as HubError: "Hub error: \(e)"
-        case WorkoutBuilderError.capExceeded(let bpm): "A step targets \(bpm) bpm — above the 175 bpm cap. Fix the template on the hub."
+        case WorkoutBuilderError.capExceeded(let bpm):
+            "A step targets \(bpm) bpm — above your \(limits.capBpm.map(String.init) ?? "—") bpm cap. Fix the template on the hub."
+        case WorkoutBuilderError.zone5Target(let bpm, let floor):
+            "A step targets \(bpm) bpm — inside your Zone 5 (from \(floor)), which you chose to avoid. Fix the template on the hub."
         case WorkoutBuilderError.notImplemented: "Workout builder not available in this build."
         default: "Couldn't send: \(error.localizedDescription)"
         }
     }
+}
+
+/// SendToWatch footer. The cap part appears only when the user set a cap.
+public nonisolated func sendToWatchAlertNote(_ limits: WorkoutHrLimits) -> String {
+    "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm"
+        + (limits.capBpm.map { ", capped at your \($0) bpm" } ?? "")
+        + (limits.zone5FloorBpm.map { ", below your Zone 5 (\($0))" } ?? "") + "."
 }
 #endif

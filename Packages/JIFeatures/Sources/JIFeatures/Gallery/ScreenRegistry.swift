@@ -85,5 +85,10 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Data quality") { L6Fixtures.dataQuality() },
         ScreenEntry(name: "Reminders") { L6Fixtures.reminders() },
         ScreenEntry(name: "Health permission") { L6Fixtures.healthPermission() },
+        // MARK: W-B57-W4 LC — onboarding (boards 3 Plan & train/08–11)
+        ScreenEntry(name: "Onboarding welcome") { AnyView(OnboardingNativePreview(step: .welcome)) },
+        ScreenEntry(name: "Onboarding baseline") { AnyView(OnboardingNativePreview(step: .baseline)) },
+        ScreenEntry(name: "Onboarding safety") { AnyView(OnboardingNativePreview(step: .safety)) },
+        ScreenEntry(name: "Onboarding gate") { AnyView(OnboardingNativePreview(step: .gate)) },
     ]
 }

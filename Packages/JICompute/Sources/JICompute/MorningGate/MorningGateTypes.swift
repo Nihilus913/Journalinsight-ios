@@ -277,12 +277,19 @@ public nonisolated struct MorningGatePrevState: Hashable, Sendable {
     public var rhrHigh: Bool?
     public var rhrDate: String?
     public var sleepLow: Bool?
+    /// B-57 W4 `hrv_low_n`: consecutive low-HRV mornings up to yesterday. nil = a
+    /// pre-W4 state (only the boolean; `prevHrvLowN` counts `true` as one night).
+    public var hrvLowN: Int?
 
-    public init(hrvLow: Bool? = nil, rhrHigh: Bool? = nil, rhrDate: String? = nil, sleepLow: Bool? = nil) {
+    public init(
+        hrvLow: Bool? = nil, rhrHigh: Bool? = nil, rhrDate: String? = nil, sleepLow: Bool? = nil,
+        hrvLowN: Int? = nil
+    ) {
         self.hrvLow = hrvLow
         self.rhrHigh = rhrHigh
         self.rhrDate = rhrDate
         self.sleepLow = sleepLow
+        self.hrvLowN = hrvLowN
     }
 }
 
@@ -295,6 +302,8 @@ public nonisolated struct MorningGateState: Hashable, Sendable {
     public var rhrDate: String?
     public var sleepLow: Bool?
     public var prev: MorningGatePrevState?
+    /// B-57 W4 `hrv_low_n` (nil in a pre-W4 state file).
+    public var hrvLowN: Int?
 
     public init(
         date: String? = nil,
@@ -302,8 +311,10 @@ public nonisolated struct MorningGateState: Hashable, Sendable {
         rhrHigh: Bool? = nil,
         rhrDate: String? = nil,
         sleepLow: Bool? = nil,
-        prev: MorningGatePrevState? = nil
+        prev: MorningGatePrevState? = nil,
+        hrvLowN: Int? = nil
     ) {
+        self.hrvLowN = hrvLowN
         self.date = date
         self.hrvLow = hrvLow
         self.rhrHigh = rhrHigh
@@ -321,8 +332,11 @@ public nonisolated struct MorningGateNewState: Hashable, Sendable {
     public var rhrHigh: Bool
     public var rhrDate: String?
     public var sleepLow: Bool
+    /// B-57 W4 `hrv_low_n`: consecutive low-HRV mornings including today (0 when today is not low).
+    public var hrvLowN: Int
 
-    public init(date: String, hrvLow: Bool, rhrHigh: Bool, rhrDate: String?, sleepLow: Bool) {
+    public init(date: String, hrvLow: Bool, rhrHigh: Bool, rhrDate: String?, sleepLow: Bool, hrvLowN: Int = 0) {
+        self.hrvLowN = hrvLowN
         self.date = date
         self.hrvLow = hrvLow
         self.rhrHigh = rhrHigh

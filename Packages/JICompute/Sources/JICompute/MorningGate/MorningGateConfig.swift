@@ -85,6 +85,14 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
     public var weeklyBlockWeekday: Int
     /// Benchmark lifts tracked for progression/decline — `fetch_db` SQL only.
     public var benchmarkLifts: [String]
+    /// B-57 W4: HR cap in the verdict strings — the user's choice, never clamped.
+    /// nil = no cap (Toby 2026-09-24: optional); the strings then drop the HR part.
+    /// The 175 default only keeps unmigrated callers and the pre-W4 goldens byte-identical;
+    /// the phone always passes the user's own value (which may be nil).
+    public var hrCapBpm: Int?
+    /// B-57 W4: consecutive low-HRV mornings before HRV turns the call red
+    /// (Cautious 1 / Balanced 2 / Push 3). 2 is the pre-W4 two-morning rule.
+    public var hrvLowNights: Int
 
     public init(
         kcalTarget: Int,
@@ -115,7 +123,9 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
         walkTypes: Set<String>,
         walkCreditMin: Int,
         weeklyBlockWeekday: Int,
-        benchmarkLifts: [String]
+        benchmarkLifts: [String],
+        hrCapBpm: Int? = 175,
+        hrvLowNights: Int = 2
     ) {
         self.kcalTarget = kcalTarget
         self.proteinTarget = proteinTarget
@@ -146,6 +156,8 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
         self.walkCreditMin = walkCreditMin
         self.weeklyBlockWeekday = weeklyBlockWeekday
         self.benchmarkLifts = benchmarkLifts
+        self.hrCapBpm = hrCapBpm
+        self.hrvLowNights = hrvLowNights
     }
 
     /// `DEFAULT_MORNING_GATE_CONFIG` — the live `morning_go.py` constants.
@@ -178,7 +190,9 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
         walkTypes: ["walking", "hiking", "casual_walking", "speed_walking"],
         walkCreditMin: 40,
         weeklyBlockWeekday: 4,
-        benchmarkLifts: ["BARBELL_BENCH_PRESS", "BARBELL_ROW"]
+        benchmarkLifts: ["BARBELL_BENCH_PRESS", "BARBELL_ROW"],
+        hrCapBpm: 175,
+        hrvLowNights: 2
     )
 }
 

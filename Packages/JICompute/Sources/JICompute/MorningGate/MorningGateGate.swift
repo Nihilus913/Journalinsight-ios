@@ -215,10 +215,36 @@ public nonisolated func prevFromState(_ state: MorningGateState, today: String) 
             hrvLow: state.hrvLow,
             rhrHigh: state.rhrHigh,
             rhrDate: state.rhrDate,
-            sleepLow: state.sleepLow
+            sleepLow: state.sleepLow,
+            hrvLowN: state.hrvLowN
         )
     }
     return MorningGatePrevState()
+}
+
+// MARK: - B-57 W4 presets + optional user cap
+
+/// B-57 W4 `hrv_low_red_line`: Balanced (2) is the pre-W4 string exactly.
+public nonisolated func hrvLowRedLine(nights: Int) -> String {
+    nights == 1 ? "HRV LOW 1 morning" : "HRV LOW \(nights) mornings"
+}
+
+/// B-57 W4 `interval_cap_text`: with 175 this is the pre-W4 string exactly.
+public nonisolated func intervalCapText(_ capBpm: Int?) -> String {
+    (capBpm.map { "Work reps capped at HR \($0) (pace/RPE on dosed days). " } ?? "Work reps by pace/RPE (no HR limit set). ")
+        + "Carbs 160-190g, ALL 3h+ pre-run or after — nothing right before."
+}
+
+/// B-57 W4 `safety_floor_text`: no cap (Toby 2026-09-24: optional) drops the HR part.
+public nonisolated func safetyFloorText(_ capBpm: Int?) -> String {
+    capBpm.map { "Safety floor stands (HR ≤\($0), no sprints, symptom days exempt)." }
+        ?? "Safety floor stands (no sprints, symptom days exempt)."
+}
+
+/// B-57 W4 `prev_hrv_low_n`: a pre-W4 state has only the boolean — true counts as one night.
+public nonisolated func prevHrvLowN(_ state: MorningGatePrevState) -> Int {
+    if let n = state.hrvLowN { return n }
+    return (state.hrvLow ?? false) ? 1 : 0
 }
 
 // MARK: - lift_flags
@@ -340,7 +366,10 @@ public nonisolated func evaluate(
     let doseDay = try consecutiveDoseIndex(today, dosed: dosedSet)
 
     var red: [String] = liftReds
-    if hrvLowToday && (state.hrvLow ?? false) { red.append("HRV LOW 2 mornings") }
+    // B-57 W4: a counter, not a two-morning boolean. The preset decides how many
+    // consecutive low mornings turn the call red (Balanced = 2 = the old rule).
+    let hrvLowN = hrvLowToday ? prevHrvLowN(state) + 1 : 0
+    if hrvLowToday && hrvLowN >= config.hrvLowNights { red.append(hrvLowRedLine(nights: config.hrvLowNights)) }
     if rhrHighToday && (state.rhrHigh ?? false) && !sameRhrReading { red.append("RHR >=66 2 mornings") }
     if sleepLowToday && (state.sleepLow ?? false) {
         red.append("sleep <60 two nights running (now \(fmtValue(sleep)))")
@@ -351,7 +380,8 @@ public nonisolated func evaluate(
         hrvLow: hrvLowToday,
         rhrHigh: rhrHighToday,
         rhrDate: mRhrDate,
-        sleepLow: sleepLowToday
+        sleepLow: sleepLowToday,
+        hrvLowN: hrvLowN
     )
 
     if !red.isEmpty {
@@ -444,7 +474,7 @@ public nonisolated func evaluate(
         if gateOk {
             verdict = "GO — " + sessionName
             conditions.append(
-                "Work reps capped at HR 175 (pace/RPE on dosed days). Carbs 160-190g, ALL 3h+ pre-run or after — nothing right before."
+                intervalCapText(config.hrCapBpm)
             )
         } else {
             verdict = "MODIFIED — swap intervals for easy Z2 30-40min"
@@ -561,7 +591,7 @@ public nonisolated func evaluate(
         let nIv = min(experimentIntervals, target)
         let bar = String(repeating: "█", count: max(0, nIv)) + String(repeating: "░", count: max(0, target - nIv))
         conditions.append(
-            "GATE EXPERIMENT [\(bar)] interval \(nIv)/\(target) — today's verdict is a PREDICTION, not a command: textbook plan runs regardless. Safety floor stands (HR ≤175, no sprints, symptom days exempt)."
+            "GATE EXPERIMENT [\(bar)] interval \(nIv)/\(target) — today's verdict is a PREDICTION, not a command: textbook plan runs regardless. " + safetyFloorText(config.hrCapBpm)
         )
     }
 

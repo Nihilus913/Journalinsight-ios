@@ -116,6 +116,8 @@ public struct KpiDetailView: View {
         if kpiDetailShowsLineTrend(model.metric) {
             normalSection
             chartSection
+            // B-57 W4 (board 2/03): daytime HRV row + the medication check, HRV only.
+            if model.metric == .hrv { DaytimeHrvSection(model: model) }
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
             if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {

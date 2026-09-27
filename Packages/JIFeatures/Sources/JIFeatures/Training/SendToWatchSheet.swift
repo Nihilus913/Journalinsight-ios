@@ -93,7 +93,7 @@ public struct SendToWatchSheet: View {
         } header: {
             Text("Workouts")
         } footer: {
-            Text("Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm, capped at 175.")
+            Text(sendToWatchAlertNote(model.limits))
         }
     }
 
