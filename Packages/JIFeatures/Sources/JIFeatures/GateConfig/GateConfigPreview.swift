@@ -144,6 +144,20 @@ public nonisolated extension MorningGateOverridableField {
 /// a floor, brings short nights into the call; the number is the gate's own `sleepGoalH`.
 public nonisolated let gateConfigSleepGoalTitle = "Sleep goal"
 public nonisolated let gateConfigSleepGoalExplanation = "A goal, not a gate rule. Short nights reach the call through the recovery score."
+/// W-B57-W3 fixer: "not a gate rule" only once the recovery score is scoring; while it calibrates
+/// (or has no reading) the goal is still the floor the gate applies to Apple nights.
+public nonisolated func gateConfigSleepGoalExplanation(recovery: RecoveryScoreResult?, config: MorningGateConfig) -> String {
+    if recovery?.status == .ok { return gateConfigSleepGoalExplanation }
+    let goal = gateConfigFormat(config.sleepGoalH)
+    let need = recovery?.nightsNeeded ?? PersonalNormal.minN
+    let sofar = recovery.map { " (\(min($0.nights, need)) so far)" } ?? ""
+    return "Until your recovery score has \(need) nights\(sofar), a night under \(goal) h turns intervals Modified."
+}
+
+/// W-B57-W3 fixer: the Safety row's copy — the cap is the user's own number, never an app limit.
+public nonisolated let gateConfigHrCapTitle = "Your heart-rate cap"
+public nonisolated let gateConfigHrCapSubtitle = "Your own ceiling, from your gate settings. Sessions never target above it."
+
 public nonisolated func gateConfigSleepGoalValue(_ config: MorningGateConfig) -> String {
     "\(gateConfigFormat(config.sleepGoalH)) h"
 }

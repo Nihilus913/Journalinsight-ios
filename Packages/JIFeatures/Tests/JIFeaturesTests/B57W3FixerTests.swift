@@ -115,3 +115,21 @@ actor WindowRecordingProvider: HealthDataProvider {
     #expect(await p.gateWindows == [42])
     #expect(await p.recoveryWindows == [42])
 }
+
+// GateConfig-copy: the HR cap reads as the user's own number (card rule), and the sleep line is
+// only "not a gate rule" once the recovery score is scoring — while calibrating the 7 h floor applies.
+@Test func gateConfigCapReadsAsUserInput() {
+    #expect(gateConfigHrCapTitle == "Your heart-rate cap")
+    #expect(!gateConfigHrCapSubtitle.contains("Not configurable"))
+    #expect(!gateConfigHrCapSubtitle.lowercased().contains("app"))
+}
+
+@Test func gateConfigSleepLineFollowsTheScore() {
+    let ok = RecoveryScoreResult(status: .ok, score: 61, raw: 0, components: [], nights: 22)
+    #expect(gateConfigSleepGoalExplanation(recovery: ok, config: .default) == gateConfigSleepGoalExplanation)
+    let cal = RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: [], nights: 9)
+    let line = gateConfigSleepGoalExplanation(recovery: cal, config: .default)
+    #expect(!line.contains("not a gate rule"))
+    #expect(line == "Until your recovery score has 14 nights (9 so far), a night under 7 h turns intervals Modified.")
+    #expect(!gateConfigSleepGoalExplanation(recovery: nil, config: .default).contains("not a gate rule"))
+}
