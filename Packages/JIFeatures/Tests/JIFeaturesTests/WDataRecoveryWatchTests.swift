@@ -55,10 +55,10 @@ private func reading(_ id: String, _ days: [RecoveryDay]) -> RecoveryWatchReadin
 @Test func wristTempIsTheDeviationFromYourOwnBaselineElseCalibrating() {
     var d = RecoveryDay(date: today); d.wristTempC = 34.61; d.wristTempDevC = 0.34; d.wristTempBaselineNights = 12
     let r = reading("wristTemp", [d])
-    #expect(r?.value == "+0.3")
-    #expect(r?.caption == "°C vs your normal · last night")
+    #expect(r?.value == "+0.3°")
+    #expect(r?.caption == "vs normal · last night")
     var cold = d; cold.wristTempDevC = -0.26
-    #expect(reading("wristTemp", [cold])?.value == "−0.3")
+    #expect(reading("wristTemp", [cold])?.value == "−0.3°")
     // A reading without a baseline yet: never the absolute sensor value, "— Calibrating".
     var cal = RecoveryDay(date: today); cal.wristTempC = 34.61; cal.wristTempBaselineNights = 3
     let c = reading("wristTemp", [cal])

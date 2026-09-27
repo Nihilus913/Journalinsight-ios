@@ -333,7 +333,7 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
         if let dev = d.wristTempDevC {
             let text = jiNumber(abs(dev), 1)
             let sign = text == jiNumber(0, 1) ? "±" : (dev > 0 ? "+" : "−")
-            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: sign + text, caption: "°C vs your normal · \(night(d))")
+            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: sign + text + "°", caption: "vs normal · \(night(d))")
         } else {
             let n = Int(d.wristTempBaselineNights ?? 0)
             temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: "—",
