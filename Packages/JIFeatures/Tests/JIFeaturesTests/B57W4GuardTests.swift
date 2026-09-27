@@ -41,12 +41,14 @@ private func guardSource(_ relative: String) throws -> String {
 // MARK: - BUG-09: KpiDetail pushed for HRV (the screen LC extends) loads and its layout settles
 
 #if canImport(UIKit)
-@Test(.timeLimit(.minutes(1))) @MainActor func bug09_hrvDetailLoadsAndLayoutTerminates() async throws {
+@Test @MainActor func bug09_hrvDetailLoadsAndLayoutTerminates() async throws {
     let model = KpiDetailViewModel(
         metric: .hrv, healthProvider: KpiFakeProvider(), nutritionProvider: KpiFakeProvider(),
         targetsProvider: KpiFakeProvider(), cache: OfflineCache(db: try AppDatabase.inMemory())
     )
-    let host = UIHostingController(rootView: NavigationStack { KpiDetailView(model: model) })
+    // Hosted the way the existing BUG-09 test hosts it (no NavigationStack: a stack in a bare
+    // test window hung the full parallel iOS run on the base too — a harness artifact).
+    let host = UIHostingController(rootView: KpiDetailView(model: model))
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
     window.rootViewController = host
     window.makeKeyAndVisible()
