@@ -247,7 +247,7 @@ public struct RecoveryView: View {
                 }
                 .buttonStyle(.pressableScale)
                 .disabled(openKpiDetail == nil)
-                .accessibilityLabel(load.map { "Load \($0.valueText), \($0.caption)" } ?? squareAccessibilityLabel(item))
+                .accessibilityLabel(load.map(\.accessibilityText) ?? squareAccessibilityLabel(item))
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
             ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }

@@ -28,7 +28,7 @@ private func loadDays(missing: Set<Int> = [10, 20]) -> [RecoveryInputDay] {
     let score = try RecoveryScore.compute(days: series, today: today)
     #expect(r.minutes == score.component(.load)?.value)
     let normal = try #require(r.normal)
-    #expect(r.caption == "7 days · normal \(jiNumber(normal.low, 0))–\(jiNumber(normal.high, 0))")
+    #expect(r.caption == "7 d · normal \(jiNumber(normal.low, 0))–\(jiNumber(normal.high, 0))")
     #expect(r.valueText == "\(jiNumber(r.minutes, 0)) min")
     #expect(r.points.count == 7 && r.points.last == 6)
 }
@@ -37,7 +37,7 @@ private func loadDays(missing: Set<Int> = [10, 20]) -> [RecoveryInputDay] {
     let recent = loadDays().suffix(10)   // 10 days: a 7-day load, but no 28-value normal
     let r = try #require(recoveryLoadReading(days: Array(recent), today: today))
     #expect(r.normal == nil)
-    #expect(r.caption == "7 days · Calibrating")
+    #expect(r.caption == "7 d · Calibrating")
 }
 
 @Test func loadReadingIsNilWithoutFourDaysOfLoad() {

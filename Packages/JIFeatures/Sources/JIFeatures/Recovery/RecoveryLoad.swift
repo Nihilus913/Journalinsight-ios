@@ -16,10 +16,17 @@ public nonisolated struct RecoveryLoadReading: Equatable, Sendable {
     /// The last 7 days' daily `load_min`, oldest first (a day without a value is nil, never 0).
     public let points: [Double?]
 
-    /// The tile caption: "7 days · normal 180–320", or "7 days · Calibrating" (never a number).
+    /// The tile caption: "7 d · normal 180–320", or "7 d · Calibrating" (never a number). Short:
+    /// it sits on a three-up tile.
     public var caption: String {
-        guard let normal else { return "7 days · \(JIMissingReason.calibrating.rawValue)" }
-        return "7 days · normal \(jiNumber(normal.low, 0))–\(jiNumber(normal.high, 0))"
+        guard let normal else { return "7 d · \(JIMissingReason.calibrating.rawValue)" }
+        return "7 d · normal \(jiNumber(normal.low, 0))–\(jiNumber(normal.high, 0))"
+    }
+
+    /// VoiceOver: the whole sentence.
+    public var accessibilityText: String {
+        let band = normal.map { "your normal \(jiNumber($0.low, 0)) to \(jiNumber($0.high, 0))" } ?? JIMissingReason.calibrating.rawValue
+        return "Load \(valueText) over 7 days, \(band)"
     }
 
     /// The tile value: "245 min".
