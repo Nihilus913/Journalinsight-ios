@@ -273,6 +273,10 @@ final class AppEnvironment {
         let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
             (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
+            // W-DATA R4: the night's sleeping wrist temperature (°C, one sample per night, dated at
+            // its start; the hub moves it to the wake date and serves only the deviation from the
+            // user's own baseline — `hae_bridge` `apple_sleeping_wrist_temperature`, migration 051).
+            (.appleSleepingWristTemperature, "apple_sleeping_wrist_temperature", "degC", HKSampleMapping.perSample(unit: .degreeCelsius())),
             (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested

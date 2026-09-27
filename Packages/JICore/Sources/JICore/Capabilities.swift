@@ -21,7 +21,10 @@ public struct DataCapability: OptionSet, Sendable, Hashable {
     // 1 << 13 retired (B-57 W1 deleted that feature). Never reuse.
     public static let sync            = DataCapability(rawValue: 1 << 14)
     public static let dataQuality     = DataCapability(rawValue: 1 << 15)
-    // Metrics that only some sources carry (Garmin/Firstbeat vs HealthKit)
+    // Metrics that only some sources carry (Garmin/Firstbeat vs HealthKit).
+    // W-DATA R3 (DEV-14): `.trainingReadiness` / `.garminSleepScore` are GARMIN'S OWN scores.
+    // They never gate JI's Readiness (computed from any source's signals) or the hub's sleep score
+    // (`score_computed`, scored for an Apple night too) — never label those "Garmin only".
     public static let bodyBattery       = DataCapability(rawValue: 1 << 20)
     public static let trainingReadiness = DataCapability(rawValue: 1 << 21)
     public static let garminSleepScore  = DataCapability(rawValue: 1 << 22)
