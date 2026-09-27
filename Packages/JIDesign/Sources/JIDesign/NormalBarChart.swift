@@ -357,7 +357,8 @@ public struct SumBarChart: View {
                                 .clipShape(Capsule())
                                 .annotation(position: inside ? .overlay : .top, alignment: .top, spacing: inside ? 6 : 3) {
                                     if p.isLatest {
-                                        Text(slot.value).jiFont(.caption, weight: .bold)
+                                        // One line always: inside a 25 pt bar the number wrapped "1/3/8".
+                                        Text(slot.value).jiFont(.caption, weight: .bold).lineLimit(1).fixedSize()
                                             .foregroundStyle(inside ? theme.color(.bg) : theme.color(tint))
                                     }
                                 }
