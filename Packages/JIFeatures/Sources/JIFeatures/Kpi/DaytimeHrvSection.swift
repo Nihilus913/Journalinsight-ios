@@ -68,9 +68,9 @@ struct DaytimeHrvSection: View {
                          : "You said no. Daytime HRV counts like any other reading.")
                         .jiFont(.body).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
+                    // DEV-07: a secondary button, not a tinted text link (W-B57-W4 fixer).
                     Button("Change answer") { model.resetMedicationAnswer() }
-                        .jiFont(.subheadline, weight: .semibold).tint(theme.color(.info))
-                        .frame(minHeight: 44)
+                        .buttonStyle(.jiSecondary)
                         .accessibilityIdentifier("kpi-detail-med-change")
                 }
             }

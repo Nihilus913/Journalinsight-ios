@@ -62,3 +62,22 @@ private func guardSource(_ relative: String) throws -> String {
     window.isHidden = true
 }
 #endif
+
+// MARK: - W-B57-W4 fixer: no bare text links (W-GUI DEV-07) on the W4 surfaces
+
+/// Every one of these actions is a chevron row or a JI button style — never a tinted text link.
+@Test(arguments: [
+    ("Sources/JIFeatures/GateConfig/GateConfigView.swift", "\"Walk me through it again\""),
+    ("Sources/JIFeatures/GateConfig/GateConfigView.swift", "is still right\")"),
+    ("Sources/JIFeatures/Kpi/DaytimeHrvSection.swift", "\"Change answer\""),
+])
+func dev07_w4ActionsAreRowsOrButtonsNotTextLinks(file: String, literal: String) throws {
+    let body = try guardSource(file)
+    let hit = try #require(body.range(of: literal))
+    let before = String(body[..<hit.lowerBound].suffix(200))
+    let after = String(body[hit.upperBound...].prefix(250))
+    let window = before + literal + after
+    #expect(window.contains("JIChevronRow") || window.contains(".buttonStyle(.jiSecondary)")
+            || window.contains(".buttonStyle(.jiPrimary)"), "\(literal) is a bare text link")
+    #expect(!window.contains(".borderless"))
+}

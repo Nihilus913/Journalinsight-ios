@@ -47,12 +47,15 @@ public struct GateConfigView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("gateConfig.howItWorks")
-                Button("Walk me through it again") {
+                // DEV-07: a chevron row, not a tinted text link (W-B57-W4 fixer).
+                Button {
                     walkthroughModel = model.makeOnboardingModel()
                     showWalkthrough = true
+                } label: {
+                    JIChevronRow(title: "Walk me through it again", systemImage: "list.bullet.rectangle")
                 }
-                    .jiFont(.footnote, weight: .semibold).tint(theme.color(.info))
-                    .accessibilityIdentifier("gateConfig.walkthrough")
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("gateConfig.walkthrough")
             } footer: {
                 Text("Recommended values are already set. Change one only when you know why.")
             }
@@ -75,10 +78,10 @@ public struct GateConfigView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("gateConfig.recheck")
+                    // DEV-07: a secondary button, not a tinted text link (W-B57-W4 fixer).
                     Button("\(cap) is still right") { Task { await model.confirmHrCap() } }
-                        .buttonStyle(.borderless)
-                        .tint(theme.color(.info))
-                        .accessibilityIdentifier("gateConfig.confirmCap")
+                    .buttonStyle(.jiSecondary)
+                    .accessibilityIdentifier("gateConfig.confirmCap")
                 }
             } header: {
                 Text("Safety")
