@@ -25,7 +25,8 @@ public struct SessionCoachView: View {
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()
         .navigationTitle("Session coach")
         .task { model.start() }
         .onDisappear { model.stop() }
