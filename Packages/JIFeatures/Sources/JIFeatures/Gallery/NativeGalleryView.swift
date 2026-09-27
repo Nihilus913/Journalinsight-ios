@@ -131,13 +131,33 @@ public struct NativeGalleryView: View {
                         NormalBar(value: 25, normal: nil, unit: "ms", tint: .info)
                     }
                 }
+                // W-GUI S1 (report §4.4, mockup 03): points in the band, dashed median, band edges
+                // on the axis, a hollow tick for the missing night, the last value at its dot.
+                Surface {
+                    NormalBarChart(points: [
+                        NormalBarPoint(id: "1", label: "Thu", value: 29, isLatest: false),
+                        NormalBarPoint(id: "2", label: "Fri", value: 28, isLatest: false),
+                        NormalBarPoint(id: "3", label: "Sat", value: nil, isLatest: false),
+                        NormalBarPoint(id: "4", label: "Sun", value: 31, isLatest: false),
+                        NormalBarPoint(id: "5", label: "Mon", value: 27, isLatest: false),
+                        NormalBarPoint(id: "6", label: "Tue", value: 30, isLatest: false),
+                        NormalBarPoint(id: "7", label: "Wed", value: 25, isLatest: true),
+                    ], normal: 27...30, unit: "ms", median: 28.5, tint: .hrv,
+                       title: normalBarChartTitle(metric: "Overnight HRV", window: "7 nights", source: "Apple Watch · RMSSD"),
+                       summary: "Below your normal last night.")
+                }
                 Surface {
                     NormalBarChart(points: [
                         NormalBarPoint(id: "1", label: "Thu", value: 29, isLatest: false),
                         NormalBarPoint(id: "2", label: "Fri", value: 28, isLatest: false),
                         NormalBarPoint(id: "3", label: "Sat", value: nil, isLatest: false),
                         NormalBarPoint(id: "4", label: "Wed", value: 25, isLatest: true),
-                    ], normal: 27...30, unit: "ms")
+                    ], normal: nil, unit: "ms", tint: .hrv, title: "Overnight HRV · 4 nights · Apple Watch · RMSSD")
+                }
+                JISectionHeader("Sparklines")
+                HStack(spacing: JISpacing.tileGap) {
+                    JITile(family: .tile) { NormalSparkline(points: [48, 50, 47, 53, nil, 49, 52, 51, 50, 54, 52, 49, 51, 52], normal: 46...52, tint: .hrv, unit: "ms") }
+                    JITile(family: .tile) { NormalSparkline(points: [56, 55, 57, 54, 55, 53, 54], tint: .rhr, unit: "bpm") }
                 }
                 JISectionHeader("Squares")
                 SquareGrid(items: [
