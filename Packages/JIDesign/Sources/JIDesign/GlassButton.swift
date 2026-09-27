@@ -67,10 +67,10 @@ struct JIGlassBackButtonModifier: ViewModifier {
         content
             .navigationBarBackButtonHidden(true)
             .toolbar {
-                #if os(iOS) || os(visionOS)
-                ToolbarItem(placement: .topBarLeading) { JIGlassButton("chevron.left", label: "Back") { dismiss() } }
-                #else
+                #if os(macOS)
                 ToolbarItem(placement: .navigation) { JIGlassButton("chevron.left", label: "Back") { dismiss() } }
+                #else
+                ToolbarItem(placement: .topBarLeading) { JIGlassButton("chevron.left", label: "Back") { dismiss() } }
                 #endif
             }
     }
