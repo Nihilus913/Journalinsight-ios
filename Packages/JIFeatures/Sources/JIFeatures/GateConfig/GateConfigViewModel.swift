@@ -3,6 +3,9 @@ import Observation
 import JICore
 import JICompute
 import JIPersistence
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // W5b-L3 (P-gate-config). State for `GateConfigView`, the port of RN `app/gate-config.tsx`.
 //
@@ -48,6 +51,17 @@ public final class GateConfigViewModel {
     private let mirror: GateSettingsMirror?
     private let reminderCenter: (any ReminderNotificationCenter)?
     private let today: () -> String
+    /// W-FIX5 W4-1: listens for the app becoming active while this screen is alive.
+    @ObservationIgnored private var foregroundObserver: (any NSObjectProtocol)?
+
+    /// The app-active notification (nil where UIKit is absent, e.g. host tests).
+    public nonisolated static var appDidBecomeActive: Notification.Name? {
+        #if canImport(UIKit)
+        UIApplication.didBecomeActiveNotification
+        #else
+        nil
+        #endif
+    }
 
     /// `targetsProvider` is optional so the screen still works with no hub connection saved: the
     /// two local blocks and the preview never need the network; the server block explains itself.
@@ -55,12 +69,29 @@ public final class GateConfigViewModel {
     /// cap re-check. Both nil in the gallery / tests that do not exercise them.
     public init(targetsProvider: (any KpiTargetsProviding)?, prefStore: PrefStore,
                 mirror: GateSettingsMirror? = nil, reminderCenter: (any ReminderNotificationCenter)? = nil,
+                foregroundNotification: Notification.Name? = GateConfigViewModel.appDidBecomeActive,
                 today: @escaping () -> String = { ReminderScheduler.todayISO() }) {
         self.targetsProvider = targetsProvider
         self.prefStore = prefStore
         self.mirror = mirror
         self.reminderCenter = reminderCenter
         self.today = today
+        // W-FIX5 W4-1: an open GateConfig (or the shell's retained model) re-reads the flag after
+        // the foreground push, so "Not on the hub yet" clears without leaving the screen.
+        if mirror != nil, let foregroundNotification {
+            foregroundObserver = NotificationCenter.default.addObserver(forName: foregroundNotification, object: nil, queue: nil) { [weak self] _ in
+                Task { @MainActor in await self?.foregroundSync() }
+            }
+        }
+    }
+
+    isolated deinit { if let foregroundObserver { NotificationCenter.default.removeObserver(foregroundObserver) } }
+
+    /// W-FIX5 W4-1: retries a pending push (last-write-wins, so racing the app's own foreground
+    /// push only repeats the same PUT) and re-reads the persisted flag.
+    public func foregroundSync() async {
+        await mirror?.pushIfPending()
+        refreshHubStatus()
     }
 
     public var hasServerProvider: Bool { targetsProvider != nil }
@@ -233,8 +264,10 @@ public final class GateConfigViewModel {
     }
 
     /// "Walk me through it again": the onboarding flow over the stored settings.
-    public func makeOnboardingModel() -> OnboardingViewModel {
-        OnboardingViewModel(prefs: prefStore, mirror: mirror, reminderCenter: reminderCenter, today: today)
+    /// W-FIX5 W4-2: `recovery` gives "Nights so far" its real count (nil = "— Calibrating").
+    public func makeOnboardingModel(recovery: RecoveryScoreResult? = nil) -> OnboardingViewModel {
+        OnboardingViewModel(prefs: prefStore, mirror: mirror, reminderCenter: reminderCenter,
+                            nightsSoFar: OnboardingViewModel.NightsProgress(recovery: recovery), today: today)
     }
 
     private func persistSettings() async {
@@ -358,5 +391,14 @@ public extension GateConfigViewModel {
         let model = GateConfigViewModel(targetsProvider: nil, prefStore: prefs)
         model.loadLocal()
         return model
+    }
+}
+
+/// W-FIX5 W4-2: the onboarding "Nights so far" card from the recovery score — the nights of
+/// personal normal it has and the minimum it needs. nil without a result (never a guessed count).
+extension OnboardingViewModel.NightsProgress {
+    public init?(recovery: RecoveryScoreResult?) {
+        guard let recovery else { return nil }
+        self.init(have: recovery.nights, need: recovery.nightsNeeded)
     }
 }

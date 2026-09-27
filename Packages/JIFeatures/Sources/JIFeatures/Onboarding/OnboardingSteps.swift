@@ -41,9 +41,16 @@ struct OnboardingWelcomeStep: View {
 /// Board 09 — "First, it learns your normal". The nights card never invents a count.
 struct OnboardingBaselineStep: View {
     let nights: OnboardingViewModel.NightsProgress?
+    /// W-FIX5 W4-2: the first-launch cover is built before the recovery score has loaded; the
+    /// shell's live insight fills the card when it lands (still "— Calibrating" without one).
+    @Environment(\.recoveryInsight) private var recoveryInsight
     private let theme = JITheme.native
+    private var shown: OnboardingViewModel.NightsProgress? {
+        nights ?? OnboardingViewModel.NightsProgress(recovery: recoveryInsight?.result)
+    }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let nights = shown
+        return VStack(alignment: .leading, spacing: 16) {
             StepTitle(title: OnboardingCopy.baselineTitle, subtitle: OnboardingCopy.baselineSubtitle)
             Surface {
                 VStack(alignment: .leading, spacing: 8) {
@@ -143,7 +150,8 @@ struct OnboardingSafetyStep: View {
                     .numberPadKeyboard()
                     .accessibilityLabel("Heart-rate cap in bpm")
                     .accessibilityIdentifier("onboarding.hrCap")
-                Text("bpm").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                // W-FIX5 W4-4: the unit never wraps ("bp/m") at default size.
+                Text("bpm").jiFont(.footnote).foregroundStyle(theme.color(.muted)).lineLimit(1).fixedSize()
                 Button { model.bumpCap(-1) } label: { Image(systemName: "minus") }
                     .accessibilityLabel("Lower cap").accessibilityIdentifier("onboarding.capMinus")
                 Button { model.bumpCap(+1) } label: { Image(systemName: "plus") }
@@ -169,7 +177,7 @@ struct OnboardingSafetyStep: View {
                     .numberPadKeyboard()
                     .accessibilityLabel("\(model.zoneAnchor.title) in bpm")
                     .accessibilityIdentifier("onboarding.zoneAnchor")
-                Text("bpm").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                Text("bpm").jiFont(.footnote).foregroundStyle(theme.color(.muted)).lineLimit(1).fixedSize()
             }
             if let z = model.zonesPreview {
                 ForEach(1...5, id: \.self) { i in
