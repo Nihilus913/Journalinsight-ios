@@ -133,3 +133,20 @@ actor WindowRecordingProvider: HealthDataProvider {
     #expect(line == "Until your recovery score has 14 nights (9 so far), a night under 7 h turns intervals Modified.")
     #expect(!gateConfigSleepGoalExplanation(recovery: nil, config: .default).contains("not a gate rule"))
 }
+
+// gallery: every gallery/sweep screen gets a seeded recovery insight (the mock's 42 deterministic
+// days), so the score card, ring and bands render a real score — not "— No data".
+@Test @MainActor func galleryFixtureHasARealScoreAndNormals() throws {
+    let s = try #require(RecoveryInsightService.galleryFixture)
+    #expect(s.result?.status == .ok)
+    #expect(s.result?.score != nil)
+    #expect(s.normal(for: .hrv) != nil)
+    #expect(s.reasonWord == nil)
+}
+
+@Test func galleryPreviewInjectsTheRecoveryInsight() throws {
+    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "Sources/JIFeatures/Today/NativeScreenSupport.swift")
+    let src = try String(contentsOf: url, encoding: .utf8)
+    #expect(src.contains(".environment(\\.recoveryInsight, RecoveryInsightService.galleryFixture)"))
+}

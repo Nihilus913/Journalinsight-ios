@@ -115,6 +115,24 @@ public final class RecoveryInsightService {
     }
 }
 
+extension RecoveryInsightService {
+    /// W-B57-W3 fixer: the Gallery / sweep insight — the mock's 42 deterministic days for a fixed
+    /// day, already computed (no fetch: offscreen screens never refresh), so every fixture screen
+    /// shows a real score and bands instead of "— No data".
+    public static let galleryFixtureDay = "2026-09-24"
+    public static let galleryFixture: RecoveryInsightService? = {
+        guard let db = try? AppDatabase.inMemory() else { return nil }
+        let fixed = Date(timeIntervalSince1970: 1_790_208_000)   // 2026-09-24T00:00Z
+        let s = RecoveryInsightService(provider: MockDataProvider(), cache: OfflineCache(db: db),
+                                       now: { fixed }, dayKey: { _ in galleryFixtureDay })
+        s.today = galleryFixtureDay
+        s.days = MockDataProvider.recoveryInputDays(date: galleryFixtureDay, windowDays: windowDays)
+        s.fetchedAt = fixed
+        s.recompute()
+        return s
+    }()
+}
+
 extension EnvironmentValues {
     /// B-57 W3: the shared recovery insight (nil = inert: cards show "— No data").
     @Entry public var recoveryInsight: RecoveryInsightService?

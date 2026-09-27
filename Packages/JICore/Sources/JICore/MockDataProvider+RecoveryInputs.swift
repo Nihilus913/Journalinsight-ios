@@ -4,6 +4,11 @@ import Foundation
 /// Pure date math in UTC (no `Calendar.current`), so the same `date` always yields the same days.
 extension MockDataProvider: RecoveryInputsProviding {
     public func recoveryInputs(date: String, windowDays: Int) async throws -> [RecoveryInputDay] {
+        Self.recoveryInputDays(date: date, windowDays: windowDays)
+    }
+
+    /// The same days, synchronously (the Gallery's seeded `RecoveryInsightService`).
+    public static func recoveryInputDays(date: String, windowDays: Int) -> [RecoveryInputDay] {
         let fmt = DateFormatter()
         fmt.calendar = Calendar(identifier: .gregorian)
         fmt.locale = Locale(identifier: "en_US_POSIX")

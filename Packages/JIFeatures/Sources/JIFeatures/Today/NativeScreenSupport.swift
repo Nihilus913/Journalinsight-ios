@@ -84,6 +84,8 @@ struct NativeScreenPreview<Content: View>: View {
         content
             .jiTheme(.native)
             .environment(\.jiOffscreenRender, true)
+            // W-B57-W3 fixer: a seeded recovery score for every fixture screen (never "— No data").
+            .environment(\.recoveryInsight, RecoveryInsightService.galleryFixture)
     }
 }
 
