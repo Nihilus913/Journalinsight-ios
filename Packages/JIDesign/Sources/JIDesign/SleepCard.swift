@@ -20,29 +20,35 @@ public nonisolated func sleepScoreColorRole(score: Double?, sourceMissing: Bool)
 /// (rule 6 — never on the card chrome or the duration line).
 public struct SleepCard: View {
     let durationSec: Double?, score: Double?, sourceMissing: Bool
+    /// W-GUI-2 S3 (mockup 03): the ONE tinted hero card of a screen may be the sleep card —
+    /// sleep-blue 16 % → 3 % top to bottom (`Surface(tint:)`); off by default (nested tile look).
+    let tinted: Bool
     @Environment(\.jiTheme) private var theme
-    public init(durationSec: Double?, score: Double?, sourceMissing: Bool = false) {
-        self.durationSec = durationSec; self.score = score; self.sourceMissing = sourceMissing
+    public init(durationSec: Double?, score: Double?, sourceMissing: Bool = false, tinted: Bool = false) {
+        self.durationSec = durationSec; self.score = score; self.sourceMissing = sourceMissing; self.tinted = tinted
     }
 
     public var body: some View {
-        Surface(level: 2, padding: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 6) {
+        Surface(level: tinted ? 1 : 2, padding: JISpacing.cardPadding, tint: tinted ? theme.color(.sleep) : nil) {
+            VStack(alignment: .leading, spacing: JISpacing.s2 + 2) {
+                HStack(spacing: JISpacing.s1 + 2) {
                     Circle().fill(theme.color(.sleep)).frame(width: 8, height: 8)
-                    Text("Sleep").font(.caption).foregroundStyle(theme.color(.muted))
+                    // W-GUI-2 S3: token scale (report §4.5), never a raw `.font(.caption)`.
+                    Text("Sleep").jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(durationText).jiNumeral(.numeralSmall).foregroundStyle(theme.color(.text))
-                        Text("duration").font(.caption2).foregroundStyle(theme.color(.muted))
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Text("duration").jiFont(.micro).foregroundStyle(theme.color(.muted))
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(scoreText)
                             .jiNumeral(.numeralSmall)
                             .foregroundStyle(scoreColor)
-                        Text("score").font(.caption2).foregroundStyle(theme.color(.muted))
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Text("score").jiFont(.micro).foregroundStyle(theme.color(.muted))
                     }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)

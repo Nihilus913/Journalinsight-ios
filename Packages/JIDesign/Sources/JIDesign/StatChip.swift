@@ -19,8 +19,8 @@ public struct StatChip: View {
     }
     public var body: some View {
         Button(action: { action?() }) {
-            Surface(level: 2, padding: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+            Surface(level: 2, padding: JISpacing.tilePadding) {
+                VStack(alignment: .leading, spacing: JISpacing.s1) {
                     // B-47: `jiFont`, not a raw `.font(.caption)` — this label was the one text
                     // site in JIDesign that never went through the token scale at all.
                     Text(label).jiFont(.subheadline).foregroundStyle(theme.color(.muted)).lineLimit(1)
