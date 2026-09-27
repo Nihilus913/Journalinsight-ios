@@ -44,7 +44,10 @@ public struct ScreenScroll<Content: View>: View {
             }
         } else {
             // `.refreshable` at the call site lands on this `ScrollView` through the environment.
+            // W-GUI F6 (report §4.5 / §7 rule 3): content fades under the status bar and above the
+            // tab bar — the soft scroll edge effect on both edges. Never on the offscreen branch.
             ScrollView { content }
+                .modifier(JISoftScrollEdges())
         }
     }
 }
@@ -164,5 +167,20 @@ struct NativeFixtureUnavailable: View {
         saveTodayTilePrefs(shown, prefs: prefs)
         let chips = TodayViewModel.fixture()?.squareChips ?? []
         return AnyView(NativeScreenPreview { EditTodayView(model: EditTodayViewModel(prefs: prefs, chips: chips)) })
+    }
+}
+
+/// W-GUI F6: the soft scroll-edge effect on the top and bottom of a screen's `ScrollView`
+/// (iOS 26+; a no-op where the platform has no edge effect). One place, so every hero screen
+/// fades the same way.
+struct JISoftScrollEdges: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(iOS) || os(visionOS) || os(macOS)
+        content
+            .scrollEdgeEffectStyle(.soft, for: .top)
+            .scrollEdgeEffectStyle(.soft, for: .bottom)
+        #else
+        content
+        #endif
     }
 }

@@ -17,7 +17,7 @@ public struct SessionCoachView: View {
     public init(model: SessionCoachViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {   // W-GUI F6: the shared scroll root (edge effect, sweep branch)
             VStack(alignment: .leading, spacing: 16) {
                 Text("Live in-session coach — the HR-\(SessionCoachViewModel.hrSafetyCapBpm) safety cap is always the headline, whatever else the session is doing.")
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))

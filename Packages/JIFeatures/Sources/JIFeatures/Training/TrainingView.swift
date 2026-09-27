@@ -23,7 +23,7 @@ public struct TrainingView: View {
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {   // W-GUI F6: the shared scroll root (edge effect, sweep branch)
             VStack(alignment: .leading, spacing: 16) {
                 // B-45 (a): the screen's own date is the REAL device day (mirrors `TodayView`).
                 // W-FIX3 fixer BUG-44 (board 3/01): "Full · Wed 23 Sep" + the synced pill on one row;
