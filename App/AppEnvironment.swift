@@ -388,6 +388,21 @@ final class AppEnvironment {
     /// (B-52 cached plan sessions); nil = no week known, so the glances show no plan (never "0 of 4").
     @ObservationIgnored var glancePlan: (@MainActor () -> GlancePlan?)?
 
+    /// W-FIX5 W5-5: the verdict Live Activity, started (then refreshed) from the app on each
+    /// published snapshot that carries a call. Unit-test hosts get nil (no real activity per test).
+    @ObservationIgnored var liveActivity: (@MainActor (HubSnapshot) -> Void)? = AppEnvironment.defaultLiveActivity
+
+    static var defaultLiveActivity: (@MainActor (HubSnapshot) -> Void)? {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
+        return { @MainActor snapshot in LiveActivityController.shared.update(from: snapshot) }
+    }
+
+    /// W-FIX5 W5-5: only a real call (a verdict date, a word other than "—") starts or refreshes the
+    /// Live Activity — never an empty "No verdict yet" activity on the Lock Screen.
+    static func drivesLiveActivity(_ snapshot: HubSnapshot) -> Bool {
+        snapshot.verdictDate != nil && snapshot.verdictWord != "—" && !snapshot.verdictWord.isEmpty
+    }
+
     /// Re-publish after something outside Today/Recovery changed (the HR cap, a weekday
     /// assignment) so the widgets' cap and plan ring follow without waiting for the next fetch.
     func republishSnapshot() {
@@ -451,6 +466,7 @@ final class AppEnvironment {
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
+        if Self.drivesLiveActivity(snapshot) { liveActivity?(snapshot) }
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
         // kept showing the snapshot it was first rendered with until iOS happened to refresh it.
         #if canImport(WidgetKit)

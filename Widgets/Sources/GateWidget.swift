@@ -137,22 +137,28 @@ private struct GateWidgetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             default:
                 // Board 02: the call left, each signal against its normal or goal right.
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        eyebrow(tone)
-                        Text(snapshot.verdictWord).jiNumeral(.numeralLarge, weight: .heavy).foregroundStyle(tone)
-                            .lineLimit(1).minimumScaleFactor(0.5)
-                        Text(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(1)
-                        Spacer(minLength: 0)
-                        if let reason = snapshot.reason {
-                            Text("Why: \(reason)").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(2)
+                // W-FIX5 W5-1: the columns are sized, not negotiated — the signal columns once took
+                // every point (maxWidth .infinity + layoutPriority) and the call column vanished.
+                GeometryReader { geo in
+                    let cols = GateMediumLayout.columns(width: geo.size.width, signalCount: snapshot.signals?.count ?? 0)
+                    HStack(alignment: .top, spacing: GateMediumLayout.spacing) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            eyebrow(tone)
+                            Text(snapshot.verdictWord).jiNumeral(.numeralLarge, weight: .heavy).foregroundStyle(tone)
+                                .lineLimit(1).minimumScaleFactor(0.5)
+                            Text(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text))
+                                .lineLimit(1).minimumScaleFactor(0.8)
+                            Spacer(minLength: 0)
+                            if let reason = snapshot.reason {
+                                Text("Why: \(reason)").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(2)
+                            }
+                        }
+                        .frame(width: cols.left, alignment: .leading)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        HStack(alignment: .top, spacing: GateMediumLayout.signalSpacing) {
+                            ForEach(snapshot.signals ?? [], id: \.key) { signalColumn($0).frame(width: cols.signal) }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(alignment: .top, spacing: 6) {
-                        ForEach(snapshot.signals ?? [], id: \.key) { signalColumn($0) }
-                    }
-                    .layoutPriority(1)
                 }
             }
         } else {
@@ -180,7 +186,6 @@ private struct GateWidgetView: View {
             Text(s.shortLabel).jiFont(.micro).foregroundStyle(theme.color(.text)).lineLimit(1).minimumScaleFactor(0.8)
             Text(s.compactCaption).jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.7)
         }
-        .frame(minWidth: 44, maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(s.label) \(s.valueText) \(s.value == nil ? "" : s.unit), \(s.word), \(s.caption)")
     }
