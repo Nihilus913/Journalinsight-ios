@@ -163,7 +163,8 @@ public struct RecoveryView: View {
                 if metric == .sleep {
                     HStack(spacing: JISpacing.tileGap) {
                         factTile("Duration", recoverySleepDuration(seconds: recoveryLatestSleepSeconds ?? insightLastNight(.sleepH).map { $0 * 3600 }))
-                        factTile("Deep", recoveryDeepText(hours: insightLastNight(.deepH)))
+                        factTile("Deep", recoveryDeepText(hours: recoveryDeepHours(insightHours: insightLastNight(.deepH),
+                                                                                  days: model.days, now: Date())))
                         factTile("Window", "— not read")
                     }
                 } else {
@@ -223,8 +224,9 @@ public struct RecoveryView: View {
         .accessibilityLabel("\(label) \(value)")
     }
 
-    /// "Also watching": Load (from the squares' items, only while it is visible), resp / wrist temp
-    /// as "— not read" (plan §B: not in the recovery contract), and Add a metric — all `.tile`.
+    /// "Also watching": Load (from the squares' items, only while it is visible), then W-DATA's
+    /// resp rate / wrist temp / body battery / recovery time from `/vitals/recovery` — dated, or
+    /// "—" + a reason word (`recoveryWatchReadings`) — and Add a metric, all `.tile`.
     private func alsoWatching(layout: RecoveryTileLayout) -> some View {
         let items = recoveryTileItems(days: model.days, layout: layout, editing: false).filter { $0.id == "load" }
         return Columns(minimum: 100, spacing: JISpacing.tileGap, tileHeight: .tile) {
@@ -244,8 +246,7 @@ public struct RecoveryView: View {
                 .accessibilityLabel(squareAccessibilityLabel(item))
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
-            watchTile("Resp. rate")
-            watchTile("Wrist temp")
+            ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }
             if let openKpiCatalogue {
                 JIAddTile(family: .tile, label: "Add a metric") { openKpiCatalogue() }
                     .accessibilityIdentifier("recovery.addMetric")
@@ -253,16 +254,18 @@ public struct RecoveryView: View {
         }
     }
 
-    private func watchTile(_ label: String) -> some View {
+    private func watchTile(_ reading: RecoveryWatchReading) -> some View {
         JITile(family: .tile) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                Text("—").jiNumeral(.numeralSmall, tint: .muted)
-                Text("not read").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                Text(reading.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                Text(reading.value).jiNumeral(.numeralSmall, tint: reading.missing ? .muted : .text)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Text(reading.caption).jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label), not read")
+        .accessibilityLabel(reading.missing ? "\(reading.label), \(reading.caption)" : "\(reading.label) \(reading.value), \(reading.caption)")
+        .accessibilityIdentifier("recovery.watch.\(reading.id)")
     }
 
     private var staleVerdictBanner: String? {
@@ -293,4 +296,73 @@ public nonisolated func recoveryTrendDate(_ day: String, calendar: Calendar = Ca
     let parts = day.split(separator: "-").compactMap { Int($0) }
     guard parts.count == 3 else { return nil }
     return c.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+}
+
+// MARK: - W-DATA R4 / R6: "Also watching" readings
+
+/// One "Also watching" tile: `value` is the number as shown, or "—" with the reason in `caption`.
+public nonisolated struct RecoveryWatchReading: Equatable, Sendable {
+    public let id: String, label: String, value: String, caption: String
+    public var missing: Bool { value == "—" }
+}
+
+/// Apple's Vitals app needs about five nights for a wrist-temperature baseline (the hub's
+/// `WRIST_TEMP_MIN_BASELINE_NIGHTS`); below that the tile says "Calibrating · n of 5 nights".
+public nonisolated let recoveryWristTempBaselineNights = 5
+
+/// W-DATA R4 / R6: resp rate (last night's `resp_sleep_avg`), wrist temp (deviation from the
+/// user's own baseline — never the absolute sensor value, never a clinical reading), Garmin body
+/// battery low–high and recovery time. Each is the newest night that has it, named by its night
+/// ("last night" for the wake day `today`, else "as of Sep 25"); none = "—" · "not read".
+public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String) -> [RecoveryWatchReading] {
+    let newestFirst = days.sorted { $0.date > $1.date }
+    func newest(_ has: (RecoveryDay) -> Bool) -> RecoveryDay? { newestFirst.first(where: has) }
+    func night(_ day: RecoveryDay) -> String {
+        kpiAsOfLabel(valueDate: day.date, today: today) ?? "last night"
+    }
+    func notRead(_ id: String, _ label: String) -> RecoveryWatchReading {
+        RecoveryWatchReading(id: id, label: label, value: "—", caption: "not read")
+    }
+
+    let resp: RecoveryWatchReading = newest { $0.respSleepAvg != nil }.map {
+        RecoveryWatchReading(id: "resp", label: "Resp. rate", value: jiNumber($0.respSleepAvg ?? 0, 1), caption: "br/min · \(night($0))")
+    } ?? notRead("resp", "Resp. rate")
+
+    let temp: RecoveryWatchReading
+    if let d = newest({ $0.wristTempC != nil }) {
+        if let dev = d.wristTempDevC {
+            let text = jiNumber(abs(dev), 1)
+            let sign = text == jiNumber(0, 1) ? "±" : (dev > 0 ? "+" : "−")
+            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: sign + text, caption: "°C vs your normal · \(night(d))")
+        } else {
+            let n = Int(d.wristTempBaselineNights ?? 0)
+            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: "—",
+                                        caption: "\(JIMissingReason.calibrating.rawValue) · \(n) of \(recoveryWristTempBaselineNights) nights")
+        }
+    } else {
+        temp = notRead("wristTemp", "Wrist temp")
+    }
+
+    let battery: RecoveryWatchReading = newest { $0.bodyBatteryMin != nil && $0.bodyBatteryMax != nil }.map {
+        RecoveryWatchReading(id: "bodyBattery", label: "Body Battery",
+                             value: "\(jiNumber($0.bodyBatteryMin ?? 0, 0))–\(jiNumber($0.bodyBatteryMax ?? 0, 0))",
+                             caption: "low–high · \(night($0))")
+    } ?? notRead("bodyBattery", "Body Battery")
+
+    let recoveryTime: RecoveryWatchReading = newest { $0.recoveryTimeMin != nil }.map {
+        let m = Int(($0.recoveryTimeMin ?? 0).rounded())
+        let text = m % 60 == 0 ? "\(m / 60) h" : "\(m / 60) h \(String(format: "%02d", m % 60))"
+        return RecoveryWatchReading(id: "recoveryTime", label: "Recovery time", value: text, caption: "to recover · \(night($0))")
+    } ?? notRead("recoveryTime", "Recovery time")
+
+    return [resp, temp, battery, recoveryTime]
+}
+
+/// W-DATA R6: the Deep fact tile's hours — the gate's own deep-sleep reading, else the route's
+/// `deep_sleep_sec` for last night only (the ≤ 36 h "last night" rule); nil = "— not read".
+public nonisolated func recoveryDeepHours(insightHours: Double?, days: [RecoveryDay], now: Date) -> Double? {
+    if let insightHours { return insightHours }
+    guard let d = days.sorted(by: { $0.date > $1.date }).first(where: { $0.deepSleepSec != nil }),
+          KpiMetrics.isLastNightFresh(nightDate: d.date, now: now), let sec = d.deepSleepSec else { return nil }
+    return sec / 3600
 }
