@@ -90,5 +90,7 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Onboarding baseline") { AnyView(OnboardingNativePreview(step: .baseline)) },
         ScreenEntry(name: "Onboarding safety") { AnyView(OnboardingNativePreview(step: .safety)) },
         ScreenEntry(name: "Onboarding gate") { AnyView(OnboardingNativePreview(step: .gate)) },
+        // MARK: B-57 W5 — Week & glance
+        ScreenEntry(name: "Training week") { L6Fixtures.trainingWeek() },
     ]
 }
