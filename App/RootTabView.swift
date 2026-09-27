@@ -262,8 +262,14 @@ struct RootTabView: View {
             }
             switch Self.firstSheet(needsOnboarding: OnboardingGate.needsOnboarding(env.prefs), needsConnection: env.needsConnection) {
             case .onboarding?:
+                // W-FIX5 W4-2: the real night count (the cover also reads the live insight below).
+                if recoveryInsight == nil, let store = env.providerStore {
+                    recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+                    env.recoveryInsight = recoveryInsight
+                }
                 onboardingModel = OnboardingViewModel(prefs: env.prefs, mirror: gateSettingsMirror(),
-                                                      reminderCenter: UNUserNotificationCenter.current())
+                                                      reminderCenter: UNUserNotificationCenter.current(),
+                                                      nightsSoFar: .init(recovery: recoveryInsight?.result))
                 showOnboarding = true
             case .connection?: showConnection = true
             case nil: break
@@ -272,6 +278,8 @@ struct RootTabView: View {
         .onboardingCover(isPresented: $showOnboarding) {
             if let onboardingModel {
                 OnboardingFlowView(model: onboardingModel) { showOnboarding = false }
+                    .environment(\.recoveryInsight, recoveryInsight)
+                    .task { await recoveryInsight?.refreshIfStale() }
             }
         }
         .onChange(of: showOnboarding) { _, shown in
@@ -307,7 +315,12 @@ struct RootTabView: View {
         }
         // W-FIX2 DEV-04: the first launch (or return) after local midnight opens Decide.
         .onAppear { evaluateGate() }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { evaluateGate() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                evaluateGate()
+                goalsSetupModel?.refreshHubPending()   // W-FIX5 DEV-15
+            }
+        }
         .onChange(of: todayModel?.morningState) { old, new in
             // Decide answered inline (a new verdict date mid-day) counts as today's answer too.
             if old == .decide, let new, new != .decide { recordGateAnswered() }
@@ -988,7 +1001,9 @@ struct RootTabView: View {
             provider: provider, macroStore: env.macroGoals,
             mirror: makeGoalsMirror(),   // TEMP bridge until B-50: hub weekly gate
             burnSource: { let band = env.makeEnergyBand(); band.recompute(); return band.burnWindow },
-            onNutritionSaved: { Task { await env.refreshEnergyBand() } }
+            onNutritionSaved: { Task { await env.refreshEnergyBand() } },
+            // W-FIX5 DEV-15: "hub sync pending" follows the outbox (the retry scheduler delivers later).
+            hubPendingSource: { (try? Outbox(db: .onDisk())).map { GoalsSetupViewModel.goalsPending(in: $0) } ?? false }
         )
     }
 
@@ -1129,7 +1144,10 @@ struct RootTabView: View {
                     .environment(\.gateConfigModel, gateConfigModel)
                     .onAppear {
                         if gateConfigModel == nil {
-                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs)
+                            // W-FIX5 W4-1: with the mirror, so a change here reaches the hub and
+                            // "Not on the hub yet" clears after the foreground push.
+                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs,
+                                                                  mirror: gateSettingsMirror(), reminderCenter: UNUserNotificationCenter.current())
                         }
                     }
             } else {

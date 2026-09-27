@@ -154,7 +154,7 @@ public struct GoalsSetupView: View {
                 }
 
                 Section("Activity") {
-                    Stepper("Daily steps: \(stepsDaily)", value: $stepsDaily, in: 0...50000, step: 500)
+                    Stepper(goalsSetupStepsLabel(stepsDaily), value: $stepsDaily, in: 0...50000, step: 500)
                         .accessibilityIdentifier("goals-setup-steps-daily")
                 }
 
@@ -270,3 +270,7 @@ public struct GoalsSetupView: View {
         }
     }
 }
+
+/// W-FIX5 DEV-16: a plain String (not a LocalizedStringKey) so the count is never grouped
+/// ("15'000" in de_CH); Goals shows 15000.
+nonisolated func goalsSetupStepsLabel(_ steps: Int) -> String { "Daily steps: " + String(steps) }
