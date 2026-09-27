@@ -37,7 +37,7 @@ public struct EnergyView: View {
     public init(model: EnergyViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 // W-FIX3 BUG-33: at AX sizes the navigation subtitle truncates; it moves into the
                 // page as wrapping text instead.
@@ -55,10 +55,11 @@ public struct EnergyView: View {
                 case .loaded: loaded
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()   // W-GUI M3 (report §7 rule 2)
         .jiTheme(.native)
         // §5: the hand-drawn large title becomes the system one.
         .navigationTitle("Energy")
@@ -119,7 +120,11 @@ nonisolated enum EnergySection: CaseIterable, Equatable, Sendable {
 /// no-medical-judgement note), This week, Daily log. `EnergyView` and
 /// the registry preview (`EnergyNativePreview`) both render THIS view, so the sweep shows the
 /// same sections the screen does.
+/// W-GUI M3 (mockup 06): the screen's last line — an estimate, never a judgement.
+public nonisolated let energyNoJudgementCaption = "Energy expenditure from a wrist sensor is an estimate. No medical judgement is made here."
+
 struct EnergySections: View {
+    private let theme = JITheme.native
     let report: EnergyReport?
     let days: [EnergyDay]
     let goal: Double?
@@ -133,12 +138,20 @@ struct EnergySections: View {
                 // B-57 W1 r4: the board has no balance trend chart and no "Intake vs TDEE".
                 ForEach(EnergySection.allCases, id: \.self) { section in
                     switch section {
-                    case .hero: EnergyHero(report: report, goal: goal, band: band)
+                    // W-GUI M3 (mockup 06): the balance hero is the ONE level-1 card at the top —
+                    // "—" + the reason while calibrating; the sections below keep their copy.
+                    case .hero:
+                        Surface(level: 1, padding: JISpacing.cardPadding) { EnergyHero(report: report, goal: goal, band: band) }
+                            .accessibilityIdentifier("energy.hero")
                     case .whatYouBurn: EnergyBurnCard(days: report.days, today: today, window: band.burn, reason: band.reason)
                     case .howWeCalculate:
                         HowWeCalculate(title: JIExplainers.energyBalanceTitle, steps: energyHowWeCalculateSteps, note: JIExplainers.energyBalanceNote)
                             .accessibilityIdentifier("energy.howWeCalculate")
                         EnergyBandDisclaimers(burn: band.burn)
+                        Text(energyNoJudgementCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, JISpacing.s4)
+                            .accessibilityIdentifier("energy.caption")
                     case .thisWeek: EnergyThisWeek(days: report.days, goal: goal, today: today)
                     }
                 }
