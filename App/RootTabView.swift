@@ -207,7 +207,7 @@ struct RootTabView: View {
             }
             .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
-        .background(theme.color(.bg))
+        .jiPageGround()   // W-GUI F3: the tinted ground (report §4.1), never a flat bg
         // B-33 §8.0: the whole shell renders in the native language. §5: tab/selection tint is
         // the personalization accent — W-FIX3 C-c: inherited from the app root's
         // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint
@@ -958,7 +958,7 @@ struct RootTabView: View {
                 }
             }
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
         .navigationTitle(Self.gateNavigationTitle(pageName: loadTodayPageName(prefs: model.tileOrderStore)))
         .navigationSubtitle(Self.gateShowsDateSubtitle ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
         .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
