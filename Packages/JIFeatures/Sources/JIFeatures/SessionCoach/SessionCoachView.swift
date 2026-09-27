@@ -2,9 +2,39 @@ import SwiftUI
 import JICore
 import JIDesign
 
-/// B-57 W1: the cap copy. The user-set cap is W4, so W1 never claims the user chose it.
-public nonisolated let sessionCoachCapTitle = "Your cap \(SessionCoachViewModel.hrSafetyCapBpm)"
-public nonisolated let sessionCoachCapCaption = "\(SessionCoachViewModel.hrSafetyCapBpm) bpm is the cap in your gate settings. The app never raises it."
+/// B-57 W4: the cap copy follows the user's own (optional) cap. nil = no cap, nothing drawn.
+public nonisolated func sessionCoachCapTitle(_ s: GateSettings) -> String? { s.hrCapBpm.map { "Your cap \($0)" } }
+
+public nonisolated func sessionCoachCapCaption(_ s: GateSettings) -> String? {
+    guard let cap = s.hrCapBpm else { return nil }
+    return s.hrCapChosen
+        ? "You chose \(cap) in setup. The app never raises it."
+        : "\(cap) bpm is from your earlier setup. Confirm or change it in Gate thresholds. The app never raises it."
+}
+
+/// The not-available wall's standing rule. nil (row hidden) when the user set no cap and does not
+/// avoid Zone 5.
+public nonisolated func sessionCoachSafetyLine(_ s: GateSettings) -> String? {
+    var parts: [String] = []
+    if let cap = s.hrCapBpm { parts.append("HR ≤ \(cap)") }
+    if s.zone5FloorBpm != nil, let z = s.zones { parts.append("Zone 5 (\(z.rangeText(5))) avoided") }
+    return parts.isEmpty ? nil : "Your limits still apply either way: " + parts.joined(separator: " · ") + "."
+}
+
+/// The unit line under the live HR.
+public nonisolated func sessionCoachUnitLine(_ s: GateSettings) -> String {
+    var parts = ["bpm"]
+    if let cap = s.hrCapBpm { parts.append("cap \(cap)") }
+    if s.zone5FloorBpm != nil, let z = s.zones { parts.append("Z5 \(z.rangeText(5)) avoided") }
+    return parts.joined(separator: " · ")
+}
+
+/// The screen's lead line: names a limit only when the user set one.
+public nonisolated func sessionCoachIntro(_ s: GateSettings) -> String {
+    SessionCoachViewModel.limitBpm(s) == nil
+        ? "Live in-session coach — heart rate, time and session load while you train."
+        : "Live in-session coach — your heart-rate limit is always the headline, whatever else the session is doing."
+}
 
 /// Live Session Coach screen (W3b-L1, P-session-coach). Oracle: `mobile/app/session-coach.tsx` +
 /// `mobile/src/components/training/SessionCoach.tsx`. Pushed from Training's `SessionCoachEntry`
@@ -19,7 +49,7 @@ public struct SessionCoachView: View {
     public var body: some View {
         ScreenScroll {   // W-GUI F6: the shared scroll root (edge effect, sweep branch)
             VStack(alignment: .leading, spacing: 16) {
-                Text("Live in-session coach — the HR-\(SessionCoachViewModel.hrSafetyCapBpm) safety cap is always the headline, whatever else the session is doing.")
+                Text(sessionCoachIntro(model.settings))
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 if model.capable { capableCard } else { notAvailableCard }
             }
@@ -37,7 +67,7 @@ public struct SessionCoachView: View {
     @ViewBuilder var nativeContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             JISectionHeader("Live session")
-            Text("Live in-session coach — the HR-\(SessionCoachViewModel.hrSafetyCapBpm) safety cap is always the headline, whatever else the session is doing.")
+            Text(sessionCoachIntro(model.settings))
                 .jiFont(.footnote).foregroundStyle(theme.color(.muted))
             if model.capable { capableCard } else { notAvailableCard }
         }
@@ -52,8 +82,9 @@ public struct SessionCoachView: View {
                 Text("LIVE SESSION COACH").jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
                 Text("No live heart-rate source is connected — this needs a device that streams HR during the workout itself, not a summary synced afterward.")
                     .jiFont(.subheadline).foregroundStyle(theme.color(.text)).multilineTextAlignment(.center)
-                Text("Safety floor still applies either way: HR ≤ \(SessionCoachViewModel.hrSafetyCapBpm) · Zone 5 (\(SessionCoachViewModel.hrForbiddenZoneLowBpm)-\(SessionCoachViewModel.hrForbiddenZoneHighBpm)) forbidden.")
-                    .jiFont(.caption).foregroundStyle(theme.color(.muted)).multilineTextAlignment(.center)
+                if let line = sessionCoachSafetyLine(model.settings) {
+                    Text(line).jiFont(.caption).foregroundStyle(theme.color(.muted)).multilineTextAlignment(.center)
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -65,21 +96,27 @@ public struct SessionCoachView: View {
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label(sessionCoachCapTitle, systemImage: "info.circle").labelStyle(.titleAndIcon)
-                        .jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
-                        .accessibilityHint(sessionCoachCapCaption)
+                    if let title = sessionCoachCapTitle(model.settings) {
+                        Label(title, systemImage: "info.circle").labelStyle(.titleAndIcon)
+                            .jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
+                            .accessibilityHint(sessionCoachCapCaption(model.settings) ?? "")
+                    }
                     Spacer()
-                    Text(SessionCoachViewModel.label(for: model.capState))
-                        .jiFont(.micro, weight: .heavy)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(trainingToneColor(SessionCoachViewModel.tone(for: model.capState), theme), in: Capsule())
-                        .foregroundStyle(Color.white)
-                        .accessibilityIdentifier("session-coach-state-badge")
-                        .accessibilityLabel("Session state")
-                        .accessibilityValue(SessionCoachViewModel.label(for: model.capState))
+                    if model.capState != .noLimit {
+                        Text(SessionCoachViewModel.label(for: model.capState))
+                            .jiFont(.micro, weight: .heavy)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(trainingToneColor(SessionCoachViewModel.tone(for: model.capState), theme), in: Capsule())
+                            .foregroundStyle(Color.white)
+                            .accessibilityIdentifier("session-coach-state-badge")
+                            .accessibilityLabel("Session state")
+                            .accessibilityValue(SessionCoachViewModel.label(for: model.capState))
+                    }
                 }
-                Text(sessionCoachCapCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("session-coach-cap-caption")
+                if let caption = sessionCoachCapCaption(model.settings) {
+                    Text(caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("session-coach-cap-caption")
+                }
                 Text(model.sample?.hrBpm.map(String.init) ?? "—")
                     .jiNumeral(.numeralDisplay, weight: .heavy)
                     .foregroundStyle(trainingToneColor(SessionCoachViewModel.tone(for: model.capState), theme))
@@ -87,9 +124,9 @@ public struct SessionCoachView: View {
                     .accessibilityIdentifier("session-coach-hr")
                     .accessibilityLabel("Heart rate")
                     .accessibilityValue(model.sample?.hrBpm.map { "\($0) bpm" } ?? "No data yet")
-                Text("bpm · cap \(SessionCoachViewModel.hrSafetyCapBpm) · Z5 \(SessionCoachViewModel.hrForbiddenZoneLowBpm)-\(SessionCoachViewModel.hrForbiddenZoneHighBpm) forbidden")
+                Text(sessionCoachUnitLine(model.settings))
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                Text(SessionCoachViewModel.action(for: model.capState))
+                Text(SessionCoachViewModel.action(for: model.capState, settings: model.settings))
                     .jiFont(.subheadline).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("session-coach-action")
                 if model.sample != nil {

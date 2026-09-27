@@ -116,7 +116,8 @@ struct WorkoutBuilderTests {
             #expect(!alerts.isEmpty)
             for alert in alerts {
                 let range = try bpm(alert)
-                #expect(range.upperBound <= WorkoutBuilder.hrCap, "\(t.name): \(range) exceeds cap")
+                // Toby's seed templates respect his migrated cap (B-57 W4: the builder has no built-in cap)
+                #expect(range.upperBound <= 175, "\(t.name): \(range) exceeds cap")
                 #expect(range.lowerBound < range.upperBound)
             }
         }
@@ -140,19 +141,32 @@ struct WorkoutBuilderTests {
 
     // MARK: error paths
 
-    @Test func workAbove175Throws() async throws {
+    @Test func workAboveTheUsersCapThrows() async throws {
         let t = template(steps: [
             WorkoutStep(purpose: .warmup, seconds: 300, hrLo: 100, hrHi: 140),
             WorkoutStep(purpose: .work, seconds: 240, hrLo: 165, hrHi: 180, repeat: 4),
             WorkoutStep(purpose: .recovery, seconds: 180, hrLo: 100, hrHi: 140, repeat: 4),
             WorkoutStep(purpose: .cooldown, seconds: 300, hrLo: 100, hrHi: 140),
         ])
-        #expect(throws: WorkoutBuilderError.capExceeded(bpm: 180)) { try WorkoutBuilder.build(t) }
+        #expect(throws: WorkoutBuilderError.capExceeded(bpm: 180)) { try WorkoutBuilder.build(t, limits: WorkoutHrLimits(capBpm: 175)) }
     }
 
     @Test func exactly175DoesNotThrow() async throws {
         let t = template(steps: [WorkoutStep(purpose: .work, seconds: 60, hrLo: 160, hrHi: 175)])
-        #expect(throws: Never.self) { try WorkoutBuilder.build(t) }
+        #expect(throws: Never.self) { try WorkoutBuilder.build(t, limits: WorkoutHrLimits(capBpm: 175)) }
+    }
+
+    /// B-57 W4 (Toby 2026-09-24): the cap and Zone 5 avoidance are the user's, both optional.
+    @Test func builderAppliesOnlyTheLimitsItIsGiven() throws {
+        let t = template(steps: [WorkoutStep(purpose: .work, seconds: 240, hrLo: 165, hrHi: 180, repeat: 1)])
+        #expect(throws: Never.self) { try WorkoutBuilder.build(t) }                                   // no limits (trains Zone 5)
+        #expect(throws: Never.self) { try WorkoutBuilder.build(t, limits: .none) }
+        #expect(throws: WorkoutBuilderError.capExceeded(bpm: 180)) { try WorkoutBuilder.build(t, limits: WorkoutHrLimits(capBpm: 175)) }
+        #expect(throws: Never.self) { try WorkoutBuilder.build(t, limits: WorkoutHrLimits(capBpm: 190)) }
+        #expect(throws: WorkoutBuilderError.zone5Target(bpm: 180, zone5FloorBpm: 176)) {
+            try WorkoutBuilder.build(t, limits: WorkoutHrLimits(capBpm: 190, zone5FloorBpm: 176))
+        }
+        #expect(throws: Never.self) { try WorkoutBuilder.build(t, limits: WorkoutHrLimits(zone5FloorBpm: 181)) }
     }
 
     @Test func invertedRangeThrows() async throws {

@@ -3,8 +3,10 @@ import JIDesign
 
 /// §8.5 registry entry "Session coach". `SessionCoachViewModel(provider: nil)` is the real,
 /// shipping "no live HR source" state — the screen's honest wall (rule 5), not a faked reading.
+/// B-57 W4: shown with the migrated pre-W4 settings so the gallery draws the cap layout (the
+/// no-cap layout is pinned by `noCapMeansNoCapCopy`).
 struct SessionCoachNativePreview: View {
-    @State private var model = SessionCoachViewModel(provider: nil)
+    @State private var model = SessionCoachViewModel(provider: nil, settings: .legacyPreW4)
 
     var body: some View {
         VStack {

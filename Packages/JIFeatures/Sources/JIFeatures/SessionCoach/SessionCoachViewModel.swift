@@ -19,12 +19,20 @@ import JICore
 /// "not available" wall is the correct, honest state for every real hub connection this wave.
 @Observable @MainActor
 public final class SessionCoachViewModel {
-    public enum CapState: Equatable, Sendable { case unknown, under, approaching, breach }
+    public enum CapState: Equatable, Sendable { case unknown, under, approaching, breach, noLimit }
 
-    public nonisolated static let hrSafetyCapBpm = 175
-    public nonisolated static let hrForbiddenZoneLowBpm = 176
-    public nonisolated static let hrForbiddenZoneHighBpm = 198
     private nonisolated static let approachingBandBpm = 15
+
+    /// B-57 W4: the user's settings (optional cap, zones, Avoid Zone 5). Never changed by the app.
+    public let settings: GateSettings
+    public var hrCapBpm: Int? { settings.hrCapBpm }
+    public var limitBpm: Int? { Self.limitBpm(settings) }
+
+    /// The HR the session stays at or under: the cap and/or the top of Zone 4 when the user
+    /// avoids Zone 5. nil = the user chose no limit at all.
+    public nonisolated static func limitBpm(_ s: GateSettings) -> Int? {
+        [s.hrCapBpm, s.zone5FloorBpm.map { $0 - 1 }].compactMap { $0 }.min()
+    }
 
     /// `false` when the injected provider never conforms to `LiveSessionProviding` — the sole gate:
     /// the view renders the "not available" wall instead of polling, and this VM never calls
@@ -52,7 +60,8 @@ public final class SessionCoachViewModel {
     private let pollNs: UInt64
     private var pollTask: Task<Void, Never>?
 
-    public init(provider: (any HealthDataProvider)?, pollIntervalMs: UInt64 = 2000) {
+    public init(provider: (any HealthDataProvider)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
+        self.settings = settings
         let live = provider as? any LiveSessionProviding
         self.liveProvider = live
         self.capable = live != nil
@@ -90,7 +99,7 @@ public final class SessionCoachViewModel {
         }
     }
 
-    public var capState: CapState { Self.deriveCapState(hrBpm: sample?.hrBpm) }
+    public var capState: CapState { Self.deriveCapState(hrBpm: sample?.hrBpm, limitBpm: limitBpm) }
 
     public var elapsedText: String {
         guard let s = sample?.elapsedS else { return "—" }
@@ -103,17 +112,18 @@ public final class SessionCoachViewModel {
     }
 
     /// Port of `deriveHrCapState` (`mobile/src/lib/hrSafety.ts`): `nil` always reads as `.unknown`,
-    /// never a false "under" all-clear.
-    public nonisolated static func deriveCapState(hrBpm: Int?) -> CapState {
+    /// never a false "under" all-clear. B-57 W4: against the user's own limit; none = `.noLimit`.
+    public nonisolated static func deriveCapState(hrBpm: Int?, limitBpm: Int?) -> CapState {
         guard let hrBpm else { return .unknown }
-        if hrBpm > hrSafetyCapBpm { return .breach }
-        if hrBpm >= hrSafetyCapBpm - approachingBandBpm { return .approaching }
+        guard let limitBpm else { return .noLimit }
+        if hrBpm > limitBpm { return .breach }
+        if hrBpm >= limitBpm - approachingBandBpm { return .approaching }
         return .under
     }
 
     public nonisolated static func tone(for state: CapState) -> VerdictTone {
         switch state {
-        case .unknown: .muted
+        case .unknown, .noLimit: .muted
         case .under: .go
         case .approaching: .amber
         case .breach: .red
@@ -123,20 +133,26 @@ public final class SessionCoachViewModel {
     public nonisolated static func label(for state: CapState) -> String {
         switch state {
         case .unknown: "No live reading"
-        case .under: "Under cap"
-        case .approaching: "Approaching cap"
-        case .breach: "OVER CAP"
+        case .noLimit: "No limit"
+        case .under: "Under your limit"
+        case .approaching: "Near your limit"
+        case .breach: "OVER YOUR LIMIT"
         }
     }
 
     /// E15-5 port — every band (including "under") ships one concrete next action, never a bare
     /// warning.
-    public nonisolated static func action(for state: CapState) -> String {
+    public nonisolated static func action(for state: CapState, settings: GateSettings) -> String {
+        let limit = limitBpm(settings).map(String.init) ?? "—"
         switch state {
-        case .unknown: "No live heart-rate reading for this session — pace/RPE only."
-        case .under: "On plan — hold pace."
-        case .approaching: "Within \(approachingBandBpm) bpm of the \(hrSafetyCapBpm) cap — ease off before you reach it."
-        case .breach: "Over the \(hrSafetyCapBpm) cap — Zone 5 (\(hrForbiddenZoneLowBpm)-\(hrForbiddenZoneHighBpm)) is forbidden. Back off now."
+        case .unknown: return "No live heart-rate reading for this session — pace/RPE only."
+        case .noLimit: return "No heart-rate limit set — train by your plan and how you feel."
+        case .under: return "On plan — hold pace."
+        case .approaching: return "Within \(approachingBandBpm) bpm of your \(limit) limit — ease off before you reach it."
+        case .breach:
+            let zone5 = settings.zone5FloorBpm != nil
+                ? " You chose to stay out of Zone 5 (\(settings.zones?.rangeText(5) ?? "—"))." : ""
+            return "Over your \(limit) limit — back off now." + zone5
         }
     }
 

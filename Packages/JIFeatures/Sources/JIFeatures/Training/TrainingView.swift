@@ -18,6 +18,8 @@ public struct TrainingView: View {
     // B-37-L3 (P-workouts): the app wires `\.sendToWatchModel`; nil (previews, tests, no hub) hides
     // the toolbar button. Environment-routed so `init(model:)` stays the frozen contract.
     @Environment(\.sendToWatchModel) private var sendToWatch
+    /// B-57 W4: the user's optional cap / zones, injected by the app shell.
+    @Environment(\.gateSettings) private var gateSettings
     @State private var showSendToWatch = false
     #endif
     public init(model: TrainingViewModel) { self.model = model }
@@ -62,7 +64,7 @@ public struct TrainingView: View {
         // deliberately never conforms to `LiveSessionProviding` — see JICore's doc comment).
         // Wiring the real provider through is a follow-up once `TrainingViewModel` exposes one.
         .navigationDestination(isPresented: $showSessionCoach) {
-            SessionCoachView(model: SessionCoachViewModel(provider: nil))
+            SessionCoachView(model: SessionCoachViewModel(provider: nil, settings: gateSettings))
         }
         #if canImport(WorkoutKit)
         .sheet(isPresented: $showSendToWatch) {

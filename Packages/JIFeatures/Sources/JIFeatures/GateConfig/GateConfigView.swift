@@ -23,6 +23,7 @@ public struct GateConfigView: View {
 
     public init(model: GateConfigViewModel) { _model = State(initialValue: model) }
     @Environment(\.recoveryInsight) private var recoveryInsight
+    @Environment(\.gateSettings) private var gateSettings
 
     public var body: some View {
         Form {
@@ -47,7 +48,7 @@ public struct GateConfigView: View {
                 Text("Recommended values are already set. Change one only when you know why.")
             }
             Section("Safety") {
-                valueRow(gateConfigHrCapTitle, gateConfigHrCapSubtitle, value: "\(SessionCoachViewModel.hrSafetyCapBpm) bpm")
+                valueRow(gateConfigHrCapTitle, gateConfigHrCapSubtitle, value: gateSettings.hrCapBpm.map { "\($0) bpm" } ?? "None")
                 lockedRow("Zone 5", "No Zone 5 target anywhere in the app.", value: "Off")
             }
             ForEach([GateConfigGroup.recoverySignals, .sleep, .fuel], id: \.self) { group in

@@ -8,8 +8,10 @@ import WorkoutKit
 public enum WorkoutBuilderError: Error, Equatable, Sendable {
     /// Kept from the L1 stub for source compatibility; the builder never throws it since B-37-L2.
     case notImplemented
-    /// Some step's `hrHi` exceeds the 175 bpm cap (`project_docs_map` AWU zones).
+    /// Some step's `hrHi` is above the user's HR cap (B-57 W4: only when the user set one).
     case capExceeded(bpm: Int)
+    /// Some step's `hrHi` reaches the user's Zone 5, which the user chose to avoid.
+    case zone5Target(bpm: Int, zone5FloorBpm: Int)
     /// `hrLo` is not below `hrHi`, or a bound is non-positive.
     case invalidRange(lo: Int, hi: Int)
     /// A step's `seconds` is not positive.
@@ -26,14 +28,18 @@ public enum WorkoutBuilderError: Error, Equatable, Sendable {
 /// `.cooldown`; a `work` step immediately followed by a `recovery` step with the same `repeat`
 /// → one `IntervalBlock([work, recovery], iterations: repeat)`; any other step → its own block
 /// with `iterations: repeat`. Every step carries an absolute-bpm `HeartRateRangeAlert` (never a
-/// zone alert), and the whole plan is rejected when any `hrHi` exceeds `hrCap`.
+/// zone alert), and the plan is rejected when a step targets above the user's cap or inside the
+/// Zone 5 they chose to avoid (`WorkoutHrLimits`; none by default).
 public enum WorkoutBuilder {
-    public static let hrCap = 175
+    /// No limits: the user set no cap and does not avoid Zone 5 (both optional, Toby 2026-09-24).
+    public static func build(_ template: WorkoutTemplate) throws -> WorkoutPlan { try build(template, limits: .none) }
 
-    public static func build(_ template: WorkoutTemplate) throws -> WorkoutPlan {
+    /// Every step keeps its own absolute-bpm target-range alert from the template. `limits` only
+    /// rejects a plan that would target above the user's cap or inside their avoided Zone 5.
+    public static func build(_ template: WorkoutTemplate, limits: WorkoutHrLimits) throws -> WorkoutPlan {
         guard !template.steps.isEmpty else { throw WorkoutBuilderError.noSteps }
         let activity = try activityType(template.activity)
-        for step in template.steps { try validate(step) }
+        for step in template.steps { try validate(step, limits: limits) }
 
         var steps = template.steps[...]
         var warmup: WorkoutKit.WorkoutStep?
@@ -75,10 +81,13 @@ public enum WorkoutBuilder {
 
     // MARK: - pieces
 
-    static func validate(_ step: WorkoutStep) throws {
+    static func validate(_ step: WorkoutStep, limits: WorkoutHrLimits = .none) throws {
         guard step.seconds > 0 else { throw WorkoutBuilderError.invalidDuration(seconds: step.seconds) }
         guard step.hrLo > 0, step.hrLo < step.hrHi else { throw WorkoutBuilderError.invalidRange(lo: step.hrLo, hi: step.hrHi) }
-        guard step.hrHi <= hrCap else { throw WorkoutBuilderError.capExceeded(bpm: step.hrHi) }
+        if let cap = limits.capBpm, step.hrHi > cap { throw WorkoutBuilderError.capExceeded(bpm: step.hrHi) }
+        if let z5 = limits.zone5FloorBpm, step.hrHi >= z5 {
+            throw WorkoutBuilderError.zone5Target(bpm: step.hrHi, zone5FloorBpm: z5)
+        }
     }
 
     static func activityType(_ activity: String) throws -> HKWorkoutActivityType {
