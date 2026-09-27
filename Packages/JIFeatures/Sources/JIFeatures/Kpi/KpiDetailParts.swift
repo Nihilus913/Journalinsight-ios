@@ -33,6 +33,8 @@ struct KpiDetailTrend: View {
     let label: String
     let unit: String?
     @Binding var range: KpiDetailRange
+    /// W-GUI R2: the line wears the metric's colour, never the accent (rule 6).
+    var tint: JIColorRole = .text
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
@@ -45,12 +47,13 @@ struct KpiDetailTrend: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("kpi-detail-range")
             Surface {
+                VStack(alignment: .leading, spacing: 8) {
                 Chart(points) { p in
                     LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
-                        .foregroundStyle(theme.color(.info))
+                        .foregroundStyle(theme.color(tint))
                         .interpolationMethod(.monotone)
                     if points.count == 1 {
-                        PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(.info))
+                        PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
                     }
                 }
                 .chartYAxis { AxisMarks(position: .trailing) }
@@ -61,6 +64,10 @@ struct KpiDetailTrend: View {
                 }
                 .accessibilityLabel("\(label) trend")
                 .accessibilityIdentifier("kpi-detail-chart")
+                // W-GUI R2 (mockup 07): the legend is honest until W3 lands the band.
+                Text(kpiDetailLegend).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -220,13 +227,16 @@ struct KpiDetailValueCard: View {
     let label: String
     let status: KpiDetailStatus
     let asOf: String?
+    /// W-GUI R2: the numeral wears the metric colour (RHR coral, HRV blue); the sleep card is tinted.
+    var tint: JIColorRole = .text
+    var heroTint: Color? = nil
     private let theme = JITheme.native
 
     var body: some View {
-        Surface {
+        Surface(tint: heroTint) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(valueText)
-                    .jiNumeral(.numeralLarge).foregroundStyle(theme.color(.text))
+                    .jiNumeral(.numeralLarge).foregroundStyle(theme.color(status.word.hasPrefix("—") ? .muted : tint))
                     .accessibilityLabel(label)
                     .accessibilityValue(valueText)
                     .accessibilityIdentifier("kpi-detail-value")
