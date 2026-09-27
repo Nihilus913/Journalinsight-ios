@@ -151,15 +151,16 @@ public struct DecideView: View {
     @ViewBuilder
     private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
         // W-FIX3 BUG-30 (board 01): black "Go" on the green button, never white.
+        // W-GUI F9 (report §4.5): the ONE primary button — accent fill, black label (BUG-30 kept).
         Button { go() } label: { Text("Go").foregroundStyle(decideGoForeground).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
-            .buttonStyle(.borderedProminent).tint(theme.color(.go))
+            .buttonStyle(.jiPrimary)
             .disabled(!actions.go || submitting)
             .accessibilityIdentifier("today.decide.go")
         if showsAdjust {
             Button { showAdjust = true } label: {
                 Text("Adjust").lineLimit(1).fixedSize().frame(maxWidth: stacked ? .infinity : nil)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.jiSecondary)
             .disabled(submitting)
             .accessibilityIdentifier("today.decide.adjust")
         }

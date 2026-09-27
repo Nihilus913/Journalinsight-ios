@@ -14,6 +14,13 @@ public nonisolated func syncedPillText(_ date: Date?, label: JISyncedLabel, now:
     return "\(label.rawValue) \(c.day ?? 0) \(month) \(time)"
 }
 
+/// W-GUI F9: an older-than-today sync reads amber ("Offline · last …" in the mockups): a status
+/// word, tinted AND worded (the day is in the text). Today = primary text, never = muted.
+public nonisolated func syncedPillIsStale(_ date: Date?, now: Date, calendar: Calendar) -> Bool {
+    guard let date else { return false }
+    return !calendar.isDate(date, inSameDayAs: now)
+}
+
 public struct SyncedPill: View {
     let date: Date?, label: JISyncedLabel, now: Date, calendar: Calendar
     @Environment(\.jiTheme) private var theme
@@ -22,12 +29,18 @@ public struct SyncedPill: View {
     }
     public var body: some View {
         let today = date.map { calendar.isDate($0, inSameDayAs: now) } ?? false
+        let stale = syncedPillIsStale(date, now: now, calendar: calendar)
+        // W-GUI F9 (report §4.5): one pill format everywhere — 12 pt radius control fill with a
+        // hairline rim; older sync amber, today primary, never-synced muted.
+        let shape = RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous)
         Label(syncedPillText(date, label: label, now: now, calendar: calendar),
               systemImage: date == nil ? "exclamationmark.circle" : (today ? "checkmark" : "clock"))
             .jiFont(.footnote, weight: .semibold)
-            .foregroundStyle(theme.color(today ? .text : .muted))
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(theme.color(.surface2), in: Capsule())
+            .foregroundStyle(theme.color(stale ? .reduced : (today ? .text : .muted)))
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .padding(.horizontal, JISpacing.s3).padding(.vertical, 6)
+            .background(theme.color(.control), in: shape)
+            .overlay(shape.strokeBorder(theme.color(.hairlineOuter), lineWidth: 1))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("synced-pill")
     }

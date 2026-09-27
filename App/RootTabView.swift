@@ -504,7 +504,7 @@ struct RootTabView: View {
                 // W-FIX2 BUG-47: still presented (B-46 item 10), but drawn as the same chevron row
                 // as its neighbours — plain title, muted value, disclosure chevron.
                 Button { showKpiList = true } label: {
-                    MoreChevronRow {
+                    JIChevronRow {
                         MoreRowLabel("My KPIs", systemImage: "chart.bar",
                                      value: MoreRowValue(lead: Self.moreKpiText(count: moreKpiCount), rest: "", style: .muted))
                     }
@@ -525,7 +525,7 @@ struct RootTabView: View {
             Section("App") {
                 // W-FIX2 BUG-47 (board 4/04): one row, "Hub synced 07:41 ›" — text, not a pill.
                 Button { showSettings = true } label: {
-                    MoreChevronRow {
+                    JIChevronRow {
                         MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
                                      value: MoreRowValue(lead: Self.moreSettingsText(syncedAt: Self.moreSettingsDate(todayModel)), rest: "", style: .muted))
                     }
@@ -984,22 +984,7 @@ struct RootTabView: View {
     }
 }
 
-/// W-FIX2 BUG-47: a presenting row drawn like a `NavigationLink` row — primary-coloured title and
-/// a trailing disclosure chevron (a bare `Button` row took the tint colour and had no chevron).
-struct MoreChevronRow<Label: View>: View {
-    @ViewBuilder let label: () -> Label
-    var body: some View {
-        HStack(spacing: 8) {
-            label()
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .foregroundStyle(.primary)
-        .contentShape(Rectangle())
-    }
-}
+// W-GUI F9: `MoreChevronRow` (W-FIX2 BUG-47) is `JIChevronRow` in JIDesign now — one row for every screen.
 
 // MARK: - Chrome-only TabView plumbing
 
