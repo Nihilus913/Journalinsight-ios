@@ -295,7 +295,11 @@ public final class HealthKitUploader: Sendable {
                 let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
                 let response: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
                 _ = response // status/rows_loaded not currently surfaced further; kept for future logging
-                anchorDefaults?.set(ISO8601DateFormatter().string(from: Date()), forKey: Self.lastSuccessKey)
+                let arrived = ISO8601DateFormatter().string(from: Date())
+                anchorDefaults?.set(arrived, forKey: Self.lastSuccessKey)
+                // WD-5 (DEV-12): per-type arrival, so the Apple Health screen never shows one
+                // type's upload time for another (`HealthKitArrival.lastUpload`).
+                anchorDefaults?.set(arrived, forKey: HealthKitArrival.key(for: spec.sampleType))
                 uploaded += points.count
             }
             writeAnchor(page.newAnchor, key: spec.anchorKey)
