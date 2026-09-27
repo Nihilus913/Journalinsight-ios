@@ -94,3 +94,19 @@ struct TrainingWeekPlanTests {
         #expect(TrainingViewModel.cachedWeekSummary(cache: cache, today: "2026-09-23")?.planTotal == 4)
     }
 }
+
+// B2 — Training "This week" strip.
+extension TrainingWeekPlanTests {
+    @Test func dayAccessibilityLabelIsWords() {
+        let s = trainingWeekSummary(planSessions: Self.plan, exercises: [], daily: [Self.kcal("2026-09-21", 420)], today: "2026-09-23")
+        #expect(trainingWeekDayAccessibilityLabel(s.days[0]) == "Monday, strength, Day 1 Full Upper, done")
+        #expect(trainingWeekDayAccessibilityLabel(s.days[2]) == "Wednesday, today, strength, Day 2 Full Upper")
+        #expect(trainingWeekDayAccessibilityLabel(s.days[6]) == "Sunday, rest")
+        #expect(trainingWeekLegend == "S strength · I intervals · R long run")
+    }
+
+    /// W-FIX3 BUG-33 carried to the new strip: seven fixed circles stop scaling before AX sizes.
+    @Test func weekStripCapsItsTypeSizeBelowAXSizes() {
+        #expect(!TrainingThisWeekStrip.maxTypeSize.isAccessibilitySize)
+    }
+}
