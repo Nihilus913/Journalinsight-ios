@@ -111,7 +111,7 @@ public struct NormalBarChart: View {
     }
 
     public init(points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String? = nil, decimals: Int = 0,
-                median: Double? = nil, tint: JIColorRole = .info, title: String? = nil, summary: String? = nil) {
+                median: Double? = nil, tint: JIColorRole = .text, title: String? = nil, summary: String? = nil) {
         self.points = points; self.normal = normal; self.unit = unit; self.decimals = decimals
         self.median = median; self.tint = tint; self.title = title; self.summary = summary
     }

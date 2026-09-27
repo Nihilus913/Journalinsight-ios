@@ -117,6 +117,8 @@ struct RootTabView: View {
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
     // and routed through the environment (`GateRationaleView` reads `\.gateRationaleModel`; nil = inert).
     @State private var gateRationaleModel: GateRationaleViewModel?
+    // W-GUI T1: Decide's "How the morning call works" row → GateConfig (same model Settings builds).
+    @State private var gateConfigModel: GateConfigViewModel?
     // W-B57b (B-62): Decide's verdict-override write model, built beside `gateRationaleModel`.
     @State private var verdictOverrideModel: VerdictOverrideViewModel?
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
@@ -946,7 +948,14 @@ struct RootTabView: View {
                            overrideModel: verdictOverrideModel,
                            syncedAt: model.syncedAt,
                            normals: decideSignalNormals(recovery: model.recovery),
-                           banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)) { answerGate(model) }
+                           banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
+                           calibrationNights: model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
+                    .environment(\.gateConfigModel, gateConfigModel)
+                    .onAppear {
+                        if gateConfigModel == nil {
+                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs)
+                        }
+                    }
             } else {
                 ScreenScroll {
                     VStack(alignment: .leading, spacing: 16) {

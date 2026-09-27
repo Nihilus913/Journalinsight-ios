@@ -145,9 +145,6 @@ public struct DecideSignalsSection: View {
 
     public init(signals: [GateSignal], normals: [String: ClosedRange<Double>] = [:]) { self.signals = signals; self.normals = normals }
 
-    private var whyHeading: some View {
-        Text("Why").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-    }
     private var whyNote: some View {
         // Board 01: "shaded = your normal" once a normal exists; until then it says it is calibrating.
         Text(normals.values.isEmpty ? "your normal — \(JIMissingReason.calibrating.rawValue)" : "compared with your normal")
@@ -155,26 +152,23 @@ public struct DecideSignalsSection: View {
     }
 
     public var body: some View {
-        let rows = VStack(alignment: .leading, spacing: 8) {
-            // AX sizes: the reference note drops under the heading instead of truncating to "your normal…".
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline) {
-                    whyHeading
-                    Spacer()
-                    whyNote.lineLimit(1)
-                }
-                VStack(alignment: .leading, spacing: 2) { whyHeading; whyNote }
-            }
-            ForEach(signals.map { decideSignalRowModel($0, normal: normals[$0.key]) }) { m in
+        // W-GUI T1 (mockup 01): the rows live in the "What drove it" grouped card — the section
+        // header is the card's, the reference note sits under it, rows are separated by hairlines.
+        let models = signals.map { decideSignalRowModel($0, normal: normals[$0.key]) }
+        let rows = VStack(alignment: .leading, spacing: 0) {
+            whyNote.fixedSize(horizontal: false, vertical: true).padding(.vertical, JISpacing.s1)
+            ForEach(Array(models.enumerated()), id: \.element.id) { index, m in
                 Button { if rationaleModel != nil { showRationale = true } } label: {
                     SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, normal: m.normal, status: m.status, detail: m.detail)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(theme.color(.surface2), in: RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous))
+                        .padding(.vertical, JISpacing.s2)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.pressableScale)
                 .accessibilityHint(rationaleModel == nil ? "" : "Opens the readiness rationale")
                 .accessibilityIdentifier("today.decide.signal.\(m.id)")
+                if index < models.count - 1 { JIRowDivider().padding(.leading, 0) }
             }
+            if !models.isEmpty { JIRowDivider().padding(.leading, 0) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.decide.signals")
