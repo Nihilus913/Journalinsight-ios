@@ -82,7 +82,7 @@ public struct KpiListView: View {
                         Spacer()
                         if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
-                    SquareGrid(items: items, onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
+                    SquareGrid(items: items, family: squareTileFamily(catalog: true), onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
                         guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
                         if model.toggle(id, selected: group != .onToday) { announceTodayChange() }
                     })

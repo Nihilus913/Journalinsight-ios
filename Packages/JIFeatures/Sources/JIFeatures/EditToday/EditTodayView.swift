@@ -35,13 +35,13 @@ public struct EditTodayView: View {
                     Spacer()
                     Text(editTodayCountText(model.prefs)).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 }
-                SquareGrid(items: editTodayVisibleItems(model.prefs, chips: model.chips), editing: true,
+                SquareGrid(items: editTodayVisibleItems(model.prefs, chips: model.chips), editing: true, family: squareTileFamily(catalog: true),
                            onBadge: { model.setHidden($0, hide: true) },
                            onMove: { model.moveSquare($0, before: $1) },
                            onAdd: { model.openAddCatalogue() })
                 if !model.prefs.hidden.isEmpty {
                     Text("Add a square").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                    SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), onBadge: { model.setHidden($0, hide: false) })
+                    SquareGrid(items: editTodayHiddenItems(model.prefs, chips: model.chips), family: squareTileFamily(catalog: true), onBadge: { model.setHidden($0, hide: false) })
                 }
                 Text("The call on top stays fixed. Hidden squares still count toward it. Today holds \(KpiSelection.minSelected) to \(KpiSelection.maxSelected) squares — the same set as My KPIs.")
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
@@ -63,7 +63,7 @@ public struct EditTodayView: View {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Tap + to add a square to Today, ✓ to take it off.").jiFont(.subheadline).foregroundStyle(theme.color(.muted))
-                    SquareGrid(items: editTodayCatalogueItems(model.prefs, chips: model.chips),
+                    SquareGrid(items: editTodayCatalogueItems(model.prefs, chips: model.chips), family: squareTileFamily(catalog: true),
                                onTap: { model.toggleFromCatalogue($0) }, onBadge: { model.toggleFromCatalogue($0) })
                 }
                 .padding(.horizontal, 20).padding(.vertical, 12)

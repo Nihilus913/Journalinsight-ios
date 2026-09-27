@@ -227,7 +227,9 @@ public struct TodayGrid: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(theme.color(.mutedNested))
                 }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
+            .jiTileHeight(.square)   // W-GUI F7 (DEV-06): the mind tile shares the squares' row height
         }
         .buttonStyle(.plain)
         .accessibilityLabel(mindTodayCheckin != nil ? "Today's mind check-in — update" : "How are you today — daily check-in")

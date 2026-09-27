@@ -27,6 +27,11 @@ public nonisolated func squareGridMove(_ ids: [String], moving: String, before t
     return out
 }
 
+/// W-GUI F7 (DEV-06): which fixed-height family a grid's squares belong to — Today / Recovery
+/// squares are `.square` (172), the Edit Today / My KPIs catalogue is `.catalogSquare` (104).
+/// Every cell in a grid gets the family's height; text truncates, never grows the cell.
+public nonisolated func squareTileFamily(catalog: Bool) -> JITileHeight { catalog ? .catalogSquare : .square }
+
 /// Three squares a row; two at accessibility sizes so a label never truncates to nothing.
 public nonisolated func squareGridColumnCount(isAccessibilitySize: Bool) -> Int { isAccessibilitySize ? 2 : 3 }
 /// A screen may ask for fewer columns (Recovery's board = 2); AX sizes still cap it at 2.
@@ -78,26 +83,30 @@ public nonisolated func squareBadgeActionLabel(_ item: JISquareItem) -> String? 
 
 public struct SquareGrid: View {
     let items: [JISquareItem], editing: Bool, columns: Int
+    /// W-GUI F7: the fixed-height family of every cell (DEV-06).
+    let family: JITileHeight
     let onTap: ((String) -> Void)?, onBadge: ((String) -> Void)?, onMove: ((String, String) -> Void)?, onAdd: (() -> Void)?
     /// False = the dashed "Add" square still closes the grid (board) but is inert — nothing to add.
     let canAdd: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    public init(items: [JISquareItem], editing: Bool = false, columns: Int = 3, onTap: ((String) -> Void)? = nil, onBadge: ((String) -> Void)? = nil,
+    public init(items: [JISquareItem], editing: Bool = false, columns: Int = 3, family: JITileHeight = .square,
+                onTap: ((String) -> Void)? = nil, onBadge: ((String) -> Void)? = nil,
                 onMove: ((String, String) -> Void)? = nil, onAdd: (() -> Void)? = nil, canAdd: Bool = true) {
-        self.items = items; self.editing = editing; self.columns = columns; self.onTap = onTap; self.onBadge = onBadge; self.onMove = onMove; self.onAdd = onAdd
+        self.items = items; self.editing = editing; self.columns = columns; self.family = family
+        self.onTap = onTap; self.onBadge = onBadge; self.onMove = onMove; self.onAdd = onAdd
         self.canAdd = canAdd
     }
 
     public var body: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
+        let columns = Array(repeating: GridItem(.flexible(), spacing: JISpacing.cardGap, alignment: .top),
                             count: squareGridColumnCount(preferred: columns, isAccessibilitySize: typeSize.isAccessibilitySize))
-        LazyVGrid(columns: columns, spacing: 12) {
+        LazyVGrid(columns: columns, spacing: JISpacing.cardGap) {
             ForEach(items) { item in
                 square(item)
             }
             if editing, let onAdd {
-                AddSquare(action: onAdd, enabled: canAdd)
+                AddSquare(action: onAdd, enabled: canAdd, family: family)
             }
         }
     }
@@ -105,7 +114,7 @@ public struct SquareGrid: View {
     @ViewBuilder
     private func square(_ item: JISquareItem) -> some View {
         let ids = items.map(\.id)
-        let base = MetricSquare(item: item)
+        let base = MetricSquare(item: item, family: family)
             .contentShape(Rectangle())
             .onTapGesture { if !editing { onTap?(item.id) } }
             .accessibilityElement(children: .ignore)
@@ -148,22 +157,25 @@ private struct BadgeAction: ViewModifier {
     }
 }
 
-/// One square: icon + label, the value (or "—"), the goal fraction, and the worded status.
+/// One square: icon + label pinned top, the value (or "—") in the middle, the goal fraction and
+/// the worded status at the bottom. W-GUI F7 (DEV-06): a FIXED family height — text truncates
+/// and shrinks, never grows the cell, so every square in a row is the same size.
 struct MetricSquare: View {
     let item: JISquareItem
+    var family: JITileHeight = .square
     @Environment(\.jiTheme) private var theme
-    @ScaledMetric(relativeTo: .body) private var minSide: CGFloat = 104
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             let labelLayout = squareLabelStacksIcon(isAccessibilitySize: typeSize.isAccessibilitySize)
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
             labelLayout {
                 if let symbol = item.systemImage { Image(systemName: symbol).accessibilityHidden(true) }
-                Text(item.label).lineLimit(3).minimumScaleFactor(0.8)
+                Text(item.label).lineLimit(2).minimumScaleFactor(0.7)
             }
             .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(item.value == nil ? .muted : item.tint))
+            Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(jiValueText(item.value, decimals: item.decimals))
                     .jiNumeral(.numeralCompact, tint: item.value == nil ? .muted : item.tint)
@@ -183,9 +195,10 @@ struct MetricSquare: View {
                     .lineLimit(2).minimumScaleFactor(0.8)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: minSide, alignment: .topLeading)
+        .padding(JISpacing.tilePadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.color(.surface), in: RoundedRectangle(cornerRadius: theme.radius(.nested), style: .continuous))
+        .jiTileHeight(family)
     }
 }
 
@@ -239,8 +252,8 @@ struct SquareBadge: View {
 struct AddSquare: View {
     let action: () -> Void
     var enabled = true
+    var family: JITileHeight = .square
     @Environment(\.jiTheme) private var theme
-    @ScaledMetric(relativeTo: .body) private var minSide: CGFloat = 104
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
@@ -248,9 +261,10 @@ struct AddSquare: View {
                 Text("Add").jiFont(.footnote, weight: .semibold)
             }
             .foregroundStyle(theme.color(.info))
-            .frame(maxWidth: .infinity, minHeight: minSide)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(RoundedRectangle(cornerRadius: theme.radius(.nested), style: .continuous)
                 .strokeBorder(theme.color(.mutedNested), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
+            .jiTileHeight(family)
         }
         .buttonStyle(.pressableScale)
         .disabled(!enabled)

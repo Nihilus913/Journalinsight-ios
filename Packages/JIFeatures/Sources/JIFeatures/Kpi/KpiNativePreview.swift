@@ -32,7 +32,7 @@ struct KpiListNativePreview: View {
                         Spacer()
                         if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
-                    SquareGrid(items: items, onBadge: { _ in })
+                    SquareGrid(items: items, family: squareTileFamily(catalog: true), onBadge: { _ in })
                 }
             }
             Spacer(minLength: 0)
