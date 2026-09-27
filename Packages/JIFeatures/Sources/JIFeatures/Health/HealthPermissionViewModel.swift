@@ -2,6 +2,9 @@ import Foundation
 import Observation
 import JICore
 import JIHealthKit
+#if canImport(UIKit) && !os(watchOS)
+import UIKit
+#endif
 
 // `HKPermission` is JIHealthKit's (`HealthKitPermissions.swift`) — W8-L4 (B-12) deleted the
 // same-named duplicate that used to live here (W2d built it against the card's NAME because the
@@ -21,22 +24,65 @@ public final class HealthPermissionViewModel {
     /// default (SDNN only) stands in for previews and any test that doesn't override it.
     public let appleWatchCapabilities: DataCapability
 
+    /// W-DATA R3 (DEV-14): the hub's Apple-night sleep score (`/vitals/sleep-summary`
+    /// `score_computed`) for the "Computed from these" tile; nil = "—".
+    public private(set) var sleepScore: Double?
+
     private let requestPermission: () async -> HKPermission
+    private let openHealthSettings: @MainActor () -> Void
+    private let loadSleepScore: (@Sendable () async -> Double?)?
 
     public init(
         permission: HKPermission = .notDetermined,
         appleWatchCapabilities: DataCapability = [.hrvSDNN],
-        requestPermission: @escaping () async -> HKPermission
+        requestPermission: @escaping () async -> HKPermission,
+        openHealthSettings: @escaping @MainActor () -> Void = HealthPermissionViewModel.openHealthSettingsOnDevice,
+        loadSleepScore: (@Sendable () async -> Double?)? = nil
     ) {
         self.permission = permission
         self.appleWatchCapabilities = appleWatchCapabilities
         self.requestPermission = requestPermission
+        self.openHealthSettings = openHealthSettings
+        self.loadSleepScore = loadSleepScore
     }
 
-    /// "Connect Apple Health" button action — calls the injected permission request and adopts
-    /// whatever three-state result comes back (never assumes success).
+    /// DEV-12: the user has answered the sheet (or data arrived). iOS never shows the sheet again
+    /// for a decided type, so the button must lead to where access is changed instead.
+    public var isDecided: Bool { permission != .notDetermined }
+
+    public var connectLabel: String { isDecided ? "Open Health settings" : "Connect Apple Health" }
+
+    /// The primary button. Undecided: the injected permission request, adopting whatever
+    /// three-state result comes back (never assumes success). Decided: opens Health's sharing
+    /// settings (DEV-12 — the request call is a silent no-op there, the old "dead button").
     public func connect() async {
+        guard !isDecided else { openHealthSettings(); return }
         permission = await requestPermission()
+    }
+
+    /// DEV-12: data ARRIVING at the hub proves a read grant — HealthKit never reports one. Any
+    /// upload instant makes the model `.granted` (never "Declined" once uploaded); nil changes
+    /// nothing (absence of data is not a decline).
+    public func adoptArrival(_ lastUpload: Date?) {
+        if lastUpload != nil { permission = .granted }
+    }
+
+    /// Refreshes the computed tiles' hub values (sleep score); unwired loader = stays nil.
+    public func refreshComputed() async {
+        guard let loadSleepScore else { return }
+        sleepScore = await loadSleepScore()
+    }
+
+    /// Health app first (Sharing › Apps lives there; `x-apple-health://` is its URL scheme); when
+    /// iOS can't open it, the app's own Settings page. No private `App-prefs:` URLs.
+    public static func openHealthSettingsOnDevice() {
+        #if canImport(UIKit) && !os(watchOS)
+        guard let health = URL(string: "x-apple-health://") else { return }
+        UIApplication.shared.open(health) { opened in
+            guard !opened, let settings = URL(string: UIApplication.openSettingsURLString) else { return }
+            Task { @MainActor in UIApplication.shared.open(settings) }
+        }
+        #endif
     }
 
     /// Externally-driven update (B-13, `AppEnvironment.makeHealthPermissionModel`): a fresh
