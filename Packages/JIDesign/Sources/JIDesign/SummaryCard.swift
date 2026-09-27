@@ -27,9 +27,9 @@ public struct SummaryCard: View {
 
     public var body: some View {
         Button(action: { action?() }) {
-            Surface(level: 1) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
+            Surface(level: 1, padding: JISpacing.cardPadding) {
+                VStack(alignment: .leading, spacing: JISpacing.s2) {
+                    HStack(spacing: JISpacing.s1 + 2) {
                         Image(systemName: icon).foregroundStyle(tint)
                         // B-47: Fitness sets the card title in primary text at `.title3` bold and
                         // tints the VALUE — the icon already carries the metric's colour.
@@ -46,9 +46,9 @@ public struct SummaryCard: View {
                     // side-by-side candidate instead of silently wrapping the number. The fallback
                     // puts the sparkline on its own row under the value (Apple Fitness idiom).
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .bottom, spacing: 12) { valueRow; Spacer(minLength: 0); sparklineView }
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .bottom, spacing: 12) { valueRow; Spacer(minLength: 0) }
+                        HStack(alignment: .bottom, spacing: JISpacing.s3) { valueRow; Spacer(minLength: 0); sparklineView }
+                        VStack(alignment: .leading, spacing: JISpacing.s2) {
+                            HStack(alignment: .bottom, spacing: JISpacing.s3) { valueRow; Spacer(minLength: 0) }
                             sparklineView
                         }
                     }

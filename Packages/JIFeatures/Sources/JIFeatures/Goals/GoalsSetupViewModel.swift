@@ -104,13 +104,20 @@ public final class GoalsSetupViewModel {
     private let mirror: GoalsMirror?   // TEMP bridge until B-50: hub weekly gate
     private let burnSource: (@MainActor () async -> EnergyBurnWindow?)?
     private let onNutritionSaved: (@MainActor () -> Void)?
+    /// W-FIX5 DEV-15: whether a goals PUT is still in the outbox (nil = only this model's saves say).
+    private let hubPendingSource: (@MainActor () -> Bool)?
+    /// W-FIX5 fixer (Goals-stale): the hub's goals after a successful PUT, so the shell's Goals card
+    /// and More row stop showing the pre-save document.
+    private let onGoalsSaved: (@MainActor (Goals) -> Void)?
 
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
         strengthStore: StrengthStateStore = StrengthStateStore(),
         macroStore: MacroGoalsStore? = nil, mirror: GoalsMirror? = nil,
         burnSource: (@MainActor () async -> EnergyBurnWindow?)? = nil,
-        onNutritionSaved: (@MainActor () -> Void)? = nil
+        onNutritionSaved: (@MainActor () -> Void)? = nil,
+        hubPendingSource: (@MainActor () -> Bool)? = nil,
+        onGoalsSaved: (@MainActor (Goals) -> Void)? = nil
     ) {
         self.provider = provider
         self.goalStore = goalStore
@@ -120,6 +127,21 @@ public final class GoalsSetupViewModel {
         self.mirror = mirror
         self.burnSource = burnSource
         self.onNutritionSaved = onNutritionSaved
+        self.hubPendingSource = hubPendingSource
+        self.onGoalsSaved = onGoalsSaved
+    }
+
+    /// W-FIX5 DEV-15: the retry scheduler / watchdog drain can deliver the queued PUT after the
+    /// save returned `.queued`; the shell keeps this model, so re-read the outbox on every load.
+    public func refreshHubPending() {
+        guard let hubPendingSource else { return }
+        let pending = hubPendingSource()
+        if pending != hubPending { hubPending = pending }
+    }
+
+    /// True while a goals row is still queued in `outbox` (a read error counts as not pending).
+    public static func goalsPending(in outbox: Outbox) -> Bool {
+        (try? outbox.pending())?.contains { $0.kind == OutboxDrainer.goalsKind } ?? false
     }
 
     /// B-57 W1: read-only; updates itself after each logged session.
@@ -138,6 +160,7 @@ public final class GoalsSetupViewModel {
         // B-73: local first, so the nutrition section never waits on the hub. `load()` never pushes
         // (Review Focus 4: the only PUT is `saveNutrition`'s mirror on a user save).
         macroGoals = try? macroStore?.load()
+        refreshHubPending()
         burnWindow = await burnSource?()
         phase = .loading
         do {
@@ -175,6 +198,7 @@ public final class GoalsSetupViewModel {
             try? goalStore?.saveGoalTargetsMirror(result, now: now())
             savedAt = now()
             phase = .loaded
+            onGoalsSaved?(result)
             return true
         } catch {
             phase = .error(Self.describe(error))

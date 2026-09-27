@@ -113,6 +113,9 @@ struct RootTabView: View {
     @State private var gateOpen = false
     @State private var gateForceConsumed = false
     @State private var goalsSetupModel: GoalsSetupViewModel?
+    /// W-FIX5 fixer (Goals-stale): the goals a GoalsSetup save returned this session (More, Settings or
+    /// KpiDetail), shown until the energy model reloads the same document.
+    @State private var savedGoals: Goals?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
     #if DEBUG
@@ -262,8 +265,14 @@ struct RootTabView: View {
             }
             switch Self.firstSheet(needsOnboarding: OnboardingGate.needsOnboarding(env.prefs), needsConnection: env.needsConnection) {
             case .onboarding?:
+                // W-FIX5 W4-2: the real night count (the cover also reads the live insight below).
+                if recoveryInsight == nil, let store = env.providerStore {
+                    recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+                    env.recoveryInsight = recoveryInsight
+                }
                 onboardingModel = OnboardingViewModel(prefs: env.prefs, mirror: gateSettingsMirror(),
-                                                      reminderCenter: UNUserNotificationCenter.current())
+                                                      reminderCenter: UNUserNotificationCenter.current(),
+                                                      nightsSoFar: .init(recovery: recoveryInsight?.result))
                 showOnboarding = true
             case .connection?: showConnection = true
             case nil: break
@@ -272,6 +281,8 @@ struct RootTabView: View {
         .onboardingCover(isPresented: $showOnboarding) {
             if let onboardingModel {
                 OnboardingFlowView(model: onboardingModel) { showOnboarding = false }
+                    .environment(\.recoveryInsight, recoveryInsight)
+                    .task { await recoveryInsight?.refreshIfStale() }
             }
         }
         .onChange(of: showOnboarding) { _, shown in
@@ -307,7 +318,12 @@ struct RootTabView: View {
         }
         // W-FIX2 DEV-04: the first launch (or return) after local midnight opens Decide.
         .onAppear { evaluateGate() }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { evaluateGate() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                evaluateGate()
+                goalsSetupModel?.refreshHubPending()   // W-FIX5 DEV-15
+            }
+        }
         .onChange(of: todayModel?.morningState) { old, new in
             // Decide answered inline (a new verdict date mid-day) counts as today's answer too.
             if old == .decide, let new, new != .decide { recordGateAnswered() }
@@ -349,7 +365,9 @@ struct RootTabView: View {
         }
         .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil; reloadGateSettings() }) {
             if let settingsModel {
-                SettingsView(model: settingsModel)
+                // W-FIX5 fixer: Settings → My KPIs / Gate thresholds read the same recovery insight
+                // (Load square, onboarding nights) as the tab stacks — a sheet does not inherit it.
+                shellStackEnvironment(SettingsView(model: settingsModel))
             } else {
                 ProgressView().task { settingsModel = await makeSettingsModel() }
             }
@@ -740,7 +758,7 @@ struct RootTabView: View {
     /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →
     /// target, from the same hub goals document Settings' row reads (`settingsGoalsTrailing`).
     private var moreGoalsRow: MoreRowValue {
-        Self.moreGoalsRowValue(energyModel?.goals)
+        Self.moreGoalsRowValue(goalsShown(hub: energyModel?.goals, saved: savedGoals))
     }
 
     static func moreGoalsRowValue(_ goals: Goals?) -> MoreRowValue {
@@ -749,14 +767,14 @@ struct RootTabView: View {
 
     /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.
     private var moreGoalsBoard: GoalsBoardInput? {
-        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult else { return nil }
+        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult || savedGoals != nil else { return nil }
         let gate = todayModel?.gate
         let yesterday = String(Calendar.current.date(byAdding: .day, value: -1, to: Date())!.ISO8601Format().prefix(10))
         let nutrition = nutritionModel?.week.first { $0.date == yesterday }
         let energyDay = energyModel.report?.days.first { $0.date == yesterday }
         let stepsRow = gate?.daily.first { $0.date == yesterday }
         return GoalsBoardInput(
-            goals: energyModel.goals,
+            goals: goalsShown(hub: energyModel.goals, saved: savedGoals),
             latestKg: KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value,
             avgDeficit7d: energyModel.report?.avgDeficitCorrected7d,
             trackingDays: energyModel.report?.trackingDays ?? 0,
@@ -988,7 +1006,14 @@ struct RootTabView: View {
             provider: provider, macroStore: env.macroGoals,
             mirror: makeGoalsMirror(),   // TEMP bridge until B-50: hub weekly gate
             burnSource: { let band = env.makeEnergyBand(); band.recompute(); return band.burnWindow },
-            onNutritionSaved: { Task { await env.refreshEnergyBand() } }
+            onNutritionSaved: { Task { await env.refreshEnergyBand() } },
+            // W-FIX5 DEV-15: "hub sync pending" follows the outbox (the retry scheduler delivers later).
+            hubPendingSource: { (try? Outbox(db: .onDisk())).map { GoalsSetupViewModel.goalsPending(in: $0) } ?? false },
+            // W-FIX5 fixer (Goals-stale): the saved document shows at once; the energy model reloads it.
+            onGoalsSaved: { goals in
+                savedGoals = goals
+                if let energy = energyModel { Task { await energy.refresh() } }
+            }
         )
     }
 
@@ -1129,7 +1154,10 @@ struct RootTabView: View {
                     .environment(\.gateConfigModel, gateConfigModel)
                     .onAppear {
                         if gateConfigModel == nil {
-                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs)
+                            // W-FIX5 W4-1: with the mirror, so a change here reaches the hub and
+                            // "Not on the hub yet" clears after the foreground push.
+                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs,
+                                                                  mirror: gateSettingsMirror(), reminderCenter: UNUserNotificationCenter.current())
                         }
                     }
             } else {

@@ -37,4 +37,19 @@ public nonisolated func trainingZoneRows(cap: Double?, zone2: ClosedRange<Double
     ]
 }
 
+/// W-FIX5 fixer (TR-zones): the rows from the user's own settings (the same store GateConfig edits).
+/// Zone 2 = its floor up to one below the Zone 3 floor; Zone 5 shows its range when zones are set.
+/// Nothing set = "— none set" (never a default).
+public nonisolated func trainingZoneRows(settings: GateSettings) -> [TrainingZoneRow] {
+    let zones = settings.zones.flatMap { $0.isValid ? $0 : nil }
+    let z2 = zones.map { Double($0.floorsBpm[1])...Double($0.floorsBpm[2] - 1) }
+    var rows = trainingZoneRows(cap: settings.hrCapBpm.map(Double.init), zone2: z2)
+    if let zones, let i = rows.firstIndex(where: { $0.id == "z5" }) {
+        rows[i] = TrainingZoneRow(id: "z5", title: rows[i].title,
+                                  subtitle: settings.avoidZone5 ? "You chose to stay under it" : rows[i].subtitle,
+                                  value: zones.rangeText(5))
+    }
+    return rows
+}
+
 public nonisolated let trainingProgressionCaption = "Double progression: add 2.5 kg once all sets hit the top of the range. Working weights come from your log, not a formula."

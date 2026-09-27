@@ -1,14 +1,18 @@
 import SwiftUI
 
-/// "your normal 27–30" > "goal 155 g" > caller detail (W1: the hub threshold, e.g. "floor 7.0 h").
+/// "your normal 27–30" > "goal 155 g" > caller detail (W1: the hub threshold, e.g. "floor 7.0 h")
+/// > W-GUI-2 S3: the slot is never empty — "your normal — Calibrating" says what is still missing.
 public nonisolated func signalReferenceText(normal: ClosedRange<Double>?, goal: Double?, unit: String?, decimals: Int, detail: String?) -> String? {
     if let normal { return "your normal \(jiNumber(normal.lowerBound, decimals))–\(jiNumber(normal.upperBound, decimals))" }
     if let goal {
         let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
         return "goal \(jiNumber(goal, decimals))\(u)"
     }
-    return detail
+    return detail ?? signalReferenceCalibratingText
 }
+
+/// The empty reference slot's words (S3): a normal that does not exist yet, with its reason.
+public nonisolated let signalReferenceCalibratingText = "your normal — \(JIMissingReason.calibrating.rawValue)"
 
 public nonisolated func signalRowAccessibilityLabel(label: String, value: Double?, unit: String?, decimals: Int, status: JISignalStatus, reference: String?) -> String {
     let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
@@ -33,13 +37,13 @@ public struct SignalRow: View {
     private var reference: String? { signalReferenceText(normal: normal, goal: goal, unit: unit, decimals: decimals, detail: detail) }
 
     public var body: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: JISpacing.s1)) : AnyLayout(HStackLayout(alignment: .top, spacing: JISpacing.s3))
         layout {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                 if let reference { Text(reference).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
             }
-            if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: JISpacing.s2) }
             VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(jiValueText(value, decimals: decimals)).jiFont(.body, weight: .bold)
@@ -50,7 +54,7 @@ public struct SignalRow: View {
                     .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(status.role))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: JITileHeight.glassButton.base, alignment: .leading)
         // W-B57-W1 verifier (AX3): never squeezed below its own height by a height-starved parent —
         // a squeezed row drew its lines over the next row. It grows; the container scrolls.
         .fixedSize(horizontal: false, vertical: true)

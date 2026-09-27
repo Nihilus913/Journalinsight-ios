@@ -24,8 +24,8 @@ public struct GateConfigView: View {
     public init(model: GateConfigViewModel) { _model = State(initialValue: model) }
     @Environment(\.recoveryInsight) private var recoveryInsight
     @State private var showCapSheet = false
-    @State private var showWalkthrough = false
-    /// Held for the cover's lifetime so a re-render never restarts the walk-through.
+    /// Held for the cover's lifetime so a re-render never restarts the walk-through; non-nil = shown
+    /// (W-FIX5 W4-2: the cover is item-driven, so it never renders before the model exists).
     @State private var walkthroughModel: OnboardingViewModel?
 
     public var body: some View {
@@ -49,8 +49,8 @@ public struct GateConfigView: View {
                 .accessibilityIdentifier("gateConfig.howItWorks")
                 // DEV-07: a chevron row, not a tinted text link (W-B57-W4 fixer).
                 Button {
-                    walkthroughModel = model.makeOnboardingModel()
-                    showWalkthrough = true
+                    // W4-2: the real night count ("Nights so far"), never a guess.
+                    walkthroughModel = model.makeOnboardingModel(recovery: recoveryInsight?.result)
                 } label: {
                     JIChevronRow(title: "Walk me through it again", systemImage: "list.bullet.rectangle")
                 }
@@ -125,10 +125,9 @@ public struct GateConfigView: View {
         .sheet(isPresented: $showCapSheet) {
             HrCapChangeSheet(current: model.gateSettings.hrCapBpm) { await model.changeHrCap($0) }
         }
-        .onboardingCover(isPresented: $showWalkthrough) {
-            if let walkthroughModel {
-                OnboardingFlowView(model: walkthroughModel) { showWalkthrough = false; model.loadLocal() }
-            }
+        .onboardingCover(item: $walkthroughModel) { walkthrough in
+            OnboardingFlowView(model: walkthrough) { walkthroughModel = nil; model.loadLocal() }
+                .environment(\.recoveryInsight, recoveryInsight)
         }
     }
 

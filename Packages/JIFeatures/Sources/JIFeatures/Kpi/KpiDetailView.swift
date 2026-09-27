@@ -115,10 +115,12 @@ public struct KpiDetailView: View {
             if model.metric == .hrv { DaytimeHrvSection(model: model) }
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
-            if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {
+            if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
+                                          deepRem: kpiDetailDeepRem, sdnn: kpiDetailSdnn) {
                 blockSection(block)
             }
-        } else if model.metric == .sleep, let block = kpiDetailBlock(metric: .sleep, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {
+        } else if model.metric == .sleep, let block = kpiDetailBlock(metric: .sleep, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
+                                                                        deepRem: kpiDetailDeepRem) {
             blockSection(block)
         }
         if model.target != nil { editor }
@@ -132,7 +134,8 @@ public struct KpiDetailView: View {
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
                        unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
                        tint: metricTintRole(model.metric.rawValue),
-                       legend: kpiDetailLegendText(kpiNormal.normal, decimals: model.def.decimals))
+                       legend: kpiDetailLegendText(kpiNormal.normal, decimals: model.def.decimals),
+                       normal: kpiNormal.normal)
     }
 
     /// W-B57-W3 fixer: one normal for the NormalBar, the chart legend and the table row.
@@ -166,6 +169,13 @@ public struct KpiDetailView: View {
     private var kpiDetailValueText: String? {
         model.value.map { formatKpiValue($0, decimals: model.def.decimals) + (model.def.unit.isEmpty ? "" : " \(model.def.unit)") }
     }
+
+    /// W-FIX5 fixer: the Sleep block's Deep + REM (last night only) and the HRV block's SDNN row
+    /// (the gate's daytime HRV, the same reading the daytime row above shows).
+    private var kpiDetailDeepRem: String? {
+        model.metric == .sleep ? kpiDetailDeepRemText(days: model.recovery, now: Date()) : nil
+    }
+    private var kpiDetailSdnn: String? { model.daytimeHrv == nil ? nil : model.daytimeValueText }
 
     /// Last night's sleep length from the recovery rows (the same field Recovery's fact tile reads).
     private var kpiDetailSleepDuration: String? {

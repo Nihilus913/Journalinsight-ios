@@ -90,8 +90,11 @@ public nonisolated func settingsKpisTrailing(_ count: Int) -> String {
 }
 
 /// Reminders row: how many daily + workout reminders are switched on ("Off" when none).
-public nonisolated func settingsRemindersTrailing(_ prefs: RemindersPrefs?) -> String {
+/// W-FIX5 W4-3: plus the HR-cap re-check when it is scheduled (it lives only as a pending
+/// notification, so the caller reads `ReminderScheduler.hrCapCheckDue()`).
+public nonisolated func settingsRemindersTrailing(_ prefs: RemindersPrefs?, hrCapCheckOn: Bool = false) -> String {
     let on = (prefs?.daily.values.filter(\.enabled).count ?? 0) + (prefs?.workouts.values.filter(\.enabled).count ?? 0)
+        + (hrCapCheckOn ? 1 : 0)
     return on == 0 ? "Off" : "\(on) on"
 }
 

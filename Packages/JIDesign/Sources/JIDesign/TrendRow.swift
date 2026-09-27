@@ -77,10 +77,10 @@ public struct TrendRow: View {
     private var valueTint: Color { recent == nil && baseline == nil ? theme.color(.muted) : tint }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: JISpacing.s2 + 2) {
             // Apple's leading pill: a flat capsule in the metric's colour, inside a neutral disc.
             Capsule().fill(tint).frame(width: 22, height: 5)
-                .padding(.vertical, 9).padding(.horizontal, 5)
+                .padding(.vertical, JISpacing.s2 + 1).padding(.horizontal, JISpacing.s1 + 1)
                 .background(theme.color(.nested), in: Circle())
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
@@ -91,7 +91,7 @@ public struct TrendRow: View {
                         .jiFont(.body, weight: .semibold).foregroundStyle(valueTint)
                         .lineLimit(1).minimumScaleFactor(0.6)
                     Image(systemName: direction.symbolName)
-                        .font(.footnote.weight(.bold)).foregroundStyle(valueTint)
+                        .jiFont(.footnote, weight: .bold).foregroundStyle(valueTint)
                 }
             }
             Spacer(minLength: 0)

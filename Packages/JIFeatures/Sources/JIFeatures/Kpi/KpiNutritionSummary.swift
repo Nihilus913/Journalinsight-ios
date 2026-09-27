@@ -132,10 +132,30 @@ public nonisolated func kpiMacroTrendLine(avg7: Double?, avg28: Double?) -> Stri
     return "\(word) against your 28-day average. \(tail)"
 }
 
-/// B-57 W1 KpiDetailNutrition: macro picker, the 7-day NormalBar (normal W3, goal W2), and the
-/// goal / latest / 7 d / 28 d table over `NutritionDailyRow`s.
+/// W-GUI-2 R3 (mockup 22 "Per day"): the last `days` logged-window days as sum-bar points — one
+/// per row date (newest last, `isLatest`), a day with nothing logged = nil + "No data" (rule 5).
+public nonisolated func kpiMacroDayPoints(rows: [NutritionDailyRow], macro: KpiMetricId, days: Int = 7) -> [NormalBarPoint] {
+    let last = rows.sorted { $0.date < $1.date }.suffix(days)
+    return last.enumerated().map { i, r in
+        NormalBarPoint(id: r.date, label: recoveryNightLabel(r.date), value: kpiMacroValue(r, macro), isLatest: i == last.count - 1)
+    }
+}
+
+/// The chevron rows' second line (mockup 22): the widget size + metric, the goals screen's name.
+public nonisolated func kpiNutritionLinkSubtitle(_ link: KpiNutritionLink, metricLabel: String) -> String {
+    switch link {
+    case .widget: "Small · \(metricLabel.lowercased()) today"
+    case .macroGoals: "Goals setup"
+    }
+}
+
+/// B-57 W1 KpiDetailNutrition: macro picker, the 7-day NormalBar (normal W3, goal W2), the per-day
+/// bars (R3) and the goal / latest / 7 d / 28 d table over `NutritionDailyRow`s.
 struct KpiNutritionPanel: View {
     let rows: [NutritionDailyRow]
+    /// The day the 28-day normal is computed against (today−34 … today−7). Injected so a fixture
+    /// (the gallery preview) can show its band instead of "Calibrating" against the real clock.
+    let today: String
     /// B-57 W2 (B-73): the user's own goals (GoalsSetup), injected at the app root. Unset → no
     /// tick, "Set your goal". The hub goals document is no longer read here.
     @Environment(\.nutritionGoals) private var nutritionGoals
@@ -144,13 +164,13 @@ struct KpiNutritionPanel: View {
     @Binding var macro: KpiMetricId
     private let theme = JITheme.native
 
-    init(rows: [NutritionDailyRow], macro: Binding<KpiMetricId>) {
-        self.rows = rows; self._macro = macro
+    init(rows: [NutritionDailyRow], macro: Binding<KpiMetricId>, today: String = RecoveryInsightService.localDayKey(Date())) {
+        self.rows = rows; self._macro = macro; self.today = today
     }
 
-    /// A fixed macro (the §8.5 gallery preview).
-    init(rows: [NutritionDailyRow], macro: KpiMetricId) {
-        self.init(rows: rows, macro: .constant(macro))
+    /// A fixed macro (the §8.5 gallery preview), against the fixture's own day.
+    init(rows: [NutritionDailyRow], macro: KpiMetricId, today: String = RecoveryInsightService.localDayKey(Date())) {
+        self.init(rows: rows, macro: .constant(macro), today: today)
     }
 
     var body: some View {
@@ -175,7 +195,7 @@ struct KpiNutritionPanel: View {
                         VStack(alignment: .leading, spacing: 2) { last7Label.fixedSize(horizontal: false, vertical: true); last7Value(s, def) }
                     }
                     // B-73: the user's goal tick (nil = unset, no tick). W-B57-W3: the 28-day normal band.
-                    let normal = kpiMacroNormal(rows: rows, macro: macro, today: RecoveryInsightService.localDayKey(Date()))
+                    let normal = kpiMacroNormal(rows: rows, macro: macro, today: today)
                     NormalBar(value: s.avg7, normal: normal.map { $0.low...$0.high }, median: normal?.median, goal: nutritionGoals.goal(for: macro), unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
                 }
             }
@@ -183,6 +203,13 @@ struct KpiNutritionPanel: View {
                 .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("kpi-detail-macro-trend")
+            // R3 (mockup 22, report §4.4): a sum metric per day = bars from zero, the goal dashed.
+            JISectionHeader("Per day")
+            Surface {
+                SumBarChart(points: kpiMacroDayPoints(rows: rows, macro: macro), goal: nutritionGoals.goal(for: macro),
+                            unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
+                    .accessibilityIdentifier("kpi-detail-macro-days")
+            }
             JISectionHeader("All macros · goal vs actual")
             Surface { KpiMacroTable(rows: rows, goals: nutritionGoals) }
         }
@@ -367,7 +394,7 @@ struct KpiNutritionLinks: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("kpi-detail-put-on-widget")
                 if goalsSetupModel != nil {
-                    Divider().padding(.leading, 16)
+                    Divider().padding(.leading, JISpacing.s4 + JIChevronRowMetrics.iconWell + JISpacing.s3)
                     Button { showGoalsSetup = true } label: { row(.macroGoals) }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("kpi-detail-edit-macro-goals")
@@ -403,14 +430,26 @@ struct KpiNutritionLinks: View {
         }
     }
 
+    /// R3: the board's rows are `JIChevronRow`s (report §7 rule 2 — a row with a chevron, never a
+    /// text link): icon well, title, the second line, the chevron.
     private func row(_ link: KpiNutritionLink) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: link.systemImage).foregroundStyle(theme.color(.muted)).frame(width: 24)
-            Text(link.title).jiFont(.body).foregroundStyle(theme.color(.text))
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+        JIChevronRow {
+            HStack(spacing: JISpacing.s3) {
+                Image(systemName: link.systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(theme.color(.info))
+                    .frame(width: JIChevronRowMetrics.iconWell, height: JIChevronRowMetrics.iconWell)
+                    .background(theme.color(.info).opacity(0.16), in: RoundedRectangle(cornerRadius: JIChevronRowMetrics.iconWellRadius, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(link.title).jiFont(.body).foregroundStyle(theme.color(.text)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(kpiNutritionLinkSubtitle(link, metricLabel: metricLabel)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: JISpacing.s2)
+            }
+            .padding(.vertical, JIChevronRowMetrics.verticalPadding)
         }
-        .padding(.horizontal, 16).frame(minHeight: 44).padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .padding(.horizontal, JISpacing.s4)
     }
 }

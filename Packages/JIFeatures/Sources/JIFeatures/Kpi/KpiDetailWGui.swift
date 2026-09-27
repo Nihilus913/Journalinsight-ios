@@ -50,13 +50,16 @@ public nonisolated struct KpiDetailBlock: Equatable, Sendable {
 /// HRV (07): "Same wrist, two numbers" — RMSSD vs SDNN (SDNN row "— not read yet", plan §B).
 /// RHR (20): "Not used" — daytime heart rate is context only. Sleep (21): "How the score is
 /// built" with the convention caption; components "— not read" until Health carries them.
-public nonisolated func kpiDetailBlock(metric: KpiMetricId, valueText: String?, sleepDuration: String?) -> KpiDetailBlock? {
+/// W-FIX5 fixer: `deepRem` = last night's deep + REM (`kpiDetailDeepRemText`); `sdnn` = the gate's
+/// daytime HRV (Apple's SDNN, context only). nil = "— not read" (never invented).
+public nonisolated func kpiDetailBlock(metric: KpiMetricId, valueText: String?, sleepDuration: String?,
+                                       deepRem: String? = nil, sdnn: String? = nil) -> KpiDetailBlock? {
     switch metric {
     case .hrv:
         return KpiDetailBlock(title: "Same wrist, two numbers", rows: [
             ("JI · Overnight HRV (RMSSD)", "beat-to-beat, sleep only · used by the morning call", valueText ?? "—"),
-            ("Health app · HRV (SDNN)", "whole-window spread, daytime samples · not used", "— not read yet"),
-            ("Daytime HRV", "shown for context only", "—"),
+            ("Health app · HRV (SDNN)", "whole-window spread, daytime samples · not used", sdnn ?? "— not read yet"),
+            ("Daytime HRV", "shown for context only", sdnn ?? "—"),
         ], caption: "A 30 ms SDNN and a 30 ms RMSSD are not the same thing. JI compares each metric only with its own history. HRV is a training signal here, not a medical reading.")
     case .rhr:
         return KpiDetailBlock(title: "Not used", rows: [
@@ -65,13 +68,23 @@ public nonisolated func kpiDetailBlock(metric: KpiMetricId, valueText: String?, 
     case .sleep:
         return KpiDetailBlock(title: "How the score is built", rows: [
             ("Duration", "of your goal · 50 %", sleepDuration ?? "— not read"),
-            ("Deep + REM", "20 %", "— not read"),
+            ("Deep + REM", "20 %", deepRem ?? "— not read"),
             ("Consistency", "vs your usual bedtime · 20 %", "— not read"),
             ("Awake", "10 %", "— not read"),
         ], caption: "Weights are a convention, not evidence; the score exists so one number can sit under the call. The night itself is what Health recorded.")
     default:
         return nil
     }
+}
+
+/// W-FIX5 fixer (KPI-sleep-block): last night's deep + REM from the recovery rows — the newest night
+/// that carries BOTH stages, and only when it is last night (the ≤ 36 h rule Recovery's Deep tile
+/// uses); nil otherwise.
+public nonisolated func kpiDetailDeepRemText(days: [RecoveryDay], now: Date) -> String? {
+    guard let d = days.sorted(by: { $0.date > $1.date }).first(where: { $0.deepSleepSec != nil || $0.remSleepSec != nil }),
+          let deep = d.deepSleepSec, let rem = d.remSleepSec,
+          KpiMetrics.isLastNightFresh(nightDate: d.date, now: now) else { return nil }
+    return recoverySleepDuration(seconds: deep + rem)
 }
 
 /// The screen's subtitle (mockups 07 / 20 / 21) per metric.

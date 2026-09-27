@@ -12,6 +12,8 @@ public struct KpiListView: View {
     private let theme = JITheme.native
     /// B-57 W2 (B-73): the user's goals for the nutrition squares' captions.
     @Environment(\.nutritionGoals) private var nutritionGoals
+    /// W-FIX5 WD-2: the 7-day Load the Today square shows (nil = the square says why).
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     /// W-FIX2 BUG-21: a square opens its KPI detail (board 2/02). nil = display-only squares.
     private let onSelectKpi: ((String) -> Void)?
@@ -51,6 +53,7 @@ public struct KpiListView: View {
         .navigationTitle("My KPIs")
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
+        .task { await recoveryInsight?.refreshIfStale() }   // WD-2: the Load square's reading
         .animation(JIMotion.standard, value: model.phase)
     }
 
@@ -82,7 +85,8 @@ public struct KpiListView: View {
                 .padding(.horizontal, JISpacing.s4)
             ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
                 let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
-                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { nutritionGoals.caption(for: $0, value: $1) })
+                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { nutritionGoals.caption(for: $0, value: $1) },
+                                              load: recoveryInsight?.loadReading)
                 if !items.isEmpty {
                     HStack(alignment: .firstTextBaseline) {
                         JISectionHeader(kpiListGroupHeader(group, count: items.count))

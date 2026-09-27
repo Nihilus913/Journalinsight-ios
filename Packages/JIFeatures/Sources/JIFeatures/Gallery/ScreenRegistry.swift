@@ -92,5 +92,10 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Onboarding gate") { AnyView(OnboardingNativePreview(step: .gate)) },
         // MARK: B-57 W5 — Week & glance
         ScreenEntry(name: "Training week") { L6Fixtures.trainingWeek() },
+        // MARK: W-GUI-2 X2 — state faces (mockups 57–60), names from `ScreenStateFaces.registryNames`
+        ScreenEntry(name: "Today offline") { ScreenStateFaces.offline() },
+        ScreenEntry(name: "Today first week") { ScreenStateFaces.firstWeek() },
+        ScreenEntry(name: "Today error") { ScreenStateFaces.error() },
+        ScreenEntry(name: "Today no source") { ScreenStateFaces.noSource() },
     ]
 }

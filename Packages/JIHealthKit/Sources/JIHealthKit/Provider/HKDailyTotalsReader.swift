@@ -10,9 +10,29 @@ public protocol HealthStoreStatistics: Sendable {
     func dailySums(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar) async throws -> [Date: Double]
 }
 
-extension RealHealthStoreReader: HealthStoreStatistics {
+/// WD-6 (DEV-13): the uploader's daily totals — the same source-merged `.cumulativeSum` as
+/// `dailySums`, minus this app's own writes (the Garmin backload, which the hub already holds as
+/// Garmin data; counting it as Apple would add it twice — W-FIX1 BUG-01).
+public protocol HealthStoreUploadStatistics: Sendable {
+    func dailySumsExcludingOwnWrites(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar) async throws -> [Date: Double]
+}
+
+extension RealHealthStoreReader: HealthStoreStatistics, HealthStoreUploadStatistics {
     public func dailySums(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar) async throws -> [Date: Double] {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        try await cumulativeDailySums(for: type, unit: unit, start: start, end: end, calendar: calendar, excludingOwnWrites: false)
+    }
+
+    public func dailySumsExcludingOwnWrites(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar) async throws -> [Date: Double] {
+        try await cumulativeDailySums(for: type, unit: unit, start: start, end: end, calendar: calendar, excludingOwnWrites: true)
+    }
+
+    private func cumulativeDailySums(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar, excludingOwnWrites: Bool) async throws -> [Date: Double] {
+        let inWindow = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let predicate: NSPredicate = excludingOwnWrites
+            ? NSCompoundPredicate(andPredicateWithSubpredicates: [
+                inWindow, NSCompoundPredicate(notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: HKSource.default())),
+            ])
+            : inWindow
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsCollectionQuery(
                 quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum,
