@@ -29,6 +29,11 @@ public struct TodayView: View {
     /// B-33 §8.5: no hub fetch and no model rebuild while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
     @Environment(\.recoveryInsight) private var recoveryInsight
+    /// B-57 W5 C4: the progression rule's lifts and this week's plan (nil in previews → not shown).
+    @Environment(\.progression) private var progression
+    @Environment(\.trainingWeekSummary) private var week
+    /// B-57 W5 DEV-10: the user's zones and cap for the cardio line (optional, never a default).
+    @Environment(\.gateSettings) private var gateSettings
 
     public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in },
                 onOpenTrends: (() -> Void)? = nil,
@@ -217,7 +222,8 @@ public struct TodayView: View {
     /// W-GUI T3: the footer rows (mockup 02) — a chevron row each, with the mockup's subtitle
     /// as the value slot; Week review's count is not on the phone (plan §B: W5) → "—".
     private func dayFooterRow(_ row: DayFooterRow) -> some View {
-        JIChevronRow(title: row.title, value: row.value, systemImage: row.systemImage)
+        // B-57 W5: Week review's value is the week's count ("1 of 4 sessions") once it is known.
+        JIChevronRow(title: row.title, value: row == .weekReview ? dayWeekReviewValue(week) : row.value, systemImage: row.systemImage)
     }
 
     private func dayCardHeader(_ title: String, trailing: String? = nil) -> some View {
@@ -231,8 +237,11 @@ public struct TodayView: View {
     /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
     private var nextCard: some View {
         let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
-                               plan: model.exercises, weekday: model.todayWeekday)
+                               plan: model.exercises, weekday: model.todayWeekday,
+                               zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
         let template = dayNextTemplate(rows: card.rows)
+        // B-57 W5 C4: the rule's lifts for the plan session the rows came from.
+        let lifts = card.rows.isEmpty ? [] : (progression?.lifts(forSession: card.plannedSession ?? todaysStrengthSession(week)) ?? [])
         return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 6) {
                 // W-GUI T3 (DEV-10 GUI half, mockup 02): the card's title row names the session with
@@ -244,6 +253,12 @@ public struct TodayView: View {
                     Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // B-57 W5 (board 1/02): "Session 2 of 4 this week" while today's session is still to do.
+                if !card.rows.isEmpty, let ordinal = daySessionOrdinal(week) {
+                    Text("\(ordinal.prefix(1).uppercased())\(ordinal.dropFirst()) this week")
+                        .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("today.day.next.ordinal")
+                }
                 if let prescription = card.prescription {
                     Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
@@ -251,8 +266,8 @@ public struct TodayView: View {
                 // W-FIX4 PF-02: the plan's exercises and weights, as Training lists them.
                 ForEach(card.rows) { row in
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .firstTextBaseline) { nextRowName(row); Spacer(minLength: 8); nextRowLoad(row) }
-                        VStack(alignment: .leading, spacing: 2) { nextRowName(row); nextRowLoad(row) }
+                        HStack(alignment: .firstTextBaseline) { nextRowName(row); Spacer(minLength: 8); nextRowLoad(row, lifts: lifts) }
+                        VStack(alignment: .leading, spacing: 2) { nextRowName(row); nextRowLoad(row, lifts: lifts) }
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("today.day.next.exercise.\(row.id)")
@@ -261,11 +276,22 @@ public struct TodayView: View {
                     Text(exercises).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // B-57 W5 DEV-10: the cardio part's line (Zone 2 / intervals) from the user's zones and cap.
+                if let cardio = card.cardio {
+                    Text(cardio).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("today.day.next.cardio")
+                }
+                // B-57 W5 C4 (board 1/02): "Progression due on …" when the rule says so; nothing otherwise.
+                if let callout = dayProgressionCallout(lifts) {
+                    DayProgressionCalloutView(callout: callout).padding(.top, 4)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.day.next")
+        .task { if !offscreen { await progression?.refreshIfNeeded() } }
     }
 
     private func nextRowName(_ row: TrainingHeroRow) -> some View {
@@ -273,8 +299,10 @@ public struct TodayView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func nextRowLoad(_ row: TrainingHeroRow) -> some View {
-        Text(row.load).jiFont(.footnote).foregroundStyle(theme.color(.muted)).monospacedDigit()
+    private func nextRowLoad(_ row: TrainingHeroRow, lifts: [LiftProgression]) -> some View {
+        let load = dayNextRowLoad(row, lifts: lifts)
+        return Text(load.text).jiFont(.footnote, weight: load.due ? .semibold : .regular)
+            .foregroundStyle(theme.color(load.due ? .go : .muted)).monospacedDigit()
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -425,6 +453,10 @@ public nonisolated struct DayNextCard: Equatable, Sendable {
     /// What the phone cannot show (no plan rows for this session) — said, never invented; nil
     /// when `rows` carries the exercises or on a rest day.
     public let exercises: String?
+    /// B-57 W5 DEV-10: a cardio part's line ("Zone 2 · 60 min · 117–138 bpm", "Intervals · 4 × 4 min").
+    public var cardio: String? = nil
+    /// B-57 W5: the plan session the rows came from — the progression lifts are read for it.
+    public var plannedSession: String? = nil
 }
 
 /// W-FIX4 PF-02: today's session in the plan — by name first (the hub's `session_for_today` or the
@@ -442,16 +474,22 @@ public nonisolated func dayPlannedSession(names: [String?], plan: [Exercise], we
 }
 
 /// `verdict` is the hub's verdict; the user's call (`override`) decides what shows.
+/// B-57 W5 DEV-10: a cardio session (Zone 2, intervals) gets its line from the user's zones and cap
+/// (both optional — never a default) instead of "Exercises and weights — No data".
 public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: String?, override: VerdictOverride?,
-                                    plan: [Exercise] = [], weekday: Int? = nil) -> DayNextCard {
+                                    plan: [Exercise] = [], weekday: Int? = nil,
+                                    zones: HrZones? = nil, capBpm: Int? = nil) -> DayNextCard {
     let shown = effectiveVerdictParts(parts: verdict, override: override)
     if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, rows: [], exercises: nil) }
     let session = override != nil && !shown.session.isEmpty ? shown.session
         : decideSessionRowText(sessionForToday: sessionForToday, verdict: shown).detail
     let planned = dayPlannedSession(names: [sessionForToday, shown.session, verdict.session], plan: plan, weekday: weekday)
     let rows = trainingHeroRows(exercises: plan, session: planned)
+    let cardio = dayCardioLine(session: session, zones: zones, capBpm: capBpm)
+    let saysNoData = rows.isEmpty && (cardio == nil || daySessionHasStrengthPart(session))
     return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override), rows: rows,
-                       exercises: rows.isEmpty ? "Exercises and weights — \(JIMissingReason.noData.rawValue)" : nil)
+                       exercises: saysNoData ? "Exercises and weights — \(JIMissingReason.noData.rawValue)" : nil,
+                       cardio: cardio, plannedSession: rows.isEmpty ? nil : planned?.name)
 }
 
 public nonisolated struct DayFuel: Equatable, Sendable {

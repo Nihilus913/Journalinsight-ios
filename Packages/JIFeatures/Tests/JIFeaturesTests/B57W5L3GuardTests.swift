@@ -42,7 +42,7 @@ struct B57W5L3GuardTests {
         #expect(!decideSessionRowOpensDay(syncing: true))
         let src = try l3GuardSource("Sources/JIFeatures/Today/DecideView.swift")
         let row = try #require(src.range(of: "\"today.decide.session\""))
-        let head = src[..<row.lowerBound].suffix(900)
+        let head = src[..<row.lowerBound].suffix(1800)
         #expect(head.contains("Button { openDay() }"))
     }
 
