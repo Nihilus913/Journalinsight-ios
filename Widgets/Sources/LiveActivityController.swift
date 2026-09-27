@@ -37,13 +37,24 @@ public nonisolated struct VerdictActivityAttributes: ActivityAttributes {
         public var verdictTone: String
         public var readiness: Double?
         public var lastUpdate: Date
+        /// B-57 W5: the reason line, the user's cap as stored (nil = no cap — the cap row then
+        /// shows the next session), the next session and the HRV/Sleep/RHR signals. All optional.
+        public var reason: String?
+        public var hrCap: Int?
+        public var nextSession: String?
+        public var signals: [SnapshotSignal]?
 
-        public init(verdictWord: String, verdictSession: String, verdictTone: String, readiness: Double?, lastUpdate: Date) {
+        public init(verdictWord: String, verdictSession: String, verdictTone: String, readiness: Double?, lastUpdate: Date,
+                    reason: String? = nil, hrCap: Int? = nil, nextSession: String? = nil, signals: [SnapshotSignal]? = nil) {
             self.verdictWord = verdictWord
             self.verdictSession = verdictSession
             self.verdictTone = verdictTone
             self.readiness = readiness
             self.lastUpdate = lastUpdate
+            self.reason = reason
+            self.hrCap = hrCap
+            self.nextSession = nextSession
+            self.signals = signals
         }
     }
 
@@ -96,7 +107,11 @@ public final class LiveActivityController {
             verdictSession: snapshot.verdictSession,
             verdictTone: snapshot.verdictTone,
             readiness: snapshot.readiness,
-            lastUpdate: moment
+            lastUpdate: moment,
+            reason: snapshot.reason,
+            hrCap: snapshot.hrCap,
+            nextSession: snapshot.nextSession,
+            signals: snapshot.signals
         )
         let content = ActivityContent(state: state, staleDate: moment.addingTimeInterval(LiveActivityCapPolicy.staleCap))
 

@@ -50,7 +50,7 @@ import JICore
         #expect(rows[0].status == "On target")
         #expect(rows[1].value == "127 g")
         #expect(rows[1].status == "Below target")
-        #expect(rows[2].value == "— of 4")
+        #expect(rows[2].value == "— No data")   // B-57 W5: no cached week → "—" + reason, not a fixed "of 4"
         #expect(rows[3].value == "50.0 kg")
         #expect(rows[4].subtitle == "target 15000")
         #expect(rows[4].value == "— No data")

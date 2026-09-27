@@ -277,7 +277,11 @@ struct RootTabView: View {
             reloadGateSettings()
             if env.needsConnection { showConnection = true }
         }
-        .onChange(of: gateSettings) { _, _ in rebuildSendToWatchModel() }
+        .onChange(of: gateSettings) { _, _ in
+            rebuildSendToWatchModel()
+            // B-57 W5: the widget/Watch/Live Activity cap follows the user's setting (or its removal) now.
+            env.republishSnapshot()
+        }
         // W-FIX4 fixer PF-04: the hub's last sync is known whichever tab opens first (a launch
         // onto Recovery never mounts Day, which is what used to build and load Today's model).
         .task(id: providerRevision) { await primeShellSync() }
@@ -540,6 +544,8 @@ struct RootTabView: View {
         if recoveryInsight == nil {
             recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
         }
+        // B-57 W5: the glances read the HRV/RHR normals from the same insight (weak on env).
+        env.recoveryInsight = recoveryInsight
         guard todayModel == nil else { return }
         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
         env.bind(today: todayModel, recovery: recoveryModel)
