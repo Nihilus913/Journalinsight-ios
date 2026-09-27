@@ -20,6 +20,12 @@ public struct HKMetricSpec: Sendable {
     /// Anchor generation (B-65). Bumping it gives the metric a fresh anchor key, i.e. one full
     /// `firstSyncDays` re-send — how a wire-shape change back-fills the hub's baseline window.
     public let anchorVersion: Int
+    /// WD-6 (DEV-13): when set, the uploader sends HealthKit's source-merged DAILY totals in this
+    /// unit (statistics query) instead of `mapSamples`' raw samples. Raw samples of a cumulative
+    /// type overlap across devices and straddle midnight, so the hub's per-day sum doubled or
+    /// split days (09-18 = 3403 kcal, 09-19 = 1085 against a steady ~1900). Set automatically for
+    /// basal energy (`dailyTotalTypes`), so every caller's spec gets it.
+    public let dailyTotalUnit: HKUnit?
     /// `hk.upload.anchor.<type>` (version 1) or `hk.upload.anchor.<type>.v<n>` (n ≥ 2) — the
     /// App-Group `UserDefaults` key this metric's `HKQueryAnchor` persists under, so a
     /// killed/resumed app resumes without re-uploading.
@@ -35,6 +41,14 @@ public struct HKMetricSpec: Sendable {
         self.backgroundFrequency = backgroundFrequency
         self.anchorVersion = anchorVersion
         self.mapSamples = mapSamples
+        self.dailyTotalUnit = Self.dailyTotalTypes[sampleType.identifier]
+    }
+
+    /// Cumulative types uploaded as daily totals (WD-6) → their unit. Basal only: the hub's
+    /// resting-kcal column is where the raw sum broke (W-DATA R7).
+    public static var dailyTotalTypes: [String: HKUnit] {
+        guard let basal = HKReadKind.basalEnergy.sampleType else { return [:] }
+        return [basal.identifier: .kilocalorie()]
     }
 }
 
@@ -212,21 +226,35 @@ public final class HealthKitUploader: Sendable {
     // UserDefaults is thread-safe by documented contract but predates Sendable annotation on
     // this SDK — same reasoning as `HealthKitBackloader.cursorDefaults`.
     private nonisolated(unsafe) let anchorDefaults: UserDefaults?
+    /// WD-6: the statistics query daily-total specs read (the real reader conforms); `nil` = those
+    /// specs fall back to raw samples.
+    private let statistics: (any HealthStoreUploadStatistics)?
+    /// Local-day grid for daily totals (device zone).
+    private let calendar: Calendar
 
     public init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], appGroupSuite: String = HealthKitUploader.appGroupSuite) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = UserDefaults(suiteName: appGroupSuite)
+        self.statistics = store as? any HealthStoreUploadStatistics
+        self.calendar = Self.deviceCalendar()
+    }
+
+    private static func deviceCalendar() -> Calendar {
+        var c = Calendar(identifier: .gregorian); c.timeZone = .current; return c
     }
 
     /// Test seam: inject a `UserDefaults` double directly, matching `HealthKitBackloader`'s own
     /// pattern for the same reason (a bogus suite name isn't guaranteed `nil` across toolchains).
-    init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], defaults: UserDefaults?) {
+    init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], defaults: UserDefaults?,
+         statistics: (any HealthStoreUploadStatistics)? = nil, calendar: Calendar? = nil) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = defaults
+        self.statistics = statistics
+        self.calendar = calendar ?? Self.deviceCalendar()
     }
 
     public func requestAuthorization() async throws {
@@ -285,6 +313,9 @@ public final class HealthKitUploader: Sendable {
     @discardableResult
     @concurrent
     func sync(_ spec: HKMetricSpec, now: Date = Date()) async throws -> Int {
+        if let unit = spec.dailyTotalUnit, let statistics, let type = spec.sampleType as? HKQuantityType {
+            return try await syncDailyTotals(spec, type: type, unit: unit, statistics: statistics, now: now)
+        }
         var anchor = readAnchor(spec.anchorKey)
         let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
         var uploaded = 0
@@ -306,6 +337,87 @@ public final class HealthKitUploader: Sendable {
             anchor = page.newAnchor
             guard page.samples.count >= Self.pageLimit else { return uploaded }
         }
+    }
+
+    // MARK: - Daily totals (WD-6)
+
+    /// `hk.upload.dailyTotals.<type>`: day → the total the hub has already received.
+    static func dailyLedgerKey(_ spec: HKMetricSpec) -> String { "hk.upload.dailyTotals.\(spec.sampleType.identifier)" }
+    /// First day (ISO) on the daily-total path. An install that already sent raw samples starts
+    /// TOMORROW, so no day on the hub mixes raw sums with totals (the raw days stay as they are
+    /// and the hub's outlier rule judges them); a fresh install starts with its first sync.
+    static func dailyStartKey(_ spec: HKMetricSpec) -> String { "\(dailyLedgerKey(spec)).since" }
+
+    /// The anchored query only says WHICH local days changed; for each, the statistics query gives
+    /// HealthKit's source-merged total. The hub sums a day's increment deliveries, so the POST
+    /// carries total − already delivered (0.1 kcal steps); the hub's sum is the HealthKit total.
+    /// A day without a HealthKit total is skipped (never a 0). Ledger and anchor move only after a
+    /// 2xx, so a failed POST is retried whole.
+    private func syncDailyTotals(_ spec: HKMetricSpec, type: HKQuantityType, unit: HKUnit,
+                                 statistics: any HealthStoreUploadStatistics, now: Date) async throws -> Int {
+        var anchor = readAnchor(spec.anchorKey)
+        let hadAnchor = anchor != nil
+        let windowStart = now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400)
+        let since: Date? = anchor == nil ? windowStart : nil
+        var touched = Set<Date>()
+        while true {
+            let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, since: since, limit: Self.pageLimit)
+            for sample in page.samples {
+                var day = calendar.startOfDay(for: sample.startDate)
+                let last = calendar.startOfDay(for: max(sample.startDate, sample.endDate.addingTimeInterval(-1)))
+                while day <= last {
+                    touched.insert(day)
+                    guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+                    day = next
+                }
+            }
+            anchor = page.newAnchor ?? anchor
+            guard page.samples.count >= Self.pageLimit else { break }
+        }
+        let iso = { (d: Date) in HKSampleWindow.isoDay(d, calendar: self.calendar) }
+        let today = calendar.startOfDay(for: now)
+        let startKey = Self.dailyStartKey(spec)
+        let startDay: String
+        if let stored = anchorDefaults?.string(forKey: startKey) {
+            startDay = stored
+        } else {
+            startDay = hadAnchor ? iso(calendar.date(byAdding: .day, value: 1, to: today) ?? today) : "0000-01-01"
+            anchorDefaults?.set(startDay, forKey: startKey)
+        }
+        let floorDay = iso(calendar.startOfDay(for: windowStart))
+        let days = touched.filter { $0 <= today && iso($0) >= startDay && iso($0) >= floorDay }.sorted()
+        guard let first = days.first, let lastDay = days.last,
+              let end = calendar.date(byAdding: .day, value: 1, to: lastDay) else {
+            writeAnchor(anchor, key: spec.anchorKey)
+            return 0
+        }
+        let raw = try await statistics.dailySumsExcludingOwnWrites(for: type, unit: unit, start: first, end: end, calendar: calendar)
+        let totals = Dictionary(raw.map { (iso($0.key), $0.value) }, uniquingKeysWith: +)
+        let ledgerKey = Self.dailyLedgerKey(spec)
+        var sent = (anchorDefaults?.dictionary(forKey: ledgerKey) as? [String: Double]) ?? [:]
+        let round1 = { (v: Double) in (v * 10).rounded() / 10 }
+        var points: [HAEDataPoint] = []
+        var delivered: [String: Double] = [:]
+        for day in days {
+            let key = iso(day)
+            guard let total = totals[key].map(round1) else { continue }
+            let delta = round1(total - (sent[key] ?? 0))
+            guard abs(delta) >= 0.05 else { continue }
+            points.append(HAEDataPoint(date: HAEDate.format(day, timeZone: calendar.timeZone), qty: delta, source: "HealthKit daily total"))
+            delivered[key] = total
+        }
+        if !points.isEmpty {
+            let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
+            let _: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
+            sent.merge(delivered) { _, new in new }
+            sent = sent.filter { $0.key >= floorDay }
+            anchorDefaults?.set(sent, forKey: ledgerKey)
+            let arrived = ISO8601DateFormatter().string(from: Date())
+            anchorDefaults?.set(arrived, forKey: Self.lastSuccessKey)
+            anchorDefaults?.set(arrived, forKey: HealthKitArrival.key(for: spec.sampleType))
+        }
+        writeAnchor(anchor, key: spec.anchorKey)
+        return points.count
     }
 
     // MARK: - Anchor persistence
