@@ -75,6 +75,8 @@ public struct AssignWeekdaySheet: View {
                 }
             }
             .navigationTitle("Assign to weekday")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             #if os(iOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
