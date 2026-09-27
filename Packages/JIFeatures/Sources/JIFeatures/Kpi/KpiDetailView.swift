@@ -27,14 +27,9 @@ public struct KpiDetailView: View {
 
     public init(model: KpiDetailViewModel) { _model = State(initialValue: model) }
 
-    #if DEBUG
-    /// Test seam (BUG-09): the model the last body evaluation rendered.
-    static weak var debugLastRenderedModel: KpiDetailViewModel?
-    #endif
-
     public var body: some View {
         #if DEBUG
-        let _ = { Self.debugLastRenderedModel = model }()
+        let _ = { model.debugRenderCount += 1 }()
         #endif
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {

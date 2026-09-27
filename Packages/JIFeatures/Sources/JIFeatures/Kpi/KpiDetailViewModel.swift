@@ -126,6 +126,11 @@ public final class KpiDetailViewModel {
         return model
     }
     @ObservationIgnored private var cachedGoalsSetupModel: GoalsSetupViewModel?
+    #if DEBUG
+    /// Test seam (BUG-09): how many `KpiDetailView` body evaluations rendered this model. Per
+    /// instance, so tests hosting KpiDetail in parallel never see each other's renders.
+    @ObservationIgnored var debugRenderCount = 0
+    #endif
 
     // MARK: - B-57 W4 daytime HRV + medication check (manual entry)
 
