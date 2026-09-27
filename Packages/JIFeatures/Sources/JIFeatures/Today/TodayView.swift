@@ -19,6 +19,7 @@ public struct TodayView: View {
     @State private var showWeekReview = false
     @State private var showEditToday = false
     @Environment(\.nutritionGoals) private var nutritionGoals
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// W-FIX3 C-g: the Coach card's measured height (it grows with type size and its sentence).
     @State private var coachCardHeight: CGFloat = 0
     @Environment(\.gateRationaleModel) private var rationaleModel
@@ -284,11 +285,14 @@ public struct TodayView: View {
         // then the planned-lunch row. The "as of" date is the intake row's own date (DEV-11 stays data).
         return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: JISpacing.s3) {
-                HStack(alignment: .center, spacing: JISpacing.s3) {
+                // R-SIM fix: at AX sizes the ring drops under the numeral instead of squeezing it to "1…".
+                let heroLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: JISpacing.s2)) : AnyLayout(HStackLayout(alignment: .center, spacing: JISpacing.s3))
+                heroLayout {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(jiValueText(fuel.kcal, decimals: 0)).jiNumeral(.numeralMedium, weight: .heavy)
                                 .foregroundStyle(theme.color(fuel.kcal == nil ? .muted : .kcal))
+                                .lineLimit(1).minimumScaleFactor(0.6).fixedSize()
                             Text(fuel.kcal == nil ? JIMissingReason.noData.rawValue
                                  : fuel.kcalGoal.map { "/ \(jiNumber($0, 0)) kcal" } ?? "kcal")
                                 .jiFont(.footnote).foregroundStyle(theme.color(.muted))
@@ -298,7 +302,7 @@ public struct TodayView: View {
                             Text(left).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                         }
                     }
-                    Spacer(minLength: 0)
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                     if let kcal = fuel.kcal, let goal = fuel.kcalGoal, goal > 0 {
                         ZStack {
                             ScoreRing(value: kcal, max: goal, tint: theme.color(.kcal), size: 56)

@@ -86,11 +86,21 @@ public struct MoreRowTrailing: View {
 /// The App's More list uses this for every row with a value, so a proof render of it is the row.
 public struct MoreRowLabel: View {
     let title: String, systemImage: String, value: MoreRowValue
+    @Environment(\.dynamicTypeSize) private var typeSize
     public init(_ title: String, systemImage: String, value: MoreRowValue) {
         self.title = title; self.systemImage = systemImage; self.value = value
     }
     public var body: some View {
-        LabeledContent { MoreRowTrailing(value) } label: { Label(title, systemImage: systemImage) }
+        if typeSize.isAccessibilitySize {
+            // W-GUI R-SIM (BUG-33 class): the value drops under the title instead of hyphenating it.
+            VStack(alignment: .leading, spacing: 4) {
+                Label(title, systemImage: systemImage)
+                MoreRowTrailing(value)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            LabeledContent { MoreRowTrailing(value) } label: { Label(title, systemImage: systemImage) }
+        }
     }
 }
 

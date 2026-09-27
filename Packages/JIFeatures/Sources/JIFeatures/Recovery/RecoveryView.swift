@@ -16,12 +16,18 @@ public struct RecoveryView: View {
     @State private var editing = false
     @Environment(\.openKpiCatalogue) private var openKpiCatalogue
     @Environment(\.openKpiDetail) private var openKpiDetail
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(model: RecoveryViewModel) { self.model = model }
 
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                // R-SIM: the navigation subtitle cannot wrap at AX sizes ("28 ni…"); it moves into the page.
+                if typeSize.isAccessibilitySize {
+                    Text(recoverySubtitle(nights: model.days.count)).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -38,7 +44,7 @@ public struct RecoveryView: View {
         // §5: the hand-drawn large title becomes the system one; W-GUI R1 (mockup 03): the
         // subtitle says the window, and Edit is a glass round button (report §7 rule 2).
         .navigationTitle("Recovery")
-        .navigationSubtitle(recoverySubtitle(nights: model.days.count))
+        .navigationSubtitle(typeSize.isAccessibilitySize ? "" : recoverySubtitle(nights: model.days.count))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 JIGlassButton(editing ? "checkmark" : "pencil", label: editing ? "Done" : "Edit") { editing.toggle() }
