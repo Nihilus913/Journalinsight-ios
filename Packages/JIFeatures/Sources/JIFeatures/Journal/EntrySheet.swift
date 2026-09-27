@@ -49,6 +49,8 @@ public struct EntrySheet: View {
             }
             .jiTheme(.native)
             .navigationTitle(model.editingId == nil ? "New Entry" : "Edit Entry")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
