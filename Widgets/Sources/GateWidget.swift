@@ -149,9 +149,10 @@ private struct GateWidgetView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: 6) {
                         ForEach(snapshot.signals ?? [], id: \.key) { signalColumn($0) }
                     }
+                    .layoutPriority(1)
                 }
             }
         } else {
@@ -170,14 +171,16 @@ private struct GateWidgetView: View {
         let role = widgetSignalRole(s)
         return VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(s.valueText).jiNumeral(.numeralSmall).foregroundStyle(theme.color(role))
+                Text(s.valueText).jiNumeral(.numeralSmall).foregroundStyle(theme.color(role)).lineLimit(1).minimumScaleFactor(0.7)
                 if s.value != nil { Text(s.unit).jiFont(.micro).foregroundStyle(theme.color(.muted)) }
             }
-            Text(s.word).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(role)).lineLimit(1)
-            Text(s.label).jiFont(.micro).foregroundStyle(theme.color(.text)).lineLimit(1)
-            Text(s.caption).jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.7)
+            // W-B57-W5 fixer (A2): the compact vocabulary — the full words truncated in a ~48 pt column.
+            Text(s.compactWord).jiFont(.micro, weight: .bold).foregroundStyle(theme.color(role))
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Text(s.shortLabel).jiFont(.micro).foregroundStyle(theme.color(.text)).lineLimit(1).minimumScaleFactor(0.8)
+            Text(s.compactCaption).jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
+        .frame(minWidth: 44, maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(s.label) \(s.valueText) \(s.value == nil ? "" : s.unit), \(s.word), \(s.caption)")
     }
