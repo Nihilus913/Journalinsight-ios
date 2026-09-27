@@ -78,6 +78,7 @@ public final class GateConfigViewModel {
         let kpi: KpiRuleOverrides?? = try? prefStore.get(Self.kpiOverridesKey, as: KpiRuleOverrides.self)
         kpiOverrides = (kpi ?? nil) ?? KpiRuleOverrides()
         gateSettings = GateSettingsStore(prefs: prefStore).load()
+        refreshHubStatus()
         loaded = true
     }
 
@@ -138,8 +139,17 @@ public final class GateConfigViewModel {
 
     // MARK: - B-57 W4 gate settings
 
-    /// A change that has not reached the hub yet (GateConfig: "Not on the hub yet").
-    public var hubPending: Bool { mirror?.hubPending ?? false }
+    /// A change that has not reached the hub yet (GateConfig: "Not on the hub yet"). Observed
+    /// state (W-B57-W4 fixer): refreshed from the mirror's persisted flag on load, after every
+    /// save and on `refreshHubStatus()` — a computed PrefStore read never told the view the PUT
+    /// had landed, so the label stayed after a successful save.
+    public private(set) var hubPending = false
+
+    /// Re-reads the mirror's pending flag (e.g. after the app's foreground push).
+    public func refreshHubStatus() {
+        let pending = mirror?.hubPending ?? false
+        if hubPending != pending { hubPending = pending }
+    }
 
     public var capValueText: String { gateSettings.hrCapBpm.map { "\($0) bpm" } ?? "None" }
 
@@ -229,6 +239,7 @@ public final class GateConfigViewModel {
 
     private func persistSettings() async {
         if let mirror { await mirror.save(gateSettings) } else { try? GateSettingsStore(prefs: prefStore).save(gateSettings) }
+        refreshHubStatus()
     }
 
     private func persistMorning() {

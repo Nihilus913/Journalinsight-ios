@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 import JICore
 import JICompute
@@ -123,6 +124,21 @@ import JIPersistence
         #expect(GateSettingsStore(prefs: prefs).load().hrCapBpm == 170)
     }
 
+    /// W-B57-W4 fixer (RF3 label): after a successful PUT the label must go away, and the view
+    /// must be told — `hubPending` is observed state, not a computed read of PrefStore.
+    @Test func successfulPutClearsTheObservedHubPendingLabel() async throws {
+        let (vm, _, _, hub) = try make(hubFails: true)
+        _ = await vm.changeHrCap("170")
+        #expect(vm.hubPending)
+        hub.fail = false
+        let changed = ObservedFlag()
+        withObservationTracking { _ = vm.hubPending } onChange: { changed.fired = true }
+        _ = await vm.changeHrCap("168")
+        #expect(hub.puts.last?.hrCapBpm == 168)
+        #expect(changed.fired)
+        #expect(vm.hubPending == false)
+    }
+
     @Test func previewUsesTheUsersCap() async throws {
         let (vm, _, _, _) = try make()
         _ = await vm.changeHrCap("161")
@@ -130,3 +146,6 @@ import JIPersistence
         #expect(!lines.contains("HR 175"))
     }
 }
+
+// @unchecked: set from the Observation onChange callback, read on the main actor in the test.
+final class ObservedFlag: @unchecked Sendable { var fired = false }
