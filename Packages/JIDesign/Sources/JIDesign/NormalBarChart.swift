@@ -49,11 +49,41 @@ public nonisolated func normalBarChartLegend(normal: ClosedRange<Double>?, decim
 /// (HIG E7: a baseline metric has no meaningful zero). 10 % headroom each side; a flat series
 /// gets ±1 unit so a point never sits on the edge.
 public nonisolated func normalBarChartYDomain(points: [NormalBarPoint], normal: ClosedRange<Double>?, median: Double? = nil) -> ClosedRange<Double> {
+    let data = normalBarChartDataRange(points: points, normal: normal, median: median)
+    guard points.contains(where: { $0.value == nil }) else { return data }
+    // W-FIX5 L5 (B-76): a missing night's hollow tick and its "— No data" words live in a lane
+    // UNDER the data, so they never share a y-band with the lowest real points.
+    let lane = (data.upperBound - data.lowerBound) * normalBarChartMissingLane
+    return (data.lowerBound - lane)...data.upperBound
+}
+
+/// The padded data range alone (±10 %, ±1 when flat) — the floor real marks and axis labels sit on.
+public nonisolated func normalBarChartDataRange(points: [NormalBarPoint], normal: ClosedRange<Double>?, median: Double? = nil) -> ClosedRange<Double> {
     let values = points.compactMap(\.value) + [normal?.lowerBound, normal?.upperBound, median].compactMap { $0 }
     guard let lo = values.min(), let hi = values.max() else { return 0...1 }
     let span = max(hi - lo, 0)
     let pad = span > 0 ? span * 0.1 : 1
     return (lo - pad)...(hi + pad)
+}
+
+/// B-76: the missing-night lane as a multiple of the padded data range (0.7 → the lane is
+/// 0.7 / 1.7 ≈ 41 % of the chart's height: room for the tick, the "—" and a two-line reason word).
+public nonisolated let normalBarChartMissingLane = 0.7
+
+/// The share of the chart's height reserved under the data for missing nights; 0 when every
+/// night has a value.
+public nonisolated func normalBarChartMissingLaneShare(points: [NormalBarPoint], normal: ClosedRange<Double>?, median: Double? = nil) -> Double {
+    let full = normalBarChartYDomain(points: points, normal: normal, median: median)
+    let data = normalBarChartDataRange(points: points, normal: normal, median: median)
+    let total = full.upperBound - full.lowerBound
+    guard total > 0 else { return 0 }
+    return (data.lowerBound - full.lowerBound) / total
+}
+
+/// The lowest value a trailing axis label may carry: the data floor, so the lane never shows a
+/// number that would read as a reading.
+public nonisolated func normalBarChartAxisFloor(points: [NormalBarPoint], normal: ClosedRange<Double>?, median: Double? = nil) -> Double {
+    normalBarChartDataRange(points: points, normal: normal, median: median).lowerBound
 }
 
 /// How many nights fell outside the band — worded in the legend, never colour alone.
@@ -102,13 +132,6 @@ public struct NormalBarChart: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 150
     @ScaledMetric(relativeTo: .body) private var stackedBarHeight: CGFloat = 8
-    /// The chart's width, so a missing night's reason word wraps inside its own slot instead of
-    /// running over its neighbours ("Not in Health yet" spanned two nights).
-    @State private var chartWidth: CGFloat = 0
-    private var slotWidth: CGFloat? {
-        guard chartWidth > 0, !points.isEmpty else { return nil }
-        return max(24, chartWidth / CGFloat(points.count) - 2)
-    }
 
     public init(points: [NormalBarPoint], normal: ClosedRange<Double>?, unit: String? = nil, decimals: Int = 0,
                 median: Double? = nil, tint: JIColorRole = .text, title: String? = nil, summary: String? = nil) {
@@ -166,23 +189,15 @@ public struct NormalBarChart: View {
                                 }
                         } else {
                             // A missing night is a hollow tick at the floor with its reason word — never a fabricated point.
+                            // B-76: the words are drawn by `MissingSlotLabels` (chart overlay), not an
+                            // `.annotation` — a sized annotation on a custom-symbol mark landed one slot
+                            // left and one label height up, over the neighbouring nights.
                             PointMark(x: .value("Night", p.label), y: .value("Value", domain.lowerBound))
                                 .symbol { Circle().strokeBorder(theme.color(.muted), lineWidth: 1.5).frame(width: 9, height: 9) }
-                                .annotation(position: .top, spacing: 2) {
-                                    VStack(spacing: 0) {
-                                        Text(slot.value).jiFont(.caption, weight: .semibold)
-                                        if let reason = slot.reason {
-                                            Text(reason).jiFont(.micro).multilineTextAlignment(.center)
-                                                .lineLimit(3).minimumScaleFactor(0.7)
-                                                .fixedSize(horizontal: false, vertical: true)
-                                        }
-                                    }
-                                    .frame(width: slotWidth)
-                                    .foregroundStyle(theme.color(.muted))
-                                }
                         }
                     }
                 }
+                .chartOverlay { proxy in MissingSlotLabels(points: points, floor: domain.lowerBound, decimals: decimals, proxy: proxy) }
                 .chartXScale(domain: points.map(\.label))
                 .chartYScale(domain: domain)
                 .chartYAxis {
@@ -192,13 +207,14 @@ public struct NormalBarChart: View {
                             AxisValueLabel { if let v = value.as(Double.self) { Text(jiNumber(v, decimals)).jiFont(.micro) } }
                         }
                     } else {
+                        // B-76: no label inside the missing-night lane (it is not a reading).
+                        let floor = normalBarChartAxisFloor(points: points, normal: normal, median: median)
                         AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
-                            AxisValueLabel { if let v = value.as(Double.self) { Text(jiNumber(v, decimals)).jiFont(.micro) } }
+                            AxisValueLabel { if let v = value.as(Double.self), v >= floor { Text(jiNumber(v, decimals)).jiFont(.micro) } }
                         }
                     }
                 }
                 .frame(height: chartHeight)
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { chartWidth = $0 }
                 latestBandWord
             }
             HStack(spacing: 6) {
@@ -263,5 +279,176 @@ public struct NormalBarChart: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - W-GUI-2 R3 (mockup 22, report §4.4): sum metrics are bars from zero + a dashed goal
+
+/// Every bar shares one 0…(tallest × 1.2) axis; the goal counts as a mark so its line is inside.
+public nonisolated func sumBarChartYMax(points: [NormalBarPoint], goal: Double?) -> Double {
+    let top = (points.compactMap(\.value) + [goal].compactMap { $0 }).filter { $0.isFinite }.max() ?? 0
+    return top > 0 ? top * 1.2 : 1
+}
+
+/// The one legend line under the bars: the goal line, and that an untracked day is a tick (rule 5).
+public nonisolated func sumBarChartLegend(goal: Double?, unit: String?, decimals: Int) -> String {
+    let tick = "untracked days show as a tick"
+    guard let goal, goal.isFinite else { return "no goal set · \(tick)" }
+    let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
+    return "dashed = goal \(jiNumber(goal, decimals))\(u) · \(tick)"
+}
+
+public nonisolated func sumBarChartAccessibilityLabel(points: [NormalBarPoint], goal: Double?, unit: String?, decimals: Int) -> String {
+    let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
+    var parts = points.map { p -> String in
+        guard let v = p.value else { return p.missingReason == .noData ? "\(p.label) no data" : "\(p.label) — \(p.missingReason.rawValue)" }
+        return "\(p.label) \(jiNumber(v, decimals))\(u)"
+    }
+    if let goal, goal.isFinite { parts.append("goal \(jiNumber(goal, decimals))\(u)") }
+    return parts.joined(separator: ", ")
+}
+
+/// Bars from zero, one per day, the goal a dashed amber line (a goal is the user's own — the
+/// tick colour `.reduced` is a status use, rule 6), the latest bar labelled, an untracked day a
+/// hollow tick at zero with "—" + its reason word. At AX sizes: one full-width row per day.
+public struct SumBarChart: View {
+    let points: [NormalBarPoint], goal: Double?, unit: String?, decimals: Int, tint: JIColorRole, title: String?
+    @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 130
+    @ScaledMetric(relativeTo: .body) private var stackedBarHeight: CGFloat = 8
+
+    public init(points: [NormalBarPoint], goal: Double?, unit: String? = nil, decimals: Int = 0, tint: JIColorRole = .text, title: String? = nil) {
+        self.points = points; self.goal = goal; self.unit = unit; self.decimals = decimals; self.tint = tint; self.title = title
+    }
+
+    public var body: some View {
+        let yMax = sumBarChartYMax(points: points, goal: goal)
+        VStack(alignment: .leading, spacing: JISpacing.s2) {
+            if let title {
+                Text(title).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    .accessibilityAddTraits(.isHeader)
+            }
+            if points.isEmpty {
+                Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+            } else if normalBarChartStacks(dynamicTypeSize) {
+                stackedRows(yMax: yMax)
+            } else {
+                Chart {
+                    if let goal, goal.isFinite {
+                        RuleMark(y: .value("Goal", goal))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .foregroundStyle(theme.color(.reduced))
+                    }
+                    ForEach(points) { p in
+                        let slot = normalBarSlotText(p, decimals: decimals)
+                        if let v = p.value {
+                            BarMark(x: .value("Day", p.label), y: .value("Value", v), width: .ratio(0.55))
+                                .foregroundStyle(theme.color(tint).opacity(p.isLatest ? 1 : 0.7))
+                                .clipShape(Capsule())
+                                .annotation(position: .top, spacing: 3) {
+                                    if p.isLatest {
+                                        Text(slot.value).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(tint))
+                                    }
+                                }
+                        } else {
+                            PointMark(x: .value("Day", p.label), y: .value("Value", 0))
+                                .symbol { Circle().strokeBorder(theme.color(.muted), lineWidth: 1.5).frame(width: 9, height: 9) }
+                        }
+                    }
+                }
+                .chartOverlay { proxy in MissingSlotLabels(points: points, floor: 0, decimals: decimals, proxy: proxy) }
+                .chartXScale(domain: points.map(\.label))
+                .chartYScale(domain: 0...yMax)
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                        AxisValueLabel { if let v = value.as(Double.self) { Text(jiNumber(v, decimals)).jiFont(.micro) } }
+                    }
+                }
+                .frame(height: chartHeight)
+            }
+            Text(sumBarChartLegend(goal: goal, unit: unit, decimals: decimals))
+                .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Last \(points.count) days")
+        .accessibilityValue(sumBarChartAccessibilityLabel(points: points, goal: goal, unit: unit, decimals: decimals))
+    }
+
+    private func stackedRows(yMax: Double) -> some View {
+        VStack(alignment: .leading, spacing: JISpacing.s3) {
+            ForEach(points) { p in
+                let slot = normalBarSlotText(p, decimals: decimals)
+                VStack(alignment: .leading, spacing: JISpacing.s1) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(p.label).jiFont(.footnote, weight: p.isLatest ? .bold : .regular).foregroundStyle(theme.color(.text))
+                        Spacer(minLength: JISpacing.s2)
+                        Text(slot.value).jiFont(.footnote, weight: p.isLatest ? .bold : .semibold)
+                            .foregroundStyle(theme.color(p.value == nil ? .muted : tint))
+                    }
+                    if let reason = slot.reason {
+                        Text(reason).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(theme.color(.mutedNested).opacity(0.2))
+                            if let f = normalBarFraction(p.value, yMax: yMax) {
+                                Capsule().fill(theme.color(tint)).frame(width: max(stackedBarHeight, CGFloat(f) * geo.size.width))
+                            }
+                            if let g = normalBarFraction(goal, yMax: yMax) {
+                                Rectangle().fill(theme.color(.reduced)).frame(width: 2, height: stackedBarHeight * 2)
+                                    .offset(x: CGFloat(g) * geo.size.width - 1)
+                            }
+                        }
+                    }
+                    .frame(height: stackedBarHeight)
+                }
+            }
+        }
+    }
+}
+
+
+/// B-76: the "—" + reason word of every missing slot, placed by the chart proxy exactly above
+/// its hollow tick at `floor`, each inside its own slot width (so "Not in Health yet" wraps
+/// instead of spanning two nights). A chart overlay, not an `.annotation`: a sized annotation on
+/// a custom-symbol mark rendered one slot left and one label height up on iOS, over the
+/// neighbouring points.
+struct MissingSlotLabels: View {
+    let points: [NormalBarPoint], floor: Double, decimals: Int, proxy: ChartProxy
+    @Environment(\.jiTheme) private var theme
+    /// Tick radius + breathing room between the tick and the "—".
+    private let tickClearance: CGFloat = 7
+
+    var body: some View {
+        GeometryReader { geo in
+            if let anchor = proxy.plotFrame {
+                let plot = geo[anchor]
+                let slotWidth = max(24, plot.width / CGFloat(max(points.count, 1)) - 2)
+                ForEach(points.filter { $0.value == nil }) { p in
+                    if let x = proxy.position(forX: p.label), let y = proxy.position(forY: floor) {
+                        let slot = normalBarSlotText(p, decimals: decimals)
+                        Color.clear.frame(width: slotWidth, height: 0)
+                            .overlay(alignment: .bottom) {
+                                VStack(spacing: 0) {
+                                    Text(slot.value).jiFont(.caption, weight: .semibold)
+                                    if let reason = slot.reason {
+                                        Text(reason).jiFont(.micro).multilineTextAlignment(.center)
+                                            .lineLimit(3).minimumScaleFactor(0.7)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                                .frame(width: slotWidth)
+                                .foregroundStyle(theme.color(.muted))
+                            }
+                            .position(x: plot.minX + x, y: plot.minY + y - tickClearance)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
