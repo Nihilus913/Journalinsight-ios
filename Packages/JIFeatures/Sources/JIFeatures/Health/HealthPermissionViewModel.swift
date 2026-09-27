@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import JICore
+import JICompute
 import JIHealthKit
 #if canImport(UIKit) && !os(watchOS)
 import UIKit
@@ -28,22 +29,29 @@ public final class HealthPermissionViewModel {
     /// `score_computed`) for the "Computed from these" tile; nil = "—".
     public private(set) var sleepScore: Double?
 
+    /// W-DATA fixer R3: JI's own readiness — the recovery score Decide's ring shows (Apple signals,
+    /// `/vitals/recovery-inputs`); nil = loader unwired / not loaded yet ("— Calibrating").
+    public private(set) var readiness: RecoveryScoreResult?
+
     private let requestPermission: () async -> HKPermission
     private let openHealthSettings: @MainActor () -> Void
     private let loadSleepScore: (@Sendable () async -> Double?)?
+    private let loadReadiness: (@Sendable () async -> RecoveryScoreResult?)?
 
     public init(
         permission: HKPermission = .notDetermined,
         appleWatchCapabilities: DataCapability = [.hrvSDNN],
         requestPermission: @escaping () async -> HKPermission,
         openHealthSettings: @escaping @MainActor () -> Void = HealthPermissionViewModel.openHealthSettingsOnDevice,
-        loadSleepScore: (@Sendable () async -> Double?)? = nil
+        loadSleepScore: (@Sendable () async -> Double?)? = nil,
+        loadReadiness: (@Sendable () async -> RecoveryScoreResult?)? = nil
     ) {
         self.permission = permission
         self.appleWatchCapabilities = appleWatchCapabilities
         self.requestPermission = requestPermission
         self.openHealthSettings = openHealthSettings
         self.loadSleepScore = loadSleepScore
+        self.loadReadiness = loadReadiness
     }
 
     /// DEV-12: the user has answered the sheet (or data arrived). iOS never shows the sheet again
@@ -67,10 +75,10 @@ public final class HealthPermissionViewModel {
         if lastUpload != nil { permission = .granted }
     }
 
-    /// Refreshes the computed tiles' hub values (sleep score); unwired loader = stays nil.
+    /// Refreshes the computed tiles' values (sleep score, readiness); an unwired loader = stays nil.
     public func refreshComputed() async {
-        guard let loadSleepScore else { return }
-        sleepScore = await loadSleepScore()
+        if let loadSleepScore { sleepScore = await loadSleepScore() }
+        if let loadReadiness { readiness = await loadReadiness() }
     }
 
     /// Health app first (Sharing › Apps lives there; `x-apple-health://` is its URL scheme); when

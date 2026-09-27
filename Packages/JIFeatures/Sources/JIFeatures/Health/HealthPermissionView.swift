@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 import JIHealthKit
 #if canImport(UIKit)
@@ -134,15 +135,21 @@ nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: H
     }
 }
 
-/// The "Computed from these" tiles (mockup 47): Readiness "— · Calibrating" (W3), Sleep score
+/// The "Computed from these" tiles (mockup 47): Readiness = JI's recovery score from Apple signals
+/// (the number Decide's ring shows; "— · Calibrating" / "— · No data" without one), Sleep score
 /// "— · hub, Apple night" (present only when the hub sent one), Body Battery "— · Garmin only"
 /// (true: never for Readiness or Sleep score, report §7 rule 6).
 public nonisolated struct HealthComputedTile: Equatable, Sendable, Identifiable {
     public let id: String, title: String, value: String, note: String
 }
-public nonisolated func healthComputedTiles(sleepScore: Double?) -> [HealthComputedTile] {
-    [
-        HealthComputedTile(id: "readiness", title: "Readiness", value: "—", note: JIMissingReason.calibrating.rawValue),
+public nonisolated func healthComputedTiles(sleepScore: Double?, readiness: RecoveryScoreResult? = nil) -> [HealthComputedTile] {
+    let ready: (value: String, note: String) = switch readiness?.status {
+    case .ok: readiness?.score.map { ("\($0)", "JI, Apple signals") } ?? ("—", JIMissingReason.noData.rawValue)
+    case .missing: ("—", JIMissingReason.noData.rawValue)
+    case .calibrating, nil: ("—", JIMissingReason.calibrating.rawValue)
+    }
+    return [
+        HealthComputedTile(id: "readiness", title: "Readiness", value: ready.value, note: ready.note),
         HealthComputedTile(id: "sleep", title: "Sleep score", value: sleepScore.map { jiNumber($0, 0) } ?? "—", note: "hub, Apple night"),
         HealthComputedTile(id: "bodyBattery", title: "Body Battery", value: "—", note: "Garmin only"),
     ]
@@ -202,7 +209,7 @@ public struct HealthPermissionBoardSections: View {
         }
         Section("Computed from these") {
             Columns(minimum: 96, spacing: JISpacing.tileGap, tileHeight: .tile) {
-                ForEach(healthComputedTiles(sleepScore: model.sleepScore)) { tile in
+                ForEach(healthComputedTiles(sleepScore: model.sleepScore, readiness: model.readiness)) { tile in
                     JITile(family: .tile) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tile.title).jiFont(.caption, tint: .muted)

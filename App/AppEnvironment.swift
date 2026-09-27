@@ -192,6 +192,12 @@ final class AppEnvironment {
         // `getRequestStatusForAuthorization`, which has no synchronous form), so the model starts
         // at `.notDetermined` and `adopt(_:)`s the real status once the lookup returns — never a
         // guessed `.denied` in the meantime (rule 5: no false-confident state).
+        // W-DATA fixer R3: the "Computed from these" tiles read the same sources as the screens that
+        // show them — Sleep score = the hub's `/vitals/sleep-summary` `score_computed` (the Today
+        // ring's source), Readiness = the recovery score over `/vitals/recovery-inputs` (Decide's
+        // ring, `RecoveryInsightService.score`). A provider that serves neither leaves "—".
+        let provider = providerStore?.provider
+        let window = RecoveryInsightService.windowDays
         let model = HealthPermissionViewModel(
             permission: .notDetermined,
             appleWatchCapabilities: DataCapability.appleWatchCapabilities,
@@ -211,6 +217,16 @@ final class AppEnvironment {
                     Task.detached(priority: .background) { await uploader.syncAll() }
                 }
                 return status
+            },
+            loadSleepScore: {
+                guard let sp = provider as? any SleepSummaryProviding else { return nil }
+                return try? await sp.sleepSummary().scoreComputed
+            },
+            loadReadiness: {
+                guard let rp = provider as? any RecoveryInputsProviding else { return nil }
+                let day = RecoveryInsightService.localDayKey(Date())
+                guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
+                return RecoveryInsightService.score(days: days, today: day)
             }
         )
         Task { [weak self, weak model] in
