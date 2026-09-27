@@ -40,10 +40,10 @@ public struct TrainingView: View {
                 case .loaded: loaded
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
         .jiTheme(.native)
         // §5: the hand-drawn large title becomes the system one, so scroll-edge and the
         // large-title collapse come from the navigation stack instead of a `VStack` header.
@@ -111,7 +111,23 @@ public struct TrainingView: View {
     }
 
     private var loaded: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let subtitle = trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate)
+        return VStack(alignment: .leading, spacing: 0) {
+            // W-GUI TR1 (mockup 04): the week strip in a card with its legend and the plan line,
+            // then "Today" = the one tinted hero (verdict colour), one primary button.
+            Surface(level: 1, padding: JISpacing.cardPadding) {
+                VStack(alignment: .leading, spacing: JISpacing.s2) {
+                    TrainingDayStrip(daily: model.gate?.daily ?? [], selectedDate: model.selectedDate, onSelect: model.selectDate)
+                    Text(trainingStripLegend).jiFont(.micro).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("training-strip-legend")
+                    if let summary = trainingPlanSummary(sessionNames: model.planSessions.map(\.name)) {
+                        Text(summary).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("training-plan-summary")
+                    }
+                }
+            }
+            JISectionHeader("Today")
             // W-FIX3 fixer BUG-44 (board 3/01): the hero carries the session, its exercises, Send to
             // Watch and Start session (the live session coach — no separate coach row).
             TrainingHeroCard(
@@ -119,8 +135,8 @@ public struct TrainingView: View {
                 sessionName: model.plannedSessionForSelectedDay?.name,
                 rows: trainingHeroRows(exercises: model.exercises, session: model.plannedSessionForSelectedDay),
                 onSendToWatch: sendToWatchAction,
-                onStart: { showSessionCoach = true })
-            TrainingDayStrip(daily: model.gate?.daily ?? [], selectedDate: model.selectedDate, onSelect: model.selectDate)
+                onStart: { showSessionCoach = true },
+                tint: subtitle.word == nil ? nil : trainingToneColor(subtitle.tone, theme))
             JISectionHeader("Readiness")
             GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
             JISectionHeader("This day")
@@ -137,9 +153,36 @@ public struct TrainingView: View {
                 pendingSync: model.pendingSessionSync,
                 onAssign: { assigningSession = $0 }
             )
+            JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in
                 Task { await model.updateExercise(exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName, patch: patch) }
             }
+            Text(trainingProgressionCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
+            // W-GUI TR1 (mockup 04, plan §B): zones are the user's input — none set until W4.
+            JISectionHeader("Zones · your input")
+            Surface(level: 1, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(trainingZoneRows(cap: nil, zone2: nil).enumerated()), id: \.element.id) { index, row in
+                        if index > 0 { JIRowDivider().padding(.leading, 0) }
+                        HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.title).jiFont(.body).foregroundStyle(theme.color(.text))
+                                Text(row.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: JISpacing.s2)
+                            Text(row.value).jiFont(.body, weight: .semibold)
+                                .foregroundStyle(theme.color(row.value.hasPrefix("—") ? .muted : .text))
+                        }
+                        .padding(.vertical, JISpacing.s3)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+            }
+            .accessibilityIdentifier("training-zones")
         }
     }
 
