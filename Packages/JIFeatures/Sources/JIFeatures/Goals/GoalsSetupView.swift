@@ -152,6 +152,9 @@ public struct GoalsSetupView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI M4 (mockup 40): the List on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Goals setup")
