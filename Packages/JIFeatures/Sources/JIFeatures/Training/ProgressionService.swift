@@ -32,6 +32,20 @@ public nonisolated func lastOccurrence(ofWeekday weekday: Int, before today: Str
     return try? CalendarMath.addDays(today, -(back == 0 ? 7 : back))
 }
 
+/// W-FIX5 W5-2: the progression rule's rep target from the plan text. A clean integer is itself;
+/// a range ("6-12", "8–10") is double progression — the lift is due once every set reaches the
+/// top of the range. Anything else ("max", "12-6") is no target. `parseRepsTarget` (JICore) stays
+/// integer-only: it feeds the hub write, whose column is an integer.
+public nonisolated func progressionRepsTarget(_ raw: String?) -> Int? {
+    guard let raw else { return nil }
+    let text = raw.trimmingCharacters(in: .whitespaces)
+    if let n = Int(text) { return n > 0 ? n : nil }
+    let parts = text.split(whereSeparator: { $0 == "-" || $0 == "–" || $0 == "—" })
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+    guard parts.count == 2, let low = Int(parts[0]), let high = Int(parts[1]), low > 0, high >= low else { return nil }
+    return high
+}
+
 /// Pure: the plan rows, overlaid by the local strength state (a newer local weight wins), judged
 /// against the last logged sets of each lift's session.
 public nonisolated func liftProgressions(
@@ -47,7 +61,7 @@ public nonisolated func liftProgressions(
         }
         let target = LiftTarget(name: ex.exerciseName, currentKg: current,
                                 stepKg: entry?.progressionStepKg ?? ex.progressionStepKg, sets: sets,
-                                repsTarget: entry?.repsTarget ?? parseRepsTarget(ex.repsTarget))
+                                repsTarget: entry?.repsTarget ?? progressionRepsTarget(ex.repsTarget))
         let state = Progression.evaluate(target: target, lastSession: lastSessionSets[ex.sessionName] ?? [], autoSuggest: autoSuggest)
         return LiftProgression(exerciseId: ex.exerciseId, name: ex.exerciseName, sessionName: ex.sessionName,
                                currentKg: current, nextKg: Progression.nextWorkingWeight(target: target, state: state),

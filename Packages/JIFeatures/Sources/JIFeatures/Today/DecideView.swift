@@ -95,6 +95,19 @@ public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: 
     return ("Today's session", name ?? "— \(JIMissingReason.noData.rawValue)")
 }
 
+/// W-FIX5 W5-3: the session row's lift weight — never beside a Rest call (the hub's REST word, the
+/// user's "Rest" override, or a row whose session reads "Rest"): there is nothing to lift today.
+public nonisolated func decideSessionLiftShown(verdict: VerdictParts, sessionDetail: String,
+                                               lifts: [LiftProgression]) -> (kg: String, caption: String?)? {
+    if TodayMorningFlow.isRestDay(verdict) { return nil }
+    if sessionDetail.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("rest") { return nil }
+    return decideSessionLift(lifts)
+}
+
+/// W-FIX5 W5-3: at accessibility sizes the session row stacks (title, session, weight) instead of
+/// squeezing three texts into one line and clipping them.
+public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
 /// W-FIX4 PF-01: in the app Go / Adjust are pinned to the bottom of Decide, above the floating tab
 /// bar (the screens live in a layer behind the chrome-only `TabView`, so the bar is not in their
 /// safe area); the sweep (`jiOffscreenRender`) keeps them inline at the end of the card.
@@ -212,6 +225,19 @@ public struct DecideView: View {
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
     private var wasCaption: String? { override == nil ? nil : effectiveVerdict(parts: verdict, override: override).wasCaption }
     private var submitting: Bool { overrideModel?.phase == .submitting }
+
+    /// B-57 W5 C4: the first lift's next weight, "↑ Bench up" under it when due.
+    private func sessionLiftText(_ lift: (kg: String, caption: String?), alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
+            Text(lift.kg).jiFont(.subheadline, weight: .bold).monospacedDigit()
+                .foregroundStyle(theme.color(lift.caption == nil ? .text : .go))
+            if let caption = lift.caption {
+                Text(caption).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.go))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityIdentifier("today.decide.lift")
+    }
 
     @ViewBuilder
     private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
@@ -362,20 +388,22 @@ public struct DecideView: View {
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     // B-57 W5 C4 (board 1/01): the first lift's next weight at the right, "↑ Bench up" when due.
-                    let lift = decideSessionLift(progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
+                    // W-FIX5 W5-3: no weight beside a Rest call; stacked at accessibility sizes.
+                    let lift = decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
+                                                      lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
                         JIChevronRow {
-                            JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
-                            if let lift {
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    Text(lift.kg).jiFont(.subheadline, weight: .bold).monospacedDigit()
-                                        .foregroundStyle(theme.color(lift.caption == nil ? .text : .go))
-                                    if let caption = lift.caption {
-                                        Text(caption).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.go))
-                                    }
+                            if decideSessionRowStacked(typeSize) {
+                                VStack(alignment: .leading, spacing: JISpacing.s1) {
+                                    JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
+                                    Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    if let lift { sessionLiftText(lift, alignment: .leading) }
                                 }
-                                .fixedSize()
-                                .accessibilityIdentifier("today.decide.lift")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            } else {
+                                JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+                                if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
                             }
                         }
                         .padding(.horizontal, JISpacing.s4)

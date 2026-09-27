@@ -122,6 +122,21 @@ public final class TodayViewModel {
         self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
     }
 
+    /// W-FIX5 W5-4: the queue "Your week"'s weekday writes go through (B-52, the same on-disk
+    /// outbox the Training tab uses). A seam so tests never open the on-disk database.
+    @ObservationIgnored public var weekOutbox: () -> Outbox? = { try? Outbox(db: .onDisk()) }
+
+    /// W-FIX5 W5-4: Day's "Week review" row opens "Your week" — a Training week model over this
+    /// screen's provider and cache. nil when the provider has no training routes.
+    public var makesTrainingWeekModel: Bool { provider is any TrainingProviding }
+
+    public func makeTrainingWeekModel() -> TrainingViewModel? {
+        guard let training = provider as? any TrainingProviding else { return nil }
+        let outbox = weekOutbox()
+        return TrainingViewModel(provider: training, healthProvider: provider, cache: cache, outbox: outbox,
+                                 drainer: outbox.map { OutboxDrainer(outbox: $0, hub: provider) }, now: now)
+    }
+
     /// The `PrefStore` `TodayGrid` persists its drag-reorder tile order to (`today.tileOrder`).
     /// `nil` at call sites that haven't wired it yet — see `prefs`'s doc comment.
     public var tileOrderStore: PrefStore? { prefs }
@@ -452,7 +467,8 @@ let fixtureMorningJSON = """
  {"date":"2026-09-21","hrv_weekly_avg":52,"rhr_bpm":52}]}
 """
 
-/// B-65: an Apple Watch night — the hub's three Apple arcs (`hrv` 7-day band, `sleep_h` 7 h floor,
+/// B-65: an Apple Watch night — the hub's three Apple arcs (`hrv` 7-day band, `sleep_h` floor —
+/// the user's own; this fixture's night was judged against 7.0 h —
 /// `hrv_day` context) in place of the Garmin four.
 let fixtureMorningAppleJSON = """
 {"today_activities":[],"verdict":"MODIFIED (sleep < 7 h) — Easy Z2 30–40 min","verdict_date":"2026-09-23","carb_watch_floor":180,"carbs_3d_avg":214,

@@ -15,8 +15,10 @@ public struct TodayView: View {
     @State private var gateRespondModel: GateRespondViewModel?
     /// B-57 §6/§9: the Day summary line re-opens this morning's Coach overlay, read-only.
     @State private var showMorningReview = false
-    /// W-FIX3 BUG-28: board 02's "Week review" footer link opens the gate rationale (weekly gate).
+    /// W-FIX3 BUG-28: board 02's "Week review" footer link opened the gate rationale; W-FIX5 W5-4:
+    /// it opens "Your week" (its "3 of 4 sessions" value is that screen's count).
     @State private var showWeekReview = false
+    @State private var weekModel: TrainingViewModel?
     @State private var showEditToday = false
     @Environment(\.nutritionGoals) private var nutritionGoals
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -193,10 +195,13 @@ public struct TodayView: View {
                 }
                 .buttonStyle(.pressableScale)
                 .accessibilityIdentifier("today.footer.trends")
-                // Board 02 "Week review": the weekly gate (nutrition, rules, the weekly answer) lives on the rationale.
-                if rationaleModel != nil {
+                // W-FIX5 W5-4: "Week review" opens Your week (the rationale only without a training provider).
+                if weekReviewDestination != nil {
                     JIRowDivider()
-                    Button { showWeekReview = true } label: { dayFooterRow(.weekReview) }
+                    Button {
+                        if weekReviewDestination == .yourWeek, weekModel == nil { weekModel = model.makeTrainingWeekModel() }
+                        showWeekReview = true
+                    } label: { dayFooterRow(.weekReview) }
                         .buttonStyle(.pressableScale)
                         .accessibilityIdentifier("today.footer.weekReview")
                 }
@@ -210,13 +215,22 @@ public struct TodayView: View {
             .jiSheetGround()
         }
         .navigationDestination(isPresented: $showWeekReview) {
-            if let rationaleModel { gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel) }
+            if let weekModel {
+                TrainingWeekView(model: weekModel).task { await weekModel.load() }
+            } else if let rationaleModel {
+                gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel)
+            }
         }
         // W-FIX3 C-g: room for the Coach card's real height, so the last squares and the footer
         // scroll out from under it (a fixed 140 pt left them unreachable behind a taller card).
         if model.morningState == .coach || showMorningReview {
             Color.clear.frame(height: todayCoachScrollReserve(cardHeight: coachCardHeight)).accessibilityHidden(true)
         }
+    }
+
+    private var weekReviewDestination: DayWeekReviewDestination? {
+        dayWeekReviewDestination(hasWeekModel: !offscreen && (weekModel != nil || model.makesTrainingWeekModel),
+                                 hasRationale: rationaleModel != nil)
     }
 
     /// W-GUI T3: the footer rows (mockup 02) — a chevron row each, with the mockup's subtitle
@@ -624,6 +638,14 @@ public nonisolated func dayMacroCaption(label: String, value: Double?, goal: Dou
 }
 
 /// The Day's footer rows (mockup 02): chevron rows, never text links (DEV-07).
+/// W-FIX5 W5-4: where Day's "Week review" row goes — Your week whenever a training provider is
+/// there; the gate rationale only without one; no row with neither.
+public nonisolated enum DayWeekReviewDestination: Sendable, Equatable { case yourWeek, rationale }
+
+public nonisolated func dayWeekReviewDestination(hasWeekModel: Bool, hasRationale: Bool) -> DayWeekReviewDestination? {
+    hasWeekModel ? .yourWeek : (hasRationale ? .rationale : nil)
+}
+
 public nonisolated enum DayFooterRow: Sendable, Equatable, CaseIterable {
     case trends, weekReview
     public var title: String { self == .trends ? "Trends" : "Week review" }

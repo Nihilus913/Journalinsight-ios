@@ -39,7 +39,13 @@ targets:
   JournalInsight:
     type: application
     platform: iOS
-    sources: [App]
+    # W-FIX5 W5-5: the app starts the verdict Live Activity (`Activity.request` must run in the
+    # app, never the extension), so the controller + its cap policy are members of BOTH targets —
+    # one `VerdictActivityAttributes` type for the request and the extension's UI.
+    sources:
+      - App
+      - Widgets/Sources/LiveActivityController.swift
+      - Widgets/Sources/LiveActivityCapPolicy.swift
     info:
       path: App/Info.plist
       properties:
@@ -142,7 +148,10 @@ targets:
   JournalInsightTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [AppTests]
+    # W-FIX5 W5-1: the gate widget's pure medium layout (`GateMediumLayout`) is tested here.
+    sources:
+      - AppTests
+      - Widgets/Sources/GateMediumLayout.swift
     dependencies:
       - target: JournalInsight
     settings:
