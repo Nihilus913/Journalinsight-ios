@@ -4,7 +4,7 @@ import JIDesign
 
 struct GateConfigGroupsTests {
     @Test func fieldsLandInTheBoardGroups() {
-        #expect(MorningGateOverridableField.minSleepH.group == .sleep)
+        #expect(MorningGateOverridableField.minSleepH.group == .recoverySignals)   // B-57 W3: Garmin knob, not the goal
         #expect(MorningGateOverridableField.respDeltaAmber.group == .recoverySignals)
         #expect(MorningGateOverridableField.carb3dWatch.group == .fuel)
         for f in [MorningGateOverridableField.kcalTarget, .proteinTarget, .carbTarget, .fatTarget, .stepTarget, .targetWeight, .targetBf] {
@@ -16,8 +16,8 @@ struct GateConfigGroupsTests {
         for f in MorningGateOverridableField.allCases where f.group != nil { #expect(!f.explanation.isEmpty) }
     }
 
-    @Test func sleepStaysFloorWordedInW1() {
-        #expect(MorningGateOverridableField.minSleepH.label == "Min sleep (interval gate)")
+    @Test func garminSleepKnobIsNotTheSleepGoal() {
+        #expect(MorningGateOverridableField.minSleepH.label == "Garmin nights: min sleep for intervals")   // B-57 W3
         #expect(!MorningGateOverridableField.minSleepH.explanation.lowercased().contains("goal"))
     }
 
