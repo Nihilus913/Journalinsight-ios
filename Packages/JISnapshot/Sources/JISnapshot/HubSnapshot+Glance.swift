@@ -47,6 +47,31 @@ public struct SnapshotSignal: Codable, Hashable, Sendable {
         return "Calibrating"
     }
 
+    // MARK: compact (the medium widget's ~48 pt columns — W-B57-W5 fixer; VoiceOver keeps the full words)
+
+    /// "RHR" for Resting HR; the other labels are already short.
+    public var shortLabel: String { key == "rhr" ? "RHR" : label }
+
+    /// `word` in ≤ 6 characters, same meaning.
+    public var compactWord: String {
+        switch word {
+        case "No reading": "None"
+        case "In normal": "Normal"
+        case "Below goal": "Short"
+        case "Red flag": "Red"
+        case "Context": "Info"
+        default: word
+        }
+    }
+
+    /// `caption` in ≤ 9 characters: the bare band ("27–30"), "goal 7.0", "left out", "no normal".
+    public var compactCaption: String {
+        if value == nil || status == "missing" { return "left out" }
+        if let lo = normalLow, let hi = normalHigh { return "\(glanceNumber(lo, decimals))–\(glanceNumber(hi, decimals))" }
+        if let goal { return "goal \(glanceNumber(goal, 1))" }
+        return "no normal"
+    }
+
     /// "HRV 25 < 27" / "RHR 62 > 56" — only when the value sits outside its normal.
     public var compactComparison: String? {
         guard let value, let lo = normalLow, let hi = normalHigh else { return nil }
@@ -128,16 +153,25 @@ public extension HubSnapshot {
 
 /// Builds the fixed glance triple HRV · Sleep · Resting HR from the gate's signals (Garmin or
 /// Apple night) plus the W3 normals and sleep goal. A signal the gate did not send is "missing" —
-/// never a zero.
+/// never a zero — unless `latest` holds a recent reading for that key (the gate never sends RHR,
+/// W-B57-W5 fixer): it then shows as "context" (the gate did not judge it; the band still words it).
 public enum GlanceSignals {
-    public static func make(gateSignals: [GateSignal]?, hrvNormal: ClosedRange<Double>?, rhrNormal: ClosedRange<Double>?, sleepGoalH: Double?) -> [SnapshotSignal] {
+    public static func make(gateSignals: [GateSignal]?, hrvNormal: ClosedRange<Double>?, rhrNormal: ClosedRange<Double>?, sleepGoalH: Double?,
+                            latest: [String: Double] = [:]) -> [SnapshotSignal] {
         let byKey = Dictionary((gateSignals ?? []).map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
         func one(_ key: String, label: String, unit: String, normal: ClosedRange<Double>?, goal: Double?) -> SnapshotSignal {
             let g = byKey[key]
-            let value = g?.value
+            let status: String
+            let value: Double?
+            if let v = g?.value {
+                value = v; status = g?.status.rawValue ?? "missing"
+            } else if let v = latest[key] {
+                value = v; status = "context"
+            } else {
+                value = nil; status = "missing"
+            }
             return SnapshotSignal(key: key, label: label, value: value, unit: unit,
-                                  normalLow: normal?.lowerBound, normalHigh: normal?.upperBound, goal: goal,
-                                  status: value == nil ? "missing" : (g?.status.rawValue ?? "missing"))
+                                  normalLow: normal?.lowerBound, normalHigh: normal?.upperBound, goal: goal, status: status)
         }
         return [
             one("hrv", label: "HRV", unit: "ms", normal: hrvNormal, goal: nil),

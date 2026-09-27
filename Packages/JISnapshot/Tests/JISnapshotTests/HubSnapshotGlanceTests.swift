@@ -148,6 +148,34 @@ struct HubSnapshotGlanceTests {
         #expect(GlanceSignals.make(gateSignals: nil, hrvNormal: nil, rhrNormal: nil, sleepGoalH: nil).allSatisfy { $0.status == "missing" })
     }
 
+    /// W-B57-W5 fixer (glance-RHR): the gate never sends RHR, so the triple's RHR read "No reading"
+    /// with today's RHR on Recovery. A reading the gate did not judge comes from `latest` as
+    /// "context" (the band still words it); the gate's own signal wins when both exist.
+    @Test func glanceSignalsTakeTheLatestReadingTheGateDidNotSend() {
+        let out = GlanceSignals.make(gateSignals: [Self.sig("hrv", .amber)], hrvNormal: nil, rhrNormal: 55...65,
+                                     sleepGoalH: 7, latest: ["rhr": 71, "hrv": 99])
+        #expect(out[2].value == 71 && out[2].status == "context")
+        #expect(out[2].word == "High" && out[2].caption == "normal 55–65")
+        #expect(out[0].status == "amber" && out[0].value != 99)          // the gate's HRV wins
+        #expect(out[1].status == "missing")                              // no sleep anywhere: still left out
+    }
+
+    /// W-B57-W5 fixer (A2 medium): the medium face's three columns truncated "Below…", "No rea…",
+    /// "Restin…", "normal 2…". Its compact vocabulary fits a ~48 pt column and stays honest.
+    @Test func compactSignalVocabularyFitsTheMediumColumn() {
+        let rhr = SnapshotSignal(key: "rhr", label: "Resting HR", value: nil, unit: "bpm", normalLow: nil, normalHigh: nil, goal: nil, status: "missing")
+        #expect(rhr.shortLabel == "RHR" && rhr.compactWord == "None" && rhr.compactCaption == "left out")
+        let sleep = SnapshotSignal(key: "sleep_h", label: "Sleep", value: 6.2, unit: "h", normalLow: nil, normalHigh: nil, goal: 7, status: "amber")
+        #expect(sleep.compactWord == "Short" && sleep.compactCaption == "goal 7.0")
+        let hrv = SnapshotSignal(key: "hrv", label: "HRV", value: 28, unit: "ms", normalLow: 27, normalHigh: 30, goal: nil, status: "pass")
+        #expect(hrv.shortLabel == "HRV" && hrv.compactWord == "Normal" && hrv.compactCaption == "27–30")
+        let calibrating = SnapshotSignal(key: "hrv", label: "HRV", value: 25, unit: "ms", normalLow: nil, normalHigh: nil, goal: nil, status: "red")
+        #expect(calibrating.compactWord == "Red" && calibrating.compactCaption == "no normal")
+        for s in [rhr, sleep, hrv, calibrating] {
+            #expect(s.shortLabel.count <= 6 && s.compactWord.count <= 6 && s.compactCaption.count <= 9)
+        }
+    }
+
     @Test func kpiBandWord() {
         let k = SnapshotKPI(id: .hrv, label: "HRV", value: 25, unit: "ms", normalLow: 27, normalHigh: 30)
         #expect(k.bandWord == "Low" && k.normalCaption == "normal 27–30")
