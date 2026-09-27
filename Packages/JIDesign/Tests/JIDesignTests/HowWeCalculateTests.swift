@@ -17,6 +17,7 @@ struct HowWeCalculateTests {
 
     @Test @MainActor func renders() {
         expectRenders("HowWeCalculate", height: 360) { HowWeCalculate(title: "How we calculate", steps: steps, note: "No medical judgement.") }
-        expectRenders("HowWeCalculateLink", height: 60) { NavigationStack { HowWeCalculateLink(title: "How we calculate", steps: steps) } }
+        // W-B57-W5 fixer: no NavigationStack under ImageRenderer (see GlassButtonTests).
+        expectRenders("HowWeCalculateLink", height: 60) { HowWeCalculateLink(title: "How we calculate", steps: steps) }
     }
 }

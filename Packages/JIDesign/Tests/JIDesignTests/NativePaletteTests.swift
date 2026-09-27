@@ -44,8 +44,6 @@ struct NativePaletteTests {
         (.go, .systemGreen),
         (.reduced, .systemOrange),
         (.danger, .systemRed),
-        (.hrv, .systemBlue),
-        (.sleep, .systemPurple),
         (.kcal, .systemOrange),
         (.protein, .systemPink),
         (.carbs, .systemYellow),
@@ -53,6 +51,14 @@ struct NativePaletteTests {
     ])
     func nativeRoleIsTheSystemSemanticColour(role: JIColorRole, expected: UIColor) {
         #expect(JITheme.native.color(role) == Color(uiColor: expected))
+    }
+
+    /// W-GUI F4 made HRV / Sleep dynamic (the report's dark hexes; the system tint in light), so
+    /// they are compared by the colour the light scheme resolves to (W-B57-W5 fixer).
+    @Test(arguments: [(JIColorRole.hrv, UIColor.systemBlue), (.sleep, .systemPurple)])
+    func metricRoleIsTheSystemTintInLight(role: JIColorRole, expected: UIColor) {
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        #expect(UIColor(JITheme.native.color(role)).resolvedColor(with: light) == expected.resolvedColor(with: light))
     }
     #endif
 

@@ -16,8 +16,13 @@ struct AccentRoleTests {
         #expect(JITheme.native.color(.info) != Color(uiColor: .systemBlue))
     }
 
+    /// W-GUI F4 made `.hrv` dynamic (system blue in light, the report's dark hex in dark), so the
+    /// Color no longer equals `.systemBlue` as a value — compare the colour each scheme resolves to.
     @Test func hrvKeepsItsBlueMetricColour() {
-        #expect(JITheme.native.color(.hrv) == Color(uiColor: .systemBlue))
+        let hrv = UIColor(JITheme.native.color(.hrv))
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        #expect(hrv.resolvedColor(with: light) == UIColor.systemBlue.resolvedColor(with: light))
+        #expect(UIColor(JITheme.native.color(.hrv)) != UIColor(JITheme.native.color(.info)))
     }
     #endif
 
