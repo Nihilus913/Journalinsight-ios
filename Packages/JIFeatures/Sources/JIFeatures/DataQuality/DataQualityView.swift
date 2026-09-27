@@ -35,6 +35,8 @@ public struct DataQualityView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
         // B-46 item 5: `readableColumn()` puts a hard `frame(maxWidth: 720)` on whatever it wraps.
         // On a `ScrollView`'s inner `VStack` (every other screen) that is a readable-width cap; on
         // a `List` it OVERRIDES the list's own width, so at 393 pt the list laid out 720 pt wide
@@ -198,6 +200,8 @@ public struct DataQualityUnavailableView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
         .jiTheme(.native)
         .navigationTitle("Data quality")
         .accessibilityIdentifier("dataQuality.unavailable")
@@ -237,6 +241,8 @@ struct DataQualitySourceDetailView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
         .jiTheme(.native)
         .navigationTitle(row.family.title)
     }

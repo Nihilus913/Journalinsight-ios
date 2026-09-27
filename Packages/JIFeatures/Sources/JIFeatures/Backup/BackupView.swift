@@ -48,6 +48,9 @@ public struct BackupView: View {
         }
         .jiTheme(.native)
         .navigationTitle("Backup & restore")
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .fileExporter(
             isPresented: $model.showExporter,
             document: model.exportDocument,

@@ -146,6 +146,9 @@ public struct LocalMirrorsView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Local data mirrors")
@@ -170,6 +173,9 @@ public struct LocalMirrorsView: View {
     private func mirrorDetail<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         List { content() }
             .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
             .readableColumn()
             .jiTheme(.native)
             .navigationTitle(title)
