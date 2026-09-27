@@ -371,10 +371,11 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
 }
 
 
-/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square names its method in its caption —
-/// "RMSSD · overnight · as of 26 Sep" — it is the overnight RMSSD, not the Health app's daytime
-/// SDNN. The title stays the short label so the two-up card never truncates it.
+/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square's caption names the method —
+/// "as of 26 Sep · RMSSD · overnight" — it is the overnight RMSSD, not the Health app's daytime
+/// SDNN. The title stays the short label so the two-up card never truncates it; a chip with no
+/// as-of caption (today's fresh value) keeps no caption (B-46 defect 9 rule).
 public nonisolated func todayCardCaption(_ chip: TodayChip) -> String? {
-    guard chip.id == "hrv" else { return chip.asOf }
-    return ["RMSSD · overnight", chip.asOf].compactMap { $0 }.joined(separator: " · ")
+    guard chip.id == "hrv", let asOf = chip.asOf else { return chip.asOf }
+    return "\(asOf) · RMSSD · overnight"
 }
