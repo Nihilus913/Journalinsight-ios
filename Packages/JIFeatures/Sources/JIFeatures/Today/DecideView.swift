@@ -370,6 +370,7 @@ public struct DecideView: View {
                         }
                         .padding(.horizontal, 20).padding(.bottom, 24)
                     }
+                    .jiPageGround()
                     .background(theme.color(.bg))
                     .navigationTitle("Adjust")
                     .toolbar {
@@ -456,7 +457,7 @@ public struct VerdictAdjustForm: View {
             } label: {
                 Text("Save my call").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent).tint(theme.color(.info)).controlSize(.large)
+            .buttonStyle(.jiPrimary)   // W-GUI T2: the sheet's one primary
             .disabled(choice == nil || model?.phase == .submitting)
             .accessibilityIdentifier("today.decide.adjust.save")
         }
