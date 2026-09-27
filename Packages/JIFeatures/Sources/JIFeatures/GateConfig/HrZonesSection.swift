@@ -37,7 +37,7 @@ struct HrZonesSection: View {
                                      set: { on in Task { await model.setAvoidZone5(on) } })) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Avoid Zone 5").font(.subheadline).foregroundStyle(theme.color(.text))
-                        Text("Sessions and Watch workouts stay below \(zones.zone5FloorBpm) bpm.")
+                        Text("Sessions and Watch workouts stay below \(zones.floorsBpm[4]) bpm.")
                             .font(.caption2).foregroundStyle(theme.color(.muted))
                     }
                 }

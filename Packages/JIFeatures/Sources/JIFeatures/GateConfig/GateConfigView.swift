@@ -25,6 +25,8 @@ public struct GateConfigView: View {
     @Environment(\.recoveryInsight) private var recoveryInsight
     @State private var showCapSheet = false
     @State private var showWalkthrough = false
+    /// Held for the cover's lifetime so a re-render never restarts the walk-through.
+    @State private var walkthroughModel: OnboardingViewModel?
 
     public var body: some View {
         Form {
@@ -45,7 +47,10 @@ public struct GateConfigView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("gateConfig.howItWorks")
-                Button("Walk me through it again") { showWalkthrough = true }
+                Button("Walk me through it again") {
+                    walkthroughModel = model.makeOnboardingModel()
+                    showWalkthrough = true
+                }
                     .jiFont(.footnote, weight: .semibold).tint(theme.color(.info))
                     .accessibilityIdentifier("gateConfig.walkthrough")
             } footer: {
@@ -116,6 +121,11 @@ public struct GateConfigView: View {
         .task { if !offscreen { await model.load() } }
         .sheet(isPresented: $showCapSheet) {
             HrCapChangeSheet(current: model.gateSettings.hrCapBpm) { await model.changeHrCap($0) }
+        }
+        .onboardingCover(isPresented: $showWalkthrough) {
+            if let walkthroughModel {
+                OnboardingFlowView(model: walkthroughModel) { showWalkthrough = false; model.loadLocal() }
+            }
         }
     }
 

@@ -222,6 +222,11 @@ public final class GateConfigViewModel {
         await persistSettings()
     }
 
+    /// "Walk me through it again": the onboarding flow over the stored settings.
+    public func makeOnboardingModel() -> OnboardingViewModel {
+        OnboardingViewModel(prefs: prefStore, mirror: mirror, reminderCenter: reminderCenter, today: today)
+    }
+
     private func persistSettings() async {
         if let mirror { await mirror.save(gateSettings) } else { try? GateSettingsStore(prefs: prefStore).save(gateSettings) }
     }
