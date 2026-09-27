@@ -248,6 +248,9 @@ struct SquareBadge: View {
     }
 }
 
+/// W-GUI T7 (mockup 15): the dashed square's visible label.
+public nonisolated let addSquareLabel = "Add a square"
+
 /// The dashed "Add" square that closes an editing grid.
 struct AddSquare: View {
     let action: () -> Void
@@ -258,7 +261,8 @@ struct AddSquare: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: "plus").font(.title2)
-                Text("Add").jiFont(.footnote, weight: .semibold)
+                Text(addSquareLabel).jiFont(.footnote, weight: .semibold).multilineTextAlignment(.center)
+                    .lineLimit(2).minimumScaleFactor(0.8)
             }
             .foregroundStyle(theme.color(.info))
             .frame(maxWidth: .infinity, maxHeight: .infinity)

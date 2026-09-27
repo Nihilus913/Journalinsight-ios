@@ -29,6 +29,8 @@ import JIDesign
     #expect(dayMacroCaption(label: "Protein", value: 98, goal: 155) == "Protein · goal 155")
     #expect(dayMacroCaption(label: "Carbs", value: 118, goal: nil) == "Carbs")
     #expect(dayMacroCaption(label: "Fat", value: nil, goal: 60) == "Fat · No data")
-    #expect(todayCardTitle(TodayChip(id: "hrv", label: "HRV", value: 25, unit: "ms", points: [], sourceMissing: false)) == "Overnight HRV · RMSSD")
-    #expect(todayCardTitle(TodayChip(id: "rhr", label: "Resting HR", value: 52, unit: "bpm", points: [], sourceMissing: false)) == "Resting HR")
+    // DEV-09 label half: the HRV square's caption names the method; the title stays short.
+    #expect(todayCardCaption(TodayChip(id: "hrv", label: "HRV", value: 25, unit: "ms", points: [], sourceMissing: false, asOf: "as of 26 Sep")) == "RMSSD · overnight · as of 26 Sep")
+    #expect(todayCardCaption(TodayChip(id: "hrv", label: "HRV", value: 25, unit: "ms", points: [], sourceMissing: false)) == "RMSSD · overnight")
+    #expect(todayCardCaption(TodayChip(id: "rhr", label: "Resting HR", value: 52, unit: "bpm", points: [], sourceMissing: false, asOf: "as of 26 Sep")) == "as of 26 Sep")
 }

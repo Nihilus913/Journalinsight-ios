@@ -196,8 +196,7 @@ public struct TodayView: View {
         }
         .sheet(isPresented: $showEditToday) {
             NavigationStack {
-                EditTodayView(model: EditTodayViewModel(prefs: model.tileOrderStore, chips: model.gridChips))
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showEditToday = false } } }
+                EditTodayView(model: EditTodayViewModel(prefs: model.tileOrderStore, chips: model.gridChips)) { showEditToday = false }
             }
             .jiSheetGround()
         }

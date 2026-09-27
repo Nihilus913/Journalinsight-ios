@@ -361,18 +361,20 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
     return TodaySummaryCardSpec(
         icon: todayCardIcon(chip.id),
         tintRole: todayCardTintRole(chip.id),
-        title: todayCardTitle(chip),
+        title: chip.label,
         value: value,
         unit: value == nil ? nil : chip.unit,
-        timestamp: chip.sourceMissing ? nil : chip.asOf,
+        timestamp: chip.sourceMissing ? nil : todayCardCaption(chip),
         sparkline: chip.points,
         sourceMissing: chip.sourceMissing
     )
 }
 
 
-/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square names its method — it is the
-/// overnight RMSSD, not the Health app's daytime SDNN. Every other chip keeps its label.
-public nonisolated func todayCardTitle(_ chip: TodayChip) -> String {
-    chip.id == "hrv" ? "Overnight HRV · RMSSD" : chip.label
+/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square names its method in its caption —
+/// "RMSSD · overnight · as of 26 Sep" — it is the overnight RMSSD, not the Health app's daytime
+/// SDNN. The title stays the short label so the two-up card never truncates it.
+public nonisolated func todayCardCaption(_ chip: TodayChip) -> String? {
+    guard chip.id == "hrv" else { return chip.asOf }
+    return ["RMSSD · overnight", chip.asOf].compactMap { $0 }.joined(separator: " · ")
 }

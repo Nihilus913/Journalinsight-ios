@@ -107,7 +107,7 @@ import JIPersistence
 @Test func everyTodayChipMapsToACardWithAnIconATintAndAFormattedValue() {
     let hrv = todaySummaryCardSpec(for: TodayChip(id: "hrv", label: "HRV", value: 61, unit: "ms", points: [58, 61], sourceMissing: false))
     #expect(hrv.icon == "waveform.path.ecg")
-    #expect(hrv.title == "Overnight HRV · RMSSD")   // W-GUI T3 (DEV-09): the square names its method
+    #expect(hrv.title == "HRV")
     #expect(hrv.value == "61")
     #expect(hrv.unit == "ms")
     #expect(hrv.sparkline == [58, 61])
