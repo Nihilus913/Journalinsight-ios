@@ -4,6 +4,7 @@ import JICore
 import JIPersistence
 @testable import JIFeatures
 
+// @unchecked: test-only fake; its vars are touched only from the @MainActor test bodies.
 final class GateSettingsHubFake: GateSettingsProviding, @unchecked Sendable {
     var puts: [GateSettingsBody] = []
     var fail = false

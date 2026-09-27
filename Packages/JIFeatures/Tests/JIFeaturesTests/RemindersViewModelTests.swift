@@ -23,7 +23,7 @@ private func makeModel(status: UNAuthorizationStatus = .authorized,
     #expect(m.daily[.mind]?.time == ReminderTime(hour: 9, minute: 0))
     #expect(m.daily[.dose]?.time == ReminderTime(hour: 8, minute: 30))
     #expect(m.daily[.gateFloor]?.time == ReminderTime(hour: 5, minute: 10))
-    for kind in ReminderKind.allCases { #expect(m.daily[kind]?.enabled == false) }
+    for kind in ReminderKind.dailyCases { #expect(m.daily[kind]?.enabled == false) }
     for wd in Weekday.allCases {
         #expect(m.workouts[wd]?.enabled == false)
         #expect(m.workouts[wd]?.time == ReminderTime(hour: 7, minute: 0))
@@ -69,9 +69,9 @@ private func makeModel(status: UNAuthorizationStatus = .authorized,
 @Test @MainActor func permissionDeniedRendersRNsCopyAndSchedulesNothing() async throws {
     let (m, c, _) = try makeModel(status: .notDetermined)
     c.grantOnRequest = false
-    await m.setEnabled(.dose, true)
-    #expect(m.daily[.dose]?.enabled == false)
-    #expect(m.daily[.dose]?.notice == RemindersCopy.permissionDenied)
+    await m.setEnabled(.journal, true)   // B-57 W4: `.dose` now asks for the medication first
+    #expect(m.daily[.journal]?.enabled == false)
+    #expect(m.daily[.journal]?.notice == RemindersCopy.permissionDenied)
     #expect(RemindersCopy.permissionDenied == "Notification permission was denied — enable it in system settings to get reminders.")
     #expect(c.pending.isEmpty)
 }
