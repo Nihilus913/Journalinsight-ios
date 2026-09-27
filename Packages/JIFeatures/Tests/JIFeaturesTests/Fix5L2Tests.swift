@@ -66,7 +66,7 @@ import JIPersistence
     let hub = GateSettingsHubFake(); hub.fail = true
     let vm = GateConfigViewModel(targetsProvider: nil, prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub))
     vm.loadLocal()
-    await vm.setPreset(.careful)
+    await vm.setPreset(.cautious)
     #expect(vm.hubPending)
     hub.fail = false
     await vm.foregroundSync()
