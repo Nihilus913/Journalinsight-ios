@@ -3,6 +3,7 @@ import Testing
 import JICore
 import JICompute
 import JIDesign
+import JIPersistence
 @testable import JIFeatures
 
 // W-B57-W3 fixer — verifier failures (Decide ring, normals, captions, windows).
@@ -90,4 +91,27 @@ private func fxSignal(_ key: String, _ label: String, value: Double?, status: Ga
     #expect(n.map { $0.low <= $0.median && $0.median <= $0.high } == true)
     // Under 14 days in the normal window: honest nil ("Calibrating").
     #expect(kpiMacroNormal(rows: Array(rows.prefix(19)), macro: .kcal, today: today) == nil)
+}
+
+// Trends-window: Today (Trends' source) fetches 42 days — the 28-day normal ends at today−7 and
+// starts at today−34, so a 28-day fetch can never fill it.
+actor WindowRecordingProvider: HealthDataProvider {
+    nonisolated let capabilities: DataCapability = .hubAll
+    private nonisolated let inner = MockDataProvider()
+    private(set) var gateWindows: [Int] = [], recoveryWindows: [Int] = []
+    func health() async throws -> HealthResponse { try await inner.health() }
+    func gate(windowDays: Int) async throws -> GateResponse { gateWindows.append(windowDays); return try await inner.gate(windowDays: windowDays) }
+    func morning() async throws -> MorningResponse { try await inner.morning() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await inner.morningVerdict(date: date) }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { recoveryWindows.append(windowDays); return try await inner.recovery(windowDays: windowDays) }
+    func syncStatus() async throws -> SyncStatus { try await inner.syncStatus() }
+}
+
+@Test @MainActor func todayFetchesTheFortyTwoDayNormalWindow() async throws {
+    let p = WindowRecordingProvider()
+    let vm = TodayViewModel(provider: p, cache: OfflineCache(db: try AppDatabase.inMemory()))
+    await vm.load()
+    #expect(TodayViewModel.trendWindowDays == 42)
+    #expect(await p.gateWindows == [42])
+    #expect(await p.recoveryWindows == [42])
 }

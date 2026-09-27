@@ -272,6 +272,10 @@ public final class TodayViewModel {
         if morning != nil || gate != nil || !recovery.isEmpty { onSectionUpdate?() }
     }
 
+    /// W-B57-W3 fixer: Trends' 28-day normal spans today−34 … today−7 (`PersonalNormal`), so Today
+    /// fetches 42 days (the plan's window). The hub's `avg_*_7d` stay the last 7 days whatever this is.
+    public nonisolated static let trendWindowDays = 42
+
     private func fetchLive() async {
         let hadEverSynced = everSynced
         do {
@@ -282,8 +286,8 @@ public final class TodayViewModel {
             let provider = self.provider
             let cache = self.cache
             async let mR = SectionLoader.load(key: Self.keys.morning, cache: cache) { try await provider.morning() }
-            async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await provider.gate(windowDays: 28) }
-            async let rR = SectionLoader.load(key: Self.keys.recovery, cache: cache) { try await provider.recovery(windowDays: 28) }
+            async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await provider.gate(windowDays: Self.trendWindowDays) }
+            async let rR = SectionLoader.load(key: Self.keys.recovery, cache: cache) { try await provider.recovery(windowDays: Self.trendWindowDays) }
             // W-FIX2 L5: the sleep summary and the hub's sync time are extras — they never drive
             // `phase`/`hubReachable`, and a failure keeps the last known value.
             async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
