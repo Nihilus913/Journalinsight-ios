@@ -168,13 +168,13 @@ public struct SettingsView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)   // W-GUI M5 (mockup 41): the grouped Form on the page ground
+            .jiPageGround()
             .environment(model)
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                        .tint(theme.color(.info))
-                        .accessibilityLabel("Done")
+                    JIGlassButton("checkmark", label: "Done") { dismiss() }
                         .accessibilityIdentifier("settings.done")
                 }
             }
@@ -214,12 +214,16 @@ public struct SettingsView: View {
             .accessibilityIdentifier("settings.root.\(row.id)")
         case .syncNow:
             if model.canSyncNow {
-                Button { Task { await model.syncNow() } } label: {
-                    SettingsLinkLabel(title: "Sync now", systemImage: "arrow.triangle.2.circlepath",
-                                      trailing: settingsSyncTrailing(syncing: model.syncing, failed: model.syncFailed,
-                                                                     lastSync: model.lastSyncDate, now: Date()))
+                // W-GUI M5 (mockup 43): Sync now is the screen's ONE primary button; its state
+                // ("Synced 07:41" / "Syncing…" / "Failed") sits under it as a caption.
+                VStack(alignment: .leading, spacing: JISpacing.s2) {
+                    Button { Task { await model.syncNow() } } label: { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
+                        .buttonStyle(.jiPrimary)
+                    Text(settingsSyncTrailing(syncing: model.syncing, failed: model.syncFailed, lastSync: model.lastSyncDate, now: Date()))
+                        .jiFont(.caption, tint: .muted).accessibilityIdentifier("settings.root.syncNow.state")
                 }
-                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .disabled(model.syncing)
                 .accessibilityLabel("Sync now")
                 .accessibilityHint("Sends Apple Health to the hub, then asks the hub to sync Garmin and YAZIO")
@@ -314,6 +318,9 @@ struct SettingsSectionsScreen: View {
                 Section { Text(placeholder).jiFont(.body, tint: .muted) }
             }
         }
+        .scrollContentBackground(.hidden)   // W-GUI M5: pushed settings screens on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .navigationTitle(title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(jiTitleWrapsInList(typeSize) ? .inline : .automatic)

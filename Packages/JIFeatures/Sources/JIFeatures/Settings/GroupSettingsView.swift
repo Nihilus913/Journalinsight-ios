@@ -96,6 +96,9 @@ public struct GroupSettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)   // W-GUI M5
+        .jiPageGround()
+        .jiGlassBackButton()
         .navigationTitle(group.title)
         .jiTheme(.native)
     }
