@@ -2,6 +2,9 @@ import SwiftUI
 import JICore
 import JIDesign
 import JIHealthKit
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Permission UX + T2-gated tiles for the HealthKit read path (W2d, L3). Renders each of
 /// `HKPermission`'s three states with honest copy, and gates the Garmin/Firstbeat-only tiles
@@ -84,6 +87,46 @@ nonisolated func healthReadRows(permission: HKPermission, capabilities: DataCapa
     ]
 }
 
+// MARK: - W-GUI M6 (mockup 47): arrival-based status, pure
+
+/// "Connected · 12:40" when the uploader has a 2xx time (data ARRIVED); else "No data yet" —
+/// never "Declined" (iOS does not report read permissions, DEV-12). The permission-based
+/// `healthReadRows` stays for the connect flow; the settings screen draws THIS.
+nonisolated func healthArrivalStatus(lastUpload: Date?, now: Date = Date(), calendar: Calendar = .autoupdatingCurrent) -> BoardStatus {
+    guard let lastUpload else { return BoardStatus(word: "No data yet", systemImage: "minus", role: .muted) }
+    let c = calendar.dateComponents([.day, .month, .hour, .minute], from: lastUpload)
+    let time = String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    let word = calendar.isDate(lastUpload, inSameDayAs: now)
+        ? "Connected · \(time)"
+        : "Connected · \(c.day ?? 0) \(calendar.shortMonthSymbols[((c.month ?? 1) - 1) % 12]) \(time)"
+    return BoardStatus(word: word, systemImage: "checkmark", role: .go)
+}
+
+/// The "JI reads" rows with the arrival-based status on the read types; Workouts keep their
+/// honest "Not read yet" (no read path ships yet).
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, now: Date = Date()) -> [HealthReadRow] {
+    let status = healthArrivalStatus(lastUpload: lastUpload, now: now)
+    return healthReadRows(permission: .notDetermined, capabilities: capabilities).map { row in
+        row.title == "Workouts" ? row
+            : HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint, status: status)
+    }
+}
+
+/// The "Computed from these" tiles (mockup 47): Readiness "— · Calibrating" (W3), Sleep score
+/// "— · hub, Apple night" (present only when the hub sent one), Body Battery "— · Garmin only"
+/// (true: never for Readiness or Sleep score, report §7 rule 6).
+public nonisolated struct HealthComputedTile: Equatable, Sendable, Identifiable {
+    public let id: String, title: String, value: String, note: String
+}
+public nonisolated func healthComputedTiles(sleepScore: Double?) -> [HealthComputedTile] {
+    [
+        HealthComputedTile(id: "readiness", title: "Readiness", value: "—", note: JIMissingReason.calibrating.rawValue),
+        HealthComputedTile(id: "sleep", title: "Sleep score", value: sleepScore.map { jiNumber($0, 0) } ?? "—", note: "hub, Apple night"),
+        HealthComputedTile(id: "bodyBattery", title: "Body Battery", value: "—", note: "Garmin only"),
+    ]
+}
+public nonisolated let healthArrivalCaption = "\u{201C}Connected\u{201D} means data arrived; iOS does not report read permissions. Apple\u{2019}s own Readiness score is not shared with apps: JI computes its own from the same signals. To change access: Settings \u{203A} Health \u{203A} Sharing \u{203A} Apps."
+
 /// The board's "Connect Apple Health" layout as `List` sections: header (icon, why), the
 /// "JI will read" list, "Not on this source" tiles, and the CTA — wired to the existing HealthKit
 /// authorisation request (`HealthPermissionViewModel.connect()`).
@@ -98,9 +141,9 @@ public struct HealthPermissionBoardSections: View {
         self.showsTitle = showsTitle
     }
 
-    private static let garminOnly: [(capability: DataCapability, label: String)] = [
-        (.bodyBattery, "Body Battery"), (.garminSleepScore, "Sleep score"), (.trainingReadiness, "Readiness"),
-    ]
+
+    /// W-GUI M6: the uploader's last 2xx time (the PF-04 instant), read once per body.
+    private var lastUpload: Date? { healthKitLastUploadDate() }
 
     public var body: some View {
         Section {
@@ -115,59 +158,67 @@ public struct HealthPermissionBoardSections: View {
                     Text("Connect Apple Health").jiFont(.title, weight: .heavy, tint: .text).accessibilityAddTraits(.isHeader)
                 }
                 Text("Your Watch nights decide Full, Modified or Rest.").jiFont(.body, tint: .muted)
+                // W-GUI M6 (mockup 47): the header status is arrival-based (DEV-12 logic stays W-REG2).
+                let header = healthArrivalStatus(lastUpload: lastUpload)
+                BoardStatusLabel(word: header.word, systemImage: header.systemImage ?? "minus", role: header.role)
+                    .accessibilityIdentifier("health.arrival")
             }
             .padding(.vertical, 4)
             .listRowBackground(Color.clear)
         }
-
-        Section("JI will read") {
-            ForEach(healthReadRows(permission: model.permission, capabilities: model.appleWatchCapabilities)) { row in
+        Section("JI reads") {
+            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, lastUpload: lastUpload)) { row in
                 SettingsLinkLabel(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage,
                                   badge: row.status, tint: theme.color(row.tint))
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("health.read.\(row.title)")
             }
         }
-
-        let gated = Self.garminOnly.filter { model.isGated($0.capability) }
-        if !gated.isEmpty {
-            Section("Not on this source") {
-                Columns(minimum: 96, spacing: 10) {
-                    ForEach(gated, id: \.capability.rawValue) { entry in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(entry.label).jiFont(.subheadline, tint: .text)
-                            Text("—").jiFont(.statValue, weight: .bold, tint: .muted)
-                            Text("Garmin only").jiFont(.footnote, weight: .semibold, tint: .muted)
+        Section("Computed from these") {
+            Columns(minimum: 96, spacing: JISpacing.tileGap, tileHeight: .tile) {
+                ForEach(healthComputedTiles(sleepScore: nil)) { tile in
+                    JITile(family: .tile) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tile.title).jiFont(.caption, tint: .muted)
+                            Text(tile.value).jiNumeral(.numeralSmall, tint: tile.value == "—" ? .muted : .text)
+                            Text(tile.note).jiFont(.micro, tint: .muted).lineLimit(1).minimumScaleFactor(0.8)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(theme.color(.surface2), in: RoundedRectangle(cornerRadius: theme.radius(.nested), style: .continuous))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(entry.label): no value, Garmin only")
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(tile.title): \(tile.value == "—" ? "no value" : tile.value), \(tile.note)")
+                    .accessibilityIdentifier("health.computed.\(tile.id)")
                 }
             }
-        }
-
-        Section {
-            Button { Task { await model.connect() } } label: {
-                Text(model.permission == .granted ? "Apple Health connected" : "Connect Apple Health")
-                    .jiFont(.cardTitle, weight: .bold)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(theme.color(.info))
-            .disabled(model.permission == .granted)
             .listRowBackground(Color.clear)
-            .accessibilityIdentifier("health-connect")
-            .accessibilityHint("Asks iOS for permission to read Apple Health data.")
+            .listRowInsets(EdgeInsets())
+        }
+        Section {
+            VStack(alignment: .leading, spacing: JISpacing.s2) {
+                // ONE primary (connect) and a secondary (open Health settings) — report §7.
+                Button { Task { await model.connect() } } label: {
+                    Text(model.permission == .granted ? "Apple Health connected" : "Connect Apple Health")
+                }
+                .buttonStyle(.jiPrimary)
+                .disabled(model.permission == .granted)
+                .accessibilityIdentifier("health-connect")
+                .accessibilityHint("Asks iOS for permission to read Apple Health data.")
+                #if canImport(UIKit) && !os(watchOS)
+                Button { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } } label: {
+                    Text("Open Health settings")
+                }
+                .buttonStyle(.jiSecondary)
+                .accessibilityIdentifier("health-open-settings")
+                #endif
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
                 if model.permission != .notDetermined {
                     Text(HealthPermissionViewModel.statusCopy(for: model.permission))
                         .accessibilityIdentifier("health-permission-status")
                 }
-                Text("iOS asks next. You can change it in Settings › Health.")
+                Text(healthArrivalCaption).accessibilityIdentifier("health.caption")
             }
         }
     }
@@ -180,6 +231,9 @@ public struct HealthPermissionScreen: View {
     public var body: some View {
         List { HealthPermissionBoardSections(model: model) }
             .jiNativeFormChrome()
+            .scrollContentBackground(.hidden)   // W-GUI M6
+            .jiPageGround()
+            .jiGlassBackButton()
             .jiTheme(.native)
     }
 }
