@@ -26,6 +26,19 @@ struct HealthKitUploadSpecsTests {
         #expect(byType[HKQuantityTypeIdentifier.vo2Max.rawValue] == "vo2_max")
     }
 
+    /// W-DATA R4: the night's sleeping wrist temperature goes up in °C under the metric name the
+    /// hub's `hae_bridge` maps (`apple_sleeping_wrist_temperature` → wake date → core
+    /// `wrist_temp_c`); the Recovery "Wrist temp" tile shows only its deviation from baseline.
+    @Test func sleepingWristTemperatureIsUploadedInCelsius() {
+        let spec = AppEnvironment.healthKitUploadSpecs.first { $0.sampleType.identifier == HKQuantityTypeIdentifier.appleSleepingWristTemperature.rawValue }
+        #expect(spec?.metricName == "apple_sleeping_wrist_temperature")
+        #expect(spec?.units == "degC")
+        let sample = HKQuantitySample(type: HKQuantityType(.appleSleepingWristTemperature),
+                                      quantity: HKQuantity(unit: .degreeCelsius(), doubleValue: 34.61),
+                                      start: Date(timeIntervalSince1970: 1_790_460_000), end: Date(timeIntervalSince1970: 1_790_485_000))
+        #expect(spec?.mapSamples([sample]).first?.qty == 34.61)
+    }
+
     @Test func theExistingSetIsKept() {
         for id: HKQuantityTypeIdentifier in [.stepCount, .activeEnergyBurned, .appleExerciseTime, .restingHeartRate,
                                              .heartRateVariabilitySDNN, .bodyMass] {

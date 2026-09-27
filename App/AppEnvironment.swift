@@ -192,6 +192,12 @@ final class AppEnvironment {
         // `getRequestStatusForAuthorization`, which has no synchronous form), so the model starts
         // at `.notDetermined` and `adopt(_:)`s the real status once the lookup returns — never a
         // guessed `.denied` in the meantime (rule 5: no false-confident state).
+        // W-DATA fixer R3: the "Computed from these" tiles read the same sources as the screens that
+        // show them — Sleep score = the hub's `/vitals/sleep-summary` `score_computed` (the Today
+        // ring's source), Readiness = the recovery score over `/vitals/recovery-inputs` (Decide's
+        // ring, `RecoveryInsightService.score`). A provider that serves neither leaves "—".
+        let provider = providerStore?.provider
+        let window = RecoveryInsightService.windowDays
         let model = HealthPermissionViewModel(
             permission: .notDetermined,
             appleWatchCapabilities: DataCapability.appleWatchCapabilities,
@@ -211,6 +217,16 @@ final class AppEnvironment {
                     Task.detached(priority: .background) { await uploader.syncAll() }
                 }
                 return status
+            },
+            loadSleepScore: {
+                guard let sp = provider as? any SleepSummaryProviding else { return nil }
+                return try? await sp.sleepSummary().scoreComputed
+            },
+            loadReadiness: {
+                guard let rp = provider as? any RecoveryInputsProviding else { return nil }
+                let day = RecoveryInsightService.localDayKey(Date())
+                guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
+                return RecoveryInsightService.score(days: days, today: day)
             }
         )
         Task { [weak self, weak model] in
@@ -273,6 +289,10 @@ final class AppEnvironment {
         let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
             (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
             (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
+            // W-DATA R4: the night's sleeping wrist temperature (°C, one sample per night, dated at
+            // its start; the hub moves it to the wake date and serves only the deviation from the
+            // user's own baseline — `hae_bridge` `apple_sleeping_wrist_temperature`, migration 051).
+            (.appleSleepingWristTemperature, "apple_sleeping_wrist_temperature", "degC", HKSampleMapping.perSample(unit: .degreeCelsius())),
             (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested

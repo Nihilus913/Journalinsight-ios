@@ -26,11 +26,21 @@ private nonisolated func kcalInt(_ v: Double?) -> Int? {
     return Int(v.rounded())
 }
 
-/// Nutrition: today's logged kcal over the day's goal. No logged kcal → "— No data".
-public nonisolated func moreNutritionValue(consumedKcal: Double?, goalKcal: Double?) -> MoreRowValue {
+/// Nutrition: the logged kcal over the day's goal. No logged kcal → "— No data". W-DATA fixer R1:
+/// an earlier day's intake carries its day ("· as of Sep 24"), like the Today Fuel card.
+public nonisolated func moreNutritionValue(consumedKcal: Double?, goalKcal: Double?, asOf: String? = nil) -> MoreRowValue {
     guard let consumed = kcalInt(consumedKcal) else { return .missing() }
-    guard let goal = kcalInt(goalKcal), goal > 0 else { return MoreRowValue(lead: "\(consumed)", rest: "kcal", style: .kcal) }
-    return MoreRowValue(lead: "\(consumed)", rest: "/ \(goal) kcal", style: .kcal)
+    let day = asOf.map { " · \($0)" } ?? ""
+    guard let goal = kcalInt(goalKcal), goal > 0 else { return MoreRowValue(lead: "\(consumed)", rest: "kcal" + day, style: .kcal) }
+    return MoreRowValue(lead: "\(consumed)", rest: "/ \(goal) kcal" + day, style: .kcal)
+}
+
+/// W-DATA fixer R1 (DEV-11): today's intake when logged, else the newest logged day of the week
+/// (the data exists; the row said "No data" because it only looked at today). nil = nothing logged.
+public nonisolated func moreNutritionLatestIntake(today: String, todayKcal: Double?, week: [NutritionDailyRow]) -> (kcal: Double, date: String)? {
+    if let todayKcal, todayKcal.isFinite, todayKcal > 0 { return (todayKcal, today) }
+    return week.filter { $0.date <= today }.sorted { $0.date > $1.date }
+        .first { ($0.kcalConsumed ?? 0) > 0 }.flatMap { r in r.kcalConsumed.map { ($0, r.date) } }
 }
 
 /// Energy: the 7-day average balance vs TDEE — the same numeral and the same tracking-day gate

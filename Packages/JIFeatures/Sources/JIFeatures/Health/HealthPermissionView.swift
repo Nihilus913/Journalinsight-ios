@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 import JIHealthKit
 #if canImport(UIKit)
@@ -14,15 +15,6 @@ public struct HealthPermissionView: View {
     @Environment(\.jiTheme) private var theme
     let model: HealthPermissionViewModel
 
-    /// The Garmin/Firstbeat-only metrics that never come from Apple Watch, or (RMSSD) only on
-    /// iOS 27+ — checked against `model.appleWatchCapabilities` (the T2 set).
-    private static let sourceGatedCapabilities: [(capability: DataCapability, label: String)] = [
-        (.bodyBattery, "Body Battery"),
-        (.garminSleepScore, "Sleep score"),
-        (.trainingReadiness, "Training readiness"),
-        (.hrvRMSSD, "HRV (RMSSD)"),
-    ]
-
     public init(model: HealthPermissionViewModel) {
         self.model = model
     }
@@ -32,20 +24,18 @@ public struct HealthPermissionView: View {
         // plain rows — the section's own header/footer is the caller's (§2b.2).
         Group {
             statusText
-            Button("Connect Apple Health") { Task { await model.connect() } }
-                .disabled(model.permission == .granted)
+            Button(model.connectLabel) { Task { await model.connect() } }
                 .accessibilityIdentifier("health-connect")
-                .accessibilityHint("Asks iOS for permission to read Apple Health data.")
+                .accessibilityHint(healthConnectHint(decided: model.isDecided))
 
             // §8.1: the gated tiles reflow 2-up instead of stacking one per line.
             Columns(minimum: 160) {
-                ForEach(Self.sourceGatedCapabilities, id: \.capability.rawValue) { entry in
-                    if model.isGated(entry.capability) {
-                        EAGatedTile(label: entry.label, reason: "Not available on this source")
-                    }
+                ForEach(healthSourceGatedLabels(capabilities: model.appleWatchCapabilities), id: \.self) { label in
+                    EAGatedTile(label: label, reason: "Not available on this source")
                 }
             }
         }
+        .task { model.adoptArrival(healthKitLastUploadDate()) }
     }
 
     private var statusText: some View {
@@ -54,6 +44,20 @@ public struct HealthPermissionView: View {
             .foregroundStyle(model.permission == .granted ? theme.color(.go) : theme.color(.muted))
             .accessibilityIdentifier("health-permission-status")
     }
+}
+
+/// W-DATA R3 (DEV-14): the metrics Apple Watch genuinely cannot supply — Garmin's Body Battery,
+/// and HRV (RMSSD) before the iOS 27 type exists. Readiness and Sleep score are NEVER here: JI
+/// computes its own readiness from Apple signals and the hub scores an Apple night
+/// (`garminSleepScore` / `trainingReadiness` are Garmin's own scores, not those).
+nonisolated func healthSourceGatedLabels(capabilities: DataCapability) -> [String] {
+    [(DataCapability.bodyBattery, "Body Battery"), (.hrvRMSSD, "HRV (RMSSD)")]
+        .filter { !capabilities.contains($0.0) }.map(\.1)
+}
+
+nonisolated func healthConnectHint(decided: Bool) -> String {
+    decided ? "Opens Apple Health, where read access is changed (Sharing › Apps)."
+            : "Asks iOS for permission to read Apple Health data."
 }
 
 // MARK: - B-57 W1 r4 board layout (fixer g3, board 5/09)
@@ -102,25 +106,50 @@ nonisolated func healthArrivalStatus(lastUpload: Date?, now: Date = Date(), cale
     return BoardStatus(word: word, systemImage: "checkmark", role: .go)
 }
 
+/// W-DATA R2 (DEV-12): when each "JI reads" row's own types last arrived at the hub.
+nonisolated struct HealthReadArrivals: Sendable, Equatable {
+    var hrv: Date?, sleep: Date?, restingHR: Date?
+}
+
+/// Per-type arrival from the uploader's App-Group records (`JIHealthKit.HealthKitArrival`).
+nonisolated func healthReadArrivals(_ record: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) -> HealthReadArrivals {
+    HealthReadArrivals(hrv: HealthKitArrival.lastUpload(for: [.hrvRMSSD, .hrvSDNN], in: record),
+                       sleep: HealthKitArrival.lastUpload(for: [.sleepAnalysis], in: record),
+                       restingHR: HealthKitArrival.lastUpload(for: [.restingHeartRate], in: record))
+}
+
 /// The "JI reads" rows with the arrival-based status on the read types; Workouts keep their
 /// honest "Not read yet" (no read path ships yet).
 nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, now: Date = Date()) -> [HealthReadRow] {
-    let status = healthArrivalStatus(lastUpload: lastUpload, now: now)
+    healthReadRowsArrival(capabilities: capabilities,
+                          arrivals: HealthReadArrivals(hrv: lastUpload, sleep: lastUpload, restingHR: lastUpload), now: now)
+}
+
+/// DEV-12: each row's status keys off ITS type's last upload — never a permission lookup.
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: HealthReadArrivals, now: Date = Date()) -> [HealthReadRow] {
+    let byTitle = ["Overnight HRV": arrivals.hrv, "Sleep": arrivals.sleep, "Resting HR": arrivals.restingHR]
     return healthReadRows(permission: .notDetermined, capabilities: capabilities).map { row in
-        row.title == "Workouts" ? row
-            : HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint, status: status)
+        guard let arrival = byTitle[row.title] else { return row }
+        return HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint,
+                             status: healthArrivalStatus(lastUpload: arrival, now: now))
     }
 }
 
-/// The "Computed from these" tiles (mockup 47): Readiness "— · Calibrating" (W3), Sleep score
+/// The "Computed from these" tiles (mockup 47): Readiness = JI's recovery score from Apple signals
+/// (the number Decide's ring shows; "— · Calibrating" / "— · No data" without one), Sleep score
 /// "— · hub, Apple night" (present only when the hub sent one), Body Battery "— · Garmin only"
 /// (true: never for Readiness or Sleep score, report §7 rule 6).
 public nonisolated struct HealthComputedTile: Equatable, Sendable, Identifiable {
     public let id: String, title: String, value: String, note: String
 }
-public nonisolated func healthComputedTiles(sleepScore: Double?) -> [HealthComputedTile] {
-    [
-        HealthComputedTile(id: "readiness", title: "Readiness", value: "—", note: JIMissingReason.calibrating.rawValue),
+public nonisolated func healthComputedTiles(sleepScore: Double?, readiness: RecoveryScoreResult? = nil) -> [HealthComputedTile] {
+    let ready: (value: String, note: String) = switch readiness?.status {
+    case .ok: readiness?.score.map { ("\($0)", "JI, Apple signals") } ?? ("—", JIMissingReason.noData.rawValue)
+    case .missing: ("—", JIMissingReason.noData.rawValue)
+    case .calibrating, nil: ("—", JIMissingReason.calibrating.rawValue)
+    }
+    return [
+        HealthComputedTile(id: "readiness", title: "Readiness", value: ready.value, note: ready.note),
         HealthComputedTile(id: "sleep", title: "Sleep score", value: sleepScore.map { jiNumber($0, 0) } ?? "—", note: "hub, Apple night"),
         HealthComputedTile(id: "bodyBattery", title: "Body Battery", value: "—", note: "Garmin only"),
     ]
@@ -165,9 +194,13 @@ public struct HealthPermissionBoardSections: View {
             }
             .padding(.vertical, 4)
             .listRowBackground(Color.clear)
+            .task {
+                model.adoptArrival(lastUpload)
+                await model.refreshComputed()
+            }
         }
         Section("JI reads") {
-            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, lastUpload: lastUpload)) { row in
+            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, arrivals: healthReadArrivals())) { row in
                 SettingsLinkLabel(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage,
                                   badge: row.status, tint: theme.color(row.tint))
                 .accessibilityElement(children: .combine)
@@ -176,7 +209,7 @@ public struct HealthPermissionBoardSections: View {
         }
         Section("Computed from these") {
             Columns(minimum: 96, spacing: JISpacing.tileGap, tileHeight: .tile) {
-                ForEach(healthComputedTiles(sleepScore: nil)) { tile in
+                ForEach(healthComputedTiles(sleepScore: model.sleepScore, readiness: model.readiness)) { tile in
                     JITile(family: .tile) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tile.title).jiFont(.caption, tint: .muted)
@@ -194,21 +227,20 @@ public struct HealthPermissionBoardSections: View {
         }
         Section {
             VStack(alignment: .leading, spacing: JISpacing.s2) {
-                // ONE primary (connect) and a secondary (open Health settings) — report §7.
-                Button { Task { await model.connect() } } label: {
-                    Text(model.permission == .granted ? "Apple Health connected" : "Connect Apple Health")
-                }
+                // ONE primary (connect) and a secondary (open Health settings) — report §7. DEV-12:
+                // once decided iOS never re-prompts, so the primary itself opens Health settings
+                // and the (now duplicate) secondary is dropped.
+                Button { Task { await model.connect() } } label: { Text(model.connectLabel) }
                 .buttonStyle(.jiPrimary)
-                .disabled(model.permission == .granted)
                 .accessibilityIdentifier("health-connect")
-                .accessibilityHint("Asks iOS for permission to read Apple Health data.")
-                #if canImport(UIKit) && !os(watchOS)
-                Button { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } } label: {
-                    Text("Open Health settings")
+                .accessibilityHint(healthConnectHint(decided: model.isDecided))
+                if !model.isDecided {
+                    Button { HealthPermissionViewModel.openHealthSettingsOnDevice() } label: {
+                        Text("Open Health settings")
+                    }
+                    .buttonStyle(.jiSecondary)
+                    .accessibilityIdentifier("health-open-settings")
                 }
-                .buttonStyle(.jiSecondary)
-                .accessibilityIdentifier("health-open-settings")
-                #endif
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))

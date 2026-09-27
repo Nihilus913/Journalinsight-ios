@@ -70,11 +70,17 @@ public final class RecoveryInsightService {
     }
 
     func recompute() {
+        result = Self.score(days: days, today: today)
+        reasonWord = result == nil ? "No data" : nil
+    }
+
+    /// The recovery score over `/vitals/recovery-inputs` days (nil = no days / no answer). W-DATA
+    /// fixer R3: the one computation Decide's ring and the Health screen's Readiness tile share.
+    public nonisolated static func score(days: [RecoveryInputDay], today: String) -> RecoveryScoreResult? {
         let series = days.map { RecoverySeriesDay(date: $0.date, hrvMs: $0.hrvMs, rhrBpm: $0.rhrBpm, sleepH: $0.sleepH,
                                                   deepH: $0.deepH, remH: $0.remH, loadMin: $0.loadMin) }
-        guard !series.isEmpty else { result = nil; reasonWord = "No data"; return }
-        result = try? RecoveryScore.compute(days: series, today: today)
-        reasonWord = result == nil ? "No data" : nil
+        guard !series.isEmpty else { return nil }
+        return try? RecoveryScore.compute(days: series, today: today)
     }
 
     private func series(_ metric: RecoveryMetric) -> [String: Double] {
