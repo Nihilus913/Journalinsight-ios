@@ -90,3 +90,14 @@ import Testing
     #expect(JITypography.font(.footnote, scaledSize: 13, weight: .regular) == Font.system(size: 13, weight: .regular, design: .default))
     #expect(JITypography.font(.numeralHero, scaledSize: 52, weight: .bold) == Font.system(size: 52, weight: .bold, design: .rounded).monospacedDigit())
 }
+
+@Test func nativeNumeralsAreRoundedAndTabular() {
+    // W-GUI F1 (report §4.5): numerals = SF Rounded 700 + tabular figures on BOTH paths.
+    for token in JITypography.Token.allCases where token.isNumeral {
+        #expect(JITypography.nativeFont(token, weight: .bold)
+                == Font.system(JITypography.nativeTextStyle(token), design: .rounded, weight: .bold).monospacedDigit())
+        #expect(JITypography.font(token, scaledSize: JITypography.size(token), weight: .bold)
+                == Font.system(size: JITypography.size(token), weight: .bold, design: .rounded).monospacedDigit())
+    }
+    #expect(JITypography.nativeWeight(.numeralHero) == .bold)
+}
