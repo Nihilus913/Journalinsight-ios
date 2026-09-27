@@ -159,7 +159,7 @@ private func seriesDays(_ days: [RecoveryInputDay]) -> [RecoverySeriesDay] {
     let card = RecoveryCardModel.make(result: r, reasonWord: nil, sleepGoalH: 7)
     #expect(card.headline == "31" && card.status == "Recovery low" && card.isLow)
     let words = Dictionary(uniqueKeysWithValues: card.drivers.map { ($0.id, $0.word ?? "") })
-    #expect(words == ["hrv": "Low", "rhr": "No reading", "sleep": "Above goal", "load": "Calibrating"])
+    #expect(words == ["hrv": "Low", "rhr": "No data", "sleep": "Above goal", "load": "Calibrating"])
     #expect(card.drivers.first { $0.id == "hrv" }?.tint == .reduced)
     #expect(card.drivers.first { $0.id == "sleep" }?.tint == .sleep)
     #expect(card.drivers.first { $0.id == "rhr" }?.value == nil)

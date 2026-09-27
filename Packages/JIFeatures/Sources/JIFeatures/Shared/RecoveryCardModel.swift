@@ -43,7 +43,8 @@ public nonisolated struct RecoveryCardModel: Equatable, Sendable {
         let fill = c.z.map { ($0 + RecoveryScore.zCap) / (2 * RecoveryScore.zCap) }
         switch c.status {
         case .calibrating: return DriverBar(id: key.rawValue, label: label, value: nil, word: "Calibrating")
-        case .noReading: return DriverBar(id: key.rawValue, label: label, value: nil, word: "No reading")
+        // W-B57-W3 fixer: the rule-5 reason word, the same one GateRationale's Load row uses.
+        case .noReading: return DriverBar(id: key.rawValue, label: label, value: nil, word: JIMissingReason.noData.rawValue)
         case .flat, .ok:
             let z = c.z ?? 0
             if key == .sleep {

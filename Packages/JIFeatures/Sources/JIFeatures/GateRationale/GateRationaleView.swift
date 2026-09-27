@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// The gate's own reasoning (triggered rules + suggestions) plus the 3-day decision trail — the
@@ -76,9 +77,10 @@ public nonisolated struct GateCountedRow: Identifiable, Equatable, Sendable {
 /// Board 03 "What counted": one row per gate signal in the hub's order, then Load (shown for
 /// context — it is not part of the morning call). A missing value is "No data" and left out.
 public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals: [String: ClosedRange<Double>],
-                                                 load: Double?) -> [GateCountedRow] {
+                                                 recoveryNormals: [String: ClosedRange<Double>] = [:],
+                                                 load: Double?, loadMissing: JIMissingReason = .noData) -> [GateCountedRow] {
     var rows: [GateCountedRow] = (signals ?? []).map { sig in
-        let m = decideSignalRowModel(sig, normal: normals[sig.key])
+        let m = decideSignalRowModel(sig, normal: normals[sig.key], recoveryNormal: recoveryNormals[sig.key])
         let sentence: String
         if sig.status == .context {
             sentence = [gateSignalNoteText(sig).map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }, "Shown, not counted."]
@@ -99,9 +101,14 @@ public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals
                               status: m.status, sentence: sentence)
     }
     rows.append(GateCountedRow(id: "load", label: "Load", value: load, unit: "", decimals: 2,
-                               status: load == nil ? .missing(.calibrating) : .contextOnly,
+                               status: load == nil ? .missing(loadMissing) : .contextOnly,
                                sentence: load == nil ? "No current load reading. Left out." : "Shown for context; load is not part of the morning call."))
     return rows
+}
+
+/// W-B57-W3 fixer: a missing Load reads with the score card's own Load word (Calibrating / No data).
+public nonisolated func gateRationaleLoadMissingReason(_ recovery: RecoveryScoreResult?) -> JIMissingReason {
+    recovery?.component(.load)?.status == .calibrating ? .calibrating : .noData
 }
 
 public struct GateRationaleView: View {
@@ -111,6 +118,7 @@ public struct GateRationaleView: View {
     @Environment(\.jiOffscreenRender) private var offscreen
     /// W-B57b: the weekly gate answer card's model (see `EnvironmentValues.gateRespondModel`).
     @Environment(\.gateRespondModel) private var respondModel
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     public init(model: GateRationaleViewModel) { self.model = model }
 
@@ -243,7 +251,9 @@ public struct GateRationaleView: View {
         // B-57 W3: the gate's `recovery` signal is the score card above, never a second row here.
         let rows = gateRationaleCountedRows(signals: model.morning?.gateSignals.map { RecoveryScoreCard.visibleSignals($0) },
                                             normals: decideSignalNormals(recovery: model.recovery),
-                                            load: KpiMetrics.currentAcwr(model.recovery, now: Date()))
+                                            recoveryNormals: decideRecoveryNormals(recoveryInsight),
+                                            load: KpiMetrics.currentAcwr(model.recovery, now: Date()),
+                                            loadMissing: gateRationaleLoadMissingReason(recoveryInsight?.result))
         VStack(alignment: .leading, spacing: 0) {
             boardHeader("What counted", trailing: nil)
             Surface(level: 1, padding: 0) {

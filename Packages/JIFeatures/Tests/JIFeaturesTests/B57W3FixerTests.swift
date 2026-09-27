@@ -1,0 +1,69 @@
+import SwiftUI
+import Testing
+import JICore
+import JICompute
+import JIDesign
+@testable import JIFeatures
+
+// W-B57-W3 fixer — verifier failures (Decide ring, normals, captions, windows).
+
+// Decide-ring: with a recovery score the ring shows it, never "7 of 7 so far · Calibrating".
+@Test func decideRingShowsTheRecoveryScoreWhenTheHubHasNoReadiness() {
+    let scored = RecoveryScoreResult(status: .ok, score: 5, raw: -2, components: [], nights: 22)
+    #expect(decideRingScore(readiness: nil, recovery: scored) == 5)
+    #expect(decideReadinessCaption(score: 5, nights: 7, recovery: scored) == "Recovery low")
+    let fine = RecoveryScoreResult(status: .ok, score: 61, raw: 0.2, components: [], nights: 22)
+    #expect(decideReadinessCaption(score: 61, nights: 7, recovery: fine) == "Recovery")
+    // Garmin readiness wins when the hub has it.
+    #expect(decideRingScore(readiness: 72, recovery: scored) == 72)
+    #expect(decideReadinessCaption(score: 72, nights: 7, recovery: scored) == "Readiness")
+}
+
+@Test func decideRingCalibratingAndMissingUseTheRecoveryNights() {
+    let cal = RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: [], nights: 9)
+    #expect(decideRingScore(readiness: nil, recovery: cal) == nil)
+    #expect(decideReadinessCaption(score: nil, nights: 7, recovery: cal)
+            == "Recovery needs 14 nights · 9 of 14 so far · Calibrating")
+    let miss = RecoveryScoreResult(status: .missing, score: nil, raw: nil, components: [], nights: 22)
+    #expect(decideReadinessCaption(score: nil, nights: 7, recovery: miss) == "Recovery · No data")
+    // No insight at all keeps the readiness wording.
+    #expect(decideReadinessCaption(score: nil, nights: 3, recovery: nil)
+            == "Readiness needs 7 overnight nights · 3 of 7 so far · Calibrating")
+}
+
+private func fxSignal(_ key: String, _ label: String, value: Double?, status: GateSignalStatus, note: String? = nil) -> GateSignal {
+    GateSignal(key: key, label: label, value: value, unit: "ms", threshold: 0,
+               direction: .min, scaleMin: 0, scaleMax: 120, status: status, note: note)
+}
+
+// signal-normals: the Apple "HRV (7-day)" row takes the recovery score's 28-night normal (the same
+// 7-day-mean-vs-normal comparison the score makes) when the hub's own baseline is still warming up.
+@Test func appleHrvRowUsesTheRecoveryNormal() {
+    let rec = decideRecoveryNormals(hrv: PersonalNormalResult(median: 30, low: 24.6, high: 35.4, sd: 5, n: 22), rhr: nil)
+    #expect(rec["hrv"] == 25...35)
+    #expect(rec["rhr"] == nil)
+    let s = fxSignal("hrv", "HRV (7-day)", value: 14, status: .amber, note: "Apple baseline warming up (12/28)")
+    let m = decideSignalRowModel(s, normal: nil, recoveryNormal: rec["hrv"])
+    #expect(m.normal == 25...35)
+    #expect(m.detail == nil)
+    // Without any normal it is still honest.
+    #expect(decideSignalRowModel(s, normal: nil).detail == "your normal — Calibrating")
+    // The rationale's sentence reads the same band.
+    let rows = gateRationaleCountedRows(signals: [s], normals: [:], recoveryNormals: rec, load: nil)
+    #expect(rows.first?.sentence == "Under your 25–35 normal.")
+}
+
+// signal-normals: the rationale's Load row and the score card's Load driver say the same word.
+@Test func rationaleLoadWordMatchesTheCard() {
+    func comp(_ s: RecoveryComponentStatus) -> RecoveryComponent { RecoveryComponent(key: .load, status: s, value: nil, z: nil, normalN: 0) }
+    let noReading = RecoveryScoreResult(status: .ok, score: 5, raw: -2, components: [comp(.noReading)], nights: 22)
+    let card = RecoveryCardModel.make(result: noReading, reasonWord: nil, sleepGoalH: 7)
+    let cardWord = card.drivers.first { $0.id == "load" }?.word
+    let row = gateRationaleCountedRows(signals: [], normals: [:], load: nil,
+                                       loadMissing: gateRationaleLoadMissingReason(noReading)).last
+    #expect(row?.status.word == cardWord)
+    let cal = RecoveryScoreResult(status: .ok, score: 5, raw: -2, components: [comp(.calibrating)], nights: 22)
+    let calWord = RecoveryCardModel.make(result: cal, reasonWord: nil, sleepGoalH: 7).drivers.first { $0.id == "load" }?.word
+    #expect(gateRationaleCountedRows(signals: [], normals: [:], load: nil,
+                                     loadMissing: gateRationaleLoadMissingReason(cal)).last?.status.word == calWord)
+}
