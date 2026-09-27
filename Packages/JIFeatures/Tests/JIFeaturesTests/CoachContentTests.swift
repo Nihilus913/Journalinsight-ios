@@ -73,3 +73,14 @@ import JICore
         #expect(c.signals.isEmpty && c.change == "Train as planned.")
     }
 }
+
+
+// W-GUI T4 (mockup 12): title with the call's time, note = the cited signals, never invented.
+@Test func coachOverlayTitleAndNote() {
+    #expect(coachOverlayTitle(time: nil) == "One change today")
+    #expect(coachOverlayTitle(time: "07:44") == "One change today · 07:44")
+    #expect(coachOverlayNote(CoachContent(signals: [], change: "x")) == nil)
+    #expect(coachOverlayNote(CoachContent(signals: ["HRV 21 ms vs 28 avg", "RHR 80 vs 76 avg"], change: "x")) == "HRV 21 ms vs 28 avg · RHR 80 vs 76 avg")
+    #expect(coachCallTime(nil) == nil)
+    #expect(coachCallTime("2026-09-25T05:44:00Z", timeZone: TimeZone(identifier: "Europe/Zurich")!) == "07:44")
+}

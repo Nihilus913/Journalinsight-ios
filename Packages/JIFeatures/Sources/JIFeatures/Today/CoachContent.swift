@@ -73,3 +73,26 @@ public nonisolated enum CoachContentBuilder {
         GateHumanizeRule.fmt(n, decimals, locale: locale)
     }
 }
+
+
+// MARK: - W-GUI T4 (mockup 12): the overlay's title + note, pure
+
+/// "One change today · 07:44" once the call has a time (the override's `createdAt` on the
+/// read-only re-open); "One change today" in the morning flow. Never an invented time.
+public nonisolated func coachOverlayTitle(time: String?) -> String {
+    time.map { "One change today · \($0)" } ?? "One change today"
+}
+
+/// The note under the change: the signals the change cites, joined — nil when there are none
+/// (the card never pads with copy).
+public nonisolated func coachOverlayNote(_ content: CoachContent) -> String? {
+    content.signals.isEmpty ? nil : content.signals.joined(separator: " · ")
+}
+
+/// HH:mm of the hub timestamp in the user's zone; nil when unparseable.
+public nonisolated func coachCallTime(_ createdAt: String?, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
+    guard let date = parseHubTimestamp(createdAt) else { return nil }
+    var cal = Calendar(identifier: .gregorian); cal.timeZone = timeZone
+    let c = cal.dateComponents([.hour, .minute], from: date)
+    return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+}

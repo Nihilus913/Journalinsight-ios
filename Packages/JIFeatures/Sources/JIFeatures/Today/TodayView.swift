@@ -62,7 +62,10 @@ public struct TodayView: View {
         // from the summary line it is read-only (dismiss only closes it, nothing advances).
         .overlay(alignment: .bottom) {
             if model.phase == .loaded, model.morningState == .coach || showMorningReview {
-                CoachOverlayCard(change: coachContent.change) {
+                // W-GUI T4 (mockup 12): the change, the signals it cites, and — re-opened from the
+                // summary line — the time of the call (the override's own timestamp).
+                CoachOverlayCard(change: coachContent.change, note: coachOverlayNote(coachContent),
+                                 time: showMorningReview ? coachCallTime(currentOverride?.createdAt) : nil) {
                     if model.morningState == .coach { model.morningEvent(.coachAcknowledged) }
                     showMorningReview = false
                 }

@@ -8,6 +8,9 @@ import JIDesign
 /// Rule-based text, deliberately not styled as AI until B-51 writes it.
 public struct CoachOverlayCard: View {
     let change: String
+    /// W-GUI T4 (mockup 12): the signals the change cites, and the call's time when re-opened.
+    let note: String?
+    let time: String?
     let onDismiss: () -> Void
     @State private var drag: CGFloat = 0
     @Environment(\.jiTheme) private var theme
@@ -23,8 +26,8 @@ public struct CoachOverlayCard: View {
     /// lift itself above the floating tab bar (on a phone) or its sentence sits under the bar.
     nonisolated static func bottomClearance(_ width: JIWidthClass) -> CGFloat { tabBarBottomClearance(width) }
 
-    public init(change: String, onDismiss: @escaping () -> Void) {
-        self.change = change; self.onDismiss = onDismiss
+    public init(change: String, note: String? = nil, time: String? = nil, onDismiss: @escaping () -> Void) {
+        self.change = change; self.note = note; self.time = time; self.onDismiss = onDismiss
     }
 
     public var body: some View {
@@ -55,8 +58,12 @@ public struct CoachOverlayCard: View {
 
     private var cardContent: some View {
             VStack(alignment: .leading, spacing: 8) {
+                // W-GUI T4: the grab handle — the card is swiped down as well as ✕'d.
+                Capsule().fill(theme.color(.mutedNested)).frame(width: 36, height: 4)
+                    .frame(maxWidth: .infinity).accessibilityHidden(true)
                 HStack(alignment: .firstTextBaseline) {
-                    Text("One change today").jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    Text(coachOverlayTitle(time: time)).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("today.coach.title")
                     Spacer(minLength: 8)
                     Button(action: onDismiss) {
                         Image(systemName: "xmark")
@@ -72,6 +79,11 @@ public struct CoachOverlayCard: View {
                 Text(change).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("today.coach.change")
+                if let note {
+                    Text(note).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("today.coach.note")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
     }
