@@ -35621,6 +35621,296 @@
     "rhr_date": null,
     "sleep_low": false
    }
+  },
+  {
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 13019,
+    "recovery_score": 34
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "MODIFIED \u2014 swap intervals for easy Z2 30-40min",
+   "conditions": [
+    "Interval gate failed (Recovery low (34)) \u2014 retry the 4x4 next slot.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-28",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-28",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 13019,
+    "recovery_score": 35
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO \u2014 Norwegian 4x4 intervals",
+   "conditions": [
+    "Work reps capped at HR 175 (pace/RPE on dosed days). Carbs 160-190g, ALL 3h+ pre-run or after \u2014 nothing right before.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-28",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-28",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 13019,
+    "recovery_score": null
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO \u2014 Norwegian 4x4 intervals",
+   "conditions": [
+    "Work reps capped at HR 175 (pace/RPE on dosed days). Carbs 160-190g, ALL 3h+ pre-run or after \u2014 nothing right before.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-28",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-28",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 13019,
+    "recovery_score": 20
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO (auto-regulated) \u2014 Day 2 Full Upper + Z2 60min",
+   "conditions": [
+    "Amber (Recovery low (20)): lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-29",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-29",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 13019,
+    "recovery_score": 80
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO \u2014 Day 2 Full Upper + Z2 60min",
+   "conditions": [
+    "Lift (~30min) + planned Z2 if treadmill is free (easy, 116-138 or pace-based if dosed); 30min is the floor while adjusting \u2014 walks cover whatever's missing.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-29",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-29",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-23",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-23",
+    "steps_yesterday": 13019,
+    "recovery_score": 0
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO (auto-regulated) \u2014 Long Zone 2 75-90min",
+   "conditions": [
+    "Amber (Recovery low (0)): cap the long run at ~45min easy, or walk it. Steps target still applies either way.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-23",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-23",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-08-02",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-08-02",
+    "steps_yesterday": 13019,
+    "recovery_score": 10
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "REST day",
+   "conditions": [
+    "Walks only \u2014 15,000 steps still on. Carbs can run lower (~120-140g).",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-08-02",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-08-02",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 50,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 13019,
+    "recovery_score": 10
+   },
+   "db": {},
+   "state": {
+    "sleep_low": true
+   },
+   "dosedDates": [],
+   "verdict": "REDUCED \u2014 deload dose, not a day off",
+   "conditions": [
+    "Triggers: sleep <60 two nights running (now 50)",
+    "Lift REDUCED: bench+row only, 3x6 at current weights, nothing to failure, no progression attempts, skip accessories. Then Z2 <=30min easy (HR <=130) or walk.",
+    "Eat maintenance today: ~2100-2200 kcal, protein 172g.",
+    "Hard stop: chest anything, HR wildly high for pace, or feeling unwell -> walk only."
+   ],
+   "newState": {
+    "date": "2026-07-29",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-29",
+    "sleep_low": true
+   }
+  },
+  {
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 13019,
+    "recovery_score": 34
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "verdict": "MODIFIED \u2014 swap intervals for easy Z2 30-40min",
+   "conditions": [
+    "Interval gate failed (Recovery low (34)) \u2014 retry the 4x4 next slot.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today.",
+    "Yesterday was DOSED (day 2 of the block) \u2014 Garmin OVERSTATES active kcal and intensity minutes badly: whole-day inflation measured at +34% to +800%, not the ~13% previously assumed (that figure was activity-level only). Discard TE/load; trust steps, distance, pace, sleep. Overnight HRV/RHR are NOT dose-affected \u2014 gates apply normally.",
+    "Day 3 of consecutive dosing \u2014 ambient HR offset ~+29 bpm (vs +16 on day 1); today's Garmin intensity minutes and active kcal are largely phantom. Consider an undosed day before extending the block."
+   ],
+   "newState": {
+    "date": "2026-07-28",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-28",
+    "sleep_low": false
+   }
+  },
+  {
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 13019,
+    "recovery_score": 30
+   },
+   "db": {},
+   "state": {},
+   "dosedDates": [],
+   "verdict": "GO (auto-regulated) \u2014 Day 2 Full Upper + Z2 60min",
+   "conditions": [
+    "Amber (sleep 65, Recovery low (30)): lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk.",
+    "Steps yesterday 13,019 < 15,000 \u2014 plan walks earlier today."
+   ],
+   "newState": {
+    "date": "2026-07-29",
+    "hrv_low": false,
+    "rhr_high": false,
+    "rhr_date": "2026-07-29",
+    "sleep_low": false
+   }
   }
  ]
 }

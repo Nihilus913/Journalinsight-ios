@@ -1,9 +1,10 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
-/// B-57 W1 Trends: one NormalBar per KPI (fill = 7-day value; the 28-day normal band arrives in
-/// W3, goal ticks in W2). Entry: Day footer "Trends". Filters: All / Recovery / Nutrition / Body.
+/// B-57 W1 Trends: one NormalBar per KPI (fill = 7-day value; B-57 W3: the band is the 28-day
+/// personal normal of the card's own series, `KpiNormal`; W2: goal ticks). Entry: Day footer "Trends". Filters: All / Recovery / Nutrition / Body.
 public nonisolated enum TrendsFilter: String, CaseIterable, Sendable, Identifiable {
     case all = "All", recovery = "Recovery", nutrition = "Nutrition", body = "Body"
     public var id: String { rawValue }
@@ -12,21 +13,30 @@ public nonisolated enum TrendsFilter: String, CaseIterable, Sendable, Identifiab
 public nonisolated struct TrendsCardModel: Identifiable, Sendable, Equatable {
     public let id: String, group: TrendsFilter, name: String, systemImage: String
     public let unit: String?, decimals: Int, value: Double?, tint: JIColorRole, status: JISignalStatus
+    /// B-57 W3: the card's 28-day personal normal (nil = Calibrating — never a fallback band).
+    public var normal: PersonalNormalResult? = nil
 }
 
 /// `averages` is no longer read (W-FIX1 BUG-04: its `avg_*_7d` follow the hub's `window_days`);
-/// the parameter stays so `TodayView`'s call site is unchanged.
-public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?) -> [TrendsCardModel] {
-    func rec(_ f: @escaping (RecoveryDay) -> Double?) -> Double? {
-        trendAverage(recovery.map { (date: $0.date, value: f($0)) }, days: trendRecentDays)
+/// the parameter stays so `TodayView`'s call site is unchanged. `today` = the phone's local day
+/// (the normal's window is today−34 … today−7).
+public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?,
+                                    today: String = RecoveryInsightService.localDayKey(Date())) -> [TrendsCardModel] {
+    typealias Series = (value: Double?, points: [(date: String, value: Double?)])
+    func rec(_ f: @escaping (RecoveryDay) -> Double?) -> Series {
+        let pts = recovery.map { (date: $0.date, value: f($0)) }
+        return (trendAverage(pts, days: trendRecentDays), pts)
     }
-    func day(_ key: String) -> Double? {
-        trendAverage(daily.map { (date: $0.date, value: $0.values[key] ?? nil) }, days: trendRecentDays)
+    func day(_ key: String) -> Series {
+        let pts = daily.map { (date: $0.date, value: $0.values[key] ?? nil) }
+        return (trendAverage(pts, days: trendRecentDays), pts)
     }
-    func card(_ id: String, _ group: TrendsFilter, _ name: String, _ symbol: String, _ value: Double?, unit: String?, decimals: Int = 0) -> TrendsCardModel {
-        // W1: a value exists but its personal normal is not computed yet (W3) → "Calibrating".
-        TrendsCardModel(id: id, group: group, name: name, systemImage: symbol, unit: unit, decimals: decimals, value: value,
-                        tint: metricTintRole(id), status: value == nil ? .missing(.noData) : .missing(.calibrating))
+    func card(_ id: String, _ group: TrendsFilter, _ name: String, _ symbol: String, _ s: Series, unit: String?, decimals: Int = 0) -> TrendsCardModel {
+        // B-57 W3: the band is the normal of the series the card averages; under 14 values it
+        // stays "Calibrating" (a value) or "No data" (none).
+        let normal = KpiNormal.make(points: s.points, today: today).normal
+        return TrendsCardModel(id: id, group: group, name: name, systemImage: symbol, unit: unit, decimals: decimals, value: s.value,
+                               tint: metricTintRole(id), status: KpiNormal.status(value: s.value, normal: normal), normal: normal)
     }
     return [
         // W-FIX1 BUG-06: nightly HRV only, never the hub's 7-day `hrv_weekly_avg` mix.
@@ -138,7 +148,7 @@ public struct TrendsView: View {
                     }
                     Label(c.status.word, systemImage: c.status.symbolName).jiFont(.caption, weight: .semibold)
                         .foregroundStyle(theme.color(c.status.role))
-                    NormalBar(value: c.value, normal: nil, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
+                    NormalBar(value: c.value, normal: c.normal?.range, median: c.normal?.median, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -43,7 +43,7 @@ public nonisolated enum MorningGateOverridableField: String, CaseIterable, Codab
     /// `MORNING_FIELD_META` (RN `app/gate-config.tsx`) — label, unit, stepper increment, floor.
     public var label: String {
         switch self {
-        case .minSleepH: "Min sleep (interval gate)"
+        case .minSleepH: "Garmin nights: min sleep for intervals"
         case .stepTarget: "Daily steps"
         case .kcalTarget: "Display kcal target"
         case .proteinTarget: "Display protein target"
@@ -122,13 +122,14 @@ public nonisolated extension MorningGateOverridableField {
     /// nil = a display target that lives in Goals; not shown on GateConfig.
     var group: GateConfigGroup? {
         switch self {
-        case .respDeltaAmber: .recoverySignals
-        case .minSleepH: .sleep
+        // B-57 W3: the Garmin interval knob is a recovery signal; the Sleep group is the goal row.
+        case .respDeltaAmber, .minSleepH: .recoverySignals
         case .carb3dWatch: .fuel
         case .stepTarget, .kcalTarget, .proteinTarget, .carbTarget, .fatTarget, .targetWeight, .targetBf: nil
         }
     }
-    /// B-57 W1: one plain line under each shown field (sleep stays floor-worded until W3).
+    /// B-57 W1: one plain line under each shown field. B-57 W3: the Garmin knob keeps its rule line;
+    /// the 7 h is a goal (`gateConfigSleepGoalTitle`), never a gate number.
     var explanation: String {
         switch self {
         case .respDeltaAmber: "Flags when your breathing rate sits this far above usual."
@@ -137,6 +138,28 @@ public nonisolated extension MorningGateOverridableField {
         default: ""
         }
     }
+}
+
+/// B-57 W3 S3: GateConfig's read-only "Sleep goal" row (the Sleep group). The recovery score, not
+/// a floor, brings short nights into the call; the number is the gate's own `sleepGoalH`.
+public nonisolated let gateConfigSleepGoalTitle = "Sleep goal"
+public nonisolated let gateConfigSleepGoalExplanation = "A goal, not a gate rule. Short nights reach the call through the recovery score."
+/// W-B57-W3 fixer: "not a gate rule" only once the recovery score is scoring; while it calibrates
+/// (or has no reading) the goal is still the floor the gate applies to Apple nights.
+public nonisolated func gateConfigSleepGoalExplanation(recovery: RecoveryScoreResult?, config: MorningGateConfig) -> String {
+    if recovery?.status == .ok { return gateConfigSleepGoalExplanation }
+    let goal = gateConfigFormat(config.sleepGoalH)
+    let need = recovery?.nightsNeeded ?? PersonalNormal.minN
+    let sofar = recovery.map { " (\(min($0.nights, need)) so far)" } ?? ""
+    return "Until your recovery score has \(need) nights\(sofar), a night under \(goal) h turns intervals Modified."
+}
+
+/// W-B57-W3 fixer: the Safety row's copy — the cap is the user's own number, never an app limit.
+public nonisolated let gateConfigHrCapTitle = "Your heart-rate cap"
+public nonisolated let gateConfigHrCapSubtitle = "Your own ceiling, from your gate settings. Sessions never target above it."
+
+public nonisolated func gateConfigSleepGoalValue(_ config: MorningGateConfig) -> String {
+    "\(gateConfigFormat(config.sleepGoalH)) h"
 }
 
 /// `MorningGateOverrides` — `Partial<Record<OverridableMorningGateField, number>>`.

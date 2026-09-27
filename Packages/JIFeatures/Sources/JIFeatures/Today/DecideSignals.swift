@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 // MARK: - Signal helpers kept from the pre-B-57 arcs row (B-61/B-65 tests pin them)
@@ -27,7 +28,7 @@ public nonisolated func gateSignalValueText(_ s: GateSignal) -> String {
 }
 
 public nonisolated func gateSignalAccessibilityLabel(_ s: GateSignal) -> String {
-    let thr = s.threshold.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0)))
+    let thr = s.threshold?.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0))) ?? "none"
     guard s.value != nil else { return "\(s.label), not synced yet, threshold \(thr)" }
     let value = [gateSignalValueText(s), s.unit.isEmpty ? nil : s.unit].compactMap { $0 }.joined(separator: " ")
     if s.status == .context {
@@ -73,6 +74,7 @@ public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
 
 /// A whole number prints whole ("goal 7 h"), anything else with one decimal ("goal 6.5 h").
 nonisolated func decideCompactNumber(_ v: Double) -> String { jiNumber(v, v.rounded() == v ? 0 : 1) }
+nonisolated func decideCompactNumber(_ v: Double?) -> String { v.map { decideCompactNumber($0) } ?? "—" }
 
 /// The hub's own band in an Apple-night note ("band 41–52 ms") — that IS the normal the hub gated on.
 public nonisolated func decideHubBand(_ note: String?) -> ClosedRange<Double>? {
@@ -85,7 +87,11 @@ public nonisolated func decideHubBand(_ note: String?) -> ClosedRange<Double>? {
 /// W-FIX3 BUG-30: the SignalRow reference is "your normal a–b" (spec §1) or, for sleep time, the
 /// "goal 7 h" the hub gates on — never "threshold 70" / "floor 6.0 h". With no normal yet the line
 /// says so ("your normal — Calibrating"); a missing value says why ("no overnight value yet").
-public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRange<Double>? = nil) -> DecideSignalRowModel {
+/// W-B57-W3 fixer: `recoveryNormal` is the recovery score's 28-night normal (`RecoveryInsightService`)
+/// — the band the score compares a 7-day mean against, so it also applies to "HRV (7-day)" when the
+/// hub's own baseline is still warming up.
+public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRange<Double>? = nil,
+                                             recoveryNormal: ClosedRange<Double>? = nil) -> DecideSignalRowModel {
     let decimals = s.key == "sleep_h" ? 1 : 0
     var status = decideSignalStatus(s)
     var shownNormal: ClosedRange<Double>? = nil
@@ -97,7 +103,7 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         if s.value != nil { status = s.status == .pass ? .aboveGoal : .belowGoal }
     } else if s.value == nil {
         detail = "no overnight value yet"
-    } else if let band = decideHubBand(s.note) ?? (decideNormalApplies(s) ? normal : nil) {
+    } else if let band = decideHubBand(s.note) ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
         shownNormal = band; detail = nil
     } else {
         detail = "your normal — \(JIMissingReason.calibrating.rawValue)"
@@ -134,12 +140,29 @@ public nonisolated func decideSignalNormals(recovery: [RecoveryDay]) -> [String:
     return out
 }
 
+/// W-B57-W3 fixer: the recovery score's 28-night normals (Apple nights from the gate's own loader),
+/// keyed by gate-signal key, rounded to whole units. Empty while calibrating.
+public nonisolated func decideRecoveryNormals(hrv: PersonalNormalResult?, rhr: PersonalNormalResult?) -> [String: ClosedRange<Double>] {
+    var out: [String: ClosedRange<Double>] = [:]
+    for (key, n) in [("hrv", hrv), ("rhr", rhr)] {
+        guard let n, n.low.isFinite, n.high.isFinite else { continue }
+        let lo = n.low.rounded(), hi = n.high.rounded()
+        if lo <= hi { out[key] = lo...hi }
+    }
+    return out
+}
+
+@MainActor func decideRecoveryNormals(_ insight: RecoveryInsightService?) -> [String: ClosedRange<Double>] {
+    decideRecoveryNormals(hrv: insight?.normal(for: .hrv), rhr: insight?.normal(for: .rhr))
+}
+
 /// Decide's "Why" block: one SignalRow per hub signal; tapping opens the gate rationale.
 public struct DecideSignalsSection: View {
     let signals: [GateSignal]
     let normals: [String: ClosedRange<Double>]
     @Environment(\.gateRationaleModel) private var rationaleModel
     @Environment(\.gateRespondModel) private var respondModel
+    @Environment(\.recoveryInsight) private var recoveryInsight
     @Environment(\.jiTheme) private var theme
     @State private var showRationale = false
 
@@ -147,14 +170,15 @@ public struct DecideSignalsSection: View {
 
     private var whyNote: some View {
         // Board 01: "shaded = your normal" once a normal exists; until then it says it is calibrating.
-        Text(normals.values.isEmpty ? "your normal — \(JIMissingReason.calibrating.rawValue)" : "compared with your normal")
+        Text(normals.values.isEmpty && decideRecoveryNormals(recoveryInsight).isEmpty ? "your normal — \(JIMissingReason.calibrating.rawValue)" : "compared with your normal")
             .jiFont(.footnote).foregroundStyle(theme.color(.muted))
     }
 
     public var body: some View {
         // W-GUI T1 (mockup 01): the rows live in the "What drove it" grouped card — the section
         // header is the card's, the reference note sits under it, rows are separated by hairlines.
-        let models = signals.map { decideSignalRowModel($0, normal: normals[$0.key]) }
+        let recoveryNormals = decideRecoveryNormals(recoveryInsight)
+        let models = signals.map { decideSignalRowModel($0, normal: normals[$0.key], recoveryNormal: recoveryNormals[$0.key]) }
         let rows = VStack(alignment: .leading, spacing: 0) {
             whyNote.fixedSize(horizontal: false, vertical: true).padding(.vertical, JISpacing.s1)
             ForEach(Array(models.enumerated()), id: \.element.id) { index, m in

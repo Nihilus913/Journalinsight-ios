@@ -124,6 +124,9 @@ struct RootTabView: View {
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
     @State private var sendToWatchModel: SendToWatchViewModel?
     @State private var recoveryModel: RecoveryViewModel?
+    /// B-57 W3: one recovery insight per provider (the gate's inputs → the on-device score and the
+    /// Apple-night normals); reset with the provider revision, like `todayModel`.
+    @State private var recoveryInsight: RecoveryInsightService?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
     // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
     // tab shell around them and never edits their owned files.
@@ -258,7 +261,9 @@ struct RootTabView: View {
         #endif
         .sheet(isPresented: $showKpiList, onDismiss: { kpiSheetPath = [] }) {
             // W-FIX2 BUG-21: squares open their detail inside the sheet; Done closes it (board 2/02, 2/04).
-            NavigationStack(path: $kpiSheetPath) {
+            // W-B57-W3 fixer PF-04: the sheet's stack gets the tab stacks' environment (sync instant,
+            // recovery insight), so KpiDetail from My KPIs names the same time as the tab path.
+            shellStackEnvironment(NavigationStack(path: $kpiSheetPath) {
                 kpiListDestination(onSelectKpi: { metric in
                     let route = RootRoute.kpiDetail(metric: metric)
                     if kpiSheetPath.last != route { kpiSheetPath.append(route) }
@@ -280,7 +285,7 @@ struct RootTabView: View {
                     })
                     }
                 }
-            }
+            })
         }
         .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil }) {
             if let settingsModel {
@@ -317,6 +322,7 @@ struct RootTabView: View {
         settingsModel = nil
         todayModel = nil
         recoveryModel = nil
+        recoveryInsight = nil
         energyModel = nil
         nutritionModel = nil
         trainingModel = nil
@@ -350,7 +356,7 @@ struct RootTabView: View {
     /// shell chrome (My KPIs + Settings) and the `RootRoute` destinations. Stacks are siblings —
     /// the only other stacks on screen are the search Tab's and modal sheets', never an ancestor.
     private func tabStack<Content: View>(_ tab: RootTab, @ViewBuilder content: () -> Content) -> some View {
-        NavigationStack(path: Binding(get: { router.path(for: tab) }, set: { router.setPath($0, for: tab) })) {
+        shellStackEnvironment(NavigationStack(path: Binding(get: { router.path(for: tab) }, set: { router.setPath($0, for: tab) })) {
             content()
                 .toolbar { shellToolbar }
                 // B-57 W1: shell hooks Recovery (L3) reads — the catalogue sheet and a KPI push.
@@ -364,10 +370,18 @@ struct RootTabView: View {
                     case .trends: trendsDestination(onSelectKpi: { metric in pushKpiDetail(metric, on: tab) })
                     }
                 }
-        }
-        // W-FIX4 fixer PF-04: the one sync instant for every screen's `OneSyncedPill` (root and
-        // pushed), so Recovery/Training/Energy/Nutrition name the hub time Day and More name.
-        .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
+        })
+    }
+
+    /// The shell environment every navigation stack gets — each tab stack AND the My KPIs sheet's
+    /// stack (a sheet does not inherit a tab stack's environment; W-B57-W3 fixer PF-04).
+    private func shellStackEnvironment<V: View>(_ content: V) -> some View {
+        content
+            // W-FIX4 fixer PF-04: the one sync instant for every screen's `OneSyncedPill` (root and
+            // pushed), so Recovery/Training/Energy/Nutrition name the hub time Day and More name.
+            .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
+            // B-57 W3: the recovery score / normals for every screen of the stack (root and pushed).
+            .environment(\.recoveryInsight, recoveryInsight)
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the
@@ -438,6 +452,9 @@ struct RootTabView: View {
     /// Today's model + its siblings (rationale, override). Shared by the Today tab and More (the
     /// Goals row reads the latest weight from Today's gate rows).
     private func makeTodayModels(store: ProviderStore) {
+        if recoveryInsight == nil {
+            recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+        }
         guard todayModel == nil else { return }
         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
         env.bind(today: todayModel, recovery: recoveryModel)

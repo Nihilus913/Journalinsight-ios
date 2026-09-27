@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// The gate's own reasoning (triggered rules + suggestions) plus the 3-day decision trail — the
@@ -8,9 +9,7 @@ import JIDesign
 ///
 /// Two branches, exactly as the oracle: the live rationale, and the deep-link per-date branch which
 /// deliberately shows less (the persisted `morning_verdict` row has no rules/suggestions/trail).
-/// B-57 W1 Recovery score card copy (board 03). The score is W3; the card shows "—" + Calibrating.
-/// No night count: the threshold is W3's to set, so none is invented here.
-public nonisolated let gateRationaleRecoveryScoreCopy = "One score from overnight HRV, resting HR and sleep (length, deep, REM), each against your normal. It shows a number once all three have enough nights."
+/// B-57 W3: the recovery score card's note is `RecoveryCardModel.note` (the real 14-night need).
 
 // MARK: - W-FIX3 BUG-29 / BUG-33 (board 03)
 
@@ -19,8 +18,8 @@ public nonisolated let gateRationaleNavigationTitle = ""
 /// The card's own heading above the verdict word (board: "WHY TODAY IS Full").
 public nonisolated let gateRationaleHeaderLabel = "WHY TODAY IS"
 
-/// The live rationale's sections in board order. The "Recovery score — Calibrating" card is gone:
-/// board 03 shows what counted, one row per signal, not a score that does not exist yet.
+/// The live rationale's sections in board order, after the verdict and the recovery score card
+/// (B-57 W3: `RecoveryScoreCard`, a real score or "—" + the reason): what counted, one row per signal.
 public nonisolated enum GateRationaleSection: Equatable, Sendable { case whatCounted, weeklyNutrition, lastDays }
 public nonisolated let gateRationaleLiveSections: [GateRationaleSection] = [.whatCounted, .weeklyNutrition, .lastDays]
 
@@ -78,9 +77,10 @@ public nonisolated struct GateCountedRow: Identifiable, Equatable, Sendable {
 /// Board 03 "What counted": one row per gate signal in the hub's order, then Load (shown for
 /// context — it is not part of the morning call). A missing value is "No data" and left out.
 public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals: [String: ClosedRange<Double>],
-                                                 load: Double?) -> [GateCountedRow] {
+                                                 recoveryNormals: [String: ClosedRange<Double>] = [:],
+                                                 load: Double?, loadMissing: JIMissingReason = .noData) -> [GateCountedRow] {
     var rows: [GateCountedRow] = (signals ?? []).map { sig in
-        let m = decideSignalRowModel(sig, normal: normals[sig.key])
+        let m = decideSignalRowModel(sig, normal: normals[sig.key], recoveryNormal: recoveryNormals[sig.key])
         let sentence: String
         if sig.status == .context {
             sentence = [gateSignalNoteText(sig).map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }, "Shown, not counted."]
@@ -101,9 +101,14 @@ public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals
                               status: m.status, sentence: sentence)
     }
     rows.append(GateCountedRow(id: "load", label: "Load", value: load, unit: "", decimals: 2,
-                               status: load == nil ? .missing(.calibrating) : .contextOnly,
+                               status: load == nil ? .missing(loadMissing) : .contextOnly,
                                sentence: load == nil ? "No current load reading. Left out." : "Shown for context; load is not part of the morning call."))
     return rows
+}
+
+/// W-B57-W3 fixer: a missing Load reads with the score card's own Load word (Calibrating / No data).
+public nonisolated func gateRationaleLoadMissingReason(_ recovery: RecoveryScoreResult?) -> JIMissingReason {
+    recovery?.component(.load)?.status == .calibrating ? .calibrating : .noData
 }
 
 public struct GateRationaleView: View {
@@ -113,6 +118,7 @@ public struct GateRationaleView: View {
     @Environment(\.jiOffscreenRender) private var offscreen
     /// W-B57b: the weekly gate answer card's model (see `EnvironmentValues.gateRespondModel`).
     @Environment(\.gateRespondModel) private var respondModel
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     public init(model: GateRationaleViewModel) { self.model = model }
 
@@ -135,8 +141,8 @@ public struct GateRationaleView: View {
                     if model.isByDate {
                         byDateReasonCard
                     } else {
-                        // W-GUI T5 (mockup 13): hero → Recovery score ("—" + the honest reason, plan
-                        // §B: W3) → What counted → Also this week → Last 3 days → the caption.
+                        // W-GUI T5 (mockup 13): hero → Recovery score (B-57 W3: the score, or "—"
+                        // + the honest reason) → What counted → Also this week → Last 3 days → the caption.
                         recoveryScoreCard
                         whatCountedCard
                         weeklyNutritionSection
@@ -242,9 +248,12 @@ public struct GateRationaleView: View {
     /// W-FIX3 BUG-29 (board 03 "What counted"): Sleep / Overnight HRV / Resting HR / Load, each with its
     /// value, status word and what it did to the call — not a copy of Decide's rows.
     @ViewBuilder private var whatCountedCard: some View {
-        let rows = gateRationaleCountedRows(signals: model.morning?.gateSignals,
+        // B-57 W3: the gate's `recovery` signal is the score card above, never a second row here.
+        let rows = gateRationaleCountedRows(signals: model.morning?.gateSignals.map { RecoveryScoreCard.visibleSignals($0) },
                                             normals: decideSignalNormals(recovery: model.recovery),
-                                            load: KpiMetrics.currentAcwr(model.recovery, now: Date()))
+                                            recoveryNormals: decideRecoveryNormals(recoveryInsight),
+                                            load: KpiMetrics.currentAcwr(model.recovery, now: Date()),
+                                            loadMissing: gateRationaleLoadMissingReason(recoveryInsight?.result))
         VStack(alignment: .leading, spacing: 0) {
             boardHeader("What counted", trailing: nil)
             Surface(level: 1, padding: 0) {
@@ -424,25 +433,12 @@ public struct GateRationaleView: View {
         }
     }
 
-    /// W-GUI T5 (mockup 13, plan §B): the recovery score is not on the hub yet — "—" with the honest
-    /// reason and the count of overnight nights already on the phone; never a number.
+    /// B-57 W3 S1 (mockup 13): the recovery score — the on-device score over the gate's own
+    /// inputs, "—" + the honest reason while calibrating or missing; never 0 or 50.
     private var recoveryScoreCard: some View {
-        let nights = model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count
-        return VStack(alignment: .leading, spacing: 0) {
-            boardHeader("Recovery score", trailing: nil)
-            Surface(level: 1, padding: JISpacing.cardPadding) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
-                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
-                        Text(gateRationaleScoreCaption(nights: nights)).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
-                    }
-                    Text(gateRationaleScoreNote).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("gateRationale.score")
+        VStack(alignment: .leading, spacing: 0) {
+            boardHeader("Recovery score", trailing: "last night")
+            RecoveryScoreCard()
         }
     }
 
@@ -527,9 +523,4 @@ extension View {
 
 // MARK: - W-GUI T5 (mockup 13) copy, pure
 
-/// "Calibrating · 3 of 7 nights" — the score card's status word with the honest count (0…7).
-public nonisolated func gateRationaleScoreCaption(nights: Int) -> String {
-    "\(JIMissingReason.calibrating.rawValue) · \(min(max(nights, 0), 7)) of 7 nights"
-}
-public nonisolated let gateRationaleScoreNote = "Arrives with the normal band once 7 Watch nights are in."
 public nonisolated let gateRationaleMedicalCaption = "A training call, not a medical reading. If you feel symptoms, that beats any number here."

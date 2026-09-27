@@ -22,6 +22,7 @@ public struct GateConfigView: View {
     @Environment(\.jiOffscreenRender) private var offscreen
 
     public init(model: GateConfigViewModel) { _model = State(initialValue: model) }
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     public var body: some View {
         Form {
@@ -46,7 +47,7 @@ public struct GateConfigView: View {
                 Text("Recommended values are already set. Change one only when you know why.")
             }
             Section("Safety") {
-                lockedRow("Heart-rate cap", "Sessions never target above it. Not configurable.", value: "\(SessionCoachViewModel.hrSafetyCapBpm) bpm")
+                valueRow(gateConfigHrCapTitle, gateConfigHrCapSubtitle, value: "\(SessionCoachViewModel.hrSafetyCapBpm) bpm")
                 lockedRow("Zone 5", "No Zone 5 target anywhere in the app.", value: "Off")
             }
             ForEach([GateConfigGroup.recoverySignals, .sleep, .fuel], id: \.self) { group in
@@ -54,6 +55,7 @@ public struct GateConfigView: View {
                     if !model.loaded {
                         Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
                     } else {
+                        if group == .sleep { sleepGoalRow }
                         ForEach(MorningGateOverridableField.allCases.filter { $0.group == group }, id: \.rawValue) { morningRow($0) }
                     }
                 }
@@ -256,6 +258,36 @@ public struct GateConfigView: View {
     // MARK: - Controls
 
     /// B-57 W1 Safety rows: locked, never configurable.
+    /// B-57 W3 S3: "Sleep goal" — read-only, the gate's own goal; never a stepper or a floor.
+    private var sleepGoalRow: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(gateConfigSleepGoalTitle).font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(gateConfigSleepGoalExplanation(recovery: recoveryInsight?.result, config: .default)).font(.caption2).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Text(gateConfigSleepGoalValue(.default)).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("gateConfig.sleepGoal")
+    }
+
+    /// W-B57-W3 fixer: a user value shown read-only here (no lock, no danger tint — it is theirs).
+    private func valueRow(_ title: String, _ subtitle: String, value: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(subtitle).font(.caption2).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Text(value).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("gateConfig.hrCap")
+    }
+
     private func lockedRow(_ title: String, _ subtitle: String, value: String) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {

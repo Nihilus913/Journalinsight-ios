@@ -8,12 +8,12 @@ import Testing
 /// — ground truth is `scripts/morning_go.py` executed by the Python interpreter.
 /// Never edit the fixture by hand; run `HealthTraining/scripts/regen_goldens.py`.
 ///
-/// 988 golden cases across 13 case groups: `sessionDoneCases` 216 ·
+/// 998 golden cases across 13 case groups: `sessionDoneCases` 216 ·
 /// `reducedCompliantCases` 12 · `liftFlagsCases` 51 · `trendKgWkCases` 70 ·
 /// `consecutiveDoseIndexCases` 36 · `rhrCarriedOverCases` 6 ·
 /// `vitalsPresentCases` 7 · `vitalsLineCases` 26 · `fmtVsCases` 47 ·
 /// `prevFromStateCases` 5 · `streakCases` 29 · `bestStreakCases` 29 ·
-/// `evaluateCases` 454. Each golden case is one test case, so the count
+/// `evaluateCases` 464 (B-57 W3: 10 "Recovery low" cases appended after the 454). Each golden case is one test case, so the count
 /// `swift test --filter MorningGate` prints is the golden count PLUS ONE:
 /// `morningGateSourcesAvoidAmbientClockAPIs` is a non-golden source-hygiene
 /// guard required by the W6 card's L1 exit criteria ("no `Date()`/
@@ -239,6 +239,7 @@ struct VitalsFixture: Decodable, Sendable {
     let rhr: Int?
     let rhrDate: String?
     let stepsYesterday: Int?
+    let recoveryScore: Int?
 
     enum CodingKeys: String, CodingKey {
         case sleep
@@ -248,6 +249,7 @@ struct VitalsFixture: Decodable, Sendable {
         case rhr
         case rhrDate = "rhr_date"
         case stepsYesterday = "steps_yesterday"
+        case recoveryScore = "recovery_score"
     }
 
     var vitals: MorningVitals {
@@ -258,7 +260,8 @@ struct VitalsFixture: Decodable, Sendable {
             hrvStatus: hrvStatus,
             rhr: rhr,
             rhrDate: rhrDate,
-            stepsYesterday: stepsYesterday
+            stepsYesterday: stepsYesterday,
+            recoveryScore: recoveryScore
         )
     }
 }
@@ -793,4 +796,15 @@ func morningGateSourcesAvoidAmbientClockAPIs() throws {
             #expect(!text.contains(needle), "\(name) uses \(needle)")
         }
     }
+}
+
+// MARK: - B-57 W3 recovery score (non-golden guards; the goldens are evaluateCases 455–464)
+
+/// The two new config values default to the Python constants, so existing
+/// memberwise call sites keep compiling and behave unchanged.
+@Test func morningGateRecoveryConfigDefaults() {
+    #expect(MorningGateConfig.default.sleepGoalH == 7.0)
+    #expect(MorningGateConfig.default.recoveryLowScore == 35)
+    #expect(MorningGateConfig.default.recoveryLowScore == RecoveryScore.lowScore)
+    #expect(MorningVitals().recoveryScore == nil)
 }

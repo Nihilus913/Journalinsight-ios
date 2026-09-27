@@ -1,5 +1,6 @@
 import Foundation
 import JICore
+import JICompute
 import JIDesign
 
 // W-GUI R2 — KPI detail (mockups 07 / 20 / 21): the table under the chart, the per-metric block
@@ -12,7 +13,7 @@ public nonisolated struct KpiDetailTableRow: Equatable, Sendable, Identifiable {
 
 /// Last night · 7-day average (the number the gate uses) · 28-day normal (W3 → "—") · Nights counted.
 public nonisolated func kpiDetailTableRows(history: [(date: String, value: Double?)], value: Double?, unit: String, decimals: Int,
-                                           isNightly: Bool = true) -> [KpiDetailTableRow] {
+                                           isNightly: Bool = true, normal: PersonalNormalResult? = nil) -> [KpiDetailTableRow] {
     let u = unit.isEmpty ? "" : " \(unit)"
     func num(_ v: Double?) -> String { v.map { jiNumber($0, decimals) + u } ?? "—" }
     let sorted = history.sorted { $0.date < $1.date }
@@ -22,13 +23,19 @@ public nonisolated func kpiDetailTableRows(history: [(date: String, value: Doubl
     return [
         KpiDetailTableRow(id: "last", title: isNightly ? "Last night" : "Latest", subtitle: isNightly ? "the newest night" : "the newest reading", value: num(value)),
         KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: "the number the gate uses", value: num(avg7)),
-        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: "middle 50 % of nights", value: "— \(JIMissingReason.calibrating.rawValue)"),
+        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: "middle 50 % of nights", value: normal.map { "\(jiNumber($0.low, decimals))–\(jiNumber($0.high, decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
         KpiDetailTableRow(id: "counted", title: isNightly ? "Nights counted" : "Days counted", subtitle: "missing ones stay missing", value: "\(counted) of \(max(last28.count, 1))"),
     ]
 }
 
 /// The chart legend: honest until W3 lands the band.
 public nonisolated let kpiDetailLegend = "shaded = your normal — \(JIMissingReason.calibrating.rawValue) · dashed = median —"
+
+/// W-B57-W3 fixer: the legend with the band once `KpiNormal` has one (the same band the NormalBar shows).
+public nonisolated func kpiDetailLegendText(_ normal: PersonalNormalResult?, decimals: Int) -> String {
+    guard let normal else { return kpiDetailLegend }
+    return "shaded = your normal \(jiNumber(normal.low, decimals))–\(jiNumber(normal.high, decimals)) · dashed = median \(jiNumber(normal.median, decimals))"
+}
 
 /// The per-metric block under the table (a section title, rows with a trailing value, a caption).
 public nonisolated struct KpiDetailBlock: Equatable, Sendable {

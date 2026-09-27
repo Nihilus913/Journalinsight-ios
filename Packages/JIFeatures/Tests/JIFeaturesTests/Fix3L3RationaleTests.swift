@@ -44,7 +44,8 @@ struct Fix3L3RationaleTests {
         #expect(rows[1].sentence == "Under your 27–30 normal.")
         #expect(rows[2].value == nil)
         #expect(rows[2].sentence == "No overnight value yet. Left out, not counted as bad.")
-        #expect(rows[3].status == .missing(.calibrating))
+        // W-B57-W3 fixer: with no recovery insight a missing load is "No data" (the card's word).
+        #expect(rows[3].status == .missing(.noData))
         #expect(rows[3].sentence == "No current load reading. Left out.")
     }
 

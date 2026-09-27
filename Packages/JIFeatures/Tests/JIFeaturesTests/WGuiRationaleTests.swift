@@ -1,14 +1,15 @@
 import Testing
 import JICore
+import JICompute
 @testable import JIFeatures
 
 // W-GUI T5 — Why today (mockup 13): the score card is honest, the caption is the medical line,
 // the BUG-29 header label survives.
 @Test func scoreCardIsCalibratingWithTheNightCount() {
-    #expect(gateRationaleScoreCaption(nights: 3) == "Calibrating · 3 of 7 nights")
-    #expect(gateRationaleScoreCaption(nights: 12) == "Calibrating · 7 of 7 nights")
-    #expect(gateRationaleScoreCaption(nights: -1) == "Calibrating · 0 of 7 nights")
-    #expect(gateRationaleScoreNote.contains("7 Watch nights"))
+    // B-57 W3: the placeholder's "of 7" became the score's real 14-night need (`recoveryScoreCardText`).
+    let cal = RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: [], nights: 3)
+    #expect(recoveryScoreCardText(result: cal, reasonWord: nil).caption == "Calibrating · 3 of 14 nights")
+    #expect(RecoveryCardModel.note.contains("14 nights"))
 }
 
 @Test func captionAndHeaderCopy() {

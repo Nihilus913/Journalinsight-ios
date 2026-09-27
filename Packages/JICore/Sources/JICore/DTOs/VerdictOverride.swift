@@ -15,7 +15,8 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     public var label: String
     public var value: Double?
     public var unit: String
-    public var threshold: Double
+    /// nil when the hub has no threshold for the night (e.g. a missing-HRV signal sends `threshold: null`).
+    public var threshold: Double?
     public var direction: GateSignalDirection
     public var scaleMin: Double
     public var scaleMax: Double
@@ -25,7 +26,7 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     public var id: String { key }
 
     public init(
-        key: String, label: String, value: Double?, unit: String, threshold: Double,
+        key: String, label: String, value: Double?, unit: String, threshold: Double?,
         direction: GateSignalDirection, scaleMin: Double, scaleMax: Double,
         status: GateSignalStatus, note: String? = nil
     ) {
