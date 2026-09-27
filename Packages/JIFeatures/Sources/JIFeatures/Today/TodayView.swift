@@ -28,6 +28,7 @@ public struct TodayView: View {
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch and no model rebuild while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in },
                 onOpenTrends: (() -> Void)? = nil,
@@ -151,7 +152,7 @@ public struct TodayView: View {
         JISectionHeader("Next")
         nextCard
         HStack(alignment: .firstTextBaseline) {
-            JISectionHeader("Fuel today")
+            JISectionHeader(dayFuelTitle(asOf: dayFuel(daily: model.gate?.daily ?? [], today: todayDateString).asOf))
             Spacer(minLength: JISpacing.s2)
             if let asOf = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString).asOf {
                 Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).padding(.trailing, JISpacing.s4)
@@ -169,7 +170,9 @@ public struct TodayView: View {
                 .accessibilityIdentifier("today.day.edit")
         }
         // W-FIX2 fixer BUG-19: the grid gets every square EditToday lists (`gridChips`), not the four.
-        TodayGrid(chips: model.gridChips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+        // W-DATA fixer R9: the Load square takes the gate-input load (minutes + band) when no ACWR.
+        TodayGrid(chips: todayChipsWithLoad(model.gridChips, load: recoveryInsight?.loadReading), prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
+            .task { if !offscreen { await recoveryInsight?.refreshIfStale() } }
         // W-GUI T3 (DEV-07, mockup 02): Trends / Week review are chevron rows in one grouped card,
         // never underlined text. BUG-13 (router push) and BUG-28 (weekly gate) routes unchanged.
         Surface(level: 1, padding: 0) {
@@ -298,7 +301,7 @@ public struct TodayView: View {
                                 .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        if let left = dayFuelLeftText(kcal: fuel.kcal, goal: fuel.kcalGoal) {
+                        if let left = dayFuelLeftText(kcal: fuel.kcal, goal: fuel.kcalGoal, isToday: fuel.asOf == nil) {
                             Text(left).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                         }
                     }
@@ -540,11 +543,18 @@ public nonisolated enum DayNextTemplate: Sendable, Equatable { case strength, ca
 public nonisolated func dayNextTemplate(rows: [TrainingHeroRow]) -> DayNextTemplate { rows.isEmpty ? .cardio : .strength }
 
 /// "434 left · your goal" from the intake and the goal already on the row; nil without both.
-public nonisolated func dayFuelLeftText(kcal: Double?, goal: Double?) -> String? {
+/// W-DATA fixer R1 (DEV-11): "left" only for today's row — an earlier day (the latest logged one)
+/// is a finished day: "752 under your goal" / "83 over your goal", never "left" today.
+public nonisolated func dayFuelLeftText(kcal: Double?, goal: Double?, isToday: Bool = true) -> String? {
     guard let kcal, let goal, goal > 0 else { return nil }
     let left = goal - kcal
+    guard isToday else { return left >= 0 ? "\(jiNumber(left, 0)) under your goal" : "\(jiNumber(-left, 0)) over your goal" }
     return left >= 0 ? "\(jiNumber(left, 0)) left · your goal" : "\(jiNumber(-left, 0)) over · your goal"
 }
+
+/// W-DATA fixer R1 (DEV-11): the Fuel section title says "today" only for today's food row; an
+/// earlier logged day (`DayFuel.asOf` set, shown beside it) is "Fuel · last logged".
+public nonisolated func dayFuelTitle(asOf: String?) -> String { asOf == nil ? "Fuel today" : "Fuel · last logged" }
 
 /// "Protein · goal 155" with a user goal; the bare name without one (no "no goal" claim); the
 /// reason word when the value is missing.

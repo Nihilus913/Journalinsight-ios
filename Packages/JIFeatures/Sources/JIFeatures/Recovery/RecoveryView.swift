@@ -229,21 +229,25 @@ public struct RecoveryView: View {
     /// "—" + a reason word (`recoveryWatchReadings`) — and Add a metric, all `.tile`.
     private func alsoWatching(layout: RecoveryTileLayout) -> some View {
         let items = recoveryTileItems(days: model.days, layout: layout, editing: false).filter { $0.id == "load" }
+        // W-DATA fixer R9: no hub ACWR (Apple never sends one) → the gate-input load with its band.
+        let load = items.first?.value == nil ? insight?.loadReading : nil
         return Columns(minimum: 100, spacing: JISpacing.tileGap, tileHeight: .tile) {
             ForEach(items) { item in
                 Button { openKpiDetail?("acwr") } label: {
                     JITile(family: .tile) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                            Text(jiValueText(item.value, decimals: item.decimals)).jiNumeral(.numeralSmall, tint: item.value == nil ? .muted : item.tint)
+                            Text(load?.valueText ?? jiValueText(item.value, decimals: item.decimals))
+                                .jiNumeral(.numeralSmall, tint: item.value == nil && load == nil ? .muted : item.tint)
                                 .lineLimit(1).minimumScaleFactor(0.6)
-                            Text(item.goalText ?? item.status?.word ?? "").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                            Text(load?.caption ?? item.goalText ?? item.status?.word ?? "").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                                .lineLimit(1).minimumScaleFactor(0.8)
                         }
                     }
                 }
                 .buttonStyle(.pressableScale)
                 .disabled(openKpiDetail == nil)
-                .accessibilityLabel(squareAccessibilityLabel(item))
+                .accessibilityLabel(load.map { "Load \($0.valueText), \($0.caption)" } ?? squareAccessibilityLabel(item))
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
             ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }

@@ -602,13 +602,16 @@ struct RootTabView: View {
     private var moreNutritionRow: MoreRowValue {
         let today = String(Date().ISO8601Format().prefix(10))
         let day = nutritionModel?.day.flatMap { $0.date == today ? $0 : nil }
-        return Self.moreNutritionRowValue(consumedKcal: day?.total.kcal, userGoals: env.energyBand?.goals)
+        // W-DATA fixer R1: no food today → the newest logged day of the week, named by its day.
+        let latest = moreNutritionLatestIntake(today: today, todayKcal: day?.total.kcal, week: nutritionModel?.week ?? [])
+        return Self.moreNutritionRowValue(consumedKcal: latest?.kcal, userGoals: env.energyBand?.goals,
+                                          asOf: kpiAsOfLabel(valueDate: latest?.date, today: today))
     }
 
     /// B-73 (W-B57-W2 fixer MORE-NUTRITION-GOAL): "consumed / goal" against the user's own kcal
     /// target (`goals.macros`) only — never YAZIO's day goal nor the hub document. Unset = consumed alone.
-    static func moreNutritionRowValue(consumedKcal: Double?, userGoals: MacroGoals?) -> MoreRowValue {
-        moreNutritionValue(consumedKcal: consumedKcal, goalKcal: userGoals?.targetKcal)
+    static func moreNutritionRowValue(consumedKcal: Double?, userGoals: MacroGoals?, asOf: String? = nil) -> MoreRowValue {
+        moreNutritionValue(consumedKcal: consumedKcal, goalKcal: userGoals?.targetKcal, asOf: asOf)
     }
 
     private var moreEnergyRow: MoreRowValue {

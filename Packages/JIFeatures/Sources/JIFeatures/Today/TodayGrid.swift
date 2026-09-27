@@ -357,7 +357,8 @@ public nonisolated func todayCardValueText(_ value: Double?, kpiId: String? = ni
 /// every field the model computes — `asOf` above all — is provably threaded through. The first
 /// fix computed "as of Sep 15" in the view model and then dropped it here.
 public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummaryCardSpec {
-    let value = todayCardValueText(chip.value, kpiId: chip.id, sourceMissing: chip.sourceMissing)
+    // W-DATA fixer R9: a minutes Load (`todayChipsWithLoad`) is whole minutes, not ACWR's 2 dp.
+    let value = todayCardValueText(chip.value, kpiId: chip.unit == recoveryLoadUnit ? nil : chip.id, sourceMissing: chip.sourceMissing)
     return TodaySummaryCardSpec(
         icon: todayCardIcon(chip.id),
         tintRole: todayCardTintRole(chip.id),
