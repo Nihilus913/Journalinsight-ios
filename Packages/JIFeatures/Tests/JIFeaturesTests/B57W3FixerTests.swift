@@ -67,3 +67,27 @@ private func fxSignal(_ key: String, _ label: String, value: Double?, status: Ga
     #expect(gateRationaleCountedRows(signals: [], normals: [:], load: nil,
                                      loadMissing: gateRationaleLoadMissingReason(cal)).last?.status.word == calWord)
 }
+
+// KpiDetail-caption: once the band exists the chart legend and the table's "28-day normal" row say so.
+@Test func kpiDetailLegendAndTableFollowTheNormal() {
+    let n = PersonalNormalResult(median: 28.4, low: 25.2, high: 31.6, sd: 2, n: 22)
+    #expect(kpiDetailLegendText(n, decimals: 0) == "shaded = your normal 25–32 · dashed = median 28")
+    #expect(kpiDetailLegendText(nil, decimals: 0) == kpiDetailLegend)
+    let rows = kpiDetailTableRows(history: [("2026-09-26", 30)], value: 30, unit: "ms", decimals: 0, normal: n)
+    #expect(rows.first { $0.id == "normal" }?.value == "25–32 ms")
+    let none = kpiDetailTableRows(history: [("2026-09-26", 30)], value: 30, unit: "ms", decimals: 0)
+    #expect(none.first { $0.id == "normal" }?.value == "— Calibrating")
+}
+
+// nutrition-normal: the macro panel's NormalBar gets the 28-day normal once there are 14 days in it.
+@Test func nutritionMacroNormalFromTheRowsOnScreen() throws {
+    let today = "2026-09-27"
+    let rows = try (1...30).map { k in
+        NutritionDailyRow(date: try CalendarMath.addDays(today, -k), kcalConsumed: Double(1800 + (k % 5) * 50), proteinG: 120)
+    }
+    let n = kpiMacroNormal(rows: rows, macro: .kcal, today: today)
+    #expect(n != nil)
+    #expect(n.map { $0.low <= $0.median && $0.median <= $0.high } == true)
+    // Under 14 days in the normal window: honest nil ("Calibrating").
+    #expect(kpiMacroNormal(rows: Array(rows.prefix(19)), macro: .kcal, today: today) == nil)
+}

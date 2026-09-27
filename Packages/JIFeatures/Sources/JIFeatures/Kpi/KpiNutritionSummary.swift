@@ -2,6 +2,7 @@ import SwiftUI
 import JIDesign
 import Foundation
 import JICore
+import JICompute
 
 public nonisolated struct KpiMacroSummary: Equatable, Sendable {
     public let latestDate: String?, latest: Double?, avg7: Double?, avg28: Double?
@@ -22,6 +23,12 @@ public nonisolated func kpiMacroSummary(rows: [NutritionDailyRow], macro: KpiMet
     let latest = series.sorted { $0.date > $1.date }.first { $0.value != nil }
     return KpiMacroSummary(latestDate: latest?.date, latest: latest?.value ?? nil,
                            avg7: trendAverage(series, days: 7), avg28: trendAverage(series, days: 28))
+}
+
+/// W-B57-W3 fixer: the macro's 28-day personal normal (`KpiNormal`, days today−34 … today−7) —
+/// nil ("Calibrating") under 14 logged days in that window, never a fallback band.
+public nonisolated func kpiMacroNormal(rows: [NutritionDailyRow], macro: KpiMetricId, today: String) -> PersonalNormalResult? {
+    KpiNormal.make(points: rows.map { (date: $0.date, value: kpiMacroValue($0, macro)) }, today: today).normal
 }
 
 /// The goal / latest / 7 d / 28 d cells of one table row. B-73: the goal is the user's own
@@ -167,8 +174,9 @@ struct KpiNutritionPanel: View {
                         HStack(alignment: .firstTextBaseline) { last7Label.fixedSize(); Spacer(); last7Value(s, def).fixedSize() }
                         VStack(alignment: .leading, spacing: 2) { last7Label.fixedSize(horizontal: false, vertical: true); last7Value(s, def) }
                     }
-                    // B-73: the user's goal tick (nil = unset, no tick). Normal band: W3.
-                    NormalBar(value: s.avg7, normal: nil, goal: nutritionGoals.goal(for: macro), unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
+                    // B-73: the user's goal tick (nil = unset, no tick). W-B57-W3: the 28-day normal band.
+                    let normal = kpiMacroNormal(rows: rows, macro: macro, today: RecoveryInsightService.localDayKey(Date()))
+                    NormalBar(value: s.avg7, normal: normal.map { $0.low...$0.high }, median: normal?.median, goal: nutritionGoals.goal(for: macro), unit: def.unit, decimals: def.decimals, tint: kpiMacroTintRole(macro))
                 }
             }
             Text(kpiMacroTrendLine(avg7: s.avg7, avg28: s.avg28))
