@@ -7,16 +7,25 @@ public struct DriverBar: Identifiable, Sendable, Equatable {
     public let label: String
     public let value: Double?
     public let sourceMissing: Bool
+    /// B-57 W3: optional status word shown right of the label ("Low", "In your normal",
+    /// "Above goal", "Calibrating", "No reading") and read by VoiceOver instead of the percent.
+    public nonisolated let word: String?
+    /// B-57 W3: optional status tint for the fill (`.reduced` = low, `.sleep`). `.go` is ignored
+    /// (rule 6 — verdict green is never a driver colour).
+    public nonisolated let tint: JIColorRole?
 
     // nonisolated: DriverBar is a pure data type (like ReadinessContributor in
     // ContributorBreakdown.swift) constructed from JIDesignTests' nonisolated `@Test` funcs
     // (SourceMissingCopyTests.swift, DriverBarsTests.swift) — it must stay callable outside
     // JIDesign's MainActor default isolation despite touching no MainActor-isolated state.
-    public nonisolated init(id: String, label: String, value: Double?, sourceMissing: Bool = false) {
+    public nonisolated init(id: String, label: String, value: Double?, sourceMissing: Bool = false,
+                            word: String? = nil, tint: JIColorRole? = nil) {
         self.id = id
         self.label = label
         self.value = value
         self.sourceMissing = sourceMissing
+        self.word = word
+        self.tint = tint
     }
 }
 
@@ -36,17 +45,32 @@ public struct DriverBars: View {
     /// `Color`: the active theme resolves it in `body` (B-33 Phase C).
     nonisolated static let barRole: JIColorRole = .mutedNested
 
+    /// B-57 W3: a status tint is allowed (amber `.reduced` = low, metric `.sleep`), the verdict
+    /// green never is (rule 6) — `.go` falls back to the neutral bar.
+    nonisolated static func fillRole(for driver: DriverBar) -> JIColorRole {
+        guard let tint = driver.tint, tint != .go else { return barRole }
+        return tint
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(drivers) { driver in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(driver.label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                    HStack {
+                        Text(driver.label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                        Spacer(minLength: 8)
+                        if let word = driver.word {
+                            Text(word).font(.caption.weight(.semibold))
+                                .foregroundStyle(theme.color(driver.value == nil ? .muted : Self.fillRole(for: driver)))
+                                .lineLimit(1)
+                        }
+                    }
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
                             Capsule().fill(theme.color(.surface3)).frame(height: 6)
                             if !driver.sourceMissing, let value = driver.value {
                                 Capsule()
-                                    .fill(theme.color(Self.barRole))
+                                    .fill(theme.color(Self.fillRole(for: driver)))
                                     .frame(width: g.size.width * CGFloat(min(max(value, 0), 1)), height: 6)
                             }
                         }
@@ -63,6 +87,7 @@ public struct DriverBars: View {
 /// `StatChip`/`ReadinessArcGauge`/`EAGatedTile` so every tile announces it identically.
 public nonisolated func driverBarAccessibilityLabel(driver: DriverBar) -> String {
     if driver.sourceMissing { return "\(driver.label) \(sourceMissingCopy)" }
+    if let word = driver.word { return "\(driver.label), \(word)" }
     guard let value = driver.value else { return "\(driver.label), no data yet" }
     return "\(driver.label) \(Int((value * 100).rounded()))%"
 }
