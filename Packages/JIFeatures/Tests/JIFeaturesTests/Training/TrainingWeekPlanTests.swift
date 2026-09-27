@@ -110,3 +110,26 @@ extension TrainingWeekPlanTests {
         #expect(!TrainingThisWeekStrip.maxTypeSize.isAccessibilitySize)
     }
 }
+
+// B3 — TrainingWeek screen ("Your week").
+extension TrainingWeekPlanTests {
+    @Test func summaryStatusWords() {
+        let full = trainingWeekSummary(planSessions: Self.plan, exercises: [], daily: [], today: "2026-09-23")
+        #expect(trainingWeekStatusText(full) == "Matches plan")
+        let short = trainingWeekSummary(planSessions: Self.plan + [PlanSessionOut(id: 5, name: "Day 5", weekday: nil)], exercises: [], daily: [], today: "2026-09-23")
+        #expect(trainingWeekStatusText(short) == "1 session not on a day yet")
+        let none = trainingWeekSummary(planSessions: [], exercises: [], daily: [], today: "2026-09-23")
+        #expect(trainingWeekStatusText(none) == "No plan yet")
+    }
+
+    @Test func onlySessionsWithARealIdAreAssignable() {
+        let rows = [Self.ex(1, "Day 1", weekday: nil, sessionId: 7), Self.ex(2, "Day 2", weekday: nil, sessionId: nil)]
+        #expect(assignableSessions(planSessions: [], exercises: rows).map(\.name) == ["Day 1"])
+    }
+
+    /// The HR cap is the user's optional input (W4): an interval row names it only when set.
+    @Test func intervalCaptionNamesTheCapOnlyWhenSet() {
+        #expect(trainingWeekIntervalCaption(hrCapBpm: 172) == "Your cap 172")
+        #expect(trainingWeekIntervalCaption(hrCapBpm: nil) == "No cap set")
+    }
+}
