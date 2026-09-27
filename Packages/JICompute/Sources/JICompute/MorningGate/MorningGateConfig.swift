@@ -34,6 +34,11 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
     public var cutStart: String
     /// Minimum sleep duration (hours) below which the night reads amber.
     public var minSleepH: Double
+    /// B-57 W3 `SLEEP_GOAL_H` — the sleep goal (display: the Apple context row, GateConfig "Sleep
+    /// goal"). Not read by `evaluate()`: the port has no Apple branch (B-65 was Python-only).
+    public var sleepGoalH: Double = 7.0
+    /// B-57 W3 `RECOVERY_LOW_SCORE` — a recovery score below this is one amber input.
+    public var recoveryLowScore: Int = 35
     /// Respiration delta (breaths/min above the 14d baseline) that reads amber.
     public var respDeltaAmber: Double
     /// Reps at/above which all sets on the last session trigger a +10kg progression note.

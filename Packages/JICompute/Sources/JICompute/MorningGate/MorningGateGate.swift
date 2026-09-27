@@ -319,6 +319,8 @@ public nonisolated func evaluate(
     let hrv = m.hrv
     let rhr = m.rhr
     let dur = m.sleepDurationH
+    // B-57 W3: the recovery score is one amber input (morning_go.py evaluate()).
+    let recoveryLow = m.recoveryScore.map { $0 < config.recoveryLowScore } ?? false
 
     // Garmin publishes no daily-summary row for the current day, so the freshest
     // RHR obtainable at report time is ALWAYS a day behind — see rhrCarriedOver.
@@ -403,6 +405,9 @@ public nonisolated func evaluate(
     if let dur, dur > 0, dur < config.minSleepH {
         amberReasons.append("only \(formatFixed(dur, 1))h sleep")
     }
+    if recoveryLow, let rec = m.recoveryScore {
+        amberReasons.append("Recovery low (\(rec))")
+    }
     if let yResp = db.yResp, let respBase = db.respBaseline, yResp >= respBase + config.respDeltaAmber {
         amberReasons.append(
             "respiration \(formatFixed(yResp, 0)) vs baseline \(formatFixed(respBase, 0)) — possible incoming illness"
@@ -430,6 +435,7 @@ public nonisolated func evaluate(
             && (hrv.map { $0 >= 27 } ?? false)
             && (rhr.map { $0 <= 65 } ?? true)
             && (dur.map { $0 == 0 || $0 >= config.minSleepH } ?? true)
+            && !recoveryLow
         // Day 3+ of consecutive dosing: amber counts as red for intervals only.
         if gateOk && doseDay >= 3 && amber {
             gateOk = false
