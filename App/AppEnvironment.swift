@@ -7,6 +7,7 @@ import JIHealthKit
 import JIPersistence
 import JIFeatures
 import JISnapshot
+import JICompute
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -379,12 +380,56 @@ final class AppEnvironment {
         )
     }
 
+    // MARK: - B-57 W5: glance extras (reason, plan, the user's cap, next session, signals)
+
+    /// W3's recovery insight (owned by RootTabView) — read for the HRV/RHR normals on the glances.
+    @ObservationIgnored weak var recoveryInsight: RecoveryInsightService?
+    /// The week's plan progress for the glances. Set by RootTabView from the Training week model
+    /// (B-52 cached plan sessions); nil = no week known, so the glances show no plan (never "0 of 4").
+    @ObservationIgnored var glancePlan: (@MainActor () -> GlancePlan?)?
+
+    /// Re-publish after something outside Today/Recovery changed (the HR cap, a weekday
+    /// assignment) so the widgets' cap and plan ring follow without waiting for the next fetch.
+    func republishSnapshot() {
+        guard boundToday != nil || boundRecovery != nil else { return }
+        publishSnapshot(today: boundToday, recovery: boundRecovery)
+    }
+
+    /// W-B57-W5 PF-04: the glances' sync moment is the one sync-pill rule (`TodayViewModel.syncedAt`
+    /// — the newer of the hub's last sync and the last HealthKit upload 2xx), never a fetch time.
+    static func glanceLastSync(today: TodayViewModel?) -> Date? { today?.syncedAt }
+
+    /// W-B57-W5 fixer (glance-RHR): the gate never sends RHR, so the glance takes Recovery's latest
+    /// RHR — the RHR KPI's own number — when it is from the verdict's night (that day or the one
+    /// before). Older = left out, never an old number shown as this morning's.
+    static func glanceLatestReadings(today: TodayViewModel?, asOf day: String) -> [String: Double] {
+        guard let hit = KpiMetrics.latest(for: .rhr, recovery: today?.recovery ?? [], nutrition: [], dailyRows: [], gateAverages: nil),
+              let asOf = isoFormatter.date(from: String(day.prefix(10))),
+              let floor = Calendar(identifier: .gregorian).date(byAdding: .day, value: -1, to: asOf),
+              hit.date >= isoFormatter.string(from: floor) else { return [:] }
+        return ["rhr": hit.value]
+    }
+
+    private static let isoFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    static func isoDay(_ date: Date) -> String { String(date.ISO8601Format().prefix(10)) }
+
     private func publishSnapshot(today: TodayViewModel?, recovery: RecoveryViewModel?) {
         let verdict = today?.verdict
         let readiness = today?.readiness ?? recovery?.latestReadiness
         let kpis = (today?.chips ?? []).map { SnapshotKPI(label: $0.label, value: $0.value, unit: $0.unit) }
-        let lastSync = [today?.fetchedAt, recovery?.fetchedAt].compactMap { $0 }.max()
-        let allKpis = Self.allKpis(today: today, cache: cache)
+        let lastSync = Self.glanceLastSync(today: today)
+        let hrvNormal = recoveryInsight?.normal(for: .hrv)?.range
+        let rhrNormal = recoveryInsight?.normal(for: .rhr)?.range
+        let gateSignals = today?.morning?.gateSignals
+        // W-B57-W5 fixer: the live Training week when RootTabView has one, else the cached B-52 plan.
+        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now())))
+        let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)
         let snapshot = HubSnapshot(
             verdictWord: verdict?.word ?? "—",
             verdictSession: verdict?.session ?? "No verdict yet",
@@ -395,7 +440,15 @@ final class AppEnvironment {
             allKpis: allKpis,
             fetchedAt: now(),
             lastSync: lastSync,
-            macros: currentMacrosSnapshot()
+            macros: currentMacrosSnapshot(),
+            reason: HubSnapshot.reasonLine(from: gateSignals),
+            planDone: plan?.total.flatMap { $0 > 0 ? plan?.done : nil },
+            planTotal: plan?.total.flatMap { $0 > 0 ? $0 : nil },
+            hrCap: GateSettingsStore(prefs: prefs).load().hrCapBpm,   // as stored; nil = no cap (no fallback)
+            nextSession: plan?.next,
+            signals: GlanceSignals.make(gateSignals: gateSignals, hrvNormal: hrvNormal, rhrNormal: rhrNormal,
+                                        sleepGoalH: MorningGateConfig.default.sleepGoalH,
+                                        latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
@@ -410,7 +463,8 @@ final class AppEnvironment {
     /// over what `TodayViewModel` already holds (recovery, gate daily rows + averages). The four
     /// nutrition KPIs read the rows `KpiListViewModel` last cached under
     /// `KpiListViewModel.nutritionCacheKey` — never a fetch from here; no cache → nil ("—").
-    private static func allKpis(today: TodayViewModel?, cache: OfflineCache) -> [SnapshotKPI] {
+    private static func allKpis(today: TodayViewModel?, cache: OfflineCache,
+                                hrvNormal: ClosedRange<Double>?, rhrNormal: ClosedRange<Double>?) -> [SnapshotKPI] {
         let recovery = today?.recovery ?? []
         let dailyRows = today?.gate?.daily ?? []
         let averages = today?.gate?.averages
@@ -418,7 +472,10 @@ final class AppEnvironment {
         return KpiMetricId.allCases.map { id in
             let def = KpiMetrics.def(id)
             let value = KpiMetrics.latest(for: id, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows, gateAverages: averages)?.value
-            return SnapshotKPI(id: id, label: def.label, value: value, unit: def.unit.isEmpty ? nil : def.unit)
+            // B-57 W5: the personal normal (W3) for the KpiWidget small band; none = "Calibrating".
+            let normal: ClosedRange<Double>? = id == .hrv ? hrvNormal : (id == .rhr ? rhrNormal : nil)
+            return SnapshotKPI(id: id, label: def.label, value: value, unit: def.unit.isEmpty ? nil : def.unit,
+                               normalLow: normal?.lowerBound, normalHigh: normal?.upperBound)
         }
     }
 
@@ -429,6 +486,24 @@ final class AppEnvironment {
         case .red: "red"
         case .muted, .none: "muted"
         }
+    }
+}
+
+/// B-57 W5: the week's strength plan for the glances — done / total this week and the next
+/// session label ("Fri · Day 3 Full Upper"). Built by RootTabView from the Training week model.
+struct GlancePlan: Equatable {
+    var done: Int?
+    var total: Int?
+    var next: String?
+
+    init(done: Int?, total: Int?, next: String?) {
+        self.done = done; self.total = total; self.next = next
+    }
+
+    /// The glance fields of a Training week (nil = no week known → no plan on the glances).
+    init?(_ week: TrainingWeekSummary?) {
+        guard let week else { return nil }
+        self.init(done: week.planDone, total: week.planTotal, next: week.nextSessionLabel)
     }
 }
 

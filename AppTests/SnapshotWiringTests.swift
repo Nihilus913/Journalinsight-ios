@@ -5,6 +5,7 @@ import JIFeatures
 import JIHub
 import JIPersistence
 import JISnapshot
+import JICompute
 @testable import JournalInsight
 
 /// P-snapshot-wiring (W2c-L1) exit criterion: "after a fetch, the App-Group store holds current
@@ -85,6 +86,125 @@ struct SnapshotWiringTests {
         let snapshot = try #require(store.read())
         #expect(snapshot.verdictWord != "—")
         #expect(snapshot.readiness != nil)
+    }
+
+    /// B-57 W5 A6: the glances get the reason, the user's cap AS STORED (nil = none, no fallback),
+    /// the HRV/Sleep/RHR triple, and — through `glancePlan` — the week's plan progress.
+    @Test @MainActor func snapshotCarriesReasonCapAndSignals() async throws {
+        let (store, suite) = makeStore()
+        defer { teardown(suite) }
+        let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
+        let recovery = RecoveryViewModel(provider: MockDataProvider(), cache: env.cache)
+        env.bind(today: today, recovery: recovery)
+        await today.load()
+
+        let s = try #require(store.read())
+        #expect(s.hrCap == nil)                          // a fresh install has no cap — none is invented
+        #expect(s.signals?.map(\.key) == ["hrv", "sleep_h", "rhr"])
+        #expect((s.reason ?? "").count <= 48)
+        #expect(s.reason == HubSnapshot.reasonLine(from: today.morning?.gateSignals))
+        #expect(s.planDone == nil && s.planTotal == nil && s.nextSession == nil)   // no week known: nothing invented
+
+        try GateSettingsStore(prefs: env.prefs).save(GateSettings(preset: .balanced, hrCapBpm: 168, hrCapConfirmedOn: "2026-09-24"))
+        env.republishSnapshot()
+        #expect(store.read()?.hrCap == 168)
+
+        try GateSettingsStore(prefs: env.prefs).save(.legacyPreW4)                  // Toby's migrated, unconfirmed 175
+        env.republishSnapshot()
+        #expect(store.read()?.hrCap == 175)
+
+        try GateSettingsStore(prefs: env.prefs).save(GateSettings(hrCapBpm: nil, hrCapConfirmedOn: "2026-09-25"))
+        env.republishSnapshot()
+        #expect(store.read()?.hrCap == nil)
+
+        env.glancePlan = { GlancePlan(done: 1, total: 4, next: "Fri · Day 3 Full Upper") }
+        env.republishSnapshot()
+        let planned = try #require(store.read())
+        #expect(planned.planDone == 1 && planned.planTotal == 4 && planned.nextSession == "Fri · Day 3 Full Upper")
+        env.glancePlan = { GlancePlan(done: 0, total: 0, next: nil) }            // an empty plan is "no plan", not "0 of 0"
+        env.republishSnapshot()
+        #expect(store.read()?.planTotal == nil)
+    }
+
+    /// W-B57-W5 fixer (A7-wiring): with no Training model the glances still get the week from the
+    /// cached B-52 plan (sessions + exercises) — the verifier saw no plan / next session in the
+    /// snapshot while Goals showed the week. A live week (`glancePlan`) wins over the cache.
+    @Test @MainActor func glancePlanFallsBackToTheCachedWeek() async throws {
+        let (store, suite) = makeStore()
+        defer { teardown(suite) }
+        let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
+        let rows = [
+            Exercise(exerciseId: 1, sessionName: "Day 1 Full Upper", exerciseName: "Bench press", sets: 3, repsTarget: "8",
+                     currentWeightKg: 50, progressionStepKg: 2.5, weekday: 0, sessionId: 11),
+            Exercise(exerciseId: 2, sessionName: "Day 2 Full Upper", exerciseName: "Bent-over row", sets: 3, repsTarget: "8",
+                     currentWeightKg: 50, progressionStepKg: 2.5, weekday: 4, sessionId: 12),
+        ]
+        try env.cache.put(TrainingViewModel.cacheKeys.exercises, rows)
+        try env.cache.put(TrainingViewModel.cacheKeys.planSessions, [PlanSessionOut(id: 11, name: "Day 1 Full Upper", weekday: 0),
+                                                                     PlanSessionOut(id: 12, name: "Day 2 Full Upper", weekday: 4)])
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
+        env.bind(today: today, recovery: nil)
+        await today.load()
+        let s = try #require(store.read())
+        #expect(s.planTotal == 2)
+        #expect(s.nextSession == TrainingViewModel.cachedWeekSummary(cache: env.cache, today: AppEnvironment.isoDay(Date()))?.nextSessionLabel)
+
+        let live = TrainingWeekSummary(days: [], planTotal: 4, assigned: 4, planDone: 3, next: nil)
+        env.glancePlan = { GlancePlan(live) }
+        env.republishSnapshot()
+        let l = try #require(store.read())
+        #expect(l.planTotal == 4 && l.planDone == 3 && l.nextSession == nil)
+    }
+
+    /// W-B57-W5 fixer (glance-RHR): the gate never sends RHR; the glance takes Recovery's latest
+    /// recent RHR (the same number the RHR KPI shows) instead of "No reading".
+    @Test @MainActor func glanceRhrComesFromTheLatestRecoveryReading() async throws {
+        let (store, suite) = makeStore()
+        defer { teardown(suite) }
+        let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
+        env.bind(today: today, recovery: nil)
+        await today.load()
+        let s = try #require(store.read())
+        let rhr = try #require(s.kpi(.rhr)?.value)
+        #expect(s.signal("rhr")?.value == rhr)
+        #expect(s.signal("rhr")?.status != "missing")
+    }
+
+    /// B-57 W5 A6: HRV / RHR normals from W3's recovery insight reach the KPI entries and signals.
+    @Test @MainActor func recoveryNormalsReachTheGlances() async throws {
+        let (store, suite) = makeStore()
+        defer { teardown(suite) }
+        let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
+        let insight = try #require(RecoveryInsightService.galleryFixture)
+        env.recoveryInsight = insight
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
+        env.bind(today: today, recovery: nil)
+        await today.load()
+        let s = try #require(store.read())
+        let hrvNormal = try #require(insight.normal(for: .hrv)?.range)
+        #expect(s.signal("hrv")?.normalLow == hrvNormal.lowerBound)
+        #expect(s.signal("hrv")?.normalHigh == hrvNormal.upperBound)
+        #expect(s.kpi(.hrv)?.normalLow == hrvNormal.lowerBound)
+        #expect(s.kpi(.rhr)?.normalLow == insight.normal(for: .rhr)?.range.lowerBound)
+    }
+
+    /// W-B57-W5 PF-04: the glances' sync moment is the one sync-pill rule — Today's `syncedAt`
+    /// (newer of the hub's last sync and the last HealthKit upload), never the moment of a fetch.
+    @Test @MainActor func glanceSyncTimeIsTheOneSyncRule() async throws {
+        let (store, suite) = makeStore()
+        defer { teardown(suite) }
+        let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: store)
+        let today = TodayViewModel(provider: MockDataProvider(), cache: env.cache, prefs: env.prefs, now: Self.fixtureNow)
+        let recovery = RecoveryViewModel(provider: MockDataProvider(), cache: env.cache)
+        env.bind(today: today, recovery: recovery)
+        await today.load()
+        await recovery.load()
+        let s = try #require(store.read())
+        #expect(today.syncedAt != nil)
+        #expect(s.lastSync == today.syncedAt)
+        #expect(s.lastSync != today.fetchedAt && s.lastSync != recovery.fetchedAt)
     }
 }
 

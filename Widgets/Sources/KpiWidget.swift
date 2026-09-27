@@ -60,18 +60,26 @@ struct KpiWidgetFace: View {
             // B-73: "Protein 103 g to goal" for a macro KPI with a user goal; else the KPI text.
             Text(snapshot?.macros?.inlineText(for: metric) ?? inlineText)
         case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 0) {
-                Text(def.label)
-                    .jiFont(.caption, weight: .bold)
-                    .lineLimit(1)
-                valueRow(numeral: .numeralSmall)
-                asOf
+            // B-57 W5 (board 6/08, "was Sleep"): the plan this week; with no plan known it keeps the metric face.
+            if let total = snapshot?.planTotal, total > 0 {
+                planFace(done: snapshot?.planDone, total: total, nextDay: snapshot?.nextSessionDay)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(def.label)
+                        .jiFont(.caption, weight: .bold)
+                        .lineLimit(1)
+                    valueRow(numeral: .numeralSmall)
+                    asOf
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         case .systemMedium:
             // B-73: "Left to your goals" once the user set a goal and Health food is readable.
             if let macros = snapshot?.macros { MacrosLeftFace(macros: macros) } else { kpiMedium }
         default:
+            // B-57 W5 (board 6/06): the value against the learned band. The board draws an arc;
+            // spec §1 (B-33 §4b amendment) makes `NormalBar` the form for baseline-relative
+            // metrics. The word carries the status, not colour alone; no normal = "Calibrating".
             VStack(alignment: .leading, spacing: 4) {
                 Text(def.label)
                     .jiFont(.caption, weight: .bold)
@@ -79,10 +87,47 @@ struct KpiWidgetFace: View {
                     .lineLimit(2)
                 Spacer(minLength: 0)
                 valueRow(numeral: .numeralLarge)
+                if let kpi, kpi.value != nil {
+                    let normal: ClosedRange<Double>? = {
+                        guard let lo = kpi.normalLow, let hi = kpi.normalHigh, lo <= hi else { return nil }
+                        return lo...hi
+                    }()
+                    let inBand = kpi.bandWord == nil || kpi.bandWord == "In normal"
+                    NormalBar(value: kpi.value, normal: normal, unit: nil, decimals: def.decimals,
+                              tint: inBand ? .info : .reduced, showsCaption: false)
+                    HStack {
+                        Text(kpi.bandWord ?? "Calibrating").jiFont(.micro, weight: .bold)
+                            .foregroundStyle(theme.color(inBand ? .muted : .reduced))
+                        Spacer(minLength: 4)
+                        if let caption = kpi.normalCaption { Text(caption).jiFont(.micro).foregroundStyle(theme.color(.muted)) }
+                    }
+                }
                 asOf
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// Board 6/08: "Your plan · this week — 2 of 4 done · next Fri", one capsule per planned session.
+    /// Done unknown = "—", never a zero.
+    private func planFace(done: Int?, total: Int, nextDay: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label("Your plan · this week", systemImage: "dumbbell.fill").jiFont(.caption, weight: .bold).lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(done.map(String.init) ?? "—").jiNumeral(.numeralSmall)
+                Text("of \(total) done").jiFont(.caption)
+                Spacer(minLength: 4)
+                if let nextDay { Text("next \(nextDay)").jiFont(.caption) }
+            }
+            HStack(spacing: 3) {
+                ForEach(0..<total, id: \.self) { i in
+                    Capsule().fill(i < (done ?? 0) ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary)).frame(height: 4)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Your plan this week, \(done.map(String.init) ?? "unknown") of \(total) sessions done\(nextDay.map { ", next \($0)" } ?? "")")
     }
 
     private var kpiMedium: some View {
@@ -161,6 +206,15 @@ struct KpiWidgetFace: View {
 #Preview("KPI — rectangular", as: .accessoryRectangular, widget: { KpiWidget() }, timeline: {
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .readiness)
     KpiEntry(date: .now, snapshot: .previewSeed, metric: .weight)
+})
+
+#Preview("KPI — small band", as: .systemSmall, widget: { KpiWidget() }, timeline: {
+    KpiEntry(date: .now, snapshot: .previewSeed, metric: .hrv)
+    KpiEntry(date: .now, snapshot: .previewSeed, metric: .rhr)
+})
+
+#Preview("KPI — rect plan", as: .accessoryRectangular, widget: { KpiWidget() }, timeline: {
+    KpiEntry(date: .now, snapshot: .previewSeed, metric: .readiness)
 })
 
 #Preview("KPI — inline", as: .accessoryInline, widget: { KpiWidget() }, timeline: {

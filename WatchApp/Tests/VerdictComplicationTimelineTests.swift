@@ -58,3 +58,46 @@ struct VerdictComplicationTimelineTests {
         #expect(entries.first?.tone == "muted")
     }
 }
+
+extension VerdictComplicationTimelineTests {
+    static func w5() -> HubSnapshot {
+        HubSnapshot(verdictWord: "Full", verdictSession: "Day 2 · Upper", verdictTone: "go", verdictDate: "2026-09-23",
+                    readiness: 78, kpis: [], fetchedAt: .now, lastSync: .now,
+                    reason: "HRV 25 ms — under 27", planDone: 2, planTotal: 4, hrCap: 172,
+                    signals: [SnapshotSignal(key: "hrv", label: "HRV", value: 25, unit: "ms", normalLow: 27, normalHigh: 30, goal: nil, status: "amber")])
+    }
+
+    @Test func entryCarriesPlanCapAndDetail() throws {
+        let e = try #require(complicationTimelineEntries(from: Self.w5(), now: .now).first)
+        #expect(e.session == "Day 2 · Upper")
+        #expect(e.planText == "2 of 4" && e.planFraction == 0.5)
+        #expect(e.hrCap == 172 && e.capSlot == "cap 172")
+        #expect(e.detail == "HRV 25 < 27")
+    }
+
+    /// Toby 2026-09-24: no cap ⇒ the cap's slot shows the next session.
+    @Test func noCapShowsTheNextSession() throws {
+        var s = Self.w5()
+        s.hrCap = nil
+        s.nextSession = "Fri · Day 3 Full Upper"
+        let e = try #require(complicationTimelineEntries(from: s, now: .now).first)
+        #expect(e.hrCap == nil && e.capSlot == "next Fri")
+        #expect(complicationInlineText(e) == "Full · next Fri")
+        s.nextSession = nil
+        let bare = try #require(complicationTimelineEntries(from: s, now: .now).first)
+        #expect(bare.capSlot == nil && complicationInlineText(bare) == "Full")
+    }
+
+    @Test func rectDetailFallsBackToReasonThenNothing() {
+        var s = Self.w5()
+        s.signals = nil
+        #expect(complicationRectDetail(s) == "HRV 25 ms — under 27")
+        s.reason = nil
+        #expect(complicationRectDetail(s) == nil)
+    }
+
+    @Test func noSnapshotShowsNoCap() throws {
+        let e = try #require(complicationTimelineEntries(from: nil).first)
+        #expect(e.hrCap == nil && e.capSlot == nil && e.planText == nil && e.verdictWord == "—")
+    }
+}

@@ -16,5 +16,7 @@ import Testing
 @Test func glassButtonRendersInGlassAndOpaque() {
     expectRenders("JIGlassButton") { JIGlassButton("chevron.left", label: "Back") {} }
     expectRenders("JIGlassButton RT") { JIGlassButton("plus", label: "Add") {}.jiAccessibilityOverrides(reduceTransparency: true) }
-    expectRenders("jiGlassBackButton") { NavigationStack { Text("pushed").jiGlassBackButton() } }
+    // W-B57-W5 fixer: no NavigationStack under ImageRenderer — it cannot flatten the UIKit
+    // representable and the iOS run died on SwiftUI's "no current update to enqueue action to".
+    expectRenders("jiGlassBackButton") { Text("pushed").jiGlassBackButton() }
 }

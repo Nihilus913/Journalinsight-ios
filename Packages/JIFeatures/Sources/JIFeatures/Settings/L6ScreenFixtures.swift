@@ -142,6 +142,14 @@ enum L6Fixtures {
         return AnyView(NavigationStack { GoalsView(model: GoalsViewModel(store: store), now: { today }) })
     }
 
+    /// B-57 W5 (board 3/02): "Your week" over the mock provider's plan, loaded through the
+    /// screen model's own `load()` — the entry shows whatever the model honestly has.
+    static func trainingWeek() -> AnyView {
+        guard let db else { return unavailable("Training week") }
+        let model = TrainingViewModel(provider: provider, healthProvider: provider, cache: OfflineCache(db: db), now: { today })
+        return AnyView(NavigationStack { TrainingWeekView(model: model) }.task { await model.load() })
+    }
+
     static func goalsSetup() -> AnyView {
         AnyView(NavigationStack {
             GoalsSetupView(model: GoalsSetupViewModel(provider: provider, goalStore: seededGoalStore, now: { today }))

@@ -19,7 +19,7 @@ public func verdictToneColor(_ tone: String, theme: JITheme = .native) -> Color 
 /// "No data yet", never an empty word or a "—" standing in for GO/REDUCED.
 public nonisolated func verdictGlanceAccessibilityLabel(_ snapshot: HubSnapshot?) -> String {
     guard let snapshot else { return "Verdict, no data yet" }
-    let parts = [snapshot.verdictWord, snapshot.verdictSession].filter { !$0.isEmpty }
+    let parts = [snapshot.verdictWord, snapshot.verdictSession, snapshot.reason ?? ""].filter { !$0.isEmpty }
     return "Verdict " + parts.joined(separator: " ")
 }
 
@@ -44,6 +44,10 @@ public struct VerdictGlance: View {
                             .jiFont(.micro)
                             .foregroundStyle(theme.color(.muted))
                             .lineLimit(1)
+                    }
+                    // B-57 W5: the one line that held the call back (≤ 48 chars); none = no line.
+                    if let reason = snapshot.reason {
+                        Text(reason).jiFont(.micro).foregroundStyle(theme.color(.reduced)).lineLimit(2).multilineTextAlignment(.center)
                     }
                     if let date = snapshot.verdictDate {
                         Text(date).jiFont(.micro).foregroundStyle(theme.color(.muted))

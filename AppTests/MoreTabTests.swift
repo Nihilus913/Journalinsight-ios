@@ -108,4 +108,24 @@ struct MoreTabTests {
         #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: mine).text == "1200 / 1900 kcal")
         #expect(RootTabView.moreNutritionRowValue(consumedKcal: nil, userGoals: mine).lead == "—")
     }
+
+    // W-B57-W5 guard BUG-47 (board 4/04): the App card's Settings entry is ONE `JIChevronRow`
+    // whose trailing value is the "Hub synced 07:41" text — no pill, no second Settings row.
+    @Test func appCardSettingsIsOneChevronRow() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+        let head = try #require(src.range(of: "JISectionHeader(\"App\")"))
+        let rest = src[head.lowerBound...]
+        let end = try #require(rest.range(of: "\"more.caption\""))
+        let card = String(rest[..<end.lowerBound])
+        #expect(card.components(separatedBy: "\"more.settings\"").count == 2)          // exactly one Settings row
+        #expect(card.components(separatedBy: "moreSettingsText(").count == 2)
+        #expect(!card.contains("SyncedPill"))                                          // text, never a pill
+        let id = try #require(card.range(of: "\"more.settings\""))
+        let button = try #require(card[..<id.lowerBound].range(of: "Button { showSettings = true } label: {", options: .backwards))
+        let row = String(card[button.upperBound..<id.lowerBound])
+        #expect(row.components(separatedBy: "JIChevronRow {").count == 2)
+        #expect(row.contains("MoreRowLabel(\"Settings\""))
+        #expect(row.contains("moreSettingsText(syncedAt: Self.moreSettingsDate(todayModel))"))
+    }
 }

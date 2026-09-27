@@ -3,6 +3,7 @@ import Observation
 import JICore
 import JICompute
 import JIPersistence
+import JIDesign
 
 /// B-57 W1: one read-only "Next working weight" row. `kg == nil` renders "— No data", never 0.
 public nonisolated struct NextWorkingWeight: Equatable, Sendable { public let name: String; public let kg: Double? }
@@ -11,17 +12,60 @@ public nonisolated struct NextWorkingWeight: Equatable, Sendable { public let na
 /// W-FIX1 BUG-11: the board labels ("Bench press", "Bent-over row") match the hub's plan names
 /// ("Barbell Bench Press", "Barbell Row") by their movement words, not by exact string. The plan
 /// repeats a lift per session; the most recently updated row wins (the heavier on a tie).
+/// The two board lifts and the movement-word match that finds them among the hub's plan names.
+nonisolated let goalsSetupLifts: [(name: String, matches: @Sendable (String) -> Bool)] = [
+    ("Bench press", { $0.contains("bench press") && !$0.contains("incline") && !$0.contains("db ") && !$0.contains("dumbbell") }),
+    ("Bent-over row", { $0 == "bent-over row" || $0 == "barbell row" || $0 == "bent over row" || $0 == "barbell bent-over row" || $0 == "barbell bent over row" }),
+]
+
 public nonisolated func nextWorkingWeights(entries: [StrengthStateEntry]) -> [NextWorkingWeight] {
-    let rows: [(name: String, matches: (String) -> Bool)] = [
-        ("Bench press", { $0.contains("bench press") && !$0.contains("incline") && !$0.contains("db ") && !$0.contains("dumbbell") }),
-        ("Bent-over row", { $0 == "bent-over row" || $0 == "barbell row" || $0 == "bent over row" || $0 == "barbell bent-over row" || $0 == "barbell bent over row" }),
-    ]
-    return rows.map { row in
+    goalsSetupLifts.map { row in
         let hits = entries.filter { row.matches($0.exerciseName.lowercased()) }
         let pick = hits.max { a, b in
             a.updatedAt != b.updatedAt ? a.updatedAt < b.updatedAt : a.currentWeightKg < b.currentWeightKg
         }
         return NextWorkingWeight(name: row.name, kg: pick?.currentWeightKg)
+    }
+}
+
+/// B-57 W5 C3: one "Next working weight" row — the rule's result in words (board 3/06).
+public nonisolated struct NextWorkingWeightRow: Equatable, Sendable {
+    public let name: String
+    /// nil renders "—" (with `caption` as the reason word), never 0.
+    public let nextKg: Double?
+    public let caption: String
+    /// The "Auto" badge: the rule (auto-suggest on) set this weight.
+    public let auto: Bool
+    public init(name: String, nextKg: Double?, caption: String, auto: Bool) {
+        self.name = name; self.nextKg = nextKg; self.caption = caption; self.auto = auto
+    }
+}
+
+/// B-57 W5 GoalsSetup "Next working weight": the progression rule's result per board lift, in
+/// words. The lift is found by the same movement words as `nextWorkingWeights` (BUG-11: "Barbell
+/// Bench Press" is the bench row); when the plan repeats a lift per session, a due row wins, then
+/// the heavier. No service row → the local strength state, else "No data" — never a made-up kg.
+public nonisolated func nextWorkingWeightRows(lifts: [LiftProgression], entries: [StrengthStateEntry], autoSuggest: Bool) -> [NextWorkingWeightRow] {
+    let bases = nextWorkingWeights(entries: entries)
+    return zip(goalsSetupLifts, bases).map { lift, base in
+        let hits = lifts.filter { lift.matches($0.name.lowercased()) || Progression.normalizedName($0.name) == Progression.normalizedName(base.name) }
+        let pick = hits.max { a, b in a.isDue != b.isDue ? !a.isDue : (a.nextKg ?? -1) < (b.nextKg ?? -1) }
+        guard let pick, let now = pick.currentKg else {
+            return NextWorkingWeightRow(name: base.name, nextKg: base.kg,
+                                        caption: base.kg.map { "now \(jiNumber($0, 1)) kg · no logged session yet" } ?? JIMissingReason.noData.rawValue,
+                                        auto: false)
+        }
+        let why: String = switch pick.state {
+        case .due?: "progression earned"
+        case .notYet?: "up once all sets hit the target"
+        case .noSession?: "no logged session yet"
+        case .noTarget?: "no rep target set"
+        case .manual?: "auto-suggest off, stays at last lifted"
+        case nil: JIMissingReason.noData.rawValue
+        }
+        let isManual: Bool = { if case .manual = pick.state { true } else { false } }()
+        return NextWorkingWeightRow(name: base.name, nextKg: pick.nextKg, caption: "now \(jiNumber(now, 1)) kg · \(why)",
+                                    auto: autoSuggest && !isManual && pick.state != nil)
     }
 }
 
@@ -82,6 +126,12 @@ public final class GoalsSetupViewModel {
     public var nextWorkingWeights: [NextWorkingWeight] {
         _ = strengthRevision
         return JIFeatures.nextWorkingWeights(entries: strengthStore.entries())
+    }
+
+    /// B-57 W5 C3: the local strength state the "Next working weight" rows fall back to.
+    public var strengthEntries: [StrengthStateEntry] {
+        _ = strengthRevision
+        return strengthStore.entries()
     }
 
     public func load() async {

@@ -40,10 +40,13 @@ public final class TrainingViewModel {
     /// without a rollback, because the optimistic row is persisted either way.
     private let outbox: Outbox?
     private let drainer: OutboxDrainer?
-    private static let keys = (
+    /// B-57 W5: public so the App snapshot writer, `ProgressionService` and `cachedWeekSummary`
+    /// read the same cached rows (B-52) this screen writes.
+    public nonisolated static let cacheKeys = (
         gate: "training.gate", morning: "training.morning", exercises: "training.exercises",
         planSessions: "training.planSessions"
     )
+    private static let keys = cacheKeys
     private var everSynced = false
     private var neverSyncedObserved = false
     private var dayDetailTask: Task<Void, Never>?
@@ -132,6 +135,23 @@ public final class TrainingViewModel {
     }
 
     public var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+
+    /// B-57 W5: this week, from the rows on screen (updates with every optimistic assignment).
+    public var weekSummary: TrainingWeekSummary {
+        trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString)
+    }
+
+    /// B-57 W5: the same summary from the cache alone — for the widgets, Goals and Day when the
+    /// Training tab has not been opened. nil when no plan was ever cached. Falls back to Today's
+    /// cached gate rows (`"today.gate"`, TodayViewModel's key) for the done count.
+    public nonisolated static func cachedWeekSummary(cache: OfflineCache, today: String) -> TrainingWeekSummary? {
+        let exercises = (try? cache.get(cacheKeys.exercises, as: [Exercise].self))?.value ?? []
+        let sessions = (try? cache.get(cacheKeys.planSessions, as: [PlanSessionOut].self))?.value ?? []
+        guard !exercises.isEmpty || !sessions.isEmpty else { return nil }
+        let gate = (try? cache.get(cacheKeys.gate, as: GateResponse.self))?.value
+            ?? (try? cache.get("today.gate", as: GateResponse.self))?.value
+        return trainingWeekSummary(planSessions: sessions, exercises: exercises, daily: gate?.daily ?? [], today: today)
+    }
 
     public func load() async {
         phase = .loading

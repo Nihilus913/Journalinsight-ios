@@ -190,6 +190,9 @@ public struct DecideView: View {
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
     @Environment(\.recoveryInsight) private var recoveryInsight
+    /// B-57 W5 C4: the session row's next working weight (nil in previews → not shown).
+    @Environment(\.progression) private var progression
+    @Environment(\.trainingWeekSummary) private var week
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
@@ -358,10 +361,26 @@ public struct DecideView: View {
                     JIRowDivider().padding(.leading, JISpacing.s4)
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
+                    // B-57 W5 C4 (board 1/01): the first lift's next weight at the right, "↑ Bench up" when due.
+                    let lift = decideSessionLift(progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
-                        JIChevronRow(title: row.title, value: row.detail, systemImage: "dumbbell")
-                            .padding(.horizontal, JISpacing.s4)
+                        JIChevronRow {
+                            JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+                            if let lift {
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(lift.kg).jiFont(.subheadline, weight: .bold).monospacedDigit()
+                                        .foregroundStyle(theme.color(lift.caption == nil ? .text : .go))
+                                    if let caption = lift.caption {
+                                        Text(caption).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.go))
+                                    }
+                                }
+                                .fixedSize()
+                                .accessibilityIdentifier("today.decide.lift")
+                            }
+                        }
+                        .padding(.horizontal, JISpacing.s4)
                     }
+                    .task { if !offscreen { await progression?.refreshIfNeeded() } }
                     .buttonStyle(.pressableScale)
                     .disabled(!decideSessionRowOpensDay(syncing: syncing) || submitting)
                     .accessibilityElement(children: .combine)

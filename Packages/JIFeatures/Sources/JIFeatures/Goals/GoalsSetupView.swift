@@ -50,6 +50,7 @@ public nonisolated func goalsSetupDateLabel(_ iso: String) -> String {
 
 public struct GoalsSetupView: View {
     @Environment(\.jiTheme) private var theme
+    @Environment(\.progression) private var progression
     @Bindable var model: GoalsSetupViewModel
 
     @State private var hydrated = false
@@ -122,13 +123,26 @@ public struct GoalsSetupView: View {
 
                 // B-57 W1: read-only, from the local strength_state mirror. `benchTarget`/`rowTarget`
                 // stay seeded and are sent unchanged by `save()`, so the hub document is not altered.
+                // B-57 W5 C3: the progression rule's result per lift, the reason in words, and the
+                // "Auto" badge when the rule set it. No weight = "—" + the reason word.
                 Section {
-                    ForEach(model.nextWorkingWeights, id: \.name) { w in
-                        HStack {
-                            Text(w.name).foregroundStyle(theme.color(.text))
-                            Spacer()
-                            Text(w.kg.map { "\(jiNumber($0, 1)) kg" } ?? "— \(JIMissingReason.noData.rawValue)")
-                                .foregroundStyle(theme.color(w.kg == nil ? .muted : .sleep))
+                    ForEach(nextWorkingWeightRows(lifts: progression?.lifts ?? [], entries: model.strengthEntries,
+                                                  autoSuggest: progression?.autoSuggest ?? true), id: \.name) { w in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(w.name).foregroundStyle(theme.color(.text))
+                                Text(w.caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Text(w.nextKg.map { "\(jiNumber($0, 1)) kg" } ?? "—")
+                                .jiFont(.body, weight: .bold).monospacedDigit()
+                                .foregroundStyle(theme.color(w.nextKg == nil ? .muted : .sleep))
+                            if w.auto {
+                                Label("Auto", systemImage: "arrow.triangle.2.circlepath").jiFont(.caption, weight: .semibold)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(Capsule().fill(theme.color(.surface2))).foregroundStyle(theme.color(.muted))
+                            }
                         }
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("goals-setup-next-\(w.name)")
@@ -181,6 +195,7 @@ public struct GoalsSetupView: View {
             await model.load()
             seedIfNeeded()
         }
+        .task { await progression?.refreshIfNeeded() }
         .onChange(of: model.goals) { _, _ in seedIfNeeded() }
     }
 

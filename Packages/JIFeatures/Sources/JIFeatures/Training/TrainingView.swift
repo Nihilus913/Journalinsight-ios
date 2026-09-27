@@ -8,8 +8,9 @@ import JIDesign
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
     @State private var showSessionCoach = false
-    /// B-45 (c): the plan session whose weekday the assign sheet is editing; nil = sheet closed.
-    @State private var assigningSession: AssignWeekdaySheet.Session?
+    /// B-57 W5: "Edit week" pushes the TrainingWeek screen, where the weekday assignment
+    /// (B-45 (c) / B-52 outbox) now lives.
+    @State private var showWeek = false
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -71,19 +72,7 @@ public struct TrainingView: View {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
         }
         #endif
-        // B-45 (c): "Assign to weekday" — one plan session, one weekday, one PUT.
-        .sheet(item: $assigningSession) { session in
-            AssignWeekdaySheet(
-                session: session,
-                isSaving: model.pendingSessionAssign.contains(session.id),
-                didFail: model.sessionAssignFailed.contains(session.id)
-            ) { weekday in
-                Task {
-                    await model.assignSession(sessionId: session.id, sessionName: session.name, weekday: weekday)
-                    if !model.sessionAssignFailed.contains(session.id) { assigningSession = nil }
-                }
-            }
-        }
+        .navigationDestination(isPresented: $showWeek) { TrainingWeekView(model: model) }
     }
 
     private var watchLine: String? {
@@ -119,9 +108,10 @@ public struct TrainingView: View {
             // then "Today" = the one tinted hero (verdict colour), one primary button.
             Surface(level: 1, padding: JISpacing.cardPadding) {
                 VStack(alignment: .leading, spacing: JISpacing.s2) {
-                    TrainingDayStrip(daily: model.gate?.daily ?? [], selectedDate: model.selectedDate, onSelect: model.selectDate)
-                    Text(trainingStripLegend).jiFont(.micro).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("training-strip-legend")
+                    // B-57 W5 (board 3/01): the plan week (S / I / R / –, n of N done, Edit week)
+                    // replaces the kcal day strip; a tap still selects the day for "This day".
+                    TrainingThisWeekStrip(summary: model.weekSummary, selectedDate: model.selectedDate,
+                                          onSelect: model.selectDate) { showWeek = true }
                     if let summary = trainingPlanSummary(sessionNames: model.planSessions.map(\.name)) {
                         Text(summary).jiFont(.caption).foregroundStyle(theme.color(.muted))
                             .fixedSize(horizontal: false, vertical: true)
@@ -146,14 +136,6 @@ public struct TrainingView: View {
                 date: model.selectedDate,
                 detail: model.dayDetail,
                 plannedSession: model.plannedSessionForSelectedDay
-            )
-            JISectionHeader("Plan")
-            TrainingWeekStrip(
-                exercises: model.exercises,
-                highlightedWeekday: model.selectedPlanWeekday,
-                planSessions: model.planSessions,
-                pendingSync: model.pendingSessionSync,
-                onAssign: { assigningSession = $0 }
             )
             JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in

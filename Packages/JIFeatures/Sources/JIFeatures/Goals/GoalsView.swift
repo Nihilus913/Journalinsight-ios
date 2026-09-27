@@ -6,6 +6,19 @@ import JIDesign
 public nonisolated let goalsTrainingPlanTitle = "Training plan"
 public nonisolated let goalsTrainingPlanSubtitle = "Full Upper ×4 · intervals · Z2 · 10K"
 
+/// B-57 W5 Goals "Training plan": "2 of 4" (done this week of the sessions in the cached plan)
+/// + a status word; no week (nothing cached yet) → "—" + "No data", never a fixed "of 4".
+public nonisolated func goalsTrainingPlanValue(_ week: TrainingWeekSummary?) -> (count: String, status: String) {
+    guard let week, week.planTotal > 0 else { return ("—", JIMissingReason.noData.rawValue) }
+    let count = "\(week.planDone.map(String.init) ?? "—") of \(week.planTotal)"
+    if !week.matchesPlan { return (count, "\(week.planTotal - week.assigned) to assign") }
+    if let done = week.planDone, done >= week.planTotal { return (count, "Done") }
+    return (count, "On plan")
+}
+
+/// Status words on the supporting-target rows that read as "on track" (the green status role).
+nonisolated let goalsOnTrackStatuses: Set<String> = ["On target", "On plan", "Done"]
+
 /// W-FIX2 BUG-41 (board 3/05) — the Goals screen's pure content. "One active goal. Everything else
 /// supports it.": the hub goals document's weight goal as the hero (start → target by date, pace
 /// from the 7-day energy balance), then the supporting targets. Missing inputs are "—" + a reason.
@@ -76,8 +89,17 @@ public nonisolated enum GoalsBoard {
     /// B-73 (W-B57-W2 fixer GOALS-HUB-SEED): Calories and Protein compare against the user's own
     /// goals (`macros`, PrefStore `goals.macros`), never the hub document's seeded nutrition
     /// (`goals.nutrition` is the TEMP bridge until B-50). Unset = "Set your goal", no status.
+    /// B-57 W5: the week from the cached plan (`EnvironmentValues.trainingWeekSummary`).
+    static func trainingPlanRow(_ week: TrainingWeekSummary?) -> GoalsTargetRow {
+        let v = goalsTrainingPlanValue(week)
+        guard let week, week.planTotal > 0 else {
+            return GoalsTargetRow(title: goalsTrainingPlanTitle, subtitle: goalsTrainingPlanSubtitle, value: "— \(v.status)", status: nil)
+        }
+        return GoalsTargetRow(title: goalsTrainingPlanTitle, subtitle: goalsTrainingPlanSubtitle, value: v.count, status: v.status)
+    }
+
     public static func targets(goals: Goals?, macros: MacroGoals?, yesterdayKcal: Double?, yesterdayProteinG: Double?,
-                               yesterdaySteps: Double?) -> [GoalsTargetRow] {
+                               yesterdaySteps: Double?, week: TrainingWeekSummary? = nil) -> [GoalsTargetRow] {
         let missing = "— \(JIMissingReason.noData.rawValue)"
         let noGoal = "No goal set"
         let kcalGoal = macros?.targetKcal, proteinGoal = macros?.proteinG
@@ -88,7 +110,7 @@ public nonisolated enum GoalsBoard {
             GoalsTargetRow(title: "Protein", subtitle: int(proteinGoal).map { "goal \($0) g a day" } ?? MacroGoals.setGoalCopy,
                            value: int(yesterdayProteinG).map { "\($0) g" } ?? missing,
                            status: status(yesterdayProteinG, goal: proteinGoal, floorOnly: true)),
-            GoalsTargetRow(title: goalsTrainingPlanTitle, subtitle: goalsTrainingPlanSubtitle, value: "— of 4", status: nil),
+            trainingPlanRow(week),
         ]
         for s in goals?.strength ?? [] {
             rows.append(GoalsTargetRow(title: s.exercise.prefix(1).uppercased() + s.exercise.dropFirst(), subtitle: "target", value: "\(kg(s.targetKg)) kg", status: nil))
@@ -124,6 +146,8 @@ public struct GoalsView: View {
     @Environment(\.jiTheme) private var theme
     /// B-73: the user's own nutrition goals (injected at the app root) — the Calories/Protein rows.
     @Environment(\.nutritionGoals) private var nutritionGoals
+    /// B-57 W5: this week's plan (injected by the app shell; nil = unknown → "— No data").
+    @Environment(\.trainingWeekSummary) private var week
     @Bindable var model: GoalsViewModel
     let now: () -> Date
     let board: GoalsBoardInput?
@@ -169,7 +193,8 @@ public struct GoalsView: View {
                 JISectionHeader("Supporting targets · yours")
                 Surface(level: 1, padding: 0) {
                     let rows = GoalsBoard.targets(goals: board?.goals, macros: nutritionGoals.macros, yesterdayKcal: board?.yesterdayKcal,
-                                                  yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps)
+                                                  yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps,
+                                                  week: week)
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             if index > 0 { JIRowDivider().padding(.leading, 0) }
@@ -269,7 +294,7 @@ public struct GoalsView: View {
                 Text(row.value).jiFont(.body, weight: .semibold)
                     .foregroundStyle(theme.color(row.value.hasPrefix("—") ? .muted : .text))
                 if let status = row.status {
-                    Text(status).jiFont(.caption).foregroundStyle(theme.color(status == "On target" ? .go : .reduced))
+                    Text(status).jiFont(.caption).foregroundStyle(theme.color(goalsOnTrackStatuses.contains(status) ? .go : .reduced))
                 }
             }
         }

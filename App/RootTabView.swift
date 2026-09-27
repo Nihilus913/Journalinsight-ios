@@ -133,6 +133,9 @@ struct RootTabView: View {
     /// B-57 W3: one recovery insight per provider (the gate's inputs → the on-device score and the
     /// Apple-night normals); reset with the provider revision, like `todayModel`.
     @State private var recoveryInsight: RecoveryInsightService?
+    /// B-57 W5 (A7): the progression rule over the plan + last logged sessions — Day NEXT, Decide
+    /// and GoalsSetup "Auto" read it from the environment. Provider-scoped (dropped on a hub switch).
+    @State private var progression: ProgressionService?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
     // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
     // tab shell around them and never edits their owned files.
@@ -277,7 +280,11 @@ struct RootTabView: View {
             reloadGateSettings()
             if env.needsConnection { showConnection = true }
         }
-        .onChange(of: gateSettings) { _, _ in rebuildSendToWatchModel() }
+        .onChange(of: gateSettings) { _, _ in
+            rebuildSendToWatchModel()
+            // B-57 W5: the widget/Watch/Live Activity cap follows the user's setting (or its removal) now.
+            env.republishSnapshot()
+        }
         // W-FIX4 fixer PF-04: the hub's last sync is known whichever tab opens first (a launch
         // onto Recovery never mounts Day, which is what used to build and load Today's model).
         .task(id: providerRevision) { await primeShellSync() }
@@ -365,6 +372,26 @@ struct RootTabView: View {
         .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
         // B-57 W4: the user's gate settings, outermost too (Training → SessionCoach reads them).
         .environment(\.gateSettings, gateSettings)
+        // B-57 W5 (A7): progression + this week for Day, Decide, Goals and GoalsSetup — outermost,
+        // after every `.sheet`, for the same reason as nutritionGoals above.
+        .environment(\.progression, progression)
+        .environment(\.trainingWeekSummary, weekSummary)
+        // A weekday assignment (or a new done session) moves the widgets' plan ring and next session now.
+        .onChange(of: weekSummary) { _, _ in env.republishSnapshot() }
+        .onChange(of: trainingModel.map(ObjectIdentifier.init)) { _, _ in installGlancePlan() }
+    }
+
+    /// B-57 W5 (A7): the live Training model's week when the tab exists, else the cached plan (B-52 keys).
+    private var weekSummary: TrainingWeekSummary? {
+        trainingModel?.weekSummary
+            ?? TrainingViewModel.cachedWeekSummary(cache: env.cache, today: AppEnvironment.isoDay(Date()))
+    }
+
+    /// B-57 W5 (A7): hands the live week to the glances (nil model → AppEnvironment reads the cached
+    /// plan itself). Weak: the closure outlives neither a hub switch nor the Training model.
+    private func installGlancePlan() {
+        let model = trainingModel
+        env.glancePlan = { [weak model] in model.flatMap { GlancePlan($0.weekSummary) } }
     }
 
     /// B-57 W4: the hub mirror for gate settings over the current provider (nil = local only).
@@ -408,6 +435,7 @@ struct RootTabView: View {
         todayModel = nil
         recoveryModel = nil
         recoveryInsight = nil
+        progression = nil
         energyModel = nil
         nutritionModel = nil
         trainingModel = nil
@@ -540,6 +568,12 @@ struct RootTabView: View {
         if recoveryInsight == nil {
             recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
         }
+        // B-57 W5: the glances read the HRV/RHR normals from the same insight (weak on env).
+        env.recoveryInsight = recoveryInsight
+        if progression == nil {
+            progression = ProgressionService(provider: store.provider as? any TrainingProviding, cache: env.cache, prefs: env.prefs)
+        }
+        installGlancePlan()
         guard todayModel == nil else { return }
         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
         env.bind(today: todayModel, recovery: recoveryModel)
