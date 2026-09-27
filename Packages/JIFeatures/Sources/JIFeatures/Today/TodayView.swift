@@ -239,7 +239,7 @@ public struct TodayView: View {
         let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
                                plan: model.exercises, weekday: model.todayWeekday,
                                zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
-        let template = dayNextTemplate(rows: card.rows)
+        let template = dayNextTemplate(card: card)
         // B-57 W5 C4: the rule's lifts for the plan session the rows came from.
         let lifts = card.rows.isEmpty ? [] : (progression?.lifts(forSession: card.plannedSession ?? todaysStrengthSession(week)) ?? [])
         return Surface(level: 1, padding: JISpacing.cardPadding) {
@@ -248,7 +248,7 @@ public struct TodayView: View {
                 // its kind's symbol; the two templates (strength = exercise rows, cardio = the
                 // prescription) key off the existing PF-02 plan match — no new rule.
                 HStack(spacing: JISpacing.s2) {
-                    Image(systemName: template == .strength ? "dumbbell.fill" : "figure.run")
+                    Image(systemName: template.systemImage)
                         .foregroundStyle(theme.color(.info)).accessibilityHidden(true)
                     Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
@@ -457,6 +457,8 @@ public nonisolated struct DayNextCard: Equatable, Sendable {
     public var cardio: String? = nil
     /// B-57 W5: the plan session the rows came from — the progression lifts are read for it.
     public var plannedSession: String? = nil
+    /// W-B57-W5 fixer (DEV-10): the verdict is a rest day — the card's symbol is not a runner.
+    public var isRest = false
 }
 
 /// W-FIX4 PF-02: today's session in the plan — by name first (the hub's `session_for_today` or the
@@ -480,7 +482,7 @@ public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: Stri
                                     plan: [Exercise] = [], weekday: Int? = nil,
                                     zones: HrZones? = nil, capBpm: Int? = nil) -> DayNextCard {
     let shown = effectiveVerdictParts(parts: verdict, override: override)
-    if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, rows: [], exercises: nil) }
+    if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, rows: [], exercises: nil, isRest: true) }
     let session = override != nil && !shown.session.isEmpty ? shown.session
         : decideSessionRowText(sessionForToday: sessionForToday, verdict: shown).detail
     let planned = dayPlannedSession(names: [sessionForToday, shown.session, verdict.session], plan: plan, weekday: weekday)
@@ -577,8 +579,27 @@ nonisolated func todayKpiCellAccessibilityLabel(label: String, value: Double?, d
 
 /// The NEXT card's two templates: strength (the plan's exercise rows, PF-02) or cardio (the
 /// prescription). Keyed on the existing PF-02 match — rows found = a strength session.
-public nonisolated enum DayNextTemplate: Sendable, Equatable { case strength, cardio }
+public nonisolated enum DayNextTemplate: Sendable, Equatable {
+    case strength, cardio, rest
+    /// The title row's symbol: dumbbell / runner / moon — the runner only for a cardio session.
+    public var systemImage: String {
+        switch self {
+        case .strength: "dumbbell.fill"
+        case .cardio: "figure.run"
+        case .rest: "moon.zzz.fill"
+        }
+    }
+}
 public nonisolated func dayNextTemplate(rows: [TrainingHeroRow]) -> DayNextTemplate { rows.isEmpty ? .cardio : .strength }
+
+/// W-B57-W5 fixer (DEV-10): the template from the whole card — a rest day is `.rest`, a session
+/// with plan rows OR a strength part (even without rows on the phone) is `.strength`; the runner
+/// only for a cardio-only session.
+public nonisolated func dayNextTemplate(card: DayNextCard) -> DayNextTemplate {
+    if card.isRest { return .rest }
+    if !card.rows.isEmpty || daySessionHasStrengthPart(card.session) { return .strength }
+    return .cardio
+}
 
 /// "434 left · your goal" from the intake and the goal already on the row; nil without both.
 /// W-DATA fixer R1 (DEV-11): "left" only for today's row — an earlier day (the latest logged one)

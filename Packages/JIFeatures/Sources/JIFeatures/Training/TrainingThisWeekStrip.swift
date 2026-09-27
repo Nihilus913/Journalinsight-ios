@@ -53,15 +53,13 @@ public struct TrainingThisWeekStrip: View {
                 }
             }
             .dynamicTypeSize(...Self.maxTypeSize)
-            HStack {
-                Text(trainingWeekLegend).jiFont(.micro).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("training-week-legend")
-                Spacer(minLength: JISpacing.s2)
-                Button("Edit week", action: onEditWeek)
-                    .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.info))
-                    .frame(minHeight: 44)
-                    .accessibilityIdentifier("training-edit-week")
-            }
+            Text(trainingWeekLegend).jiFont(.micro).foregroundStyle(theme.color(.muted))
+                .accessibilityIdentifier("training-week-legend")
+            // W-B57-W5 fixer (B2): a full-width JI secondary button under the legend, never a
+            // tinted text link (W-GUI DEV-07).
+            Button("Edit week", action: onEditWeek)
+                .buttonStyle(.jiSecondary)
+                .accessibilityIdentifier("training-edit-week")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .jiHapticCue(.selection, on: selectedDate)
