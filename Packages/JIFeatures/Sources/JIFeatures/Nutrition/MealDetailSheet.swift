@@ -44,30 +44,70 @@ public struct MealDetailSheet: View {
         }
         .jiTheme(.native)
         .presentationDetents([.medium, .large])
+        .jiSheetGround()
     }
-
+    /// W-GUI M2 (mockup 38): read-only pill · the kcal numeral with the slot line · three macro
+    /// tiles of one size · the items · the YAZIO caption. Every number is the day's own (rule 5).
     @ViewBuilder var content: some View {
-        List {
-            Section {
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: JISpacing.s3) {
                 Label("Read-only · \(JIExplainers.nutritionSourceLabel)", systemImage: "lock")
-                    .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    .padding(.horizontal, JISpacing.s3).padding(.vertical, 6)
+                    .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous).strokeBorder(theme.color(.hairlineOuter), lineWidth: 1))
                     .accessibilityIdentifier("meal-detail-readonly")
-            }
-            Section(detail.title) {
-                row("Source", JIExplainers.nutritionSourceLabel, role: .muted)
-                ForEach(mealDetailRows(detail), id: \.title) { r in row(r.title, r.value, role: r.role) }
-            }
-            Section {
-                ForEach(Array(detail.items.enumerated()), id: \.offset) { _, item in
-                    JIRow(title: item.name) { Text(jiValueOrReasonText(item.kcal, decimals: 0, unit: "kcal")) }
+                Surface(level: 1, padding: JISpacing.cardPadding) {
+                    VStack(alignment: .leading, spacing: JISpacing.s3) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(verbatim: nutritionWholeText(detail.kcal)).jiNumeral(.numeralMedium, weight: .heavy)
+                                .foregroundStyle(theme.color(detail.kcal == nil ? .muted : nutritionKcalTintRole))
+                            Text(detail.kcal == nil ? JIMissingReason.noData.rawValue : "kcal").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        }
+                        Text("\(detail.title) · \(JIExplainers.nutritionSourceLabel)").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        HStack(spacing: JISpacing.tileGap) {
+                            macroTile("Protein", detail.protein, role: .protein)
+                            macroTile("Carbs", detail.carbs, role: .carbs)
+                            macroTile("Fat", detail.fat, role: .fat)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } footer: {
-                Text("To change it, edit the entry in YAZIO; JI updates on the next sync. JI does not log or edit food.")
+                if !detail.items.isEmpty {
+                    JISectionHeader("Items")
+                    Surface(level: 1, padding: 0) {
+                        VStack(spacing: 0) {
+                            ForEach(Array(detail.items.enumerated()), id: \.offset) { index, item in
+                                if index > 0 { JIRowDivider().padding(.leading, 0) }
+                                JIRow(title: item.name) { Text(jiValueOrReasonText(item.kcal, decimals: 0, unit: "kcal")) }
+                            }
+                        }
+                        .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+                    }
+                }
+                Text(mealDetailYazioCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
+            }
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
+        }
+        .jiPageGround()
+    }
+    private func macroTile(_ label: String, _ value: Double?, role: JIColorRole) -> some View {
+        JITile(family: .factTile) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(verbatim: nutritionWholeText(value)).jiNumeral(.numeralSmall, tint: value == nil ? .muted : role)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    if value != nil { Text("g").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+                }
             }
         }
-        .jiNativeFormChrome()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) \(jiValueOrReasonText(value, decimals: 0, unit: "g"))")
     }
-
     private func row(_ title: String, _ value: String, role: JIColorRole) -> some View {
         HStack { Text(title).foregroundStyle(theme.color(.text)); Spacer(); Text(value).foregroundStyle(theme.color(value.hasPrefix("—") ? .muted : role)) }
             .jiFont(.body)

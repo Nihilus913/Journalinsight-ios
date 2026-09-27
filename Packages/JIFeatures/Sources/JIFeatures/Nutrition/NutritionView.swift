@@ -18,7 +18,7 @@ public struct NutritionView: View {
     public init(model: NutritionViewModel) { self.model = model }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 // AX sizes: the navigation subtitle cannot wrap, so the day line moves into the page.
                 if typeSize.isAccessibilitySize {
@@ -37,10 +37,11 @@ public struct NutritionView: View {
                 }
                 readOnlyNote
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()   // W-GUI M2 (report §7 rule 2)
         .jiTheme(.native)
         // §5: the hand-drawn large title + date line become the system title and subtitle.
         .navigationTitle("Nutrition")
@@ -84,8 +85,20 @@ public struct NutritionView: View {
             }
             JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
             MacroSummaryCard(day: model.day, today: today)
-            JISectionHeader("Meals")
+            JISectionHeader("Meals today")
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
+            // W-GUI M2 (mockup 05): the week as bars from zero against the ±5 % goal band.
+            JISectionHeader("7 days vs your goal")
+            Surface(level: 1, padding: JISpacing.cardPadding) {
+                VStack(alignment: .leading, spacing: JISpacing.s2) {
+                    NutritionWeekBars(days: model.week, goal: nutritionGoals.kcalGoal)
+                    if let avg = nutritionWeekAverageText(days: model.week, today: today) {
+                        Text(avg).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityIdentifier("nutrition-week-bars")
             if let prev = nutritionPreviousDay(week: model.week, selected: model.selectedDate) {
                 NutritionPreviousDayCards(row: prev, isYesterday: model.selectedDate == today,
                                           kcalGoal: nutritionGoals.kcalGoal, proteinGoal: nutritionGoals.goal(for: .protein))
@@ -94,12 +107,13 @@ public struct NutritionView: View {
         }
     }
 
+    /// W-GUI M2 (mockup 05): the read-only note and the goal-alignment sentence as one caption.
     private var readOnlyNote: some View {
-        Surface(level: 2) {
-            Label(nutritionReadOnlyNote, systemImage: "info.circle").jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityIdentifier("nutrition-readonly-note")
+        Text(nutritionReadOnlyNote + " " + nutritionGoalAlignCaption)
+            .jiFont(.caption).foregroundStyle(theme.color(.muted))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, JISpacing.s4)
+            .accessibilityIdentifier("nutrition-readonly-note")
     }
 }
 
