@@ -101,14 +101,13 @@ struct TrainingSessionHeader: View {
 struct TrainingHeroCard: View {
     let dayLabel: String, sessionName: String?, rows: [TrainingHeroRow]
     let onSendToWatch: (() -> Void)?, onStart: () -> Void
+    /// W-GUI TR1 (mockup 04): the hero is the screen's one tinted card — the verdict's colour.
+    var tint: Color? = nil
     @Environment(\.jiTheme) private var theme
     var body: some View {
-        Surface {
+        Surface(tint: tint) {
             VStack(alignment: .leading, spacing: 12) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline) { dayText; Spacer(minLength: 8); watchButton }
-                    VStack(alignment: .leading, spacing: 8) { dayText; watchButton }
-                }
+                dayText
                 Text(sessionName ?? "— \(JIMissingReason.noData.rawValue)")
                     .jiFont(.cardTitleLarge, weight: .bold).foregroundStyle(theme.color(sessionName == nil ? .muted : .text))
                     .accessibilityAddTraits(.isHeader)
@@ -125,14 +124,13 @@ struct TrainingHeroCard: View {
                     }
                     .accessibilityIdentifier("training-hero-exercises")
                 }
-                Button(action: onStart) {
-                    Text("Start session").jiFont(.statValue, weight: .bold).frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.color(.go))
-                .accessibilityLabel("Start session")
-                .accessibilityHint("Opens the live session coach")
-                .accessibilityIdentifier("session-coach-entry")
+                // W-GUI TR1: ONE primary (Start session); Send to Watch is the secondary (report §7).
+                Button(action: onStart) { Text("Start session") }
+                    .buttonStyle(.jiPrimary)
+                    .accessibilityLabel("Start session")
+                    .accessibilityHint("Opens the live session coach")
+                    .accessibilityIdentifier("session-coach-entry")
+                watchButton
             }
         }
         .accessibilityIdentifier("training-hero")
@@ -145,8 +143,7 @@ struct TrainingHeroCard: View {
     @ViewBuilder private var watchButton: some View {
         if let onSendToWatch {
             Button(action: onSendToWatch) { Label("Send to Watch", systemImage: "applewatch.radiowaves.left.and.right") }
-                .jiFont(.subheadline, weight: .semibold)
-                .tint(theme.color(.info))
+                .buttonStyle(.jiSecondary)
                 .accessibilityLabel("Send to Watch")
                 .accessibilityIdentifier("training-send-to-watch")
         }

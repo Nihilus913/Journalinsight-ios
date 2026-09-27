@@ -69,15 +69,26 @@ public struct MacroSummaryCard: View {
     private func kcalHero(_ total: NutritionDayTotal) -> some View {
         let goal = nutritionGoals.kcalGoal   // B-73: the user's target; YAZIO's day goal is not shown
         let status = macroKcalStatus(kcal: total.kcal, goal: goal, isToday: isToday)
-        return VStack(alignment: .leading, spacing: 4) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) { kcalNumeral(total.kcal); goalText(goal).fixedSize() }
-                VStack(alignment: .leading, spacing: 2) { kcalNumeral(total.kcal); goalText(goal).fixedSize(horizontal: false, vertical: true) }
+        return HStack(alignment: .center, spacing: JISpacing.s3) {
+            VStack(alignment: .leading, spacing: 4) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) { kcalNumeral(total.kcal); goalText(goal).fixedSize() }
+                    VStack(alignment: .leading, spacing: 2) { kcalNumeral(total.kcal); goalText(goal).fixedSize(horizontal: false, vertical: true) }
+                }
+                Text(status).jiFont(.subheadline, weight: .semibold)
+                    .foregroundStyle(theme.color(total.kcal == nil || goal == nil ? .muted : nutritionKcalTintRole))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("macro-goal")
             }
-            Text(status).jiFont(.subheadline, weight: .semibold)
-                .foregroundStyle(theme.color(total.kcal == nil || goal == nil ? .muted : nutritionKcalTintRole))
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("macro-goal")
+            // W-GUI M2 (mockup 05): ONE ring beside the hero — only against the user's own goal.
+            if let kcal = total.kcal, let goal, goal > 0 {
+                Spacer(minLength: 0)
+                ZStack {
+                    ScoreRing(value: kcal, max: goal, tint: theme.color(nutritionKcalTintRole), size: 56)
+                    Text(jiNumber(min(kcal / goal, 9.99) * 100, 0) + "%").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text))
+                }
+                .accessibilityHidden(true)
+            }
         }
         .accessibilityElement(children: .ignore)
         // Oracle `MacroSummaryCard.tsx` L170 names this row "Calories".

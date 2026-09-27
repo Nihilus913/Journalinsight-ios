@@ -33,9 +33,9 @@ public struct KpiDetailView: View {
         #if DEBUG
         let _ = { Self.debugLastRenderedModel = model }()
         #endif
-        ScrollView {
+        ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
-                KpiDetailSourceLine(subtitle: kpiSourceSubtitle(model.metric), fetchedAt: model.fetchedAt,
+                KpiDetailSourceLine(subtitle: kpiDetailSubtitle(model.metric), fetchedAt: model.fetchedAt,
                                     showsSynced: isNutritionKpi(model.metric))
                 headline
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
@@ -45,10 +45,11 @@ public struct KpiDetailView: View {
                 case .loaded: loaded
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()   // W-GUI R2 (report §7 rule 2)
         .jiTheme(.native)
         .navigationTitle(model.def.label)
         .refreshable { await model.refresh() }
@@ -78,7 +79,9 @@ public struct KpiDetailView: View {
                 valueText: formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"),
                 label: model.def.label,
                 status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals),
-                asOf: model.asOfLabel
+                asOf: model.asOfLabel,
+                tint: metricTintRole(model.metric.rawValue),
+                heroTint: model.metric == .sleep ? theme.color(.sleep) : nil
             )
         }
     }
@@ -105,7 +108,16 @@ public struct KpiDetailView: View {
         if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition,
                                                                macro: Binding(get: { model.metric }, set: { model.selectMetric($0) })) }
         // BUG-40: on nutrition the panel's 7-day NormalBar replaces the line trend.
-        if kpiDetailShowsLineTrend(model.metric) { chartSection }
+        if kpiDetailShowsLineTrend(model.metric) {
+            chartSection
+            // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
+            tableCard
+            if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {
+                blockSection(block)
+            }
+        } else if model.metric == .sleep, let block = kpiDetailBlock(metric: .sleep, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {
+            blockSection(block)
+        }
         if model.target != nil { editor }
         if isNutritionKpi(model.metric) {
             KpiNutritionLinks(metricLabel: model.def.label, goalsSetupModel: model.goalsSetupModel)
@@ -115,7 +127,83 @@ public struct KpiDetailView: View {
     @ViewBuilder
     private var chartSection: some View {
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
-                       unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range)
+                       unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
+                       tint: metricTintRole(model.metric.rawValue))
+    }
+
+    // MARK: - W-GUI R2
+
+    private var kpiDetailValueText: String? {
+        model.value.map { formatKpiValue($0, decimals: model.def.decimals) + (model.def.unit.isEmpty ? "" : " \(model.def.unit)") }
+    }
+
+    /// Last night's sleep length from the recovery rows (the same field Recovery's fact tile reads).
+    private var kpiDetailSleepDuration: String? {
+        guard model.metric == .sleep else { return nil }
+        let now = Date()
+        for d in model.recovery.sorted(by: { $0.date > $1.date }) {
+            if let s = d.sleepDurationSec { return KpiMetrics.isLastNightFresh(nightDate: d.date, now: now) ? recoverySleepDuration(seconds: s) : nil }
+        }
+        return nil
+    }
+
+    private var tableCard: some View {
+        let rows = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
+                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric))
+        return Surface(level: 1, padding: 0) {
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 { JIRowDivider().padding(.leading, 0) }
+                    HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.title).jiFont(.body).foregroundStyle(theme.color(.text))
+                            Text(row.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        }
+                        Spacer(minLength: JISpacing.s2)
+                        Text(row.value).jiFont(.body, weight: .semibold)
+                            .foregroundStyle(theme.color(row.value.hasPrefix("—") ? .muted : .text))
+                            .monospacedDigit().multilineTextAlignment(.trailing)
+                    }
+                    .padding(.vertical, JISpacing.s3)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("kpi-detail-row-\(row.id)")
+                }
+            }
+            .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+        }
+        .accessibilityIdentifier("kpi-detail-table")
+    }
+
+    private func blockSection(_ block: KpiDetailBlock) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            JISectionHeader(block.title)
+            Surface(level: 1, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(block.rows.enumerated()), id: \.offset) { index, row in
+                        if index > 0 { JIRowDivider().padding(.leading, 0) }
+                        HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.title).jiFont(.body).foregroundStyle(theme.color(.text))
+                                Text(row.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: JISpacing.s2)
+                            Text(row.value).jiFont(.body, weight: .semibold)
+                                .foregroundStyle(theme.color(row.value.hasPrefix("—") ? .muted : .text))
+                                .multilineTextAlignment(.trailing).lineLimit(2).minimumScaleFactor(0.8)
+                        }
+                        .padding(.vertical, JISpacing.s3)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+            }
+            Text(block.caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
+                .accessibilityIdentifier("kpi-detail-caption")
+        }
+        .accessibilityIdentifier("kpi-detail-block")
     }
 
     @ViewBuilder

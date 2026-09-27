@@ -32,7 +32,7 @@ struct KpiListNativePreview: View {
                         Spacer()
                         if group == .onToday { Text("\(items.count)").jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
                     }
-                    SquareGrid(items: items, onBadge: { _ in })
+                    SquareGrid(items: items, family: squareTileFamily(catalog: true), onBadge: { _ in })
                 }
             }
             Spacer(minLength: 0)
@@ -45,18 +45,47 @@ struct KpiListNativePreview: View {
 }
 
 struct KpiDetailNativePreview: View {
+    /// W-GUI R2: one preview, three fixtures (HRV 07 / RHR 20 / Sleep 21).
+    var metric: KpiMetricId = .hrv
     @State private var range: KpiDetailRange = .month
     @State private var threshold: Double = 45
     private let theme = JITheme.native
-
+    private var unit: String { metric == .rhr ? "bpm" : (metric == .sleep ? "" : "ms") }
+    private var value: Double { metric == .rhr ? 54 : (metric == .sleep ? 81 : 52) }
+    private var label: String { metric == .rhr ? "Resting HR" : (metric == .sleep ? "Sleep" : "HRV") }
+    private var history: [(date: String, value: Double?)] {
+        L5KpiFixtures.history.map { ($0.date, $0.value.map { v in metric == .rhr ? v + 4 : (metric == .sleep ? v + 30 : v) }) }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            KpiDetailSourceLine(subtitle: kpiSourceSubtitle(.hrv), fetchedAt: nil, showsSynced: false)
+            KpiDetailSourceLine(subtitle: kpiDetailSubtitle(metric), fetchedAt: nil, showsSynced: false)
             // The shipped value card over the fixture nights: number, status word, explanation.
-            KpiDetailValueCard(valueText: "52 ms", label: "HRV",
-                               status: kpiDetailStatus(history: L5KpiFixtures.history, value: 52, unit: "ms", decimals: 0),
-                               asOf: nil)
-            KpiDetailTrend(points: kpiDetailTrendPoints(L5KpiFixtures.history, range: range), label: "HRV", unit: "ms", range: $range)
+            KpiDetailValueCard(valueText: value.formatted(.number.precision(.fractionLength(0))) + (unit.isEmpty ? "" : " \(unit)"), label: label,
+                               status: kpiDetailStatus(history: history, value: value, unit: unit, decimals: 0),
+                               asOf: nil, tint: metricTintRole(metric.rawValue), heroTint: metric == .sleep ? theme.color(.sleep) : nil)
+            KpiDetailTrend(points: kpiDetailTrendPoints(history, range: range), label: label, unit: unit.isEmpty ? nil : unit, range: $range,
+                           tint: metricTintRole(metric.rawValue))
+            if let block = kpiDetailBlock(metric: metric, valueText: "\(Int(value)) \(unit)", sleepDuration: metric == .sleep ? "7 h 24" : nil) {
+                JISectionHeader(block.title)
+                Surface(level: 1, padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(block.rows.enumerated()), id: \.offset) { index, row in
+                            if index > 0 { JIRowDivider().padding(.leading, 0) }
+                            HStack(alignment: .firstTextBaseline) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).jiFont(.body).foregroundStyle(theme.color(.text))
+                                    Text(row.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                }
+                                Spacer(minLength: 8)
+                                Text(row.value).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(row.value.hasPrefix("—") ? .muted : .text))
+                            }
+                            .padding(.vertical, JISpacing.s3)
+                        }
+                    }
+                    .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+                }
+                Text(block.caption).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
+            }
             KpiAlertEditor(sentence: kpiDetailPreviewThresholdSentence, value: $threshold, unit: "ms", decimals: 0,
                            saving: false, dirty: threshold != 45, error: nil, onSave: {})
             Spacer(minLength: 0)

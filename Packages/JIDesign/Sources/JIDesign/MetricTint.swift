@@ -17,10 +17,10 @@ import Foundation
 public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
     switch normalizedMetricKey(kpiId) {
     case "hrv": .hrv   // W-FIX2 BUG-31: `.info` is the accent now
-    case "rhr", "restinghr", "resting_hr": .danger
+    case "rhr", "restinghr", "resting_hr": .rhr   // W-GUI F4: coral, not `.danger`
     case "sleep", "sleepscore", "sleep_score": .sleep
-    case "steps": .go
-    case "load", "acwr", "trainingload", "training_load": .reduced
+    case "steps": .steps   // W-GUI F4: primary text; `.go` only with a goal (see hasGoal:)
+    case "load", "acwr", "trainingload", "training_load": .load   // W-GUI F4: violet, not `.reduced`
     // B-57 W1 r5: the macros carry their own design roles (boards: KpiDetailNutrition, WeeklyPlan).
     case "kcal", "calories": .kcal
     case "protein": .protein
@@ -28,6 +28,13 @@ public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
     case "fat": .fat
     default: .text
     }
+}
+
+/// W-GUI F4 (report §4.3): steps against a user goal is a status, so it may wear the reserved
+/// `.go`; without a goal it is primary text. Every other metric ignores `hasGoal`.
+public nonisolated func metricTintRole(_ kpiId: String, hasGoal: Bool) -> JIColorRole {
+    let role = metricTintRole(kpiId)
+    return role == .steps && hasGoal ? .go : role
 }
 
 /// `Load (ACWR)` / `Resting HR` / `sleep_score` all name the same metric — the map keys off a

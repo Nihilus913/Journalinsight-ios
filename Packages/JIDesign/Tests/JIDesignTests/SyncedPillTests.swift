@@ -29,7 +29,15 @@ struct SyncedPillTests {
         #expect(!stalenessBannerVisible(fetchedAt: nil, hubReachable: false, now: now))
     }
 
+    /// W-GUI F9: an older sync is the amber (stale) state; today and never are not.
+    @Test func olderSyncIsStale() {
+        #expect(syncedPillIsStale(yesterday, now: now, calendar: utc))
+        #expect(!syncedPillIsStale(sameDay, now: now, calendar: utc))
+        #expect(!syncedPillIsStale(nil, now: now, calendar: utc))
+    }
+
     @Test @MainActor func renders() {
+        expectRenders("SyncedPill stale", height: 44) { SyncedPill(date: yesterday, now: now, calendar: utc) }
         expectRenders("SyncedPill", height: 44) { SyncedPill(date: sameDay, now: now, calendar: utc) }
         expectRenders("SyncedPill never", height: 44) { SyncedPill(date: nil, now: now, calendar: utc) }
     }

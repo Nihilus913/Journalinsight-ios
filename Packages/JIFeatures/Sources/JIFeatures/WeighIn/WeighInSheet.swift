@@ -74,8 +74,7 @@ public struct WeighInSheet: View {
                 } label: {
                     Text("Save weight").frame(maxWidth: .infinity).padding(.vertical, 8)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.color(.info))
+                .buttonStyle(.jiPrimary)   // W-GUI T10: save = the one primary
                 .disabled(model.state == .submitting || parsedWeightKg == nil)
                 .accessibilityLabel("Save weight")
                 .accessibilityIdentifier("weighin-save")
@@ -85,6 +84,6 @@ public struct WeighInSheet: View {
             .padding(20)
             .readableColumn()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(theme.color(.bg))
+            .jiPageGround()
     }
 }

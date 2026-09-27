@@ -89,6 +89,9 @@ public struct ExportView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Export")
@@ -110,9 +113,7 @@ public struct ExportView: View {
         ) {
             Text("Export as CSV").jiFont(.body, weight: .bold).frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.roundedRectangle(radius: 16))
-        .tint(theme.color(.info))
+        .buttonStyle(.jiPrimary)   // W-GUI M8: CSV = the one primary
         .disabled(!model.anySelected || model.isLoading)
         .accessibilityLabel("Export as CSV")
         .accessibilityIdentifier("export.csv")
@@ -126,9 +127,7 @@ public struct ExportView: View {
             Text("JSON").jiFont(.body, weight: .semibold).frame(maxWidth: .infinity, minHeight: 44)
                 .padding(.horizontal, 12)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: 16))
-        .tint(theme.color(.text))
+        .buttonStyle(.jiSecondary)   // W-GUI M8: JSON = secondary
         .disabled(!model.anySelected || model.isLoading)
         .accessibilityLabel("Export as JSON")
         .accessibilityIdentifier("export.json")

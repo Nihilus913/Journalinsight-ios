@@ -67,6 +67,35 @@ struct NormalBarChartTests {
         }
     }
 
+    // W-GUI S1 — report §4.4 chart grammar.
+    @Test func yDomainFollowsTheDataNotTheZeroFloor() {
+        let d = normalBarChartYDomain(points: nights, normal: 27...31)
+        #expect(d.lowerBound > 0 && d.lowerBound < 25 && d.upperBound > 31)   // 25…31 ± 10 %
+        #expect(normalBarChartYDomain(points: nights, normal: nil).lowerBound < 25)
+        let flat = normalBarChartYDomain(points: [.init(id: "a", label: "Mon", value: 50, isLatest: true)], normal: nil)
+        #expect(flat == 49...51)
+        #expect(normalBarChartYDomain(points: [], normal: nil) == 0...1)
+    }
+
+    @Test func outOfBandNightsAreWordedInTheLegend() {
+        #expect(normalBarChartOutOfBandWord(points: nights, normal: 27...30) == "1 night outside your normal")
+        #expect(normalBarChartOutOfBandWord(points: nights, normal: 20...40) == nil)
+        #expect(normalBarChartOutOfBandWord(points: nights, normal: nil) == nil)   // calibrating: no band, no word
+        #expect(normalBarChartOutOfBandWord(points: nights + [.init(id: "f", label: "Fri", value: 40, isLatest: false)], normal: 27...30) == "2 nights outside your normal")
+    }
+
+    @Test func titleIsMetricWindowSource() {
+        #expect(normalBarChartTitle(metric: "Overnight HRV", window: "7 nights", source: "Apple Watch") == "Overnight HRV · 7 nights · Apple Watch")
+        #expect(normalBarChartTitle(metric: "Resting HR", window: "7 nights", source: nil) == "Resting HR · 7 nights")
+    }
+
+    @Test @MainActor func rendersWithMedianTitleAndSummary() {
+        expectRenders("NormalBarChart median", height: 260) {
+            NormalBarChart(points: nights, normal: 27...30, unit: "ms", median: 28.5, tint: .hrv,
+                           title: "Overnight HRV · 7 nights · Apple Watch", summary: "Below your normal on the latest night.")
+        }
+    }
+
     @Test @MainActor func renders() {
         expectRenders("NormalBarChart band", height: 220) { NormalBarChart(points: nights, normal: 27...30, unit: "ms") }
         expectRenders("NormalBarChart calibrating", height: 220) { NormalBarChart(points: nights, normal: nil, unit: "ms") }

@@ -135,11 +135,16 @@ public struct GateRationaleView: View {
                     if model.isByDate {
                         byDateReasonCard
                     } else {
-                        // Board 03 GateRationale (`gateRationaleLiveSections`): What counted →
-                        // Weekly nutrition → Last 3 days. W-FIX3 BUG-29: no "— Calibrating" score card.
+                        // W-GUI T5 (mockup 13): hero → Recovery score ("—" + the honest reason, plan
+                        // §B: W3) → What counted → Also this week → Last 3 days → the caption.
+                        recoveryScoreCard
                         whatCountedCard
                         weeklyNutritionSection
                         lastDaysSection
+                        Text(gateRationaleMedicalCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, JISpacing.s4)
+                            .accessibilityIdentifier("gateRationale.caption")
                     }
                     // W-B57b (§9): the WEEKLY gate response left Today — it lives here, at the
                     // bottom of the rationale, built by Today's `makeGateRespondModel` path and
@@ -150,11 +155,12 @@ public struct GateRationaleView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(JISpacing.sideMargin)
             .frame(maxWidth: .infinity, alignment: .leading)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()   // W-GUI T5 (report §7 rule 2): a glass chevron, never a text back
         // W-FIX3 BUG-29/33: no page title ("Readiness rati…" at AX3) — the card says WHY TODAY IS.
         .navigationTitle(gateRationaleNavigationTitle)
         #if os(iOS)
@@ -179,7 +185,8 @@ public struct GateRationaleView: View {
     }
 
     private var verdictCard: some View {
-        Surface(level: 1, padding: 20) {
+        // W-GUI T5 (mockup 13): the ONE tinted card of the screen — the verdict's own role.
+        Surface(level: 1, padding: JISpacing.cardPadding, tint: theme.color(verdictColorRole(model.verdict.tone))) {
             VStack(alignment: .leading, spacing: 4) {
                 // W-FIX3 BUG-29 (board 03): "Computed 07:41" first, then WHY TODAY IS + the word + a sentence.
                 if let time = model.computedAtTime()
@@ -238,12 +245,16 @@ public struct GateRationaleView: View {
         let rows = gateRationaleCountedRows(signals: model.morning?.gateSignals,
                                             normals: decideSignalNormals(recovery: model.recovery),
                                             load: KpiMetrics.currentAcwr(model.recovery, now: Date()))
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             boardHeader("What counted", trailing: nil)
-            Surface(level: 2, padding: 16) {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(rows) { countedRow($0) }
+            Surface(level: 1, padding: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 { JIRowDivider() }
+                        countedRow(row).padding(.vertical, JISpacing.s3)
+                    }
                 }
+                .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .accessibilityIdentifier("gateRationale.whatCounted")
@@ -258,10 +269,12 @@ public struct GateRationaleView: View {
             Text(row.status.word).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(row.status.role))
         }
         let label = Text(row.label).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: JISpacing.s3) {
+            // W-GUI T5: the row's icon well (report §4.5), tinted by the status.
             Image(systemName: row.status.symbolName)
                 .jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(row.status.role))
-                .frame(width: 30, height: 30).background(theme.color(.surface3), in: Circle())
+                .frame(width: JIRowMetrics.iconWell, height: JIRowMetrics.iconWell)
+                .background(theme.color(row.status.role).opacity(0.16), in: RoundedRectangle(cornerRadius: JIRowMetrics.iconWellRadius, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 ViewThatFits(in: .horizontal) {
@@ -283,10 +296,10 @@ public struct GateRationaleView: View {
     /// W2 (goals/band), so those spots are left out.
     private var weeklyNutritionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            boardHeader("Weekly nutrition", trailing: "7-day")
+            boardHeader("Also this week", trailing: "7-day")
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) { energyTile; proteinTile }
-                VStack(alignment: .leading, spacing: 12) { energyTile; proteinTile }
+                HStack(alignment: .top, spacing: JISpacing.cardGap) { energyTile; proteinTile }
+                VStack(alignment: .leading, spacing: JISpacing.cardGap) { energyTile; proteinTile }
             }
             let notes = model.weeklyNotes()
             if !notes.isEmpty {
@@ -316,7 +329,8 @@ public struct GateRationaleView: View {
 
     private func weeklyTile(title: String, systemImage: String, tint: JIColorRole, value: Double?, signed: Bool,
                             unit: String, id: String) -> some View {
-        Surface(level: 2, padding: 16) {
+        // W-GUI T5 / F7 (DEV-06): both tiles are the stat-card family height.
+        JITile(family: .statCard) {
             VStack(alignment: .leading, spacing: 6) {
                 Label(title, systemImage: systemImage).jiFont(.subheadline, weight: .semibold)
                     .foregroundStyle(theme.color(tint))
@@ -351,14 +365,14 @@ public struct GateRationaleView: View {
         let rows = model.lastDays()
         return VStack(alignment: .leading, spacing: 10) {
             boardHeader("Last 3 days", trailing: nil)
-            Surface(level: 2, padding: 0) {
+            Surface(level: 1, padding: 0) {
                 VStack(spacing: 0) {
                     if rows.isEmpty {
                         Text("— \(JIMissingReason.noData.rawValue)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        if index > 0 { Divider().overlay(theme.color(.hairlineNested)) }
+                        if index > 0 { JIRowDivider().padding(.leading, JISpacing.s4) }
                         lastDayRow(row)
                     }
                 }
@@ -400,12 +414,35 @@ public struct GateRationaleView: View {
         .accessibilityLabel("\(row.dayLabel): \(row.session ?? "no session")\(row.prescription.map { ", \($0)" } ?? ""), \(row.verdictWord ?? "no data")")
     }
 
+    /// W-GUI T5 / S2: the section header (13 pt bold caps, inset 16) with an optional trailing word.
     private func boardHeader(_ title: String, trailing: String?) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            if let trailing { Text(trailing).jiFont(.subheadline).foregroundStyle(theme.color(.muted)) }
+            JISectionHeader(title)
+            if let trailing {
+                Text(trailing).jiFont(.caption).foregroundStyle(theme.color(.muted)).padding(.trailing, JISpacing.s4)
+            }
+        }
+    }
+
+    /// W-GUI T5 (mockup 13, plan §B): the recovery score is not on the hub yet — "—" with the honest
+    /// reason and the count of overnight nights already on the phone; never a number.
+    private var recoveryScoreCard: some View {
+        let nights = model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count
+        return VStack(alignment: .leading, spacing: 0) {
+            boardHeader("Recovery score", trailing: nil)
+            Surface(level: 1, padding: JISpacing.cardPadding) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
+                        Text("—").jiNumeral(.numeralMedium, tint: .muted)
+                        Text(gateRationaleScoreCaption(nights: nights)).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+                    }
+                    Text(gateRationaleScoreNote).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("gateRationale.score")
         }
     }
 
@@ -421,9 +458,9 @@ public struct GateRationaleView: View {
         }
     }
 
-    /// §2: the uppercase footnote header, from JIDesign (unpadded inside a card).
+    /// §2 / W-GUI S2: the caps footnote label inside a card (the shared transform, no header insets).
     private func sectionLabel(_ text: String) -> some View {
-        JISectionHeader(text).padding(.leading, -16)
+        Text(sectionHeaderTitle(text)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.muted))
     }
 
     /// "2026-09-11" -> "Thu". Parsed as a plain calendar date (no timezone shift off the hub's day).
@@ -486,3 +523,13 @@ extension View {
     /// One-line entry site for `VerdictHeroView` (oracle `VerdictHero.tsx:404`).
     func gateRationaleDestination() -> some View { modifier(GateRationaleDestination()) }
 }
+
+
+// MARK: - W-GUI T5 (mockup 13) copy, pure
+
+/// "Calibrating · 3 of 7 nights" — the score card's status word with the honest count (0…7).
+public nonisolated func gateRationaleScoreCaption(nights: Int) -> String {
+    "\(JIMissingReason.calibrating.rawValue) · \(min(max(nights, 0), 7)) of 7 nights"
+}
+public nonisolated let gateRationaleScoreNote = "Arrives with the normal band once 7 Watch nights are in."
+public nonisolated let gateRationaleMedicalCaption = "A training call, not a medical reading. If you feel symptoms, that beats any number here."

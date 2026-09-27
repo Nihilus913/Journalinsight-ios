@@ -21,15 +21,13 @@ struct WeighInNativePreview: View {
     }
 
     var body: some View {
-        Group {
-            if let model {
-                WeighInSheet(model: model).nativeContent
-            } else {
-                // `AppDatabase.inMemory()` can throw; rule 5 — say so rather than draw a blank.
-                Text("No database").jiFont(.footnote).foregroundStyle(JITheme.native.color(.muted))
-            }
-        }
-        .jiTheme(.native)
-        .background(JITheme.native.color(.bg))
+        // W-GUI R-SIM: the two branches erased to AnyView — the opaque `nativeContent` type grew with
+        // T10 (jiPrimary + page ground) and the `Group`/if-let body crashed in the sim sweep
+        // (SIGSEGV in initializeWithCopy while building the ViewBuilder block).
+        let content: AnyView = model.map { AnyView(WeighInSheet(model: $0).nativeContent) }
+            ?? AnyView(Text("No database").jiFont(.footnote).foregroundStyle(JITheme.native.color(.muted)))   // rule 5
+        content
+            .jiTheme(.native)
+            .jiPageGround()
     }
 }

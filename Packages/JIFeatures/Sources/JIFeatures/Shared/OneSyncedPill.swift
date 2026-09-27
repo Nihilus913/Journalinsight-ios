@@ -35,3 +35,10 @@ public struct OneSyncedPill: View {
                    label: label)
     }
 }
+
+
+/// W-GUI M1: the uploader's last 2xx HealthKit upload (`hk.upload.lastSuccess`, App Group) as a
+/// date — the same record the pill reads; nil when there has never been one.
+public nonisolated func healthKitLastUploadDate(_ record: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) -> Date? {
+    parseHubTimestamp(record?.string(forKey: "hk.upload.lastSuccess"))
+}

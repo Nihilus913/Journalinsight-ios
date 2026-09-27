@@ -36,8 +36,13 @@ public nonisolated func trendAverage(_ points: [TrendPoint]) -> Double? {
 
 /// Swift Charts in the Health axis style: trailing y-axis, dashed average rule, D/W/M/6M/Y
 /// segmented picker above, "Show All Data ›" below. Empty → "No data yet" (rule 5).
+/// W-GUI S1 (report §4.4): a SUM metric (steps, kcal) is bars from zero with a dashed goal;
+/// a baseline metric stays a line with the dashed average.
+public nonisolated enum TrendChartKind: Sendable, Equatable { case baseline, sum }
+
 public struct TrendChart: View {
     let points: [TrendPoint], tint: Color, unit: String?, showAll: (() -> Void)?
+    let kind: TrendChartKind, goal: Double?
     @Binding var range: TrendRange
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -47,8 +52,10 @@ public struct TrendChart: View {
     /// accessibility size each label is ~3× wider, so four of them truncate to "3 A…".
     private var xAxisLabelCount: Int { typeSize.isAccessibilitySize ? 2 : 4 }
 
-    public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?) {
+    public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?,
+                kind: TrendChartKind = .baseline, goal: Double? = nil) {
         self.points = points; self.tint = tint; self.unit = unit; self._range = range; self.showAll = showAll
+        self.kind = kind; self.goal = goal
     }
 
     public var body: some View {
@@ -58,11 +65,24 @@ public struct TrendChart: View {
 
             Chart {
                 ForEach(shown) { p in
-                    LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
-                        .foregroundStyle(tint)
-                        .interpolationMethod(.monotone)
+                    if kind == .sum {
+                        BarMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                            .foregroundStyle(tint)
+                            .cornerRadius(3)
+                    } else {
+                        LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                            .foregroundStyle(tint)
+                            .interpolationMethod(.monotone)
+                    }
                 }
-                if let avg = trendAverage(shown) {
+                if kind == .sum, let goal {
+                    RuleMark(y: .value("Goal", goal))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        .foregroundStyle(theme.color(.muted))
+                        .annotation(position: .top, alignment: .leading) {
+                            Text("goal \(goal.formatted(.number.precision(.fractionLength(0))))").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                        }
+                } else if let avg = trendAverage(shown) {
                     RuleMark(y: .value("Average", avg))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(theme.color(.muted))

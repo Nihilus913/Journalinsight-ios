@@ -58,6 +58,7 @@ public struct SendToWatchSheet: View {
         #if os(iOS)
         .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
         #endif
+        .jiSheetGround()   // W-GUI TR4
     }
 
     @ViewBuilder

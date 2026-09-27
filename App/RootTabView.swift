@@ -117,6 +117,8 @@ struct RootTabView: View {
     // W5b-L2 close-out wiring: the gate-rationale screen's model, built once alongside `todayModel`
     // and routed through the environment (`GateRationaleView` reads `\.gateRationaleModel`; nil = inert).
     @State private var gateRationaleModel: GateRationaleViewModel?
+    // W-GUI T1: Decide's "How the morning call works" row → GateConfig (same model Settings builds).
+    @State private var gateConfigModel: GateConfigViewModel?
     // W-B57b (B-62): Decide's verdict-override write model, built beside `gateRationaleModel`.
     @State private var verdictOverrideModel: VerdictOverrideViewModel?
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
@@ -207,7 +209,7 @@ struct RootTabView: View {
             }
             .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
-        .background(theme.color(.bg))
+        .jiPageGround()   // W-GUI F3: the tinted ground (report §4.1), never a flat bg
         // B-33 §8.0: the whole shell renders in the native language. §5: tab/selection tint is
         // the personalization accent — W-FIX3 C-c: inherited from the app root's
         // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint
@@ -264,7 +266,8 @@ struct RootTabView: View {
                 .navigationTitle("My KPIs")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
+                        // W-GUI R4 (mockup 23): Done is a glass checkmark (BUG-21: it stays; squares push their detail).
+                        JIGlassButton("checkmark", label: "Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
                     }
                 }
                 .navigationDestination(for: RootRoute.self) { route in
@@ -479,67 +482,103 @@ struct RootTabView: View {
     @ViewBuilder
     /// B-55: rendered inside More's own `tabStack`, so the links push there.
     private var moreTab: some View {
-        List {
-            // W-FIX3 BUG-33: at AX sizes the subtitle wraps here instead of being cut in the bar.
-            if jiTitleWrapsInList(typeSize) {
-                Section {
+        // W-GUI M1 (mockup 08): the List became grouped cards on the ground — every row a
+        // JIChevronRow (report §7 rule 2), values from MoreRowValues (unchanged), the Apple
+        // Health row's "Connected" from the PF-04 upload time, and the mirror caption.
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 0) {
+                // W-FIX3 BUG-33: at AX sizes the subtitle wraps here instead of being cut in the bar.
+                if jiTitleWrapsInList(typeSize) {
                     Text(Self.moreSubtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                        .padding(.horizontal, JISpacing.s1)
                         .accessibilityIdentifier("more.subtitle")
                 }
-            }
-            Section("Track") {
-                NavigationLink { nutritionTab } label: {
-                    MoreRowLabel("Nutrition", systemImage: RootTab.nutrition.symbol, value: moreNutritionRow)
-                }
-                    .accessibilityIdentifier("more.nutrition")
-                NavigationLink { energyTab } label: {
-                    MoreRowLabel("Energy", systemImage: RootTab.energy.symbol, value: moreEnergyRow)
-                }
-                    .accessibilityIdentifier("more.energy")
-                // W-FIX2 BUG-47: still presented (B-46 item 10), but drawn as the same chevron row
-                // as its neighbours — plain title, muted value, disclosure chevron.
-                Button { showKpiList = true } label: {
-                    MoreChevronRow {
-                        MoreRowLabel("My KPIs", systemImage: "chart.bar",
-                                     value: MoreRowValue(lead: Self.moreKpiText(count: moreKpiCount), rest: "", style: .muted))
+                JISectionHeader("Track")
+                moreCard {
+                    NavigationLink { nutritionTab } label: {
+                        JIChevronRow { MoreRowLabel("Nutrition", systemImage: RootTab.nutrition.symbol, value: moreNutritionRow) }
                     }
-                }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("more.kpis")
-                NavigationLink { moreGoals } label: {
-                    MoreRowLabel("Goals", systemImage: "target", value: moreGoalsRow)
-                }
-                    .accessibilityIdentifier("more.goals")
-            }
-            Section("Practice") {
-                NavigationLink { moreMind } label: {
-                    MoreRowLabel("Mind", systemImage: "water.waves", value: moreMindValue(who5Pct: moreMindModel?.latestWho5?.pct))
-                }
-                    .accessibilityIdentifier("more.mind")
-            }
-            Section("App") {
-                // W-FIX2 BUG-47 (board 4/04): one row, "Hub synced 07:41 ›" — text, not a pill.
-                Button { showSettings = true } label: {
-                    MoreChevronRow {
-                        MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
-                                     value: MoreRowValue(lead: Self.moreSettingsText(syncedAt: Self.moreSettingsDate(todayModel)), rest: "", style: .muted))
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.nutrition")
+                    JIRowDivider()
+                    NavigationLink { energyTab } label: {
+                        JIChevronRow { MoreRowLabel("Energy", systemImage: RootTab.energy.symbol, value: moreEnergyRow) }
                     }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.energy")
+                    JIRowDivider()
+                    // W-FIX2 BUG-47: still presented (B-46 item 10), but drawn as the same chevron row
+                    // as its neighbours — plain title, muted value, disclosure chevron.
+                    Button { showKpiList = true } label: {
+                        JIChevronRow {
+                            MoreRowLabel("My KPIs", systemImage: "chart.bar",
+                                         value: MoreRowValue(lead: Self.moreKpiText(count: moreKpiCount), rest: "", style: .muted))
+                        }
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.kpis")
+                    JIRowDivider()
+                    NavigationLink { moreGoals } label: {
+                        JIChevronRow { MoreRowLabel("Goals", systemImage: "target", value: moreGoalsRow) }
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.goals")
                 }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("more.settings")
+                JISectionHeader("Practice")
+                moreCard {
+                    NavigationLink { moreMind } label: {
+                        JIChevronRow { MoreRowLabel("Mind", systemImage: "water.waves", value: moreMindValue(who5Pct: moreMindModel?.latestWho5?.pct)) }
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.mind")
+                }
+                JISectionHeader("App")
+                moreCard {
+                    Button { showSettings = true } label: {
+                        JIChevronRow {
+                            MoreRowLabel("Apple Health", systemImage: "heart.text.square",
+                                         value: MoreRowValue(lead: moreAppleHealthText(lastUpload: healthKitLastUploadDate()), rest: "", style: .muted))
+                        }
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.appleHealth")
+                    JIRowDivider()
+                    // W-FIX2 BUG-47 (board 4/04): one row, "Hub synced 07:41 ›" — text, not a pill.
+                    Button { showSettings = true } label: {
+                        JIChevronRow {
+                            MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
+                                         value: MoreRowValue(lead: Self.moreSettingsText(syncedAt: Self.moreSettingsDate(todayModel)), rest: "", style: .muted))
+                        }
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("more.settings")
+                }
+                Text(moreMirrorCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s4)
+                    .accessibilityIdentifier("more.caption")
             }
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
         }
+        .jiPageGround()
         .navigationTitle("More")
         .navigationSubtitle(jiTitleWrapsInList(typeSize) ? "" : Self.moreSubtitle)
         .task { await loadMoreSummaries() }
     }
 
     static let moreSubtitle = "Everything that is not a daily decision"
+
+    /// W-GUI M1: a grouped card of More rows (level-1 surface, 6 / 16 padding, rows carry their own 12).
+    private func moreCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        Surface(level: 1, padding: 0) {
+            VStack(spacing: 0) { content() }
+                .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+        }
+    }
 
     // B-57 W1 r5 (h3): the More rows' trailing values read the same models the screens behind
     // them use (built here when More is opened first); missing data is "—" + a reason.
@@ -946,7 +985,14 @@ struct RootTabView: View {
                            overrideModel: verdictOverrideModel,
                            syncedAt: model.syncedAt,
                            normals: decideSignalNormals(recovery: model.recovery),
-                           banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)) { answerGate(model) }
+                           banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
+                           calibrationNights: model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
+                    .environment(\.gateConfigModel, gateConfigModel)
+                    .onAppear {
+                        if gateConfigModel == nil {
+                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs)
+                        }
+                    }
             } else {
                 ScreenScroll {
                     VStack(alignment: .leading, spacing: 16) {
@@ -958,7 +1004,7 @@ struct RootTabView: View {
                 }
             }
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
         .navigationTitle(Self.gateNavigationTitle(pageName: loadTodayPageName(prefs: model.tileOrderStore)))
         .navigationSubtitle(Self.gateShowsDateSubtitle ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
         .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
@@ -984,22 +1030,7 @@ struct RootTabView: View {
     }
 }
 
-/// W-FIX2 BUG-47: a presenting row drawn like a `NavigationLink` row — primary-coloured title and
-/// a trailing disclosure chevron (a bare `Button` row took the tint colour and had no chevron).
-struct MoreChevronRow<Label: View>: View {
-    @ViewBuilder let label: () -> Label
-    var body: some View {
-        HStack(spacing: 8) {
-            label()
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .foregroundStyle(.primary)
-        .contentShape(Rectangle())
-    }
-}
+// W-GUI F9: `MoreChevronRow` (W-FIX2 BUG-47) is `JIChevronRow` in JIDesign now — one row for every screen.
 
 // MARK: - Chrome-only TabView plumbing
 

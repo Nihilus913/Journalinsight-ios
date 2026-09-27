@@ -22,3 +22,13 @@ func columnCountMatchesAdaptiveArithmetic(width: Double, count: Int) {
     expectRenders("AdaptiveHStack") { AdaptiveHStack { Text("a"); Text("b") } }
     expectRenders("readableColumn", width: 900) { Text("wide").readableColumn() }
 }
+
+// W-GUI F7 (DEV-06): `Columns(tileHeight:)` fixes every cell to the family height.
+@Test @MainActor func columnsWithTileHeightRender() {
+    expectRenders("Columns tileHeight", width: 393, height: 400) {
+        Columns(minimum: 160, tileHeight: .square) { ForEach(0..<4) { Text("tile \($0)") } }
+    }
+    expectRenders("Columns tileHeight AX3", width: 393, height: 800) {
+        Columns(minimum: 160, tileHeight: .statCard) { Text("a"); Text("b") }.environment(\.dynamicTypeSize, .accessibility3)
+    }
+}

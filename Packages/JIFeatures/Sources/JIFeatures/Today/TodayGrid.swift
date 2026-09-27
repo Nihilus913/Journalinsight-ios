@@ -227,7 +227,9 @@ public struct TodayGrid: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(theme.color(.mutedNested))
                 }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
+            .jiTileHeight(.square)   // W-GUI F7 (DEV-06): the mind tile shares the squares' row height
         }
         .buttonStyle(.plain)
         .accessibilityLabel(mindTodayCheckin != nil ? "Today's mind check-in — update" : "How are you today — daily check-in")
@@ -362,8 +364,18 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
         title: chip.label,
         value: value,
         unit: value == nil ? nil : chip.unit,
-        timestamp: chip.sourceMissing ? nil : chip.asOf,
+        timestamp: chip.sourceMissing ? nil : todayCardCaption(chip),
         sparkline: chip.points,
         sourceMissing: chip.sourceMissing
     )
+}
+
+
+/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square's caption names the method —
+/// "as of 26 Sep · RMSSD · overnight" — it is the overnight RMSSD, not the Health app's daytime
+/// SDNN. The title stays the short label so the two-up card never truncates it; a chip with no
+/// as-of caption (today's fresh value) keeps no caption (B-46 defect 9 rule).
+public nonisolated func todayCardCaption(_ chip: TodayChip) -> String? {
+    guard chip.id == "hrv", let asOf = chip.asOf else { return chip.asOf }
+    return "\(asOf) · RMSSD · overnight"
 }

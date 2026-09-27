@@ -16,12 +16,18 @@ public struct RecoveryView: View {
     @State private var editing = false
     @Environment(\.openKpiCatalogue) private var openKpiCatalogue
     @Environment(\.openKpiDetail) private var openKpiDetail
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(model: RecoveryViewModel) { self.model = model }
 
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                // R-SIM: the navigation subtitle cannot wrap at AX sizes ("28 ni…"); it moves into the page.
+                if typeSize.isAccessibilitySize {
+                    Text(recoverySubtitle(nights: model.days.count)).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
@@ -31,14 +37,20 @@ public struct RecoveryView: View {
                 case .loaded: loaded
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
         }
-        .background(theme.color(.bg))
-        // §5: the hand-drawn large title becomes the system one; the date line is the subtitle.
+        .jiPageGround()
+        // §5: the hand-drawn large title becomes the system one; W-GUI R1 (mockup 03): the
+        // subtitle says the window, and Edit is a glass round button (report §7 rule 2).
         .navigationTitle("Recovery")
-        .navigationSubtitle(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
-        .toolbar { ToolbarItem(placement: .primaryAction) { Button(editing ? "Done" : "Edit") { editing.toggle() }.accessibilityIdentifier("recovery.edit") } }
+        .navigationSubtitle(typeSize.isAccessibilitySize ? "" : recoverySubtitle(nights: model.days.count))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                JIGlassButton(editing ? "checkmark" : "pencil", label: editing ? "Done" : "Edit") { editing.toggle() }
+                    .accessibilityIdentifier("recovery.edit")
+            }
+        }
         .refreshable { await model.refresh() }
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — mirrors `TodayView.task`.
         .task { if !offscreen, !model.hasLiveResult { await model.load() } }
@@ -87,30 +99,143 @@ public struct RecoveryView: View {
                 VStack(alignment: .leading, spacing: 6) { lastNightLabel; OneSyncedPill().fixedSize(horizontal: false, vertical: true) }
             }
             let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
-            SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
-                       onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
-                       onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
-                       onMove: { moving, target in orderRaw = squareGridMove(layout.visible + layout.hidden, moving: moving, before: target).joined(separator: ",") },
-                       onAdd: layout.hidden.first.map { first in { hiddenRaw = layout.hidden.filter { $0 != first }.joined(separator: ",") } })
-            if let openKpiCatalogue {
-                Button { openKpiCatalogue() } label: {
-                    Label("Add a metric", systemImage: "plus").jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.info))
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .overlay(RoundedRectangle(cornerRadius: theme.radius(.card), style: .continuous)
-                            .strokeBorder(theme.color(.mutedNested), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5])))
-                }
-                .buttonStyle(.pressableScale)
-                .accessibilityIdentifier("recovery.addMetric")
-            }
-            HStack(alignment: .firstTextBaseline) {
-                Text("HRV, last 7 nights").jiFont(.cardTitle).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-                Spacer()
-            }
-            Surface(level: 1) {
-                NormalBarChart(points: recoveryHrvNights(days: model.days), normal: nil, unit: "ms")
-                    .accessibilityIdentifier("recovery.hrvChart")
+            if editing {
+                // Edit mode keeps the squares' hide / reorder / add-back behaviour (RecoveryTiles prefs).
+                SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
+                           family: .tile,
+                           onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
+                           onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
+                           onMove: { moving, target in orderRaw = squareGridMove(layout.visible + layout.hidden, moving: moving, before: target).joined(separator: ",") },
+                           onAdd: layout.hidden.first.map { first in { hiddenRaw = layout.hidden.filter { $0 != first }.joined(separator: ",") } })
+            } else {
+                // W-GUI R1 (mockup 03): three metric cards (number · "your normal —" · S1 chart), the
+                // tinted sleep card with three fact tiles, then "Also watching" tiles of one size.
+                ForEach(RecoveryCardMetric.allCases, id: \.rawValue) { metricCard($0) }
+                JISectionHeader("Also watching")
+                alsoWatching(layout: layout)
+                Text(recoveryMonitorCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, JISpacing.s4)
+                    .accessibilityIdentifier("recovery.caption")
             }
         }
+    }
+
+    // MARK: - W-GUI R1 cards
+
+    private func metricCard(_ metric: RecoveryCardMetric) -> some View {
+        let reading = recoveryCardReading(days: model.days, metric: metric)
+        let tint = metric == .sleep ? theme.color(.sleep) : nil
+        return Surface(level: 1, padding: JISpacing.cardPadding, tint: tint) {
+            VStack(alignment: .leading, spacing: JISpacing.s3) {
+                Button { openKpiDetail?(metric.kpiId) } label: {
+                    HStack(spacing: JISpacing.s2) {
+                        Image(systemName: metric.symbol).foregroundStyle(theme.color(metric.tint)).accessibilityHidden(true)
+                        Text(metric.title).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(theme.color(.mutedNested))
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressableScale)
+                .disabled(openKpiDetail == nil)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityHint(openKpiDetail == nil ? "" : "Opens \(metric.title)")
+                .accessibilityIdentifier("recovery.card.\(metric.rawValue)")
+                HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
+                    Text(jiValueText(reading.value, decimals: metric.decimals))
+                        .jiNumeral(.numeralMedium, weight: .heavy, tint: reading.value == nil ? .muted : metric.tint)
+                    if reading.value != nil { Text(metric.unit).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+                    Spacer(minLength: JISpacing.s2)
+                    Text(recoveryNormalText(nil)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .multilineTextAlignment(.trailing)
+                }
+                Text(reading.value == nil ? "— \(JIMissingReason.noData.rawValue)" : (reading.asOf ?? "last night"))
+                    .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
+                if metric == .sleep {
+                    HStack(spacing: JISpacing.tileGap) {
+                        factTile("Duration", recoverySleepDuration(seconds: recoveryLatestSleepSeconds))
+                        factTile("Deep", "— not read")
+                        factTile("Window", "— not read")
+                    }
+                } else {
+                    NormalBarChart(points: recoveryNights(days: model.days, metric: metric), normal: nil,
+                                   unit: metric == .hrv ? "ms" : "bpm", decimals: metric.decimals, tint: metric.tint)
+                        .accessibilityIdentifier("recovery.chart.\(metric.rawValue)")
+                }
+                if metric == .rhr {
+                    Text(recoveryRhrCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("recovery.metric.\(metric.rawValue)")
+    }
+
+    /// Last night's sleep length in seconds while it is last night (the squares' rule).
+    private var recoveryLatestSleepSeconds: Double? {
+        let now = Date()
+        for d in model.days.sorted(by: { $0.date > $1.date }) {
+            if let s = d.sleepDurationSec { return KpiMetrics.isLastNightFresh(nightDate: d.date, now: now) ? s : nil }
+        }
+        return nil
+    }
+
+    private func factTile(_ label: String, _ value: String) -> some View {
+        JITile(family: .factTile) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                Text(value).jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(value.hasPrefix("—") ? .muted : .text))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) \(value)")
+    }
+
+    /// "Also watching": Load (from the squares' items, only while it is visible), resp / wrist temp
+    /// as "— not read" (plan §B: not in the recovery contract), and Add a metric — all `.tile`.
+    private func alsoWatching(layout: RecoveryTileLayout) -> some View {
+        let items = recoveryTileItems(days: model.days, layout: layout, editing: false).filter { $0.id == "load" }
+        return Columns(minimum: 100, spacing: JISpacing.tileGap, tileHeight: .tile) {
+            ForEach(items) { item in
+                Button { openKpiDetail?("acwr") } label: {
+                    JITile(family: .tile) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            Text(jiValueText(item.value, decimals: item.decimals)).jiNumeral(.numeralSmall, tint: item.value == nil ? .muted : item.tint)
+                                .lineLimit(1).minimumScaleFactor(0.6)
+                            Text(item.goalText ?? item.status?.word ?? "").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                        }
+                    }
+                }
+                .buttonStyle(.pressableScale)
+                .disabled(openKpiDetail == nil)
+                .accessibilityLabel(squareAccessibilityLabel(item))
+                .accessibilityIdentifier("recovery.watch.\(item.id)")
+            }
+            watchTile("Resp. rate")
+            watchTile("Wrist temp")
+            if let openKpiCatalogue {
+                JIAddTile(family: .tile, label: "Add a metric") { openKpiCatalogue() }
+                    .accessibilityIdentifier("recovery.addMetric")
+            }
+        }
+    }
+
+    private func watchTile(_ label: String) -> some View {
+        JITile(family: .tile) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                Text("—").jiNumeral(.numeralSmall, tint: .muted)
+                Text("not read").jiFont(.micro).foregroundStyle(theme.color(.muted))
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), not read")
     }
 
     private var staleVerdictBanner: String? {

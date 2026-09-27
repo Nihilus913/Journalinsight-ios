@@ -144,46 +144,77 @@ public struct GoalsView: View {
                         trackingDays: board?.trackingDays ?? 0, today: todayString)
     }
 
+    @State private var showSetup = false
+
     public var body: some View {
-        List {
-            Section {
-                if let hero { heroCard(hero) } else {
-                    Text(board == nil ? "Loading…" : "No active goal — set one in Edit targets.")
-                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                        .accessibilityIdentifier("goals-hero-missing")
-                }
-            } header: {
+        // W-GUI M4 (mockup 39): the List became cards on the ground — the ONE tinted hero
+        // (active weight goal with its progress bar), "Supporting targets · yours" as a grouped
+        // card, Edit as a glass pencil, the local goals card, and the "yours to set" caption.
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 0) {
                 Text("One active goal. Everything else supports it.")
-            }
-            Section("Supporting targets") {
-                ForEach(GoalsBoard.targets(goals: board?.goals, macros: nutritionGoals.macros, yesterdayKcal: board?.yesterdayKcal,
-                                           yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps)) { row in
-                    targetRow(row)
+                    .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, JISpacing.s4).padding(.bottom, JISpacing.s3)
+                if let hero {
+                    Surface(level: 1, padding: JISpacing.cardPadding, tint: theme.color(.go)) { heroCard(hero) }
+                } else {
+                    Surface(level: 1, padding: JISpacing.cardPadding) {
+                        Text(board == nil ? "Loading…" : "No active goal — set one in Edit targets.")
+                            .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("goals-hero-missing")
+                    }
                 }
+                JISectionHeader("Supporting targets · yours")
+                Surface(level: 1, padding: 0) {
+                    let rows = GoalsBoard.targets(goals: board?.goals, macros: nutritionGoals.macros, yesterdayKcal: board?.yesterdayKcal,
+                                                  yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps)
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                            if index > 0 { JIRowDivider().padding(.leading, 0) }
+                            targetRow(row).padding(.vertical, JISpacing.s3)
+                        }
+                    }
+                    .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+                }
+                if !model.goals.isEmpty {
+                    JISectionHeader("Your own goals")
+                    Surface(level: 1, padding: JISpacing.cardPadding) {
+                        VStack(alignment: .leading, spacing: JISpacing.s3) {
+                            ForEach(model.goals) { goal in
+                                GoalCard(
+                                    goal: goal,
+                                    today: todayString,
+                                    onStep: { delta in model.setProgress(id: goal.id, progress: goal.progress + delta) },
+                                    onDelete: { model.deleteGoal(id: goal.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+                Text(goalsYoursCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s4)
             }
-            if let setupModel {
-                Section {
-                    NavigationLink { GoalsSetupView(model: setupModel) } label: { Text("Edit targets") }
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
+        }
+        .jiPageGround()
+        .jiGlassBackButton()
+        .jiTheme(.native)
+        .navigationTitle("Goals")
+        .toolbar {
+            if setupModel != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    JIGlassButton("pencil", label: "Edit targets") { showSetup = true }
                         .accessibilityIdentifier("goals-edit-targets")
                 }
             }
-            if !model.goals.isEmpty {
-                Section("Your own goals") {
-                    ForEach(model.goals) { goal in
-                        GoalCard(
-                            goal: goal,
-                            today: todayString,
-                            onStep: { delta in model.setProgress(id: goal.id, progress: goal.progress + delta) },
-                            onDelete: { model.deleteGoal(id: goal.id) }
-                        )
-                    }
-                }
-            }
         }
-        .jiNativeFormChrome()
-        .readableColumn()
-        .jiTheme(.native)
-        .navigationTitle("Goals")
+        .navigationDestination(isPresented: $showSetup) {
+            if let setupModel { GoalsSetupView(model: setupModel) }
+        }
         .task { model.load() }
     }
 
@@ -195,8 +226,25 @@ public struct GoalsView: View {
                 if let by = hero.byLine { Text(by).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(hero.startText).jiFont(.title, weight: .bold).foregroundStyle(theme.color(.text))
-                Text("→ \(hero.targetText)").jiFont(.title, weight: .bold).foregroundStyle(theme.color(.text))
+                Text(board?.latestKg.map { String(format: "%.1f", $0) } ?? hero.startText.replacingOccurrences(of: " kg", with: ""))
+                    .jiNumeral(.numeralLarge, weight: .heavy, tint: .text)
+                Text("→ \(hero.targetText) kg").jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+            }
+            // W-GUI M4 (mockup 39): start → latest → goal as a bar; no bar without the three numbers.
+            if let f = goalsProgressFraction(startText: hero.startText, latestKg: board?.latestKg, targetText: hero.targetText) {
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(theme.color(.nested))
+                        Capsule().fill(theme.color(.go)).frame(width: max(4, CGFloat(f) * g.size.width))
+                    }
+                }
+                .frame(height: 6)
+                .accessibilityHidden(true)
+                HStack {
+                    Text("start \(hero.startText)").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                    Spacer()
+                    Text("goal \(hero.targetText)").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                }
             }
             if let status = hero.paceStatus {
                 Text(status).jiFont(.subheadline, weight: .semibold)
@@ -228,4 +276,18 @@ public struct GoalsView: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(row.title == goalsTrainingPlanTitle ? "goals-training-plan" : "goals-target-\(row.title)")
     }
+}
+
+
+// MARK: - W-GUI M4 (mockup 39) pure helpers
+
+public nonisolated let goalsYoursCaption = "Targets are yours to set; the app never seeds them. Where none is set the screens show \u{201C}no goal\u{201D}."
+
+/// How far from the start weight to the target the latest reading sits (0…1); nil when any of
+/// the three is missing or the start equals the target (no bar against a guess).
+public nonisolated func goalsProgressFraction(startText: String, latestKg: Double?, targetText: String) -> Double? {
+    guard let latest = latestKg, latest.isFinite,
+          let start = Double(startText.replacingOccurrences(of: " kg", with: "")),
+          let target = Double(targetText), start != target else { return nil }
+    return min(1, max(0, (start - latest) / (start - target)))
 }

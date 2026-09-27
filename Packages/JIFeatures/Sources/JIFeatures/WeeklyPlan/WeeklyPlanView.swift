@@ -17,12 +17,13 @@ public struct WeeklyPlanView: View {
     public init(model: WeeklyPlanViewModel) { _model = State(initialValue: model) }
 
     public var body: some View {
-        ScrollView {
+        ScreenScroll {
             nativeContent
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
                 .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()
         .jiTheme(.native)
         .navigationTitle("Weekly plan")
         .task { await model.load() }
@@ -81,7 +82,7 @@ public struct WeeklyPlanView: View {
                 Button { model.save() } label: {
                     Text("Save plan").jiFont(.body, weight: .semibold).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large).tint(theme.color(.info))
+                .buttonStyle(.jiPrimary)   // W-GUI TR3
                 .disabled(!model.canSave)
                 .accessibilityIdentifier("weeklyPlan.save")
                 if model.hasSaved {

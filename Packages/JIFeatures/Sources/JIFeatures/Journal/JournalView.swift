@@ -24,31 +24,34 @@ public struct JournalView: View {
         self.deckStore = deckStore
     }
 
-    public var body: some View {
-        List {
-            switch model.state {
-            case .idle, .loading:
-                Section { ProgressView().frame(maxWidth: .infinity) }
-            case .locked:
-                Section { ContentUnavailableView("Journal locked", systemImage: "lock.fill") }
-            case .error(let message):
-                Section { ContentUnavailableView(message, systemImage: "exclamationmark.triangle") }
-            case .loaded:
-                loadedSections
-            }
-            Section { Disclaimer() }
-        }
-        .jiNativeFormChrome()
-        // B-46 item 5: `readableColumn()` puts a hard `frame(maxWidth: 720)` on whatever it wraps.
-        // On a `ScrollView`'s inner `VStack` (every other screen) that is a readable-width cap; on
-        // a `List` it OVERRIDES the list's own width, so at 393 pt the list laid out 720 pt wide
-        // and its rows were clipped away — exactly the "floating card on black, title + subtitle,
-        // no rows" Toby saw. A `List` already handles readable width per platform (§8.2); it does
-        // not need, and must not get, a fixed frame.
+    @State private var showCalendar = false
+    @Environment(\.jiTheme) private var theme
 
+    public var body: some View {
+        // W-GUI J1 (mockup 09): the List became cards on the ground — streak card, two tiles,
+        // the tinted prompt card with tag chips and ONE primary (Write), the entries card, the
+        // behaviour deck, the disclaimer. Search stays in the search-role tab (B-46 item 11).
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 0) {
+                switch model.state {
+                case .idle, .loading:
+                    Surface { ProgressView().frame(maxWidth: .infinity) }
+                case .locked:
+                    Surface { ContentUnavailableView("Journal locked", systemImage: "lock.fill") }
+                case .error(let message):
+                    Surface { ContentUnavailableView(message, systemImage: "exclamationmark.triangle") }
+                case .loaded:
+                    loadedSections
+                }
+                Disclaimer().padding(.top, JISpacing.s6)
+            }
+            .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
+            .readableColumn()
+        }
+        .jiPageGround()
         .jiTheme(.native)
         .navigationTitle("Journal")
-        .navigationSubtitle("On this phone only")   // B-57 W1 board 4/01
+        .navigationSubtitle("Think · find · write")   // W-GUI J1 (mockup 09)
         .toolbar {
             #if os(iOS)
             ToolbarItem(placement: .topBarTrailing) { newEntryButton }
@@ -56,77 +59,115 @@ public struct JournalView: View {
             ToolbarItem { newEntryButton }
             #endif
         }
+        .navigationDestination(isPresented: $showCalendar) { JournalCalendarScreen(model: model) }
         .task { if model.state == .idle { await model.load() } }
         .sheet(item: $model.presentingSheet) { sheet in
             EntrySheet(model: sheet, onSave: { model.saveSheet() }, onCancel: { model.dismissSheet() })
                 .jiNativeSheetSizing()
+                .jiSheetGround()
         }
     }
 
     private var newEntryButton: some View {
-        Button { model.beginNewEntry() } label: { Image(systemName: "plus") }
-            .accessibilityLabel("New entry")
+        JIGlassButton("plus", label: "New entry") { model.beginNewEntry() }
             .accessibilityIdentifier("journal-new-entry")
     }
 
-    /// B-57 W1 board 4/01, top to bottom: Streak card (with the Mon–Sun dots) · Check-in (1–5) ·
-    /// Today's prompt · Entries (with the Calendar link). The behaviour deck keeps its place under
-    /// the entries — the board has no slot for it, and dropping it would drop a feature.
+    /// The mood of today's entry, when one exists (the streak card's Mood tile).
+    private var todayMoodScore: Int? {
+        let today = JournalCalendarZurich.isoDay(model.today)
+        return model.filteredEntries.first { $0.date == today }.flatMap { journalMoodScore($0.mood) }
+    }
+
+    /// W-GUI J1 (mockup 09), top to bottom: Streak card (+ Mon–Sun dots, mood / WHO-5 tiles) ·
+    /// Check-in (1–5) · This morning · prompt (tinted, chips, Write) · Recent entries (+ calendar
+    /// glass button) · Behaviours.
     @ViewBuilder
     private var loadedSections: some View {
-        Section {
-            BoardSummaryCard(
-                systemImage: "flame", title: "Streak", trailing: "This week",
-                value: "\(model.streak.current)", unit: model.streak.current == 1 ? "day" : "days",
-                status: model.todayWritten
-                    ? BoardStatus(word: "Written today", systemImage: "checkmark", role: .go)
-                    : BoardStatus(word: "Today open", systemImage: "minus", role: .reduced)
-            ) {
-                JournalWeekDotsRow(dots: model.weekDots)
+        Surface(level: 1, padding: JISpacing.cardPadding) {
+            VStack(alignment: .leading, spacing: JISpacing.s3) {
+                BoardSummaryCard(
+                    systemImage: "flame", title: "Streak", trailing: "This week",
+                    value: "\(model.streak.current)", unit: model.streak.current == 1 ? "day in a row" : "days in a row",
+                    valueTint: .text,
+                    status: model.todayWritten
+                        ? BoardStatus(word: "Written today", systemImage: "checkmark", role: .go)
+                        : BoardStatus(word: "Today open", systemImage: "minus", role: .reduced)
+                ) {
+                    JournalWeekDotsRow(dots: model.weekDots)
+                }
+                Text(journalStreakCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                HStack(spacing: JISpacing.tileGap) {
+                    JITile(family: .factTile) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Mood").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            Text(journalMoodTileText(score: todayMoodScore)).jiFont(.subheadline, weight: .semibold)
+                                .foregroundStyle(theme.color(todayMoodScore == nil ? .muted : .text))
+                        }
+                    }
+                    JITile(family: .factTile) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("WHO-5").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            Text("— on Mind").jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        }
+                    }
+                }
             }
-            .accessibilityIdentifier("journal-streak")
         }
+        .accessibilityIdentifier("journal-streak")
 
-        Section {
+        JISectionHeader("Check-in · 10 seconds")
+        Surface(level: 1, padding: JISpacing.cardPadding) {
             JournalMoodCheckIn { model.beginNewEntry(moodScore: $0) }
-        } header: {
-            BoardSectionHeader("Check-in", caption: "10 seconds")
         }
 
-        Section {
+        JISectionHeader("This morning · prompt")
+        Surface(level: 1, padding: JISpacing.cardPadding, tint: theme.color(.go)) {
             JournalPromptCard(prompt: JournalPrompts.todaysPrompts(model.today).first ?? "How are you feeling?") {
                 model.beginNewEntry()
             }
-        } header: {
-            BoardSectionHeader("Today\u{2019}s prompt")
         }
 
-        Section {
-            if model.filteredEntries.isEmpty {
-                EmptyEntriesRow(hasFilters: JournalSearch.hasActiveFilters(model.filters))
-            } else {
-                ForEach(model.filteredEntries.prefix(10)) { entry in
-                    EntryRow(entry: entry, onOpen: { model.beginEditEntry(entry) }, onDelete: { model.deleteEntry(entry) })
-                }
-            }
-        } header: {
-            BoardSectionHeader(title: "Entries") {
-                NavigationLink {
-                    JournalCalendarScreen(model: model)
-                } label: {
-                    Text("Calendar").jiFont(.subheadline, weight: .semibold, tint: .info)
-                }
+        HStack(alignment: .center) {
+            JISectionHeader("Recent")
+            Spacer(minLength: JISpacing.s2)
+            JIGlassButton("calendar", label: "Calendar") { showCalendar = true }
+                .padding(.trailing, JISpacing.s1)
                 .accessibilityIdentifier("journal-calendar-link")
+        }
+        Surface(level: 1, padding: 0) {
+            VStack(spacing: 0) {
+                if model.filteredEntries.isEmpty {
+                    EmptyEntriesRow(hasFilters: JournalSearch.hasActiveFilters(model.filters)).padding(.vertical, JISpacing.s3)
+                } else {
+                    let entries = Array(model.filteredEntries.prefix(10))
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 { JIRowDivider().padding(.leading, 0) }
+                        EntryRow(entry: entry, onOpen: { model.beginEditEntry(entry) }, onDelete: { model.deleteEntry(entry) })
+                    }
+                }
             }
+            .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
         }
 
-        Section {
+        JISectionHeader("Behaviours")
+        Surface(level: 1, padding: JISpacing.cardPadding) {
             BehaviorCardDeck(store: deckStore)
-        } header: {
-            BoardSectionHeader("Behaviours")
         }
+        Text(journalLocalCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s4)
     }
 }
+
+// MARK: - W-GUI J1 (mockup 09) copy, pure
+
+public nonisolated let journalStreakCaption = "Missing a day does not reset anything"
+public nonisolated let journalLocalCaption = "Journal and Mind live on the device. Tags like the ones above are what the coach can later correlate with HRV."
+/// The prompt card's tag chips (mockup 09) — words the coach can later correlate; display only.
+public nonisolated let journalPromptTags = ["Sleep timing", "Work stress", "Late meal", "Alcohol", "Illness"]
+/// "3/5" for today's mood, "—" when today has no entry with a mood.
+public nonisolated func journalMoodTileText(score: Int?) -> String { score.map { "\($0)/5" } ?? "—" }
 
 /// The streak card's Mon–Sun row: a filled dot for a written day, a dashed ring for today while
 /// it is still open, a faint ring for days to come.
@@ -247,14 +288,17 @@ private struct EntryRow: View {
                     Text("/5").jiFont(.footnote, tint: .muted)
                 }
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: JIRowMetrics.minHeight - 2 * JIRowMetrics.verticalPadding)
+            .padding(.vertical, JIRowMetrics.verticalPadding)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .swipeActions(edge: .trailing) {
+        .buttonStyle(.pressableScale)
+        // W-GUI J1: outside a List there is no swipe action; the delete lives in the context menu.
+        .contextMenu {
             Button("Delete", role: .destructive, action: onDelete)
                 .accessibilityIdentifier("journal-entry-delete")
         }
+        .accessibilityAction(named: "Delete", onDelete)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Entry \(entry.date)")
         .accessibilityValue("\(score.map { "Mood \($0) of 5" } ?? "No mood"). \(snippet)")

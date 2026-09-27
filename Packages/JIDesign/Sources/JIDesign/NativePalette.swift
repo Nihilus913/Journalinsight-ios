@@ -9,6 +9,22 @@ import AppKit
 /// light/dark and `ThemePrefs.mode` keep working) and verdicts to the system tints.
 /// watchOS has no UIKit semantic colours: `label` on black (spec §1), greys hand-picked.
 enum JINativePalette {
+    /// W-GUI F4 — report §4.3 dark values of the metric roles (light mode keeps system tints).
+    /// Pinned here so tests read the hex, not a trait-resolved dynamic colour.
+    nonisolated static let darkHex: [JIColorRole: (Int, Int, Int)] = [
+        .hrv: (0x6F, 0xA8, 0xFF), .sleep: (0x8F, 0xA8, 0xFF), .rhr: (0xFF, 0x9F, 0x8A), .load: (0xC8, 0xA2, 0xFF),
+    ]
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    /// A dynamic colour: the report's dark hex, the system tint in light mode.
+    static func dynamic(dark: (Int, Int, Int), light: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: CGFloat(dark.0) / 255, green: CGFloat(dark.1) / 255, blue: CGFloat(dark.2) / 255, alpha: 1)
+                : light
+        })
+    }
+    #endif
+
     static func color(_ role: JIColorRole) -> Color {
         #if os(iOS) || os(tvOS) || os(visionOS)
         switch role {
@@ -26,8 +42,12 @@ enum JINativePalette {
         case .reduced: Color(uiColor: .systemOrange)
         case .danger: Color(uiColor: .systemRed)
         case .info: JIAccent.shared.color
-        case .hrv: Color(uiColor: .systemBlue)
-        case .sleep: Color(uiColor: .systemPurple)
+        // W-GUI F4 (report §4.3): the dark metric hexes; system tints stay in light mode.
+        case .hrv: Self.dynamic(dark: Self.darkHex[.hrv]!, light: .systemBlue)
+        case .sleep: Self.dynamic(dark: Self.darkHex[.sleep]!, light: .systemPurple)
+        case .rhr: Self.dynamic(dark: Self.darkHex[.rhr]!, light: UIColor(red: 0.80, green: 0.33, blue: 0.24, alpha: 1))
+        case .load: Self.dynamic(dark: Self.darkHex[.load]!, light: .systemIndigo)
+        case .steps: Color(uiColor: .label)
         case .kcal: Color(uiColor: .systemOrange)
         case .protein: Color(uiColor: .systemPink)
         case .carbs: Color(uiColor: .systemYellow)
@@ -51,6 +71,9 @@ enum JINativePalette {
         case .info: JIAccent.shared.color
         case .hrv: Color(nsColor: .systemBlue)
         case .sleep: Color(nsColor: .systemPurple)
+        case .rhr: Color(red: 1.0, green: 0.62, blue: 0.54)
+        case .load: Color(red: 0.78, green: 0.64, blue: 1.0)
+        case .steps: Color(nsColor: .labelColor)
         case .kcal: Color(nsColor: .systemOrange)
         case .protein: Color(nsColor: .systemPink)
         case .carbs: Color(nsColor: .systemYellow)
@@ -74,6 +97,9 @@ enum JINativePalette {
         case .info: JIAccent.shared.color
         case .hrv: .blue
         case .sleep: .purple
+        case .rhr: Color(red: 1.0, green: 0.62, blue: 0.54)
+        case .load: Color(red: 0.78, green: 0.64, blue: 1.0)
+        case .steps: .primary
         case .kcal: .orange
         case .protein: .pink
         case .carbs: .yellow

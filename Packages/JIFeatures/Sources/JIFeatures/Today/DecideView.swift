@@ -105,6 +105,38 @@ public nonisolated func decideActionBarBottomClearance(_ width: JIWidthClass) ->
 /// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
 public nonisolated let decideGoForeground = Color.black
 
+// MARK: - W-GUI T1 (mockups 01 / 10)
+
+/// The hero card's tint: the verdict's own role (go / amber / red); none while syncing.
+public nonisolated func decideHeroTintRole(tone: VerdictTone, syncing: Bool) -> JIColorRole? {
+    syncing ? nil : verdictColorRole(tone)
+}
+
+/// The readiness ring's caption. The score is not on the hub yet (plan §B: W3) — the ring shows
+/// "—" with the honest reason and the count of overnight nights already on the phone; with a
+/// score it is just the word.
+public nonisolated func decideReadinessCaption(score: Double?, nights: Int?) -> String {
+    guard score == nil else { return "Readiness" }
+    let n = min(max(nights ?? 0, 0), 7)
+    return "Readiness needs 7 overnight nights · \(n) of 7 so far · \(JIMissingReason.calibrating.rawValue)"
+}
+
+/// Report §7: ONE primary button per screen. Go is the primary; Adjust is secondary; a rest day
+/// (no Adjust) still has exactly one.
+public nonisolated enum DecideButtonRole: Sendable, Equatable { case primary, secondary }
+public nonisolated func decideButtonRoles(showsAdjust: Bool) -> [DecideButtonRole] {
+    showsAdjust ? [.primary, .secondary] : [.primary]
+}
+
+/// The one RMSSD / SDNN footnote (mockups 01 / 10), shown once under the signals.
+public nonisolated let decideHrvFootnote = "HRV here is overnight RMSSD from the Watch. The Health app's daytime HRV is SDNN, a different calculation; the two are not comparable."
+
+public extension EnvironmentValues {
+    /// W-GUI T1: the "How the morning call works" row's destination (mockup 01), set by the
+    /// app's gate wiring like `gateRationaleModel`; `nil` leaves the row inert.
+    @Entry var gateConfigModel: GateConfigViewModel? = nil
+}
+
 // MARK: - View
 
 /// B-57 §2 + §9 Decide (W1 board): date + synced pill, the (effective) verdict word + session, the
@@ -129,7 +161,12 @@ public struct DecideView: View {
     let banner: StalenessBanner?
     let now: Date
     let onAdvance: () -> Void
+    /// W-GUI T1: overnight nights already on the phone (the readiness ring's "n of 7"); nil = unknown.
+    let calibrationNights: Int?
     @State private var showAdjust = false
+    @State private var showGateConfig = false
+    @Environment(\.gateConfigModel) private var gateConfigModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -137,11 +174,12 @@ public struct DecideView: View {
     public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
-                banner: StalenessBanner? = nil, now: Date = Date(), onAdvance: @escaping () -> Void) {
+                banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
+        self.calibrationNights = calibrationNights
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -151,15 +189,16 @@ public struct DecideView: View {
     @ViewBuilder
     private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
         // W-FIX3 BUG-30 (board 01): black "Go" on the green button, never white.
+        // W-GUI F9 (report §4.5): the ONE primary button — accent fill, black label (BUG-30 kept).
         Button { go() } label: { Text("Go").foregroundStyle(decideGoForeground).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
-            .buttonStyle(.borderedProminent).tint(theme.color(.go))
+            .buttonStyle(.jiPrimary)
             .disabled(!actions.go || submitting)
             .accessibilityIdentifier("today.decide.go")
         if showsAdjust {
             Button { showAdjust = true } label: {
                 Text("Adjust").lineLimit(1).fixedSize().frame(maxWidth: stacked ? .infinity : nil)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.jiSecondary)
             .disabled(submitting)
             .accessibilityIdentifier("today.decide.adjust")
         }
@@ -202,7 +241,7 @@ public struct DecideView: View {
                     .readableColumn()
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 12 + decideActionBarBottomClearance(sizeClass == .regular ? .regular : .compact))
-                    .background(theme.color(.bg))
+                    .background { JIPageGround().opacity(0.92) }   // W-GUI T1: the ground, not a flat bar
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("today.decide.actions")
             }
@@ -214,10 +253,13 @@ public struct DecideView: View {
         }
     }
 
+    /// W-GUI T1 (mockup 01): the tinted hero — date + pill, verdict, session, the one human why,
+    /// the readiness ring with its honest reason — then "What drove it" as its own grouped card
+    /// with the signal rows and "How the morning call works", and the RMSSD / SDNN footnote once.
     @ViewBuilder
     private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, inlineActions: Bool) -> some View {
-        Surface(level: 1, padding: 24) {
-            VStack(alignment: .leading, spacing: 14) {
+        Surface(level: 1, padding: JISpacing.cardPadding, tint: decideHeroTintRole(tone: shown.tone, syncing: syncing).map { theme.color($0) }) {
+            VStack(alignment: .leading, spacing: 12) {
                 // r4 AX3: side by side while both fit whole; otherwise the pill drops under the date
                 // (never squeezed into a one-character-per-line column).
                 let dateText = Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
@@ -234,58 +276,86 @@ public struct DecideView: View {
                     }
                 }
                 Text("YOUR CALL FOR TODAY").jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
-                Text(syncing ? "Syncing…" : decideWord(shown))
-                    .jiNumeral(.numeralDisplay, weight: .heavy)
-                    .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
-                    .lineLimit(1).minimumScaleFactor(0.4)
-                    .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
-                    .accessibilityIdentifier("today.readinessGauge")
-                if !syncing, !shown.session.isEmpty {
-                    Text(shown.session).jiFont(.cardTitleLarge, weight: .bold).foregroundStyle(theme.color(.text))
-                        .accessibilityIdentifier("today.verdict.session")
+                // AX sizes: the ring drops under the words (side by side it squeezed the verdict to one
+                // character per line); below AX it sits beside them as in mockup 01.
+                let heroLayout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: JISpacing.s3))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: JISpacing.s3))
+                heroLayout {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(syncing ? "Syncing…" : decideWord(shown))
+                            .jiNumeral(.numeralHero, weight: .heavy)
+                            .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                            .lineLimit(1).minimumScaleFactor(0.4)
+                            .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
+                            .accessibilityIdentifier("today.readinessGauge")
+                        if !syncing, !shown.session.isEmpty {
+                            Text(shown.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("today.verdict.session")
+                        }
+                    }
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    DecideReadinessRing(score: readiness, nights: calibrationNights)
                 }
                 if !syncing, let wasCaption {
                     Text(wasCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("today.decide.was")
                 }
                 if !syncing {
+                    // The one human why: the hub's reduced prescription on an amber day, else the
+                    // verdict's own reason line (a pre-048 verdict).
                     if let prescription = decidePrescriptionLine(verdict: verdict, override: override) {
                         Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("today.decide.prescription")
-                    }
-                    if let gateSignals {
-                        DecideSignalsSection(signals: gateSignals, normals: normals)
-                    } else if let reason = verdictReasonLine(verdict) {
+                    } else if gateSignals == nil, let reason = verdictReasonLine(verdict) {
                         Text(reason).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("today.decide.reason")
+                    }
+                }
+                if inlineActions { actionRows(actions: actions, showsAdjust: showsAdjust) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        if !syncing {
+            JISectionHeader("What drove it")
+            Surface(level: 1, padding: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let gateSignals {
+                        DecideSignalsSection(signals: gateSignals, normals: normals)
+                            .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
                     }
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     Button { openDay() } label: {
-                        Surface(level: 2) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "dumbbell").foregroundStyle(theme.color(.info)).accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(row.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
-                                    Text(row.detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right").foregroundStyle(theme.color(.muted)).accessibilityHidden(true)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .contentShape(Rectangle())
+                        JIChevronRow(title: row.title, value: row.detail, systemImage: "dumbbell")
+                            .padding(.horizontal, JISpacing.s4)
                     }
                     .buttonStyle(.pressableScale)
                     .disabled(!decideSessionRowOpensDay(syncing: syncing) || submitting)
                     .accessibilityElement(children: .combine)
                     .accessibilityHint("Opens your day")
                     .accessibilityIdentifier("today.decide.session")
+                    JIRowDivider().padding(.leading, JISpacing.s4)
+                    Button { if gateConfigModel != nil { showGateConfig = true } } label: {
+                        JIChevronRow(title: "How the morning call works", value: nil, systemImage: "questionmark.circle")
+                            .padding(.horizontal, JISpacing.s4)
+                    }
+                    .buttonStyle(.pressableScale)
+                    .disabled(gateConfigModel == nil)
+                    .accessibilityHint(gateConfigModel == nil ? "" : "Opens the morning call settings")
+                    .accessibilityIdentifier("today.decide.gateConfig")
                 }
-                if inlineActions { actionRows(actions: actions, showsAdjust: showsAdjust) }
+                .padding(.vertical, 6)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .navigationDestination(isPresented: $showGateConfig) {
+                if let gateConfigModel { GateConfigView(model: gateConfigModel) }
+            }
+            Text(decideHrvFootnote).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, JISpacing.s4)
+                .accessibilityIdentifier("today.decide.hrvFootnote")
         }
     }
 
@@ -300,6 +370,7 @@ public struct DecideView: View {
                         }
                         .padding(.horizontal, 20).padding(.bottom, 24)
                     }
+                    .jiPageGround()
                     .background(theme.color(.bg))
                     .navigationTitle("Adjust")
                     .toolbar {
@@ -386,7 +457,7 @@ public struct VerdictAdjustForm: View {
             } label: {
                 Text("Save my call").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent).tint(theme.color(.info)).controlSize(.large)
+            .buttonStyle(.jiPrimary)   // W-GUI T2: the sheet's one primary
             .disabled(choice == nil || model?.phase == .submitting)
             .accessibilityIdentifier("today.decide.adjust.save")
         }
@@ -442,5 +513,39 @@ public struct VerdictAdjustForm: View {
             .accessibilityLabel(r)
             .accessibilityAddTraits(selected ? [.isSelected] : [])
             .accessibilityIdentifier("today.decide.adjust.reason.\(r)")
+    }
+}
+
+
+// MARK: - W-GUI T1: readiness ring
+
+/// The readiness ring beside the verdict (mockup 01): the score in a ring when the hub has one,
+/// else "—" with the honest caption (plan §B: the score lands in W3). The number is never a
+/// verdict colour (rule 6): it wears the text colour; the ring track is the nested fill.
+struct DecideReadinessRing: View {
+    let score: Double?, nights: Int?
+    @Environment(\.jiTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var side: CGFloat = 64
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                if let score {
+                    ScoreRing(value: score, max: 100, tint: theme.color(.text), size: side)
+                    Text(jiNumber(score, 0)).jiNumeral(.numeralSmall, tint: .text)
+                } else {
+                    Circle().stroke(theme.color(.nested), lineWidth: side * 0.14).frame(width: side, height: side)
+                    Text("—").jiNumeral(.numeralSmall, tint: .muted)
+                }
+            }
+            Text(decideReadinessCaption(score: score, nights: nights))
+                .jiFont(.micro).foregroundStyle(theme.color(.muted))
+                .multilineTextAlignment(.center)
+                .frame(width: side * 1.9)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(decideReadinessCaption(score: score, nights: nights) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
+        .accessibilityIdentifier("today.decide.readinessRing")
     }
 }

@@ -248,7 +248,7 @@ private func makeB45VM(
 @Test func todayCardRendersTheAsOfDayTheChipCarries() {
     let stale = TodayChip(id: "hrv", label: "HRV", value: 28, unit: "ms", points: [28], sourceMissing: false, asOf: "as of Sep 15")
     let spec = todaySummaryCardSpec(for: stale)
-    #expect(spec.timestamp == "as of Sep 15")
+    #expect(spec.timestamp?.hasPrefix("as of Sep 15") == true)   // W-GUI T3 (DEV-09): HRV appends the method word
     #expect(spec.value == "28")
     #expect(spec.unit == "ms")
     // …and VoiceOver says it too, rather than announcing the number bare.

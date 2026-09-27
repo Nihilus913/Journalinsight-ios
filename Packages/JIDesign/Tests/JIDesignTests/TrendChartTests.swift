@@ -38,3 +38,10 @@ private func points(_ n: Int) -> [TrendPoint] {
         TrendChart(points: [], tint: .blue, unit: nil, range: .constant(.day), showAll: nil)
     }
 }
+
+// W-GUI S1: sum metrics are bars from zero with a dashed goal.
+@Test @MainActor func sumTrendChartRenders() {
+    expectRenders("TrendChart sum + goal", width: 360, height: 300) {
+        TrendChart(points: points(14), tint: .orange, unit: "kcal", range: .constant(.week), showAll: nil, kind: .sum, goal: 10)
+    }
+}

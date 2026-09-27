@@ -115,6 +115,9 @@ public struct JournalCalendarScreen: View {
             Section { dayCard }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .jiTheme(.native)
         .navigationTitle(journalCalendarTitle(tab, anchor: anchor))
         .toolbar {

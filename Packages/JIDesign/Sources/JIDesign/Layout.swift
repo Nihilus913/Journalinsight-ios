@@ -11,18 +11,28 @@ public nonisolated func columnCount(availableWidth: CGFloat, minimum: CGFloat, s
 /// Every tile grid: 2-up on an iPhone, 3–4 in a readable column on iPad / Max landscape.
 public struct Columns<Content: View>: View {
     let minimum: CGFloat, spacing: CGFloat, content: Content
+    /// W-GUI F7 (DEV-06): when set, every cell gets the family's fixed height.
+    let tileHeight: JITileHeight?
     /// The tile floor grows with the type size, so AX3 drops a 2-up grid to 1-up instead of
     /// squeezing a card until its title breaks mid-word (§8.1 "reflows, never clips").
     @ScaledMetric(relativeTo: .body) private var scaledMinimum: CGFloat = 160
 
-    public init(minimum: CGFloat = 160, spacing: CGFloat = 12, @ViewBuilder content: () -> Content) {
-        self.minimum = minimum; self.spacing = spacing; self.content = content()
+    public init(minimum: CGFloat = 160, spacing: CGFloat = JISpacing.cardGap, tileHeight: JITileHeight? = nil, @ViewBuilder content: () -> Content) {
+        self.minimum = minimum; self.spacing = spacing; self.tileHeight = tileHeight; self.content = content()
         self._scaledMinimum = ScaledMetric(wrappedValue: minimum, relativeTo: .body)
     }
     public var body: some View {
         // `.top`: tiles in one row differ in height, and the default centre alignment offsets
         // the shorter card against its neighbour.
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: scaledMinimum), spacing: spacing, alignment: .top)], spacing: spacing) { content }
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: scaledMinimum), spacing: spacing, alignment: .top)], spacing: spacing) {
+            if let tileHeight {
+                // `Group` applies the modifier to each child of the builder, so every cell is the
+                // family height (DEV-06), including the cells of a nested `ForEach`.
+                Group { content }.jiTileHeight(tileHeight)
+            } else {
+                content
+            }
+        }
     }
 }
 

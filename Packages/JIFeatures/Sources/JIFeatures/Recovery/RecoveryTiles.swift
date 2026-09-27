@@ -57,9 +57,56 @@ public nonisolated func recoveryNightLabel(_ day: String) -> String {
     return symbols[c.component(.weekday, from: d) - 1]
 }
 
-public nonisolated func recoveryHrvNights(days: [RecoveryDay]) -> [NormalBarPoint] {
-    let last = days.sorted { $0.date < $1.date }.suffix(7)
-    return last.enumerated().map { i, d in
-        NormalBarPoint(id: d.date, label: recoveryNightLabel(d.date), value: KpiMetrics.nightlyHrvMs(d), isLatest: i == last.count - 1)
+public nonisolated func recoveryHrvNights(days: [RecoveryDay]) -> [NormalBarPoint] { recoveryNights(days: days, metric: .hrv) }
+
+// MARK: - W-GUI R1 (mockup 03): the three metric cards, pure
+
+/// The metrics Recovery draws as cards (in this order); Load and the rest are "Also watching".
+public nonisolated enum RecoveryCardMetric: String, CaseIterable, Sendable, Equatable {
+    case hrv, rhr, sleep
+    public var title: String { switch self { case .hrv: "Overnight HRV"; case .rhr: "Resting HR"; case .sleep: "Sleep" } }
+    public var symbol: String { switch self { case .hrv: "waveform.path.ecg"; case .rhr: "heart.fill"; case .sleep: "moon.fill" } }
+    public var unit: String { switch self { case .hrv: "ms RMSSD"; case .rhr: "bpm"; case .sleep: "score" } }
+    public var decimals: Int { 0 }
+    /// The square id the card's tap opens (`openKpiDetail`).
+    public var kpiId: String { rawValue }
+    public var tint: JIColorRole { metricTintRole(rawValue) }
+    nonisolated func value(_ d: RecoveryDay) -> Double? {
+        switch self { case .hrv: KpiMetrics.nightlyHrvMs(d); case .rhr: d.rhrBpm; case .sleep: d.sleepScore }
     }
 }
+
+/// The last 7 nights of a card's metric as chart points (missing nights stay missing).
+public nonisolated func recoveryNights(days: [RecoveryDay], metric: RecoveryCardMetric) -> [NormalBarPoint] {
+    let last = days.sorted { $0.date < $1.date }.suffix(7)
+    return last.enumerated().map { i, d in
+        NormalBarPoint(id: d.date, label: recoveryNightLabel(d.date), value: metric.value(d), isLatest: i == last.count - 1)
+    }
+}
+
+/// The card's headline: last night's value while it is last night (BUG-05/06 rule, same as the
+/// squares), else nil — with its date word.
+public nonisolated func recoveryCardReading(days: [RecoveryDay], metric: RecoveryCardMetric, now: Date = Date()) -> (value: Double?, asOf: String?) {
+    let today = String(now.ISO8601Format().prefix(10))
+    guard let r = newest(days, metric.value), KpiMetrics.isLastNightFresh(nightDate: r.date, now: now) else { return (nil, nil) }
+    return (r.value, kpiAsOfLabel(valueDate: r.date, today: today))
+}
+
+/// "your normal 27–30" once the band exists (W3); until then "your normal —" (never a number).
+public nonisolated func recoveryNormalText(_ normal: ClosedRange<Double>?, decimals: Int = 0) -> String {
+    normal.map { "your normal \(jiNumber($0.lowerBound, decimals))–\(jiNumber($0.upperBound, decimals))" } ?? "your normal —"
+}
+
+/// A sleep fact tile's value: "7 h 24" from seconds; "— not read" when the field is absent.
+public nonisolated func recoverySleepDuration(seconds: Double?) -> String {
+    guard let seconds, seconds > 0 else { return "— not read" }
+    let m = Int((seconds / 60).rounded())
+    return "\(m / 60) h \(String(format: "%02d", m % 60))"
+}
+
+public nonisolated func recoverySubtitle(nights: Int) -> String {
+    "How you are trending · \(nights) night\(nights == 1 ? "" : "s")"
+}
+public nonisolated let recoveryMonitorCaption = "Trends only. Nothing on this screen decides your day, and none of it is a medical reading."
+public nonisolated let recoveryRhrCaption = "Overnight only. Daytime HR is not used."
+

@@ -13,14 +13,16 @@ public nonisolated func summaryCardAccessibilityLabel(title: String, value: Stri
 public struct SummaryCard: View {
     let icon: String, tint: Color, title: String, value: String?, unit: String?, timestamp: String?
     let sparkline: [Double?], sourceMissing: Bool, action: (() -> Void)?
+    /// W-GUI F7 (DEV-06): the card's fixed-height family (`nil` = hug content, previews only).
+    let family: JITileHeight?
     @Environment(\.jiTheme) private var theme
-    @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 64
-    @ScaledMetric(relativeTo: .body) private var sparkHeight: CGFloat = 24
+    @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 72
+    @ScaledMetric(relativeTo: .body) private var sparkHeight: CGFloat = 40
 
     public init(icon: String, tint: Color, title: String, value: String?, unit: String? = nil, timestamp: String? = nil,
-                sparkline: [Double?] = [], sourceMissing: Bool = false, action: (() -> Void)? = nil) {
+                sparkline: [Double?] = [], sourceMissing: Bool = false, family: JITileHeight? = .square, action: (() -> Void)? = nil) {
         self.icon = icon; self.tint = tint; self.title = title; self.value = value; self.unit = unit
-        self.timestamp = timestamp; self.sparkline = sparkline; self.sourceMissing = sourceMissing; self.action = action
+        self.timestamp = timestamp; self.sparkline = sparkline; self.sourceMissing = sourceMissing; self.family = family; self.action = action
     }
 
     public var body: some View {
@@ -50,14 +52,17 @@ public struct SummaryCard: View {
                             sparklineView
                         }
                     }
+                    // W-GUI F7: the caption is pinned to the bottom edge of the fixed tile.
+                    Spacer(minLength: 0)
                     if sourceMissing {
-                        Text(sourceMissingCopy).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        Text(sourceMissingCopy).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
                     } else if let timestamp {
-                        Text(timestamp).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        Text(timestamp).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .modifier(JIOptionalTileHeight(family: family))
         }
         .buttonStyle(.pressableScale)
         .disabled(action == nil)
@@ -76,7 +81,9 @@ public struct SummaryCard: View {
 
     @ViewBuilder private var sparklineView: some View {
         if sparkline.compactMap({ $0 }).count >= 2 {
-            Sparkline(points: sparkline).frame(width: sparkWidth, height: sparkHeight)
+            // W-GUI T3 (report §4.4): a sparkline with its two axis words; the value is printed
+            // beside it already, so the line does not repeat it. No band until W3 (never a fake one).
+            NormalSparkline(points: sparkline, color: tint, showsLastValue: false).frame(width: sparkWidth, height: sparkHeight)
         }
     }
 
@@ -95,5 +102,13 @@ public struct SummaryCard: View {
             Text(unit).jiFont(.subheadline, weight: .semibold).foregroundStyle(tint)
                 .lineLimit(1).minimumScaleFactor(0.6)
         }
+    }
+}
+
+/// W-GUI F7: applies a family height when one is set; `nil` hugs content.
+struct JIOptionalTileHeight: ViewModifier {
+    let family: JITileHeight?
+    func body(content: Content) -> some View {
+        if let family { content.jiTileHeight(family) } else { content }
     }
 }

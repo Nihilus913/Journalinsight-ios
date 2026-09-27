@@ -101,6 +101,9 @@ public struct AppearanceView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .tint(accent)

@@ -61,7 +61,8 @@ public struct GateConfigView: View {
             previewSection
             Section {
                 Button { model.useRecommended() } label: { Text("Use recommended").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).tint(theme.color(.info))
+                    .buttonStyle(.jiPrimary)   // W-GUI T6: accent, never a metric colour (BUG-31)
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     .accessibilityIdentifier("gateConfig.useRecommended")
             } footer: {
                 Text("Calorie, protein and weight targets live in Goals.")
@@ -70,7 +71,10 @@ public struct GateConfigView: View {
                 .accessibilityIdentifier("gateConfig.advanced")
         }
         // §5: a `Form` keeps the system grouped background and the inset-grouped cells.
-        .jiNativeFormChrome()   // `.insetGrouped` on iOS, no-op on the macOS test host
+        .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()   // `.insetGrouped` on iOS, no-op on the macOS test host
         .navigationTitle("Gate thresholds")
         .task { if !offscreen { await model.load() } }
     }

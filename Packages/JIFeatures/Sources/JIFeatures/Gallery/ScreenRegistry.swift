@@ -50,6 +50,9 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Energy") { AnyView(EnergyNativePreview()) },
         ScreenEntry(name: "KPIs") { AnyView(KpiListNativePreview()) },
         ScreenEntry(name: "KPI detail") { AnyView(KpiDetailNativePreview()) },
+        // W-GUI R2: the RHR (20) and Sleep (21) fixtures of the same screen.
+        ScreenEntry(name: "KPI detail RHR") { AnyView(KpiDetailNativePreview(metric: .rhr)) },
+        ScreenEntry(name: "KPI detail sleep") { AnyView(KpiDetailNativePreview(metric: .sleep)) },
         ScreenEntry(name: "KPI detail nutrition") { AnyView(KpiDetailNutritionNativePreview()) },
 
         // MARK: L6 — Journal · Mind · Coach · Settings & Data (B-33 Phase B). Append-only.

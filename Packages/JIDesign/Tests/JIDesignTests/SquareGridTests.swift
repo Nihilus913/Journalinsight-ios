@@ -85,3 +85,23 @@ struct SquareGridTests {
         expectRenders("SquareGrid empty", height: 120) { SquareGrid(items: [], editing: true, onAdd: {}) }
     }
 }
+
+// W-GUI F7 (DEV-06): one fixed height per family — every cell in a grid is the family height.
+extension SquareGridTests {
+    @Test func squareFamilyIsTodayOrCatalogue() {
+        #expect(squareTileFamily(catalog: false) == .square)
+        #expect(squareTileFamily(catalog: true) == .catalogSquare)
+        #expect(JITileHeight.square.base == 172 && JITileHeight.catalogSquare.base == 104)
+    }
+
+    @Test @MainActor func gridRendersAtDefaultAndAX3InBothFamilies() {
+        for family in [JITileHeight.square, .catalogSquare] {
+            for size in [DynamicTypeSize.large, .accessibility3] {
+                expectRenders("SquareGrid \(family) \(size)", width: 393, height: 600) {
+                    SquareGrid(items: [hrv, rhr, kcal], editing: true, family: family, onBadge: { _ in }, onAdd: {})
+                        .environment(\.dynamicTypeSize, size)
+                }
+            }
+        }
+    }
+}

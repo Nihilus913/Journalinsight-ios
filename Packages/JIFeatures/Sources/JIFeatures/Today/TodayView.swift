@@ -17,6 +17,9 @@ public struct TodayView: View {
     @State private var showMorningReview = false
     /// W-FIX3 BUG-28: board 02's "Week review" footer link opens the gate rationale (weekly gate).
     @State private var showWeekReview = false
+    @State private var showEditToday = false
+    @Environment(\.nutritionGoals) private var nutritionGoals
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// W-FIX3 C-g: the Coach card's measured height (it grows with type size and its sentence).
     @State private var coachCardHeight: CGFloat = 0
     @Environment(\.gateRationaleModel) private var rationaleModel
@@ -60,7 +63,10 @@ public struct TodayView: View {
         // from the summary line it is read-only (dismiss only closes it, nothing advances).
         .overlay(alignment: .bottom) {
             if model.phase == .loaded, model.morningState == .coach || showMorningReview {
-                CoachOverlayCard(change: coachContent.change) {
+                // W-GUI T4 (mockup 12): the change, the signals it cites, and — re-opened from the
+                // summary line — the time of the call (the override's own timestamp).
+                CoachOverlayCard(change: coachContent.change, note: coachOverlayNote(coachContent),
+                                 time: showMorningReview ? coachCallTime(currentOverride?.createdAt) : nil) {
                     if model.morningState == .coach { model.morningEvent(.coachAcknowledged) }
                     showMorningReview = false
                 }
@@ -134,36 +140,66 @@ public struct TodayView: View {
         // EditToday squares → footer. The old hero, rings, raw insight, Felt row, EA and Mind are gone.
         // W-FIX2 DEV-03: the newer of the hub's last sync and this app's last 2xx HealthKit upload.
         HStack { Spacer(); SyncedPill(date: model.syncedAt) }.accessibilityIdentifier("today.day.synced")
-        MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
-                           caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
-                           override: currentOverride) {
-            showMorningReview = true
+        // W-GUI T3 (mockup 02): the summary line is the ONE tinted card of the Day.
+        Surface(level: 1, padding: JISpacing.s3, tint: theme.color(verdictColorRole(shownVerdict.tone))) {
+            MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
+                               caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
+                               override: currentOverride) {
+                showMorningReview = true
+            }
         }
+        JISectionHeader("Next")
         nextCard
+        HStack(alignment: .firstTextBaseline) {
+            JISectionHeader("Fuel today")
+            Spacer(minLength: JISpacing.s2)
+            if let asOf = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString).asOf {
+                Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).padding(.trailing, JISpacing.s4)
+            }
+        }
         fuelCard
+        JISectionHeader("Tonight")
         tonightCard
+        HStack(alignment: .center) {
+            JISectionHeader("Your squares")
+            Spacer(minLength: JISpacing.s2)
+            // W-GUI T3 (report §7 rule 2): Edit is a glass round button, never a text link.
+            JIGlassButton("pencil", label: "Edit Today") { showEditToday = true }
+                .padding(.trailing, JISpacing.s1)
+                .accessibilityIdentifier("today.day.edit")
+        }
         // W-FIX2 fixer BUG-19: the grid gets every square EditToday lists (`gridChips`), not the four.
         TodayGrid(chips: model.gridChips, prefs: model.tileOrderStore, onSelectKpi: onSelectKpi)
-        // B-57 W1: the Trends card became a full screen, reached from this footer link.
-        HStack {
-            Group {
-                if let onOpenTrends {
-                    Button(action: onOpenTrends) { footerLabel("Trends") }
-                } else {
-                    NavigationLink {
-                        TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
-                    } label: { footerLabel("Trends") }
+        // W-GUI T3 (DEV-07, mockup 02): Trends / Week review are chevron rows in one grouped card,
+        // never underlined text. BUG-13 (router push) and BUG-28 (weekly gate) routes unchanged.
+        Surface(level: 1, padding: 0) {
+            VStack(spacing: 0) {
+                Group {
+                    if let onOpenTrends {
+                        Button(action: onOpenTrends) { dayFooterRow(.trends) }
+                    } else {
+                        NavigationLink {
+                            TrendsView(recovery: model.recovery, daily: model.gate?.daily ?? [], averages: model.gate?.averages, onSelectKpi: onSelectKpi)
+                        } label: { dayFooterRow(.trends) }
+                    }
+                }
+                .buttonStyle(.pressableScale)
+                .accessibilityIdentifier("today.footer.trends")
+                // Board 02 "Week review": the weekly gate (nutrition, rules, the weekly answer) lives on the rationale.
+                if rationaleModel != nil {
+                    JIRowDivider()
+                    Button { showWeekReview = true } label: { dayFooterRow(.weekReview) }
+                        .buttonStyle(.pressableScale)
+                        .accessibilityIdentifier("today.footer.weekReview")
                 }
             }
-            .buttonStyle(.pressableScale)
-            .accessibilityIdentifier("today.footer.trends")
-            Spacer()
-            // Board 02 "Week review": the weekly gate (nutrition, rules, the weekly answer) lives on the rationale.
-            if rationaleModel != nil {
-                Button { showWeekReview = true } label: { footerLabel("Week review") }
-                    .buttonStyle(.pressableScale)
-                    .accessibilityIdentifier("today.footer.weekReview")
+            .padding(.vertical, 6).padding(.horizontal, JISpacing.s4)
+        }
+        .sheet(isPresented: $showEditToday) {
+            NavigationStack {
+                EditTodayView(model: EditTodayViewModel(prefs: model.tileOrderStore, chips: model.gridChips)) { showEditToday = false }
             }
+            .jiSheetGround()
         }
         .navigationDestination(isPresented: $showWeekReview) {
             if let rationaleModel { gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel) }
@@ -175,9 +211,10 @@ public struct TodayView: View {
         }
     }
 
-    private func footerLabel(_ text: String) -> some View {
-        Text(text).jiFont(.subheadline, weight: .semibold).underline().foregroundStyle(theme.color(.info))
-            .frame(minHeight: 44)
+    /// W-GUI T3: the footer rows (mockup 02) — a chevron row each, with the mockup's subtitle
+    /// as the value slot; Week review's count is not on the phone (plan §B: W5) → "—".
+    private func dayFooterRow(_ row: DayFooterRow) -> some View {
+        JIChevronRow(title: row.title, value: row.value, systemImage: row.systemImage)
     }
 
     private func dayCardHeader(_ title: String, trailing: String? = nil) -> some View {
@@ -192,11 +229,18 @@ public struct TodayView: View {
     private var nextCard: some View {
         let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
                                plan: model.exercises, weekday: model.todayWeekday)
-        return Surface(level: 1, padding: 16) {
+        let template = dayNextTemplate(rows: card.rows)
+        return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("NEXT").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.info))
-                Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
-                    .fixedSize(horizontal: false, vertical: true)
+                // W-GUI T3 (DEV-10 GUI half, mockup 02): the card's title row names the session with
+                // its kind's symbol; the two templates (strength = exercise rows, cardio = the
+                // prescription) key off the existing PF-02 plan match — no new rule.
+                HStack(spacing: JISpacing.s2) {
+                    Image(systemName: template == .strength ? "dumbbell.fill" : "figure.run")
+                        .foregroundStyle(theme.color(.info)).accessibilityHidden(true)
+                    Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let prescription = card.prescription {
                     Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
@@ -235,23 +279,44 @@ public struct TodayView: View {
     /// planned lunch, which has no source on the phone yet.
     private var fuelCard: some View {
         let fuel = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString)
-        return Surface(level: 1, padding: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                dayCardHeader("Fuel today", trailing: fuel.asOf)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(jiValueText(fuel.kcal, decimals: 0)).jiNumeral(.numeralMedium, weight: .heavy)
-                        .foregroundStyle(theme.color(fuel.kcal == nil ? .muted : .kcal))
-                    Text(fuel.kcal == nil ? JIMissingReason.noData.rawValue
-                         : fuel.kcalGoal.map { "/ \(jiNumber($0, 0)) kcal" } ?? "kcal")
-                        .jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                        .fixedSize(horizontal: false, vertical: true)
+        // W-GUI T3 (mockup 02): kcal + goal + "n left · your goal", the kcal ring against the goal
+        // (only when a goal exists — no ring for a missing goal), three macro tiles of ONE size
+        // (JITile .macroTile) with a goal tick only where the user set one (W2 `nutritionGoals`),
+        // then the planned-lunch row. The "as of" date is the intake row's own date (DEV-11 stays data).
+        return Surface(level: 1, padding: JISpacing.cardPadding) {
+            VStack(alignment: .leading, spacing: JISpacing.s3) {
+                // R-SIM fix: at AX sizes the ring drops under the numeral instead of squeezing it to "1…".
+                let heroLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: JISpacing.s2)) : AnyLayout(HStackLayout(alignment: .center, spacing: JISpacing.s3))
+                heroLayout {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(jiValueText(fuel.kcal, decimals: 0)).jiNumeral(.numeralMedium, weight: .heavy)
+                                .foregroundStyle(theme.color(fuel.kcal == nil ? .muted : .kcal))
+                                .lineLimit(1).minimumScaleFactor(0.6).fixedSize()
+                            Text(fuel.kcal == nil ? JIMissingReason.noData.rawValue
+                                 : fuel.kcalGoal.map { "/ \(jiNumber($0, 0)) kcal" } ?? "kcal")
+                                .jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if let left = dayFuelLeftText(kcal: fuel.kcal, goal: fuel.kcalGoal) {
+                            Text(left).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                        }
+                    }
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    if let kcal = fuel.kcal, let goal = fuel.kcalGoal, goal > 0 {
+                        ZStack {
+                            ScoreRing(value: kcal, max: goal, tint: theme.color(.kcal), size: 56)
+                            Text(jiNumber(min(kcal / goal, 9.99) * 100, 0) + "%").jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text))
+                        }
+                        .accessibilityHidden(true)
+                    }
                 }
-                Columns(minimum: 88, spacing: 12) {
-                    macro("Protein", fuel.protein, role: .protein)
-                    macro("Carbs", fuel.carbs, role: .carbs)
-                    macro("Fat", fuel.fat, role: .fat)
+                HStack(spacing: JISpacing.tileGap) {
+                    macroTile("Protein", fuel.protein, role: .protein, goal: nutritionGoals.goal(for: .protein))
+                    macroTile("Carbs", fuel.carbs, role: .carbs, goal: nutritionGoals.goal(for: .carbs))
+                    macroTile("Fat", fuel.fat, role: .fat, goal: nutritionGoals.goal(for: .fat))
                 }
-                Divider().overlay(theme.color(.hairlineNested))
+                JIRowDivider().padding(.leading, 0)
                 Text(dayPlannedLunchText).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("today.day.plannedLunch")
@@ -262,25 +327,40 @@ public struct TodayView: View {
         .accessibilityIdentifier("today.day.fuel")
     }
 
-    private func macro(_ label: String, _ value: Double?, role: JIColorRole) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(jiValueText(value, decimals: 0)).jiFont(.body, weight: .bold).foregroundStyle(theme.color(value == nil ? .muted : role))
-                if value != nil { Text("g").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+    /// One macro tile (mockup 02 `nested tile`): the number, "Protein · goal 155" or just the name
+    /// when no goal is set (never "no goal" as a claim), and a goal bar only with a goal.
+    private func macroTile(_ label: String, _ value: Double?, role: JIColorRole, goal: Double?) -> some View {
+        JITile(family: .macroTile) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(jiValueText(value, decimals: 0)).jiNumeral(.numeralSmall, tint: value == nil ? .muted : role)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    if value != nil { Text("g").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+                }
+                Text(dayMacroCaption(label: label, value: value, goal: goal)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .lineLimit(2).minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                if let goal, goal > 0 {
+                    GeometryReader { g in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(theme.color(.nested))
+                            if let value { Capsule().fill(theme.color(role)).frame(width: max(4, min(1, value / goal) * g.size.width)) }
+                        }
+                    }
+                    .frame(height: 4)
+                    .accessibilityHidden(true)
+                }
             }
-            Text(value == nil ? "\(label) · \(JIMissingReason.noData.rawValue)" : label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(dayMacroCaption(label: label, value: value, goal: goal) + (value.map { ", \(jiNumber($0, 0)) g" } ?? ", no data"))
     }
 
     /// Board 02 Tonight: the sleep goal the morning call uses, and last night against it.
     private var tonightCard: some View {
         let t = dayTonight(signals: model.morning?.gateSignals, recovery: model.recovery, now: Date())
-        return Surface(level: 1, padding: 16) {
+        return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 6) {
-                dayCardHeader("Tonight")
                 Text(t.goalText).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(t.lastNightText).jiFont(.footnote).foregroundStyle(theme.color(.muted))
@@ -449,4 +529,36 @@ nonisolated func todayKpiCellAccessibilityLabel(label: String, value: Double?, d
     guard let value else { return "\(label), no data yet" }
     let number = value.formatted(.number.precision(.fractionLength(decimals)))
     return [label, number, unit.isEmpty ? nil : unit, asOf].compactMap { $0 }.joined(separator: " ")
+}
+
+
+// MARK: - W-GUI T3 (mockup 02) pure helpers
+
+/// The NEXT card's two templates: strength (the plan's exercise rows, PF-02) or cardio (the
+/// prescription). Keyed on the existing PF-02 match — rows found = a strength session.
+public nonisolated enum DayNextTemplate: Sendable, Equatable { case strength, cardio }
+public nonisolated func dayNextTemplate(rows: [TrainingHeroRow]) -> DayNextTemplate { rows.isEmpty ? .cardio : .strength }
+
+/// "434 left · your goal" from the intake and the goal already on the row; nil without both.
+public nonisolated func dayFuelLeftText(kcal: Double?, goal: Double?) -> String? {
+    guard let kcal, let goal, goal > 0 else { return nil }
+    let left = goal - kcal
+    return left >= 0 ? "\(jiNumber(left, 0)) left · your goal" : "\(jiNumber(-left, 0)) over · your goal"
+}
+
+/// "Protein · goal 155" with a user goal; the bare name without one (no "no goal" claim); the
+/// reason word when the value is missing.
+public nonisolated func dayMacroCaption(label: String, value: Double?, goal: Double?) -> String {
+    if value == nil { return "\(label) · \(JIMissingReason.noData.rawValue)" }
+    if let goal, goal > 0 { return "\(label) · goal \(jiNumber(goal, 0))" }
+    return label
+}
+
+/// The Day's footer rows (mockup 02): chevron rows, never text links (DEV-07).
+public nonisolated enum DayFooterRow: Sendable, Equatable, CaseIterable {
+    case trends, weekReview
+    public var title: String { self == .trends ? "Trends" : "Week review" }
+    public var systemImage: String { self == .trends ? "chart.xyaxis.line" : "calendar" }
+    /// The subtitle slot: Trends' scope; Week review's "n of 4 sessions" is not on the phone (W5) → "—".
+    public var value: String { self == .trends ? "28-day normal bands" : "— not counted yet" }
 }

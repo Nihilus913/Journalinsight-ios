@@ -60,6 +60,8 @@ public struct Who5Sheet: View {
             }
             .accessibilityIdentifier("who5-sheet-panel")
             .navigationTitle("Weekly well-being check-in")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("who5-cancel") }

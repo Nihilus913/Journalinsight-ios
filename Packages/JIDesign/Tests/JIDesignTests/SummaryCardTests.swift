@@ -31,9 +31,20 @@ import Testing
     return CGFloat(image.height) / renderer.scale
 }
 
-@MainActor private func stepsCard(_ value: String, sparkline: [Double?] = []) -> SummaryCard {
+/// `family: nil` hugs content so the composition can be measured; the app's cards are `.square`.
+@MainActor private func stepsCard(_ value: String, sparkline: [Double?] = [], family: JITileHeight? = nil) -> SummaryCard {
     SummaryCard(icon: "figure.walk", tint: .green, title: "Steps", value: value, unit: "steps",
-                timestamp: "Today, 07:12", sparkline: sparkline, action: {})
+                timestamp: "Today, 07:12", sparkline: sparkline, family: family, action: {})
+}
+
+/// W-GUI F7 (DEV-06): in the `.square` family the card is 172 pt at the default size whatever
+/// its content — a sparkline, a long value, a missing timestamp never change the height.
+@Test @MainActor func squareFamilyCardIsAlwaysTheFamilyHeight() {
+    let spark: [Double?] = [4100, 5200, 3900, 6800, 5100, 4700, 6420]
+    let plain = renderedHeight(190) { stepsCard("64", family: .square) }
+    #expect(plain == JITileHeight.square.base)
+    #expect(renderedHeight(190) { stepsCard("6'420", sparkline: spark, family: .square) } == plain)
+    #expect(renderedHeight(361) { stepsCard("6'420", sparkline: spark, family: .square) } == plain)
 }
 
 /// THE B-47 REGRESSION. In the two-up grid the value sits beside a 64 pt sparkline, so the
@@ -64,8 +75,11 @@ import Testing
     let spark: [Double?] = [4100, 5200, 3900, 6800, 5100, 4700, 6420]
     #expect(renderedHeight(190) { stepsCard("6'420", sparkline: spark) }
             > renderedHeight(190) { stepsCard("6'420") })
+    // W-GUI S1/T3: the sparkline now carries its axis words (taller than the value row), so at
+    // full width the card grows by the sparkline's own height — but it stays BESIDE the value:
+    // the full-width card is never as tall as the half-width (stacked) one.
     #expect(renderedHeight(361) { stepsCard("6'420", sparkline: spark) }
-            == renderedHeight(361) { stepsCard("6'420") })
+            < renderedHeight(190) { stepsCard("6'420", sparkline: spark) })
 }
 
 @Test @MainActor func summaryCardRendersAtHalfWidth() {

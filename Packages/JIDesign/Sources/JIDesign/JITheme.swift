@@ -49,6 +49,11 @@ public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
     /// W-FIX2 BUG-31: HRV's own metric colour (system blue), split off `info` when `info` became
     /// the accent, so the HRV numeral does not turn green (rule 6).
     case hrv
+    /// W-GUI F4 (report §4.3): resting HR coral (`#FF9F8A`, NOT `.danger`), training load
+    /// violet (`#C8A2FF`, NOT `.reduced`), steps = primary text unless the caller passes a goal
+    /// (`metricTintRole(_:hasGoal:)` → `.go`). Today's `.go` on a goal-less step count was a
+    /// verdict leak (rule 6).
+    case rhr, load, steps
 }
 
 public nonisolated extension JIColorRole {
@@ -81,10 +86,10 @@ public nonisolated extension JITheme {
 /// `Surface(level:)` → fill role + radius role. Any unknown level falls back to the card
 /// surface (CONTEXT §7). `theme` is kept in the signature: the mapping is a theme concern and
 /// every call site already has one to hand.
-public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole) {
+public nonisolated func surfaceStyle(level: Int, theme: JITheme) -> (fill: JIColorRole, radius: JIRadiusRole, material: Bool) {
     switch level {
-    case 2: (.surface2, .nested)
-    case 3: (.control, .control)
-    default: (.surface, .card)
+    case 2: (.surface2, .nested, false)
+    case 3: (.control, .control, false)
+    default: (.surface, .card, true)   // W-GUI F2: level 1 is the one material card (never nested)
     }
 }

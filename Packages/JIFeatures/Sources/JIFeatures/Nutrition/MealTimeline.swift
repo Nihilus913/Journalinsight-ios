@@ -16,23 +16,46 @@ public struct MealTimeline: View {
     public init(day: NutritionDayDetail?, onSelectMeal: ((MealDetail) -> Void)? = nil) { self.day = day; self.onSelectMeal = onSelectMeal }
 
     public var body: some View {
-        Surface {
-            VStack(alignment: .leading, spacing: 14) {
-                // B-33: the screen's `JISectionHeader("Meals")` carries the group title now —
-                // an in-card repeat of it read as two headers in the sweep.
+        Surface(level: 1, padding: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                // W-GUI M2 (mockup 05): one row per meal — the slot, its items, "kcal · g P" and a
+                // chevron into the read-only detail (which lists the items).
                 if let day, !day.items.isEmpty {
-                    ForEach(mealsInOrder(day), id: \.slot) { meal in
+                    let meals = mealsInOrder(day)
+                    ForEach(Array(meals.enumerated()), id: \.element.slot) { index, meal in
+                        if index > 0 { JIRowDivider().padding(.leading, 0) }
+                        let row = mealTimelineRow(slot: meal.slot, items: meal.items)
                         Button { onSelectMeal?(mealDetail(slot: meal.slot, items: meal.items)) } label: {
-                            mealSection(slot: meal.slot, items: meal.items)
+                            HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                                        .accessibilityIdentifier("meal-row-\(meal.slot)")
+                                    Text(row.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: JISpacing.s2)
+                                Text(row.trailing).jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.text))
+                                    .monospacedDigit().multilineTextAlignment(.trailing)
+                                if onSelectMeal != nil {
+                                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+                                        .foregroundStyle(theme.color(.mutedNested)).accessibilityHidden(true)
+                                }
+                            }
+                            .padding(.vertical, JIRowMetrics.verticalPadding)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.pressableScale)
                         .disabled(onSelectMeal == nil)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(row.title), \(row.trailing). \(row.subtitle)")
                     }
                 } else {
                     Text("No meals in Apple Health yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .padding(.vertical, JIRowMetrics.verticalPadding)
                         .accessibilityIdentifier("meal-timeline-empty")
                 }
             }
+            .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
         }
     }
 

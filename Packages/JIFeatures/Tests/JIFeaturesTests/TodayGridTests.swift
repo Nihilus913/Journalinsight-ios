@@ -133,5 +133,8 @@ import JIPersistence
 /// W-B47 integrate: the seam now forwards to L1's `metricTintRole(_:)` — no more neutral stub.
 @Test func theMetricTintSeamForwardsToMetricTintRole() {
     #expect(todayCardTintRole("hrv") == .hrv)   // W-FIX2 BUG-31: .info is the accent
-    #expect(todayCardTintRole("steps") == .go)
+    // W-GUI F4: steps without a goal is primary text — `.go` was a verdict leak (report §4.3).
+    #expect(todayCardTintRole("steps") == .steps)
+    #expect(todayCardTintRole("rhr") == .rhr)
+    #expect(todayCardTintRole("acwr") == .load)
 }

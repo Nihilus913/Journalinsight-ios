@@ -3,7 +3,19 @@ import JIDesign
 
 /// Every native component at once, fixture-backed. Test-only: rendered by the sweep, never
 /// routed to from the app. Update it when a JIDesign component is added.
+/// W-GUI F10: the gallery's segments — each forces one rendering condition on the contact
+/// sheet (scheme, AX3, or a material fallback through `jiAccessibilityOverrides`).
+public nonisolated enum GallerySegment: String, CaseIterable, Sendable, Identifiable {
+    case dark = "Dark", light = "Light", ax3 = "AX3", reduceTransparency = "Reduce Transparency", increaseContrast = "Increase Contrast"
+    public var id: String { rawValue }
+    public var colorScheme: ColorScheme? { self == .light ? .light : (self == .dark ? .dark : nil) }
+    public var typeSize: DynamicTypeSize? { self == .ax3 ? .accessibility3 : nil }
+    public var reduceTransparency: Bool? { self == .reduceTransparency ? true : nil }
+    public var increaseContrast: Bool? { self == .increaseContrast ? true : nil }
+}
+
 public struct NativeGalleryView: View {
+    @State private var segment: GallerySegment? = nil
     @State private var range: TrendRange = .week
     @State private var selectedDay: Date? = nil
     private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; c.locale = Locale(identifier: "en_US"); return c }
@@ -18,7 +30,57 @@ public struct NativeGalleryView: View {
         // Test-only contact sheet: a plain stack, not a `ScrollView` — `ImageRenderer` renders a
         // `ScrollView`'s background but never its content off-screen, so the sweep would be blank.
         VStack {
+            // W-GUI F10: the segments (the sweep leaves them unset and drives the cell itself).
+            Picker("Condition", selection: $segment) {
+                Text("Cell").tag(GallerySegment?.none)
+                ForEach(GallerySegment.allCases) { Text($0.rawValue).tag(GallerySegment?.some($0)) }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("gallery.segment")
+            // W-GUI F10: `ScreenScroll` — a real ScrollView in the app (the gallery is taller than
+            // any phone), the top-pinned stack under `jiOffscreenRender` so the sweep shows the top.
+            ScreenScroll { sheet }
+                .environment(\.dynamicTypeSize, segment?.typeSize ?? .large)
+                .jiAccessibilityOverrides(reduceTransparency: segment?.reduceTransparency, increaseContrast: segment?.increaseContrast)
+                .modifier(OptionalColorScheme(scheme: segment?.colorScheme))
+        }
+        .jiPageGround()
+        .jiTheme(.native)
+    }
+
+    private var sheet: some View {
+        VStack {
             VStack(alignment: .leading, spacing: 24) {
+                // W-GUI F10: the F-step primitives — tinted hero, tile families, chevron rows, pill, buttons.
+                JISectionHeader("Depth")
+                Surface(tint: JIAccent.shared.color) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("YOUR CALL FOR TODAY").jiFont(.caption, weight: .bold).foregroundStyle(.secondary)
+                        Text("Go").jiNumeral(.numeralHero, tint: .go)
+                        HStack(spacing: 12) {
+                            Button("Go with this") {}.buttonStyle(.jiPrimary)
+                            Button("Adjust") {}.buttonStyle(.jiSecondary)
+                        }
+                    }
+                }
+                HStack(spacing: JISpacing.tileGap) {
+                    JITile(family: .macroTile) { VStack(alignment: .leading) { Text("Protein").jiFont(.caption); Text("98 g").jiNumeral(.numeralCompact, tint: .protein) } }
+                    JITile(family: .macroTile) { VStack(alignment: .leading) { Text("Carbs").jiFont(.caption); Text("111 g").jiNumeral(.numeralCompact, tint: .carbs) } }
+                    JITile(family: .macroTile) { VStack(alignment: .leading) { Text("Fat").jiFont(.caption); Text("38 g").jiNumeral(.numeralCompact, tint: .fat) } }
+                }
+                HStack(spacing: JISpacing.tileGap) {
+                    JITile(family: .factTile) { Text("Resp — not read").jiFont(.caption) }
+                    JITile(family: .factTile) { Text("Wrist temp — not read").jiFont(.caption) }
+                    JIAddTile(family: .factTile, label: "Add") {}
+                }
+                HStack { SyncedPill(date: today, now: today, calendar: calendar); SyncedPill(date: today.addingTimeInterval(-90_000), now: today, calendar: calendar); SyncedPill(date: nil) }
+                Surface(padding: 0) {
+                    VStack(spacing: 0) {
+                        JIChevronRow(title: "Settings", value: "Hub synced 07:41", systemImage: "slider.horizontal.3").padding(.horizontal, 16)
+                        Divider().padding(.leading, 60)
+                        JIChevronRow(title: "How the morning call works", systemImage: "questionmark.circle").padding(.horizontal, 16)
+                    }
+                }
                 JISectionHeader("Readiness")
                 AdaptiveHStack {
                     Surface { ReadinessArcGauge(score: 72).frame(maxWidth: .infinity) }
@@ -43,6 +105,16 @@ public struct NativeGalleryView: View {
                 Surface { TrendChart(points: trend, tint: .red, unit: "ms", range: $range, showAll: {}) }
                 JISectionHeader("Week")
                 Surface { WeekStrip(days: weekStripDays(ending: today, marked: [today], calendar: calendar), tint: .green, selected: $selectedDay) }
+                // W-GUI F5: the 44 pt glass round buttons (the only glass beside the coach overlay).
+                JISectionHeader("Glass buttons")
+                GlassEffectContainer {
+                    HStack(spacing: 12) {
+                        JIGlassButton("chevron.left", label: "Back") {}
+                        JIGlassButton("pencil", label: "Edit") {}
+                        JIGlassButton("calendar", label: "Calendar") {}
+                        JIGlassButton("plus", label: "Add") {}
+                    }
+                }
                 JISectionHeader("Rows")
                 Surface(padding: 0) {
                     VStack(spacing: 0) {
@@ -59,13 +131,33 @@ public struct NativeGalleryView: View {
                         NormalBar(value: 25, normal: nil, unit: "ms", tint: .info)
                     }
                 }
+                // W-GUI S1 (report §4.4, mockup 03): points in the band, dashed median, band edges
+                // on the axis, a hollow tick for the missing night, the last value at its dot.
+                Surface {
+                    NormalBarChart(points: [
+                        NormalBarPoint(id: "1", label: "Thu", value: 29, isLatest: false),
+                        NormalBarPoint(id: "2", label: "Fri", value: 28, isLatest: false),
+                        NormalBarPoint(id: "3", label: "Sat", value: nil, isLatest: false),
+                        NormalBarPoint(id: "4", label: "Sun", value: 31, isLatest: false),
+                        NormalBarPoint(id: "5", label: "Mon", value: 27, isLatest: false),
+                        NormalBarPoint(id: "6", label: "Tue", value: 30, isLatest: false),
+                        NormalBarPoint(id: "7", label: "Wed", value: 25, isLatest: true),
+                    ], normal: 27...30, unit: "ms", median: 28.5, tint: .hrv,
+                       title: normalBarChartTitle(metric: "Overnight HRV", window: "7 nights", source: "Apple Watch · RMSSD"),
+                       summary: "Below your normal last night.")
+                }
                 Surface {
                     NormalBarChart(points: [
                         NormalBarPoint(id: "1", label: "Thu", value: 29, isLatest: false),
                         NormalBarPoint(id: "2", label: "Fri", value: 28, isLatest: false),
                         NormalBarPoint(id: "3", label: "Sat", value: nil, isLatest: false),
                         NormalBarPoint(id: "4", label: "Wed", value: 25, isLatest: true),
-                    ], normal: 27...30, unit: "ms")
+                    ], normal: nil, unit: "ms", tint: .hrv, title: "Overnight HRV · 4 nights · Apple Watch · RMSSD")
+                }
+                JISectionHeader("Sparklines")
+                HStack(spacing: JISpacing.tileGap) {
+                    JITile(family: .tile) { NormalSparkline(points: [48, 50, 47, 53, nil, 49, 52, 51, 50, 54, 52, 49, 51, 52], normal: 46...52, tint: .hrv, unit: "ms") }
+                    JITile(family: .tile) { NormalSparkline(points: [56, 55, 57, 54, 55, 53, 54], tint: .rhr, unit: "bpm") }
                 }
                 JISectionHeader("Squares")
                 SquareGrid(items: [
@@ -96,4 +188,12 @@ public struct NativeGalleryView: View {
 private struct GalleryBackground: ViewModifier {
     @Environment(\.jiTheme) private var theme
     func body(content: Content) -> some View { content.background(theme.color(.bg)) }
+}
+
+/// `preferredColorScheme` only when a segment asks for one; `nil` leaves the cell's scheme alone.
+private struct OptionalColorScheme: ViewModifier {
+    let scheme: ColorScheme?
+    func body(content: Content) -> some View {
+        if let scheme { content.environment(\.colorScheme, scheme) } else { content }
+    }
 }

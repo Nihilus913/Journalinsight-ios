@@ -116,6 +116,8 @@ public struct ConnectionSheet: View {
             }
             .jiTheme(.native)
             .navigationTitle("Connection")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { if let c = model.save() { onSaved(c); dismiss() } }.tint(theme.color(.info))

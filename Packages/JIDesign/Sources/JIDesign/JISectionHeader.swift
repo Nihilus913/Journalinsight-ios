@@ -1,12 +1,16 @@
 import SwiftUI
 
-/// B-47 — the section header above a card group. **Spec §2 exception:** the uppercase-footnote
-/// idiom is retired. Bevel and Apple Fitness (`docs/design/references/2026-09-22-*.png`) both set
-/// a group title as a title-case bold card title at the body-plus size; uppercasing a 13 pt
-/// footnote is exactly the "back to the scaling" that made our screens read as a dense RN port.
-/// The transform is kept as a pure seam (it is the one place the idiom could change again) and
-/// now returns the title unchanged.
-public nonisolated func sectionHeaderTitle(_ title: String) -> String { title }
+/// W-GUI S2 — report §4.5 "Section header": 13 pt bold caps, inset 16 so the header text starts
+/// where the card text starts (16 + 16), 24 pt above / 8 pt below. This restores the caps idiom
+/// the mockups use (B-47 had retired it for a title-case card title; the 2026-09-25 mockups
+/// settle it the other way). The transform stays the one seam for the idiom.
+public nonisolated enum JISectionHeaderMetrics {
+    public static let inset: CGFloat = JISpacing.s4
+    public static let above: CGFloat = JISpacing.s6
+    public static let below: CGFloat = JISpacing.s2
+}
+
+public nonisolated func sectionHeaderTitle(_ title: String) -> String { title.uppercased() }
 
 public struct JISectionHeader: View {
     private let title: String
@@ -14,12 +18,14 @@ public struct JISectionHeader: View {
     public init(_ title: String) { self.title = title }
     public var body: some View {
         Text(sectionHeaderTitle(title))
-            .jiFont(.cardTitle)
-            .foregroundStyle(theme.color(.text))
+            .jiFont(.footnote, weight: .bold)
+            .foregroundStyle(theme.color(.muted))
             // B-57 W1 r5: a long header wraps at accessibility sizes instead of truncating.
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 16)
+            .padding(.leading, JISectionHeaderMetrics.inset)
+            .padding(.top, JISectionHeaderMetrics.above)
+            .padding(.bottom, JISectionHeaderMetrics.below)
             .accessibilityAddTraits(.isHeader)
     }
 }

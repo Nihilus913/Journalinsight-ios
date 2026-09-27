@@ -57,7 +57,8 @@ private func source(_ relative: String) throws -> String {
     let body = try source("Sources/JIFeatures/Export/ExportView.swift")
     #expect(body.contains("checkmark.circle.fill"))
     #expect(!body.contains("Toggle(isOn:"))
-    #expect(body.contains(".borderedProminent"))
+    // W-GUI M8: CSV is the one `.jiPrimary` (the report’s 52 pt accent button), JSON the secondary.
+    #expect(body.contains(".buttonStyle(.jiPrimary)") && body.contains(".buttonStyle(.jiSecondary)"))
 }
 
 // MARK: - BUG-49: the goal date is a formatted date

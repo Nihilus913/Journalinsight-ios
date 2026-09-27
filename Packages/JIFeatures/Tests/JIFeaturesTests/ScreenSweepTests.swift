@@ -12,9 +12,12 @@ import UIKit
 // asserts every entry renders at every size / scheme / type size.
 
 @Test func matrixIsThreeSizesTimesSchemeTimesTypeSize() {
+    // W-GUI F10: 3 sizes × 2 schemes × 2 type sizes + the Reduce Transparency / Increase Contrast cells.
     let cells = SweepMatrix.cells
-    #expect(cells.count == 12)
-    #expect(Set(cells.map(\.fileStem)).count == 12)
+    #expect(cells.count == 14)
+    #expect(Set(cells.map(\.fileStem)).count == 14)
+    #expect(cells.filter { $0.variant == .rt }.count == 1 && cells.filter { $0.variant == .ic }.count == 1)
+    #expect(cells.first { $0.variant == .rt }?.fileStem == "iphone18pro-393x852-dark-default-rt")
     #expect(cells.contains { $0.width == 956 && $0.height == 440 }) // Pro Max landscape = regular width
 }
 
@@ -47,7 +50,8 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     let bounds = CGRect(x: 0, y: 0, width: cell.width, height: cell.height)
     // F1: the reveal animations are off for a snapshot — an off-screen render captures the
     // frame before `onAppear`'s animation runs, so every ring/arc came out at 0 progress.
-    let host = UIHostingController(rootView: entry.make().jiTheme(entry.theme).jiRevealAnimations(false))
+    let host = UIHostingController(rootView: entry.make().jiTheme(entry.theme).jiRevealAnimations(false)
+        .jiAccessibilityOverrides(reduceTransparency: cell.variant.reduceTransparency, increaseContrast: cell.variant.increaseContrast))
     host.view.frame = bounds
     host.view.backgroundColor = .systemBackground
 

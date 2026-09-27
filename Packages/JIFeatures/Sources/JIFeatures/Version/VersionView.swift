@@ -104,6 +104,9 @@ public struct VersionView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("About & version")
@@ -135,6 +138,9 @@ struct ReleaseNotesScreen: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle(title)

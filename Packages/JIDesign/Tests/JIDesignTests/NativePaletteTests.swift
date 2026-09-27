@@ -62,3 +62,34 @@ struct NativePaletteTests {
     }
     #endif
 }
+
+// W-GUI F4 — report §4.3 contrast table: body ≥ 4.5:1 on the dark card (#1A1C21).
+private func luminance(_ c: (Double, Double, Double)) -> Double {
+    func lin(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    return 0.2126 * lin(c.0) + 0.7152 * lin(c.1) + 0.0722 * lin(c.2)
+}
+
+@MainActor
+@Test(arguments: [JIColorRole.hrv, .rhr, .load, .sleep, .kcal, .protein, .carbs, .fat, .text, .muted])
+func darkMetricRolesReadOnTheCard(role: JIColorRole) {
+    let card = luminance((0x1A / 255.0, 0x1C / 255.0, 0x21 / 255.0))
+    let fg = luminance(JINativePalette.darkHex[role].map { (Double($0.0) / 255, Double($0.1) / 255, Double($0.2) / 255) }
+                       ?? rgb(JITheme.native.color(role), .dark))
+    let ratio = (max(fg, card) + 0.05) / (min(fg, card) + 0.05)
+    #expect(ratio >= 4.5, "\(role) \(ratio)")
+}
+
+@MainActor
+@Test func newRolesAreNotTheVerdictOrAccentColours() {
+    let rhr = rgb(JITheme.native.color(.rhr), .dark)
+    let load = rgb(JITheme.native.color(.load), .dark)
+    for verdict in [JIColorRole.go, .reduced, .danger, .info] {
+        let v = rgb(JITheme.native.color(verdict), .dark)
+        #expect(rhr != v && load != v)
+    }
+    #expect(rgb(JITheme.native.color(.steps), .dark) == rgb(JITheme.native.color(.text), .dark))
+    #expect(JINativePalette.darkHex[.hrv]! == (0x6F, 0xA8, 0xFF))
+    #expect(JINativePalette.darkHex[.rhr]! == (0xFF, 0x9F, 0x8A))
+    #expect(JINativePalette.darkHex[.load]! == (0xC8, 0xA2, 0xFF))
+    #expect(JINativePalette.darkHex[.sleep]! == (0x8F, 0xA8, 0xFF))
+}
