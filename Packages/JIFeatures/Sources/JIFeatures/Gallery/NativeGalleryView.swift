@@ -43,6 +43,16 @@ public struct NativeGalleryView: View {
                 Surface { TrendChart(points: trend, tint: .red, unit: "ms", range: $range, showAll: {}) }
                 JISectionHeader("Week")
                 Surface { WeekStrip(days: weekStripDays(ending: today, marked: [today], calendar: calendar), tint: .green, selected: $selectedDay) }
+                // W-GUI F5: the 44 pt glass round buttons (the only glass beside the coach overlay).
+                JISectionHeader("Glass buttons")
+                GlassEffectContainer {
+                    HStack(spacing: 12) {
+                        JIGlassButton("chevron.left", label: "Back") {}
+                        JIGlassButton("pencil", label: "Edit") {}
+                        JIGlassButton("calendar", label: "Calendar") {}
+                        JIGlassButton("plus", label: "Add") {}
+                    }
+                }
                 JISectionHeader("Rows")
                 Surface(padding: 0) {
                     VStack(spacing: 0) {
