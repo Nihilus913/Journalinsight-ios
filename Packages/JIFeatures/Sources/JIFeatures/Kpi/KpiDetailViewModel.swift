@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import JICore
+import JIDesign
 import JIPersistence
 
 /// KPI detail view model (W3b-L2, P-kpi). One metric's history (Swift Charts) + its matching gate
@@ -66,6 +67,11 @@ public final class KpiDetailViewModel {
     /// B-57 W2 (B-73): builds the "Edit macro goals" GoalsSetup with the phone's goals store and
     /// the save-only hub mirror (App wiring). nil = a bare model (no nutrition save).
     private let makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)?
+    /// B-57 W4: the medication the user typed (Reminders / onboarding) and today's daytime HRV —
+    /// context only (B-65), never gating; the hold is display state and changes no verdict.
+    private let medicationStore: MedicationStore?
+    public private(set) var medication: MedicationEntry?
+    public let daytimeHrv: Double?
     private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals")
 
     public init(
@@ -75,8 +81,12 @@ public final class KpiDetailViewModel {
         targetsProvider: any KpiTargetsProviding,
         cache: OfflineCache,
         goalsProvider: (any EnergyProviding)? = nil,
-        makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)? = nil
+        makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)? = nil,
+        medicationStore: MedicationStore? = nil,
+        daytimeHrv: Double? = nil
     ) {
+        self.medicationStore = medicationStore
+        self.daytimeHrv = daytimeHrv
         self.makeGoalsSetup = makeGoalsSetup
         // The hub provider serves both protocols (the idiom `WeeklyPlanNutritionRow` uses).
         self.goalsProvider = goalsProvider ?? (nutritionProvider as? any EnergyProviding)
@@ -117,7 +127,34 @@ public final class KpiDetailViewModel {
     }
     @ObservationIgnored private var cachedGoalsSetupModel: GoalsSetupViewModel?
 
+    // MARK: - B-57 W4 daytime HRV + medication check (manual entry)
+
+    public func loadMedication() { medication = medicationStore?.load() }
+    public var daytimeState: DaytimeHrvState { daytimeHrvState(medication) }
+    public var showsMedicationCard: Bool { metric == .hrv && (medication?.isNamed ?? false) }
+    /// "—" + "No data" when there is no reading — never a zero (rule 5).
+    public var daytimeValueText: String { daytimeHrv.map { "\(Int($0.rounded())) ms" } ?? "—" }
+    public var daytimeReason: String? { daytimeHrv == nil ? JIMissingReason.noData.rawValue : nil }
+    public var medicationCardBody: String {
+        "You added \(medication?.name ?? ""). Some medications raise heart rate and lower HRV while they work. Is it yours and current?"
+    }
+
+    public func answerMedication(_ yes: Bool) {
+        guard var m = medication else { return }
+        m.answer = yes ? .yes : .no
+        medication = m
+        try? medicationStore?.save(m)
+    }
+
+    public func resetMedicationAnswer() {
+        guard var m = medication else { return }
+        m.answer = .unconfirmed
+        medication = m
+        try? medicationStore?.save(m)
+    }
+
     public func load() async {
+        loadMedication()
         phase = .loading
         restoreFromCache()
         await fetchLive()
