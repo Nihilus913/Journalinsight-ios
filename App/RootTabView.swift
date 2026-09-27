@@ -266,7 +266,8 @@ struct RootTabView: View {
                 .navigationTitle("My KPIs")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
+                        // W-GUI R4 (mockup 23): Done is a glass checkmark (BUG-21: it stays; squares push their detail).
+                        JIGlassButton("checkmark", label: "Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
                     }
                 }
                 .navigationDestination(for: RootRoute.self) { route in
