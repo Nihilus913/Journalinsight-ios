@@ -54,6 +54,7 @@ public struct GateConfigView: View {
                     if !model.loaded {
                         Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
                     } else {
+                        if group == .sleep { sleepGoalRow }
                         ForEach(MorningGateOverridableField.allCases.filter { $0.group == group }, id: \.rawValue) { morningRow($0) }
                     }
                 }
@@ -256,6 +257,21 @@ public struct GateConfigView: View {
     // MARK: - Controls
 
     /// B-57 W1 Safety rows: locked, never configurable.
+    /// B-57 W3 S3: "Sleep goal" — read-only, the gate's own goal; never a stepper or a floor.
+    private var sleepGoalRow: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(gateConfigSleepGoalTitle).font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(gateConfigSleepGoalExplanation).font(.caption2).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Text(gateConfigSleepGoalValue(.default)).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("gateConfig.sleepGoal")
+    }
+
     private func lockedRow(_ title: String, _ subtitle: String, value: String) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {

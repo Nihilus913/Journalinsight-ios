@@ -67,6 +67,10 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
     /// `evaluate()` but absent from the RN oracle's `MorningVitals`; carried here
     /// because the Python file is L1's named source. No golden case sets it.
     public var zoneDrift: String?
+    /// B-57 W3 `recovery_score` — the 0–100 recovery score (`app/vitals/recovery_score.py`), or nil
+    /// (Calibrating / missing / Garmin-only night). Below `config.recoveryLowScore` it adds ONE amber
+    /// reason and closes the interval gate. Nil changes nothing.
+    public var recoveryScore: Int?
 
     public init(
         sleep: Int? = nil,
@@ -76,7 +80,8 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
         rhr: Int? = nil,
         rhrDate: String? = nil,
         stepsYesterday: Int? = nil,
-        zoneDrift: String? = nil
+        zoneDrift: String? = nil,
+        recoveryScore: Int? = nil
     ) {
         self.sleep = sleep
         self.sleepDurationH = sleepDurationH
@@ -86,6 +91,7 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
         self.rhrDate = rhrDate
         self.stepsYesterday = stepsYesterday
         self.zoneDrift = zoneDrift
+        self.recoveryScore = recoveryScore
     }
 }
 

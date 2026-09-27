@@ -259,9 +259,9 @@ private struct GateRationaleProvider: HealthDataProvider {
     #expect(vm.lastDays(locale: en).allSatisfy { $0.verdictWord == nil })
 }
 
-// MARK: - B-57 W1 r5: the recovery-score card (spec §2 L2: "— Calibrating"; the score is W3)
+// MARK: - B-57 W3: the recovery-score card note names the real need, never a score
 
 @Test func theRecoveryScoreCardCopyInventsNoNumber() {
-    #expect(!gateRationaleRecoveryScoreCopy.isEmpty)
-    #expect(gateRationaleRecoveryScoreCopy.allSatisfy { !$0.isNumber })
+    #expect(!RecoveryCardModel.note.isEmpty)
+    #expect(recoveryScoreCardText(result: nil, reasonWord: nil).numeral == "—")
 }

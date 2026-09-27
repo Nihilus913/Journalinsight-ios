@@ -124,6 +124,9 @@ struct RootTabView: View {
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
     @State private var sendToWatchModel: SendToWatchViewModel?
     @State private var recoveryModel: RecoveryViewModel?
+    /// B-57 W3: one recovery insight per provider (the gate's inputs → the on-device score and the
+    /// Apple-night normals); reset with the provider revision, like `todayModel`.
+    @State private var recoveryInsight: RecoveryInsightService?
     // W3a L1–L3 (parallel lanes, PARITY P-energy/P-nutrition/P-training): the view/view-model
     // names below are the ones the wave card gives those lanes; this lane (L4) only wires the
     // tab shell around them and never edits their owned files.
@@ -317,6 +320,7 @@ struct RootTabView: View {
         settingsModel = nil
         todayModel = nil
         recoveryModel = nil
+        recoveryInsight = nil
         energyModel = nil
         nutritionModel = nil
         trainingModel = nil
@@ -368,6 +372,8 @@ struct RootTabView: View {
         // W-FIX4 fixer PF-04: the one sync instant for every screen's `OneSyncedPill` (root and
         // pushed), so Recovery/Training/Energy/Nutrition name the hub time Day and More name.
         .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
+        // B-57 W3: the recovery score / normals for every screen of the stack (root and pushed).
+        .environment(\.recoveryInsight, recoveryInsight)
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the
@@ -438,6 +444,9 @@ struct RootTabView: View {
     /// Today's model + its siblings (rationale, override). Shared by the Today tab and More (the
     /// Goals row reads the latest weight from Today's gate rows).
     private func makeTodayModels(store: ProviderStore) {
+        if recoveryInsight == nil {
+            recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+        }
         guard todayModel == nil else { return }
         todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
         env.bind(today: todayModel, recovery: recoveryModel)

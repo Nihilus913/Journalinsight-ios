@@ -21,6 +21,8 @@ public struct KpiDetailView: View {
     @State private var range: KpiDetailRange = .month
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
+    /// W-FIX4 PF-04 (B-57 W3): the shell's one sync instant for the source line's pill.
+    @Environment(\.jiSyncedAt) private var syncedAt
 
     public init(model: KpiDetailViewModel) { _model = State(initialValue: model) }
 
@@ -35,7 +37,9 @@ public struct KpiDetailView: View {
         #endif
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
-                KpiDetailSourceLine(subtitle: kpiDetailSubtitle(model.metric), fetchedAt: model.fetchedAt,
+                // PF-04: the pill is the one rule (newer of hub sync / HealthKit upload), never the fetch time.
+                KpiDetailSourceLine(subtitle: kpiDetailSubtitle(model.metric),
+                                    fetchedAt: oneSyncPillDate(injected: syncedAt, lastUpload: healthKitLastUploadDate()),
                                     showsSynced: isNutritionKpi(model.metric))
                 headline
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
@@ -109,6 +113,7 @@ public struct KpiDetailView: View {
                                                                macro: Binding(get: { model.metric }, set: { model.selectMetric($0) })) }
         // BUG-40: on nutrition the panel's 7-day NormalBar replaces the line trend.
         if kpiDetailShowsLineTrend(model.metric) {
+            normalSection
             chartSection
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
@@ -129,6 +134,27 @@ public struct KpiDetailView: View {
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
                        unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
                        tint: metricTintRole(model.metric.rawValue))
+    }
+
+    /// B-57 W3 S2: the metric's 28-day personal normal from the history the chart plots —
+    /// fill = the last 7 days, band = your normal, tick = median; "Calibrating" under 14 values.
+    private var normalSection: some View {
+        let r = KpiNormal.make(points: model.history, today: RecoveryInsightService.localDayKey(Date()))
+        let unit = model.def.unit.isEmpty ? nil : model.def.unit
+        return Surface(level: 1) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Last 7 days").jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.text))
+                    Spacer(minLength: 8)
+                    Text(KpiNormal.caption(r.normal, decimals: model.def.decimals)).jiFont(.caption)
+                        .foregroundStyle(theme.color(.muted)).multilineTextAlignment(.trailing)
+                }
+                NormalBar(value: r.sevenDay, normal: r.normal?.range, median: r.normal?.median, unit: unit,
+                          decimals: model.def.decimals, tint: metricTintRole(model.metric.rawValue), showsCaption: false)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("kpi-detail-normal")
     }
 
     // MARK: - W-GUI R2

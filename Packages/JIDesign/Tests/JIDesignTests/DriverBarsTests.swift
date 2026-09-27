@@ -40,3 +40,31 @@ struct DriverBarsTests {
     let driver = DriverBar(id: "hrv", label: "HRV", value: 0.42)
     #expect(driverBarAccessibilityLabel(driver: driver) == "HRV 42%")
 }
+
+// B-57 W3 D2: an optional status word and tint, additive (no word/tint = the old behaviour).
+
+@Test func driverBarWordAndTintAreAdditive() {
+    let plain = DriverBar(id: "a", label: "HRV", value: 0.5)
+    #expect(plain.word == nil && plain.tint == nil)
+    #expect(DriverBars.fillRole(for: plain) == .mutedNested)
+    let low = DriverBar(id: "hrv", label: "HRV", value: 0.2, word: "Low", tint: .reduced)
+    #expect(DriverBars.fillRole(for: low) == .reduced)
+    #expect(driverBarAccessibilityLabel(driver: low) == "HRV, Low")
+    let sleep = DriverBar(id: "sleep", label: "Sleep", value: 0.6, word: "Above goal", tint: .sleep)
+    #expect(DriverBars.fillRole(for: sleep) == .sleep)
+}
+
+@Test func driverBarNeverUsesVerdictGreen() {
+    let g = DriverBar(id: "x", label: "X", value: 1, word: "Above", tint: .go)
+    #expect(DriverBars.fillRole(for: g) == .mutedNested)
+}
+
+@Test func missingValueWithWordStillSaysTheWord() {
+    let d = DriverBar(id: "rhr", label: "Resting HR", value: nil, word: "No reading")
+    #expect(driverBarAccessibilityLabel(driver: d) == "Resting HR, No reading")
+}
+
+@Test func sourceMissingStillWinsOverAWord() {
+    let d = DriverBar(id: "sleep", label: "Sleep", value: 0.5, sourceMissing: true, word: "Above goal")
+    #expect(driverBarAccessibilityLabel(driver: d) == "Sleep Not from the current source")
+}

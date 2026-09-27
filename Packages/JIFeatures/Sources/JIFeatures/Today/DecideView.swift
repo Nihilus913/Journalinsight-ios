@@ -323,9 +323,14 @@ public struct DecideView: View {
             Surface(level: 1, padding: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     if let gateSignals {
-                        DecideSignalsSection(signals: gateSignals, normals: normals)
+                        // B-57 W3: the gate's `recovery` signal is the score row below, not a second SignalRow.
+                        DecideSignalsSection(signals: RecoveryScoreCard.visibleSignals(gateSignals), normals: normals)
                             .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
                     }
+                    // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
+                    RecoveryScoreCard(compact: true)
+                        .padding(.horizontal, JISpacing.s4)
+                    JIRowDivider().padding(.leading, JISpacing.s4)
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     Button { openDay() } label: {
