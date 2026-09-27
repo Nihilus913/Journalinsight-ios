@@ -69,16 +69,19 @@ struct StubError: Error {}
         #expect(await permissions.status(for: .stepCount) == .granted)
     }
 
-    /// `.sharingDenied` is the one status HealthKit confirms directly — kept as the only path to
-    /// `.denied`, even when `requestStatus` (queried on the read side) would otherwise say
-    /// `.shouldRequest`.
-    @Test func sharingDeniedMapsToDeniedEvenWhenRequestStatusSaysShouldRequest() async {
+    /// DEV-12 (W-DATA R2): `authorizationStatus(for:)` is the SHARE status. JI never requests
+    /// share, so once the read sheet has been answered HealthKit reports `.sharingDenied` for
+    /// every read type — whether or not reads were allowed. That was the "Declined" on Overnight
+    /// HRV / Sleep / Resting HR while the same types uploaded 200. It must never map to `.denied`.
+    @Test func sharingDeniedOnAReadOnlyTypeIsNeverDenied() async {
         let fake = FakeHealthKitAuthorizing()
-        let type = HKReadKind.stepCount.sampleType!
+        let type = HKReadKind.restingHeartRate.sampleType!
         fake.statuses[type] = .sharingDenied
-        fake.requestStatuses[type] = .shouldRequest
+        fake.requestStatuses[type] = .unnecessary
         let permissions = HealthKitPermissions(authorizer: fake)
-        #expect(await permissions.status(for: .stepCount) == .denied)
+        #expect(await permissions.status(for: .restingHeartRate) == .granted)
+        fake.requestStatuses[type] = .shouldRequest
+        #expect(await permissions.status(for: .restingHeartRate) == .notDetermined)
     }
 
     @Test func unknownRequestStatusMapsToNotDeterminedNeverDenied() async {
@@ -110,6 +113,44 @@ struct StubError: Error {}
         await #expect(throws: StubError.self) {
             try await permissions.requestAuthorization()
         }
+    }
+
+    // MARK: - Per-type arrival (DEV-12: status keys off the last upload per type)
+
+    private func defaults() -> UserDefaults {
+        let d = UserDefaults(suiteName: "HealthKitArrivalTests.\(UUID().uuidString)")!
+        return d
+    }
+
+    @Test func perTypeArrivalKeyNamesTheSampleType() {
+        let key = HealthKitArrival.key(for: HKReadKind.sleepAnalysis.sampleType!)
+        #expect(key == "hk.upload.lastSuccess.HKCategoryTypeIdentifierSleepAnalysis")
+    }
+
+    @Test func perTypeArrivalReadsOnlyTheNamedKinds() {
+        let d = defaults()
+        d.set("2026-09-27T05:41:00Z", forKey: HealthKitArrival.key(for: HKReadKind.sleepAnalysis.sampleType!))
+        d.set("2026-09-27T06:00:00Z", forKey: HealthKitArrival.globalKey)
+        #expect(HealthKitArrival.lastUpload(for: [.sleepAnalysis], in: d) == ISO8601DateFormatter().date(from: "2026-09-27T05:41:00Z"))
+        // Per-type records exist, so a type without one has NOT arrived — no global fallback.
+        #expect(HealthKitArrival.lastUpload(for: [.restingHeartRate], in: d) == nil)
+    }
+
+    @Test func perTypeArrivalTakesTheLatestOfSeveralKinds() {
+        let d = defaults()
+        d.set("2026-09-26T05:00:00Z", forKey: HealthKitArrival.key(for: HKReadKind.hrvSDNN.sampleType!))
+        d.set("2026-09-27T05:00:00Z", forKey: HealthKitArrival.key(for: HKReadKind.restingHeartRate.sampleType!))
+        #expect(HealthKitArrival.lastUpload(for: [.hrvRMSSD, .hrvSDNN], in: d) == ISO8601DateFormatter().date(from: "2026-09-26T05:00:00Z"))
+    }
+
+    /// Installs that uploaded before the per-type writer existed only have the global instant —
+    /// fall back to it so a working pipe never reads "No data yet".
+    @Test func noPerTypeRecordsFallsBackToTheGlobalInstant() {
+        let d = defaults()
+        d.set("2026-09-27T06:00:00Z", forKey: HealthKitArrival.globalKey)
+        #expect(HealthKitArrival.lastUpload(for: [.restingHeartRate], in: d) == ISO8601DateFormatter().date(from: "2026-09-27T06:00:00Z"))
+        #expect(HealthKitArrival.lastUpload(for: [.restingHeartRate], in: defaults()) == nil)
+        #expect(HealthKitArrival.lastUpload(for: [.restingHeartRate], in: nil) == nil)
     }
 
     @Test func requestAuthorizationDefaultsToAvailableCases() async throws {

@@ -10,8 +10,11 @@ import HealthKit
 /// previous implementation misread that perpetual `.notDetermined` as "declined" the moment a
 /// request had been sent, so every grant rendered as `.denied` forever). `HKPermission.granted`
 /// is instead PROVEN by `HKAuthorizationRequestStatus.unnecessary` (HealthKit already knows the
-/// request would be a no-op, which only happens once the user has answered), and `.denied` is
-/// reserved for the one case HealthKit does confirm directly: `.sharingDenied` on the SHARE side.
+/// request would be a no-op, which only happens once the user has answered). DEV-12 (W-DATA R2):
+/// `.sharingDenied` is NOT a read decline — JI never requests share, so HealthKit reports it for
+/// every read type once the sheet is answered, allowed or not ("Declined" on types uploading 200).
+/// No read path produces `.denied`; the case stays for the view copy. Data arriving
+/// (`HealthKitArrival`) is the only proof of a read grant.
 public enum HKPermission: Sendable, Equatable, Hashable {
     case granted
     case denied
@@ -62,15 +65,49 @@ public final class HealthKitPermissions: Sendable {
     /// there is NO path from an inconclusive read to `.denied`.
     public func status(for kind: HKReadKind) async -> HKPermission {
         guard let type = kind.sampleType else { return .notDetermined }
-        // `.sharingDenied` is the one status HealthKit confirms directly; kept for completeness
-        // even though this app only ever requests reads (never share) for these types.
-        if authorizer.authorizationStatus(for: type) == .sharingDenied { return .denied }
+        // `authorizer.authorizationStatus(for:)` is deliberately NOT consulted: it is the share
+        // status, and `.sharingDenied` there says nothing about reads (DEV-12).
         guard let requestStatus = try? await authorizer.requestStatus(for: [type]) else { return .notDetermined }
         switch requestStatus {
         case .unnecessary: return .granted
         case .shouldRequest, .unknown: return .notDetermined
         @unknown default: return .notDetermined
         }
+    }
+}
+
+/// DEV-12 (W-DATA R2): when HealthKit data last ARRIVED at the hub, per sample type — the honest
+/// "Connected" signal (iOS never reports a read grant). The uploader records the 2xx instant
+/// under `globalKey` (B-65) and, per type, under `key(for:)` (ISO-8601, App-Group suite).
+public enum HealthKitArrival {
+    /// Same literal as `HealthKitUploader.lastSuccessKey`.
+    public static let globalKey = "hk.upload.lastSuccess"
+
+    /// `hk.upload.lastSuccess.<HK type identifier>`.
+    public static func key(for sampleType: HKSampleType) -> String {
+        "\(globalKey).\(sampleType.identifier)"
+    }
+
+    /// The latest per-type arrival among `kinds` (a kind unavailable on this OS is skipped). When
+    /// the suite has NO per-type record for any read kind (an install that uploaded before the
+    /// per-type writer), falls back to the global instant; once per-type records exist, a kind
+    /// without one has not arrived → nil ("No data yet", never "Declined").
+    public static func lastUpload(for kinds: [HKReadKind], in defaults: UserDefaults?) -> Date? {
+        guard let defaults else { return nil }
+        let dates = kinds.compactMap { $0.sampleType }.compactMap { date(defaults.string(forKey: key(for: $0))) }
+        if let latest = dates.max() { return latest }
+        let anyPerType = HKReadKind.allCases.contains { kind in
+            kind.sampleType.map { defaults.string(forKey: key(for: $0)) != nil } ?? false
+        }
+        return anyPerType ? nil : date(defaults.string(forKey: globalKey))
+    }
+
+    private static func date(_ raw: String?) -> Date? {
+        guard let raw else { return nil }
+        let plain = ISO8601DateFormatter()
+        if let d = plain.date(from: raw) { return d }
+        let frac = ISO8601DateFormatter(); frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return frac.date(from: raw)
     }
 }
 #endif
