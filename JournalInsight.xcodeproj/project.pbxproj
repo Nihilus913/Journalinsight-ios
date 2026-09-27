@@ -32,6 +32,7 @@
 		65EE8AEEABA56109EB23B3D9 /* VerdictComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1296CF63AE100B901BCE1904 /* VerdictComplication.swift */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
+		75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */; };
 		771CD79297124DB919FDF1FF /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 6D3B95761227D23C685A4248 /* JICore */; };
 		793D20E8E61933D635505938 /* WatchApp.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A9C5E6D723C02DAA2AE6F7E4 /* WatchApp.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		79902CA6997004F59F873D5D /* SettingsEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C279DB8F1219367F06DA75E4 /* SettingsEntryTests.swift */; };
@@ -180,6 +181,7 @@
 		BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C279DB8F1219367F06DA75E4 /* SettingsEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsEntryTests.swift; sourceTree = "<group>"; };
 		C71FF243F6A68258A948360E /* JISnapshot */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JISnapshot; path = Packages/JISnapshot; sourceTree = SOURCE_ROOT; };
+		C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryInsightWiringTests.swift; sourceTree = "<group>"; };
 		C8D8625B172A75DBF6756238 /* JournalInsightTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = JournalInsightTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3632CFA4AC9B6771D6C3075 /* Widgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectKpiIntent.swift; sourceTree = "<group>"; };
@@ -313,6 +315,7 @@
 				81E3002B92D368429BB3F69F /* MoreTabTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */,
+				C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */,
 				2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */,
 				71079AE7F93BCD18F9739972 /* RootTabShellTests.swift */,
 				C279DB8F1219367F06DA75E4 /* SettingsEntryTests.swift */,
@@ -670,6 +673,7 @@
 				E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				0FECD0C0B4BBA90BF4C6C305 /* ProviderSelectionTests.swift in Sources */,
+				75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */,
 				DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */,
 				5FF420DA4BF808DDB84434E8 /* RootTabShellTests.swift in Sources */,
 				79902CA6997004F59F873D5D /* SettingsEntryTests.swift in Sources */,
