@@ -49,6 +49,11 @@ public nonisolated enum JIColorRole: Sendable, CaseIterable, Equatable {
     /// W-FIX2 BUG-31: HRV's own metric colour (system blue), split off `info` when `info` became
     /// the accent, so the HRV numeral does not turn green (rule 6).
     case hrv
+    /// W-GUI F4 (report §4.3): resting HR coral (`#FF9F8A`, NOT `.danger`), training load
+    /// violet (`#C8A2FF`, NOT `.reduced`), steps = primary text unless the caller passes a goal
+    /// (`metricTintRole(_:hasGoal:)` → `.go`). Today's `.go` on a goal-less step count was a
+    /// verdict leak (rule 6).
+    case rhr, load, steps
 }
 
 public nonisolated extension JIColorRole {

@@ -24,3 +24,18 @@ import JIDesign
     }
     #expect(AccentKey.emerald.hex == 0x4ade80)
 }
+
+/// W-GUI F4 (BUG-31 extended): the accent is never a metric colour, and the new metric roles
+/// `.rhr` / `.load` are neither the accent nor a verdict role.
+@MainActor
+@Test func rhrAndLoadAreNotTheAccentOrAVerdict() {
+    var env = EnvironmentValues(); env.colorScheme = .dark
+    func rgb(_ role: JIColorRole) -> (Float, Float, Float) {
+        let r = JITheme.native.color(role).resolve(in: env); return (r.red, r.green, r.blue)
+    }
+    for role in [JIColorRole.rhr, .load] {
+        for other in [JIColorRole.info, .danger, .reduced, .go] { #expect(rgb(role) != rgb(other)) }
+        #expect(rgb(role) != rgb(.hrv))
+    }
+    #expect(metricTintRole("rhr") == .rhr && metricTintRole("load") == .load && metricTintRole("steps") == .steps)
+}

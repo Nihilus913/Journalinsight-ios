@@ -4,10 +4,10 @@ import Testing
 // B-47 — the metric → colour-role map L2's Today grid tints its cards with.
 @Test(arguments: [
     ("hrv", JIColorRole.hrv),
-    ("rhr", .danger), ("Resting HR", .danger), ("resting_hr", .danger),
+    ("rhr", .rhr), ("Resting HR", .rhr), ("resting_hr", .rhr),
     ("sleep", .sleep), ("sleep_score", .sleep), ("Sleep score", .sleep),
-    ("steps", .go),
-    ("load", .reduced), ("acwr", .reduced), ("Load (ACWR)", .reduced),
+    ("steps", .steps),
+    ("load", .load), ("acwr", .load), ("Load (ACWR)", .load),
     // B-57 W1 r5: the macro colours the Monitor / Plan boards tint with.
     ("kcal", .kcal), ("Calories", .kcal),
     ("protein", .protein), ("Protein", .protein),
@@ -27,14 +27,14 @@ func everythingElseIsPrimaryText(id: String) {
 /// same colour, or the same metric reads in two colours on two screens.
 @Test func theLookupIsCaseAndSeparatorInsensitive() {
     #expect(metricTintRole("HRV") == metricTintRole("hrv"))
-    #expect(metricTintRole("  Steps ") == .go)
+    #expect(metricTintRole("  Steps ") == .steps)
     #expect(metricTintRole("SLEEP SCORE") == .sleep)
 }
 
 /// Rule 6: the reserved verdict roles are only ever handed out by this map, never invented per
 /// card — and no metric gets a surface/hairline role by mistake.
 @Test func onlyForegroundRolesAreEverReturned() {
-    let allowed: Set<JIColorRole> = [.hrv, .danger, .sleep, .go, .reduced, .text, .kcal, .protein, .carbs, .fat]
+    let allowed: Set<JIColorRole> = [.hrv, .rhr, .sleep, .steps, .load, .text, .kcal, .protein, .carbs, .fat]
     for id in ["hrv", "rhr", "sleep", "steps", "load", "acwr", "weight", "kcal", "protein", "carbs", "fat", "zzz"] {
         #expect(allowed.contains(metricTintRole(id)))
     }
@@ -47,4 +47,15 @@ func everythingElseIsPrimaryText(id: String) {
     #expect(Set(macros).count == 4)
     #expect(Set(macros).isDisjoint(with: [.go, .reduced, .danger, .info, .sleep, .text]))
     #expect(macros.allSatisfy { JIColorRole.macroRoles.contains($0) })
+}
+
+/// W-GUI F4 (report §4.3): the verdict roles never tint a metric numeral; steps earn `.go`
+/// only against a user goal.
+@Test func metricsNeverWearTheVerdictRoles() {
+    for id in ["hrv", "rhr", "sleep", "steps", "load", "acwr", "weight", "kcal", "protein", "carbs", "fat"] {
+        #expect(![JIColorRole.go, .reduced, .danger, .info].contains(metricTintRole(id)), Comment(rawValue: id))
+    }
+    #expect(metricTintRole("steps", hasGoal: true) == .go)
+    #expect(metricTintRole("steps", hasGoal: false) == .steps)
+    #expect(metricTintRole("rhr", hasGoal: true) == .rhr)
 }
