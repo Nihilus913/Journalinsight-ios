@@ -19,10 +19,11 @@ public struct TrainingView: View {
     // B-37-L3 (P-workouts): the app wires `\.sendToWatchModel`; nil (previews, tests, no hub) hides
     // the toolbar button. Environment-routed so `init(model:)` stays the frozen contract.
     @Environment(\.sendToWatchModel) private var sendToWatch
-    /// B-57 W4: the user's optional cap / zones, injected by the app shell.
-    @Environment(\.gateSettings) private var gateSettings
     @State private var showSendToWatch = false
     #endif
+    /// B-57 W4: the user's optional cap / zones, injected by the app shell (W-FIX5 TR-zones: also the
+    /// Zones card, so it is declared outside the WorkoutKit block).
+    @Environment(\.gateSettings) private var gateSettings
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
@@ -144,11 +145,11 @@ public struct TrainingView: View {
             Text(trainingProgressionCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
-            // W-GUI TR1 (mockup 04, plan §B): zones are the user's input — none set until W4.
+            // W-GUI TR1 (mockup 04, plan §B): zones are the user's input (W-FIX5: read from their settings).
             JISectionHeader("Zones · your input")
             Surface(level: 1, padding: 0) {
                 VStack(spacing: 0) {
-                    ForEach(Array(trainingZoneRows(cap: nil, zone2: nil).enumerated()), id: \.element.id) { index, row in
+                    ForEach(Array(trainingZoneRows(settings: gateSettings).enumerated()), id: \.element.id) { index, row in
                         if index > 0 { JIRowDivider().padding(.leading, 0) }
                         HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
                             VStack(alignment: .leading, spacing: 2) {

@@ -106,6 +106,9 @@ public final class GoalsSetupViewModel {
     private let onNutritionSaved: (@MainActor () -> Void)?
     /// W-FIX5 DEV-15: whether a goals PUT is still in the outbox (nil = only this model's saves say).
     private let hubPendingSource: (@MainActor () -> Bool)?
+    /// W-FIX5 fixer (Goals-stale): the hub's goals after a successful PUT, so the shell's Goals card
+    /// and More row stop showing the pre-save document.
+    private let onGoalsSaved: (@MainActor (Goals) -> Void)?
 
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
@@ -113,7 +116,8 @@ public final class GoalsSetupViewModel {
         macroStore: MacroGoalsStore? = nil, mirror: GoalsMirror? = nil,
         burnSource: (@MainActor () async -> EnergyBurnWindow?)? = nil,
         onNutritionSaved: (@MainActor () -> Void)? = nil,
-        hubPendingSource: (@MainActor () -> Bool)? = nil
+        hubPendingSource: (@MainActor () -> Bool)? = nil,
+        onGoalsSaved: (@MainActor (Goals) -> Void)? = nil
     ) {
         self.provider = provider
         self.goalStore = goalStore
@@ -124,6 +128,7 @@ public final class GoalsSetupViewModel {
         self.burnSource = burnSource
         self.onNutritionSaved = onNutritionSaved
         self.hubPendingSource = hubPendingSource
+        self.onGoalsSaved = onGoalsSaved
     }
 
     /// W-FIX5 DEV-15: the retry scheduler / watchdog drain can deliver the queued PUT after the
@@ -193,6 +198,7 @@ public final class GoalsSetupViewModel {
             try? goalStore?.saveGoalTargetsMirror(result, now: now())
             savedAt = now()
             phase = .loaded
+            onGoalsSaved?(result)
             return true
         } catch {
             phase = .error(Self.describe(error))

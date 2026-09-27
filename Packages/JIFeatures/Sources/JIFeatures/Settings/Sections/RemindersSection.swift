@@ -18,6 +18,7 @@ public struct RemindersSection: SettingsSection {
 
 private struct RemindersSectionRows: View {
     @Environment(SettingsViewModel.self) private var model
+    @Environment(\.jiOffscreenRender) private var offscreen
     @State private var trailing: String?
 
     var body: some View {
@@ -27,8 +28,15 @@ private struct RemindersSectionRows: View {
             } label: {
                 SettingsLinkLabel(title: "Reminders", systemImage: "bell", trailing: trailing)
             }
-            .onAppear {
-                trailing = settingsRemindersTrailing((try? model.prefs.get(RemindersPrefs.prefKey, as: RemindersPrefs.self)) ?? nil)
+            // W-FIX5 W4-3: the count includes the HR-cap re-check, which lives only as a pending
+            // notification. `.task` re-runs each time the row reappears (back from Reminders).
+            .task {
+                let prefs = (try? model.prefs.get(RemindersPrefs.prefKey, as: RemindersPrefs.self)) ?? nil
+                trailing = settingsRemindersTrailing(prefs)
+                // Only in the app: the notification centre throws in a host-app-less test process.
+                guard !offscreen, Bundle.main.bundleURL.pathExtension == "app" else { return }
+                let due = await ReminderScheduler(center: UNUserNotificationCenter.current()).hrCapCheckDue()
+                trailing = settingsRemindersTrailing(prefs, hrCapCheckOn: due != nil)
             }
             .accessibilityLabel("Reminders")
             .accessibilityIdentifier("settings.row.reminders")

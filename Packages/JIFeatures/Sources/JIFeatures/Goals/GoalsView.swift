@@ -123,6 +123,10 @@ public nonisolated enum GoalsBoard {
     }
 }
 
+/// W-FIX5 fixer (Goals-stale): the goals document the shell shows — the result of this session's
+/// last successful save when there is one (the hub returned it), else the loaded document.
+public nonisolated func goalsShown(hub: Goals?, saved: Goals?) -> Goals? { saved ?? hub }
+
 /// W-FIX2 BUG-41: what More → Goals shows, gathered by the shell from the models it already loads.
 public nonisolated struct GoalsBoardInput: Sendable, Equatable {
     public var goals: Goals?

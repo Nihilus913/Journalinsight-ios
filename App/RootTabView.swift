@@ -113,6 +113,9 @@ struct RootTabView: View {
     @State private var gateOpen = false
     @State private var gateForceConsumed = false
     @State private var goalsSetupModel: GoalsSetupViewModel?
+    /// W-FIX5 fixer (Goals-stale): the goals a GoalsSetup save returned this session (More, Settings or
+    /// KpiDetail), shown until the energy model reloads the same document.
+    @State private var savedGoals: Goals?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
     #if DEBUG
@@ -362,7 +365,9 @@ struct RootTabView: View {
         }
         .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil; reloadGateSettings() }) {
             if let settingsModel {
-                SettingsView(model: settingsModel)
+                // W-FIX5 fixer: Settings → My KPIs / Gate thresholds read the same recovery insight
+                // (Load square, onboarding nights) as the tab stacks — a sheet does not inherit it.
+                shellStackEnvironment(SettingsView(model: settingsModel))
             } else {
                 ProgressView().task { settingsModel = await makeSettingsModel() }
             }
@@ -753,7 +758,7 @@ struct RootTabView: View {
     /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →
     /// target, from the same hub goals document Settings' row reads (`settingsGoalsTrailing`).
     private var moreGoalsRow: MoreRowValue {
-        Self.moreGoalsRowValue(energyModel?.goals)
+        Self.moreGoalsRowValue(goalsShown(hub: energyModel?.goals, saved: savedGoals))
     }
 
     static func moreGoalsRowValue(_ goals: Goals?) -> MoreRowValue {
@@ -762,14 +767,14 @@ struct RootTabView: View {
 
     /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.
     private var moreGoalsBoard: GoalsBoardInput? {
-        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult else { return nil }
+        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult || savedGoals != nil else { return nil }
         let gate = todayModel?.gate
         let yesterday = String(Calendar.current.date(byAdding: .day, value: -1, to: Date())!.ISO8601Format().prefix(10))
         let nutrition = nutritionModel?.week.first { $0.date == yesterday }
         let energyDay = energyModel.report?.days.first { $0.date == yesterday }
         let stepsRow = gate?.daily.first { $0.date == yesterday }
         return GoalsBoardInput(
-            goals: energyModel.goals,
+            goals: goalsShown(hub: energyModel.goals, saved: savedGoals),
             latestKg: KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value,
             avgDeficit7d: energyModel.report?.avgDeficitCorrected7d,
             trackingDays: energyModel.report?.trackingDays ?? 0,
@@ -1003,7 +1008,12 @@ struct RootTabView: View {
             burnSource: { let band = env.makeEnergyBand(); band.recompute(); return band.burnWindow },
             onNutritionSaved: { Task { await env.refreshEnergyBand() } },
             // W-FIX5 DEV-15: "hub sync pending" follows the outbox (the retry scheduler delivers later).
-            hubPendingSource: { (try? Outbox(db: .onDisk())).map { GoalsSetupViewModel.goalsPending(in: $0) } ?? false }
+            hubPendingSource: { (try? Outbox(db: .onDisk())).map { GoalsSetupViewModel.goalsPending(in: $0) } ?? false },
+            // W-FIX5 fixer (Goals-stale): the saved document shows at once; the energy model reloads it.
+            onGoalsSaved: { goals in
+                savedGoals = goals
+                if let energy = energyModel { Task { await energy.refresh() } }
+            }
         )
     }
 

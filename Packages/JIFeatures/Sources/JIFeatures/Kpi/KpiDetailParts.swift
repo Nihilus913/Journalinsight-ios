@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import JICore
+import JICompute
 import JIDesign
 
 // B-57 W1 fixer: the KpiDetail board's pieces (`2 Monitor/03 KpiDetail.png`), shared by the
@@ -37,6 +38,9 @@ struct KpiDetailTrend: View {
     var tint: JIColorRole = .text
     /// W-B57-W3 fixer: the legend's words (`kpiDetailLegendText`); the calibrating legend by default.
     var legend: String = kpiDetailLegend
+    /// W-FIX5 fixer (KPI-legend): the band + median the legend names, drawn under the line (the
+    /// same `KpiNormal` band the NormalBar shows). nil = no band yet, and the legend says so.
+    var normal: PersonalNormalResult? = nil
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
@@ -50,12 +54,26 @@ struct KpiDetailTrend: View {
             .accessibilityIdentifier("kpi-detail-range")
             Surface {
                 VStack(alignment: .leading, spacing: 8) {
-                Chart(points) { p in
-                    LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
-                        .foregroundStyle(theme.color(tint))
-                        .interpolationMethod(.monotone)
-                    if points.count == 1 {
-                        PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
+                Chart {
+                    // "shaded = your normal": the 28-day band across the plot, under the line.
+                    if let normal, !points.isEmpty {
+                        RectangleMark(yStart: .value("Normal low", normal.low), yEnd: .value("Normal high", normal.high))
+                            .foregroundStyle(theme.color(tint).opacity(0.14))
+                            .accessibilityLabel("Your normal")
+                            .accessibilityValue("\(jiNumber(normal.low, 1)) to \(jiNumber(normal.high, 1))")
+                        // "dashed = median".
+                        RuleMark(y: .value("Median", normal.median))
+                            .foregroundStyle(theme.color(tint).opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                            .accessibilityLabel("Median")
+                    }
+                    ForEach(points) { p in
+                        LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                            .foregroundStyle(theme.color(tint))
+                            .interpolationMethod(.monotone)
+                        if points.count == 1 {
+                            PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
+                        }
                     }
                 }
                 .chartYAxis { AxisMarks(position: .trailing) }
