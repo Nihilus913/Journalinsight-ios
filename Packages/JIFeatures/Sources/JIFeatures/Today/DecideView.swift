@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// B-57 §2 Decide — which actions are live. Syncing (no verdict yet) disables both; a rest day
@@ -115,10 +116,32 @@ public nonisolated func decideHeroTintRole(tone: VerdictTone, syncing: Bool) -> 
 /// The readiness ring's caption. The score is not on the hub yet (plan §B: W3) — the ring shows
 /// "—" with the honest reason and the count of overnight nights already on the phone; with a
 /// score it is just the word.
-public nonisolated func decideReadinessCaption(score: Double?, nights: Int?) -> String {
-    guard score == nil else { return "Readiness" }
+/// W-B57-W3 fixer: with no Garmin readiness the ring carries the recovery score (the gate's own
+/// inputs) and its own calibration count — never "7 of 7 so far · Calibrating" beside a score.
+public nonisolated func decideReadinessCaption(score: Double?, nights: Int?, recovery: RecoveryScoreResult? = nil) -> String {
+    if score != nil {
+        guard let recovery, recovery.status == .ok, let s = recovery.score, Double(s) == score else { return "Readiness" }
+        return s < RecoveryScore.lowScore ? "Recovery low" : "Recovery"
+    }
+    if let recovery {
+        switch recovery.status {
+        case .calibrating:
+            let need = recovery.nightsNeeded
+            let n = min(max(recovery.nights, 0), need)
+            return "Recovery needs \(need) nights · \(n) of \(need) so far · \(JIMissingReason.calibrating.rawValue)"
+        case .missing, .ok:
+            return "Recovery · \(JIMissingReason.noData.rawValue)"
+        }
+    }
     let n = min(max(nights ?? 0, 0), 7)
     return "Readiness needs 7 overnight nights · \(n) of 7 so far · \(JIMissingReason.calibrating.rawValue)"
+}
+
+/// W-B57-W3 fixer: the ring's number — the hub's readiness when present, else the recovery score.
+public nonisolated func decideRingScore(readiness: Double?, recovery: RecoveryScoreResult?) -> Double? {
+    if let readiness { return readiness }
+    guard let recovery, recovery.status == .ok, let s = recovery.score else { return nil }
+    return Double(s)
 }
 
 /// Report §7: ONE primary button per screen. Go is the primary; Adjust is secondary; a rest day
@@ -166,6 +189,7 @@ public struct DecideView: View {
     @State private var showAdjust = false
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
+    @Environment(\.recoveryInsight) private var recoveryInsight
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
@@ -296,7 +320,8 @@ public struct DecideView: View {
                         }
                     }
                     if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
-                    DecideReadinessRing(score: readiness, nights: calibrationNights)
+                    DecideReadinessRing(score: decideRingScore(readiness: readiness, recovery: recoveryInsight?.result),
+                                        nights: calibrationNights, recovery: readiness == nil ? recoveryInsight?.result : nil)
                 }
                 if !syncing, let wasCaption {
                     Text(wasCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
@@ -529,6 +554,7 @@ public struct VerdictAdjustForm: View {
 /// verdict colour (rule 6): it wears the text colour; the ring track is the nested fill.
 struct DecideReadinessRing: View {
     let score: Double?, nights: Int?
+    var recovery: RecoveryScoreResult? = nil
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var side: CGFloat = 64
 
@@ -543,14 +569,14 @@ struct DecideReadinessRing: View {
                     Text("—").jiNumeral(.numeralSmall, tint: .muted)
                 }
             }
-            Text(decideReadinessCaption(score: score, nights: nights))
+            Text(decideReadinessCaption(score: score, nights: nights, recovery: recovery))
                 .jiFont(.micro).foregroundStyle(theme.color(.muted))
                 .multilineTextAlignment(.center)
                 .frame(width: side * 1.9)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(decideReadinessCaption(score: score, nights: nights) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
+        .accessibilityLabel(decideReadinessCaption(score: score, nights: nights, recovery: recovery) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
         .accessibilityIdentifier("today.decide.readinessRing")
     }
 }
