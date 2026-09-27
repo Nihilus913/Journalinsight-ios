@@ -56,3 +56,32 @@ extension KpiNutritionSummaryTests {
         #expect(kpiMacroTableUnit(.kcal) == nil)
     }
 }
+
+// W-FIX5 L5 — R3 (mockup 22): per-day bars from zero and the board's two chevron rows.
+extension KpiNutritionSummaryTests {
+    @Test func perDayPointsAreTheLastSevenRowDatesNewestLast() {
+        let pts = kpiMacroDayPoints(rows: rows, macro: .kcal)
+        #expect(pts.count == 7)
+        #expect(pts.map(\.id) == (24...30).map { String(format: "2026-08-%02d", $0) })
+        #expect(pts.last?.isLatest == true && pts.dropLast().allSatisfy { !$0.isLatest })
+        // The 30th has no kcal → nil + "No data" (rule 5), never a zero bar.
+        #expect(pts.last?.value == nil && pts.last?.missingReason == .noData)
+        #expect(pts.first?.value == 1600)
+        #expect(pts.first?.label == "Mon")   // 2026-08-24 is a Monday
+        #expect(kpiMacroDayPoints(rows: [], macro: .protein).isEmpty)
+    }
+
+    @Test func linkRowsCarryTheBoardsSecondLine() {
+        #expect(kpiNutritionLinkSubtitle(.widget, metricLabel: "Protein") == "Small · protein today")
+        #expect(kpiNutritionLinkSubtitle(.macroGoals, metricLabel: "Protein") == "Goals setup")
+    }
+
+    /// The gallery preview's band: its 28 fixture days against the fixture's own "today" give a
+    /// normal (n ≥ 14 in today−34 … today−7), so the sweep cell shows the band, not "Calibrating".
+    @Test func previewFixtureHasItsBandAgainstItsOwnToday() {
+        let fixture = (1...28).map { d in
+            NutritionDailyRow(date: String(format: "2026-08-%02d", d), proteinG: 110 + Double(d), mealsLogged: 3)
+        }
+        #expect(kpiMacroNormal(rows: fixture, macro: .protein, today: "2026-08-29") != nil)
+    }
+}

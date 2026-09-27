@@ -7,7 +7,8 @@ struct SignalRowTests {
         #expect(signalReferenceText(normal: 27...30, goal: 7, unit: "ms", decimals: 0, detail: "x") == "your normal 27–30")
         #expect(signalReferenceText(normal: nil, goal: 155, unit: "g", decimals: 0, detail: "x") == "goal 155 g")
         #expect(signalReferenceText(normal: nil, goal: nil, unit: "h", decimals: 1, detail: "floor 7.0 h") == "floor 7.0 h")
-        #expect(signalReferenceText(normal: nil, goal: nil, unit: nil, decimals: 0, detail: nil) == nil)
+        // W-GUI-2 S3: the slot is never empty — it names what is still missing.
+        #expect(signalReferenceText(normal: nil, goal: nil, unit: nil, decimals: 0, detail: nil) == "your normal — Calibrating")
     }
 
     @Test func accessibilityIsWordsWithStatusAndReference() {

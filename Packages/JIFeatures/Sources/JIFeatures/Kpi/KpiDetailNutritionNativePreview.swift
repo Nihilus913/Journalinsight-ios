@@ -16,7 +16,8 @@ struct KpiDetailNutritionNativePreview: View {
             // Board: the source line with the "Last synced" pill (a fixed fixture time).
             KpiDetailSourceLine(subtitle: kpiSourceSubtitle(.protein),
                                 fetchedAt: Date(timeIntervalSince1970: 1_790_158_440), showsSynced: true)
-            KpiNutritionPanel(rows: Self.rows, macro: .protein)
+            // R3: the fixture's own "today" (the day after its last row), so its 28-day band shows.
+            KpiNutritionPanel(rows: Self.rows, macro: .protein, today: "2026-08-29")
         }
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

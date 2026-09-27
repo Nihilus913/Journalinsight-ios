@@ -55,14 +55,15 @@ public struct DriverBars: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: JISpacing.s2 + 2) {
             ForEach(drivers) { driver in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: JISpacing.s1) {
                     HStack {
-                        Text(driver.label).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
-                        Spacer(minLength: 8)
+                        // W-GUI-2 S3: token scale (report §4.5), never a raw `.font(.caption)`.
+                        Text(driver.label).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
+                        Spacer(minLength: JISpacing.s2)
                         if let word = driver.word {
-                            Text(word).font(.caption.weight(.semibold))
+                            Text(word).jiFont(.caption, weight: .semibold)
                                 .foregroundStyle(theme.color(driver.value == nil ? .muted : Self.fillRole(for: driver)))
                                 .lineLimit(1)
                         }
