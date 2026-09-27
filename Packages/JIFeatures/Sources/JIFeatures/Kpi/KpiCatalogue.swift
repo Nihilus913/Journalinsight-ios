@@ -52,9 +52,23 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
 
 public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
                                           today: String, goalCaption: (KpiMetricId, Double?) -> String?) -> [JISquareItem] {
+    kpiCatalogueItems(group: group, visible: visible, value: value, today: today, goalCaption: goalCaption, load: nil)
+}
+
+/// W-FIX5 L1 (WD-2): `load` = the gate-input Load (`RecoveryInsightService.loadReading`). Exactly as
+/// on Today (`todayChipsWithLoad`): a current ACWR keeps the Load square; without one the square
+/// carries the 7-day minutes with its band caption ("7 d · normal 180–320") instead of "— No data".
+public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
+                                          today: String, goalCaption: (KpiMetricId, Double?) -> String?,
+                                          load: RecoveryLoadReading?) -> [JISquareItem] {
     func square(_ id: KpiMetricId, badge: JISquareBadge) -> JISquareItem {
         let def = KpiMetrics.def(id)
         let reading = value(id)
+        if id == .acwr, reading == nil, let load {
+            return JISquareItem(id: id.rawValue, label: kpiLoadMinutesDef.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
+                                value: load.minutes.rounded(), decimals: 0, unit: recoveryLoadUnit,
+                                goalText: load.caption, status: nil, badge: badge)
+        }
         let caption = [goalCaption(id, reading?.value), kpiAsOfLabel(valueDate: reading?.date, today: today)]
             .compactMap { $0 }.joined(separator: " · ")
         return JISquareItem(id: id.rawValue, label: def.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
