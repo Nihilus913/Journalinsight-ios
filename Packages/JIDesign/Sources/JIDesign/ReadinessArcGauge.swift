@@ -86,6 +86,7 @@ public struct ReadinessArcGauge: View {
                 let tint = nativeBandColor(readinessBand(for: score))
                 ArcSegment(from: 0, to: shownValue, lineWidth: nativeTrack, lineCap: .round)
                     .fill(AngularGradient(stops: ringFadeStops(tint), center: gradientCenter, startAngle: .degrees(180), endAngle: gaugeFillEndAngle(for: score)))
+                    .jiRingGlow(tint)   // W-GUI F8
                 headDot(at: shownValue, tint: tint)
             }
         }

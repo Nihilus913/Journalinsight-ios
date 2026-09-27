@@ -32,6 +32,7 @@ public struct ScoreRing: View {
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .jiRingGlow(tint)   // W-GUI F8
         }
         .frame(width: size, height: size)
         .onAppear { if animatesReveal { reveal() } }
