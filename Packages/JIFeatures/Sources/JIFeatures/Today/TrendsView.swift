@@ -113,11 +113,12 @@ public struct TrendsView: View {
             .padding(.horizontal, 20).padding(.vertical, 12)
             .readableColumn()
         }
-        .background(theme.color(.bg))
+        .jiPageGround()
+        .jiGlassBackButton()
         .navigationTitle("Trends")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(editing ? "Done" : "Edit") { editing.toggle() }.accessibilityIdentifier("trends.edit")
+                JIGlassButton(editing ? "checkmark" : "pencil", label: editing ? "Done" : "Edit") { editing.toggle() }.accessibilityIdentifier("trends.edit")
             }
         }
     }
