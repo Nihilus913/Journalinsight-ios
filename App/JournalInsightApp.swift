@@ -131,6 +131,10 @@ struct JournalInsightApp: App {
                         watchdog?.start()
                         outboxRetry.startForeground()
                         env.foregroundHealthUpload() // B-65: last night reaches the hub on open
+                        // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
+                        let mirror = GateSettingsMirror(prefs: env.prefs,
+                                                        provider: env.providerStore?.provider as? any GateSettingsProviding)
+                        Task { @MainActor in await mirror.pushIfPending() }
                     } else {
                         watchdog?.stop()
                         watchdog = nil
