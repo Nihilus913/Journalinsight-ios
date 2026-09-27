@@ -23,7 +23,8 @@ public struct GateConfigView: View {
 
     public init(model: GateConfigViewModel) { _model = State(initialValue: model) }
     @Environment(\.recoveryInsight) private var recoveryInsight
-    @Environment(\.gateSettings) private var gateSettings
+    @State private var showCapSheet = false
+    @State private var showWalkthrough = false
 
     public var body: some View {
         Form {
@@ -44,18 +45,51 @@ public struct GateConfigView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("gateConfig.howItWorks")
+                Button("Walk me through it again") { showWalkthrough = true }
+                    .jiFont(.footnote, weight: .semibold).tint(theme.color(.info))
+                    .accessibilityIdentifier("gateConfig.walkthrough")
             } footer: {
                 Text("Recommended values are already set. Change one only when you know why.")
             }
-            Section("Safety") {
-                valueRow(gateConfigHrCapTitle, gateConfigHrCapSubtitle, value: gateSettings.hrCapBpm.map { "\($0) bpm" } ?? "None")
-                lockedRow("Zone 5", "No Zone 5 target anywhere in the app.", value: "Off")
+            Section {
+                Button { showCapSheet = true } label: {
+                    JIChevronRow { valueRow(gateConfigHrCapTitle, model.capSubtitle, value: model.capValueText) }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(model.gateSettings.hasCap ? "Change your cap" : "Add a limit")
+                .accessibilityIdentifier("gateConfig.hrCap")
+                if let recheck = model.recheckSubtitle, let cap = model.gateSettings.hrCapBpm {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Re-check reminder").font(.subheadline).foregroundStyle(theme.color(.text))
+                            Text(recheck).font(.caption2).foregroundStyle(theme.color(.muted))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 4)
+                        Text("\(GateSettings.recheckWeeks) wk").font(.subheadline).foregroundStyle(theme.color(.muted))
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("gateConfig.recheck")
+                    Button("\(cap) is still right") { Task { await model.confirmHrCap() } }
+                        .buttonStyle(.borderless)
+                        .tint(theme.color(.info))
+                        .accessibilityIdentifier("gateConfig.confirmCap")
+                }
+            } header: {
+                Text("Safety")
+            } footer: {
+                if model.hubPending {
+                    Text("\(GateSettingsMirror.pendingText) — it syncs when the hub is reachable.")
+                        .accessibilityIdentifier("gateConfig.hubPending")
+                }
             }
+            HrZonesSection(model: model)
             ForEach([GateConfigGroup.recoverySignals, .sleep, .fuel], id: \.self) { group in
                 Section(group.rawValue) {
                     if !model.loaded {
                         Text("Loading…").font(.subheadline).foregroundStyle(theme.color(.muted))
                     } else {
+                        if group == .recoverySignals { presetRow }
                         if group == .sleep { sleepGoalRow }
                         ForEach(MorningGateOverridableField.allCases.filter { $0.group == group }, id: \.rawValue) { morningRow($0) }
                     }
@@ -80,6 +114,26 @@ public struct GateConfigView: View {
         .jiGlassBackButton()   // `.insetGrouped` on iOS, no-op on the macOS test host
         .navigationTitle("Gate thresholds")
         .task { if !offscreen { await model.load() } }
+        .sheet(isPresented: $showCapSheet) {
+            HrCapChangeSheet(current: model.gateSettings.hrCapBpm) { await model.changeHrCap($0) }
+        }
+    }
+
+    /// B-57 W4 "How cautious": the preset decides how many low-HRV nights turn the call red.
+    private var presetRow: some View {
+        Picker(selection: Binding(get: { model.gateSettings.preset },
+                                  set: { p in Task { await model.setPreset(p) } })) {
+            ForEach(GatePreset.allCases, id: \.self) { Text($0.title).tag($0) }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("How cautious").font(.subheadline).foregroundStyle(theme.color(.text))
+                Text(model.gateSettings.preset.configSubtitle).font(.caption2).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .pickerStyle(.menu)
+        .tint(theme.color(.info))
+        .accessibilityIdentifier("gateConfig.preset")
     }
 
     // MARK: - Morning-gate rows (grouped by `GateConfigGroup`)
@@ -258,7 +312,6 @@ public struct GateConfigView: View {
 
     // MARK: - Controls
 
-    /// B-57 W1 Safety rows: locked, never configurable.
     /// B-57 W3 S3: "Sleep goal" — read-only, the gate's own goal; never a stepper or a floor.
     private var sleepGoalRow: some View {
         HStack {
@@ -284,19 +337,6 @@ public struct GateConfigView: View {
             }
             Spacer(minLength: 4)
             Text(value).font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.text))
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("gateConfig.hrCap")
-    }
-
-    private func lockedRow(_ title: String, _ subtitle: String, value: String) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline).foregroundStyle(theme.color(.text))
-                Text(subtitle).font(.caption2).foregroundStyle(theme.color(.muted))
-            }
-            Spacer()
-            Label(value, systemImage: "lock").font(.subheadline.weight(.bold)).foregroundStyle(theme.color(.danger))
         }
         .accessibilityElement(children: .combine)
     }
