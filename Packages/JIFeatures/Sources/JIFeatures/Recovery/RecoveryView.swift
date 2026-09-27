@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 
 /// Recovery screen (frozen contract `RecoveryView.init(model:)`). B-57 W1: the v11 board —
@@ -17,6 +18,8 @@ public struct RecoveryView: View {
     @Environment(\.openKpiCatalogue) private var openKpiCatalogue
     @Environment(\.openKpiDetail) private var openKpiDetail
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// B-57 W3: the gate's own Apple-night inputs (HRV / RHR normals, deep sleep); nil = inert.
+    @Environment(\.recoveryInsight) private var insight
 
     public init(model: RecoveryViewModel) { self.model = model }
 
@@ -54,6 +57,7 @@ public struct RecoveryView: View {
         .refreshable { await model.refresh() }
         // CODE-1: gate on `hasLiveResult`, not `phase == .idle` — mirrors `TodayView.task`.
         .task { if !offscreen, !model.hasLiveResult { await model.load() } }
+        .task { if !offscreen { await insight?.refreshIfStale() } }
         .animation(JIMotion.standard, value: model.phase)
     }
 
@@ -125,6 +129,9 @@ public struct RecoveryView: View {
 
     private func metricCard(_ metric: RecoveryCardMetric) -> some View {
         let reading = recoveryCardReading(days: model.days, metric: metric)
+        // B-57 W3 S2: the real 28-day normal (the gate's inputs for HRV / RHR); nil = "your normal —".
+        let normal = recoveryCardNormal(metric: metric, days: model.days, insightNormal: insightNormal(metric),
+                                        today: recoveryToday)
         let tint = metric == .sleep ? theme.color(.sleep) : nil
         return Surface(level: 1, padding: JISpacing.cardPadding, tint: tint) {
             VStack(alignment: .leading, spacing: JISpacing.s3) {
@@ -148,20 +155,21 @@ public struct RecoveryView: View {
                         .jiNumeral(.numeralMedium, weight: .heavy, tint: reading.value == nil ? .muted : metric.tint)
                     if reading.value != nil { Text(metric.unit).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
                     Spacer(minLength: JISpacing.s2)
-                    Text(recoveryNormalText(nil)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    Text(recoveryNormalText(normal?.range, decimals: metric.decimals)).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .multilineTextAlignment(.trailing)
                 }
                 Text(reading.value == nil ? "— \(JIMissingReason.noData.rawValue)" : (reading.asOf ?? "last night"))
                     .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
                 if metric == .sleep {
                     HStack(spacing: JISpacing.tileGap) {
-                        factTile("Duration", recoverySleepDuration(seconds: recoveryLatestSleepSeconds))
-                        factTile("Deep", "— not read")
+                        factTile("Duration", recoverySleepDuration(seconds: recoveryLatestSleepSeconds ?? insightLastNight(.sleepH).map { $0 * 3600 }))
+                        factTile("Deep", recoveryDeepText(hours: insightLastNight(.deepH)))
                         factTile("Window", "— not read")
                     }
                 } else {
-                    NormalBarChart(points: recoveryNights(days: model.days, metric: metric), normal: nil,
-                                   unit: metric == .hrv ? "ms" : "bpm", decimals: metric.decimals, tint: metric.tint)
+                    NormalBarChart(points: recoveryNights(days: model.days, metric: metric), normal: normal?.range,
+                                   unit: metric == .hrv ? "ms" : "bpm", decimals: metric.decimals,
+                                   median: normal?.median, tint: metric.tint)
                         .accessibilityIdentifier("recovery.chart.\(metric.rawValue)")
                 }
                 if metric == .rhr {
@@ -173,6 +181,25 @@ public struct RecoveryView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("recovery.metric.\(metric.rawValue)")
+    }
+
+    /// The day the normals are for: the insight's loaded day, else the phone's local day.
+    private var recoveryToday: String {
+        if let day = insight?.today, !day.isEmpty { return day }
+        return RecoveryInsightService.localDayKey(Date())
+    }
+
+    private func insightNormal(_ metric: RecoveryCardMetric) -> PersonalNormalResult? {
+        switch metric {
+        case .hrv: insight?.normal(for: .hrv)
+        case .rhr: insight?.normal(for: .rhr)
+        case .sleep: nil
+        }
+    }
+
+    /// Last night's value from the gate's inputs (nil = no reading — never a zero).
+    private func insightLastNight(_ metric: RecoveryMetric) -> Double? {
+        insight?.lastNights(metric, count: 1).last?.value
     }
 
     /// Last night's sleep length in seconds while it is last night (the squares' rule).
@@ -242,6 +269,20 @@ public struct RecoveryView: View {
         if case .staleVerdictDate(let date) = model.screenState { return date }
         return nil
     }
+}
+
+/// B-57 W3 S2: a Recovery card's band. HRV / RHR use the gate's own normal (the Apple-night
+/// inputs, 42 days) when it exists, else the normal of the nights the card plots; the sleep card
+/// plots the sleep score, so only a score normal fits it. nil = "your normal —" (Calibrating).
+public nonisolated func recoveryCardNormal(metric: RecoveryCardMetric, days: [RecoveryDay],
+                                           insightNormal: PersonalNormalResult?, today: String) -> PersonalNormalResult? {
+    if metric != .sleep, let insightNormal { return insightNormal }
+    return KpiNormal.make(points: days.map { (date: $0.date, value: metric.value($0)) }, today: today).normal
+}
+
+/// B-57 W3: the "Deep" fact tile from the gate's deep-sleep hours; "— not read" without a reading.
+public nonisolated func recoveryDeepText(hours: Double?) -> String {
+    recoverySleepDuration(seconds: hours.map { $0 * 3600 })
 }
 
 /// The hub's `YYYY-MM-DD` day string as a chart x-value. UTC on purpose — a day string has no
