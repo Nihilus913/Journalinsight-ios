@@ -105,3 +105,12 @@ private let morningBase = #"""
     #expect(s.value == 31)
     #expect(s.note == "weekday — dosed")
 }
+
+// W-B57-W3 RF3: a night without HRV — the hub sends `threshold: null`; the morning must still decode.
+@Test func missingHRVSignalWithNullThresholdDecodes() throws {
+    let json = Data(#"{"key":"hrv_ms","label":"HRV","value":null,"unit":"ms","threshold":null,"direction":"min","scale_min":0,"scale_max":100,"status":"missing"}"#.utf8)
+    let s = try JSON.decoder.decode(GateSignal.self, from: json)
+    #expect(s.status == .missing)
+    #expect(s.value == nil)
+    #expect(s.threshold == nil)
+}

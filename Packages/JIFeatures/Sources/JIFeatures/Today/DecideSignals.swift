@@ -28,7 +28,7 @@ public nonisolated func gateSignalValueText(_ s: GateSignal) -> String {
 }
 
 public nonisolated func gateSignalAccessibilityLabel(_ s: GateSignal) -> String {
-    let thr = s.threshold.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0)))
+    let thr = s.threshold?.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0))) ?? "none"
     guard s.value != nil else { return "\(s.label), not synced yet, threshold \(thr)" }
     let value = [gateSignalValueText(s), s.unit.isEmpty ? nil : s.unit].compactMap { $0 }.joined(separator: " ")
     if s.status == .context {
@@ -74,6 +74,7 @@ public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
 
 /// A whole number prints whole ("goal 7 h"), anything else with one decimal ("goal 6.5 h").
 nonisolated func decideCompactNumber(_ v: Double) -> String { jiNumber(v, v.rounded() == v ? 0 : 1) }
+nonisolated func decideCompactNumber(_ v: Double?) -> String { v.map { decideCompactNumber($0) } ?? "—" }
 
 /// The hub's own band in an Apple-night note ("band 41–52 ms") — that IS the normal the hub gated on.
 public nonisolated func decideHubBand(_ note: String?) -> ClosedRange<Double>? {
