@@ -53,8 +53,27 @@ struct MoreTabTests {
             .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
         let stack = try #require(src.range(of: "private func tabStack<"))
         let tail = String(src[stack.lowerBound...].prefix(1_600))
-        #expect(tail.contains(".environment(\\.jiSyncedAt, Self.tabSyncedAt(todayModel))"))
+        // W-B57-W3 fixer: via the shared `shellStackEnvironment` (checked in kpiSheetStackGetsTheShellEnvironment).
+        #expect(tail.contains("shellStackEnvironment("))
         #expect(src.contains(".task(id: providerRevision) { await primeShellSync() }"))
+    }
+
+    // W-B57-W3 fixer PF-04: the My KPIs sheet's own stack gets the same shell environment as every
+    // tab stack (sync instant + recovery insight) — a sheet does not inherit a tab stack's
+    // environment, so KpiDetail opened from My KPIs said "Not synced yet" while the tab path said 09:00.
+    @Test func kpiSheetStackGetsTheShellEnvironment() throws {
+        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+        let helper = try #require(src.range(of: "func shellStackEnvironment<"))
+        let body = String(src[helper.lowerBound...].prefix(600))
+        #expect(body.contains(".environment(\\.jiSyncedAt, Self.tabSyncedAt(todayModel))"))
+        #expect(body.contains(".environment(\\.recoveryInsight, recoveryInsight)"))
+        let sheet = try #require(src.range(of: ".sheet(isPresented: $showKpiList"))
+        let sheetBody = String(src[sheet.lowerBound...].prefix(2_000))
+        let end = try #require(sheetBody.range(of: ".sheet(isPresented: $showSettings"))
+        #expect(sheetBody[..<end.lowerBound].contains("shellStackEnvironment("))
+        let stack = try #require(src.range(of: "private func tabStack<"))
+        #expect(String(src[stack.lowerBound...].prefix(1_800)).contains("shellStackEnvironment("))
     }
 
     // W-FIX4 fixer PF-04: prime only when nothing live is known and no load is already running.
