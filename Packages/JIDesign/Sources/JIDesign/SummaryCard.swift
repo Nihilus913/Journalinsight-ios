@@ -16,8 +16,8 @@ public struct SummaryCard: View {
     /// W-GUI F7 (DEV-06): the card's fixed-height family (`nil` = hug content, previews only).
     let family: JITileHeight?
     @Environment(\.jiTheme) private var theme
-    @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 64
-    @ScaledMetric(relativeTo: .body) private var sparkHeight: CGFloat = 24
+    @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 72
+    @ScaledMetric(relativeTo: .body) private var sparkHeight: CGFloat = 40
 
     public init(icon: String, tint: Color, title: String, value: String?, unit: String? = nil, timestamp: String? = nil,
                 sparkline: [Double?] = [], sourceMissing: Bool = false, family: JITileHeight? = .square, action: (() -> Void)? = nil) {
@@ -81,7 +81,9 @@ public struct SummaryCard: View {
 
     @ViewBuilder private var sparklineView: some View {
         if sparkline.compactMap({ $0 }).count >= 2 {
-            Sparkline(points: sparkline).frame(width: sparkWidth, height: sparkHeight)
+            // W-GUI T3 (report §4.4): a sparkline with its two axis words; the value is printed
+            // beside it already, so the line does not repeat it. No band until W3 (never a fake one).
+            NormalSparkline(points: sparkline, color: tint, showsLastValue: false).frame(width: sparkWidth, height: sparkHeight)
         }
     }
 

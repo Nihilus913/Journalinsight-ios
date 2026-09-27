@@ -14,13 +14,25 @@ public nonisolated func sparklineLastValue(_ points: [Double?]) -> Double? {
 }
 
 public struct NormalSparkline: View {
-    let points: [Double?], normal: ClosedRange<Double>?, tint: JIColorRole, unit: String?, decimals: Int
+    let points: [Double?], normal: ClosedRange<Double>?, tint: JIColorRole, color: Color?, unit: String?, decimals: Int
+    /// The last-value label is optional: a card that already prints the value beside the line
+    /// (SummaryCard) passes `false` so the number is never shown twice.
+    let showsLastValue: Bool
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var height: CGFloat = 28
 
-    public init(points: [Double?], normal: ClosedRange<Double>? = nil, tint: JIColorRole = .text, unit: String? = nil, decimals: Int = 0) {
-        self.points = points; self.normal = normal; self.tint = tint; self.unit = unit; self.decimals = decimals
+    public init(points: [Double?], normal: ClosedRange<Double>? = nil, tint: JIColorRole = .text, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true) {
+        self.points = points; self.normal = normal; self.tint = tint; self.color = nil; self.unit = unit; self.decimals = decimals
+        self.showsLastValue = showsLastValue
     }
+
+    /// The same sparkline with a resolved colour (SummaryCard's `tint: Color`).
+    public init(points: [Double?], normal: ClosedRange<Double>? = nil, color: Color, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true) {
+        self.points = points; self.normal = normal; self.tint = .text; self.color = color; self.unit = unit; self.decimals = decimals
+        self.showsLastValue = showsLastValue
+    }
+
+    private var lineColor: Color { color ?? theme.color(tint) }
 
     private var lastValue: Double? { sparklineLastValue(points) }
 
@@ -37,9 +49,9 @@ public struct NormalSparkline: View {
                                 .offset(y: scale.y(normal.upperBound))
                         }
                         scale.path
-                            .stroke(theme.color(tint).opacity(0.8), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                            .stroke(lineColor.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                         if let lastIndex = points.lastIndex(where: { $0 != nil }), let v = points[lastIndex] {
-                            Circle().fill(theme.color(tint)).frame(width: 6, height: 6)
+                            Circle().fill(lineColor).frame(width: 6, height: 6)
                                 .position(x: scale.x(lastIndex), y: scale.y(v))
                         }
                     }
@@ -49,8 +61,8 @@ public struct NormalSparkline: View {
             HStack {
                 Text(sparklineAxisWords(count: points.count).start)
                 Spacer(minLength: 4)
-                if let v = lastValue {
-                    Text(jiNumber(v, decimals) + (unit.map { " \($0)" } ?? "")).foregroundStyle(theme.color(tint)).fontWeight(.semibold)
+                if showsLastValue, let v = lastValue {
+                    Text(jiNumber(v, decimals) + (unit.map { " \($0)" } ?? "")).foregroundStyle(lineColor).fontWeight(.semibold)
                 }
                 Spacer(minLength: 4)
                 Text(sparklineAxisWords(count: points.count).end)

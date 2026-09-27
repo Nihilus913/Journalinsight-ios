@@ -361,11 +361,18 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
     return TodaySummaryCardSpec(
         icon: todayCardIcon(chip.id),
         tintRole: todayCardTintRole(chip.id),
-        title: chip.label,
+        title: todayCardTitle(chip),
         value: value,
         unit: value == nil ? nil : chip.unit,
         timestamp: chip.sourceMissing ? nil : chip.asOf,
         sparkline: chip.points,
         sourceMissing: chip.sourceMissing
     )
+}
+
+
+/// W-GUI T3 (DEV-09 label half, mockups 02 / 07): the HRV square names its method — it is the
+/// overnight RMSSD, not the Health app's daytime SDNN. Every other chip keeps its label.
+public nonisolated func todayCardTitle(_ chip: TodayChip) -> String {
+    chip.id == "hrv" ? "Overnight HRV · RMSSD" : chip.label
 }
