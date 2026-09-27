@@ -54,7 +54,7 @@ import JICore
         let day = try #require(days.first)
         #expect(days.count == 1)
         #expect(day.date == "2026-09-18")
-        #expect(day.rhrBpm == 52)
+        #expect(day.rhrBpm == 50) // WD-4: the day's minimum, like the hub (never the mean 52)
         #expect(day.hrvWeeklyAvg == 40)
         #expect(day.sleepDurationSec == 25_200)
         #expect(day.sleepScore != nil)
@@ -111,26 +111,82 @@ import JICore
         return HKQuantitySample(type: type, quantity: HKQuantity(unit: ms, doubleValue: value), start: start, end: start)
     }
 
+    private func asleep(_ value: HKCategoryValueSleepAnalysis = .asleepCore, from: Date, to: Date) -> HKCategorySample {
+        HKCategorySample(type: HKCategoryType(.sleepAnalysis), value: value.rawValue, start: from, end: to)
+    }
+
+    /// WD-4: RMSSD counts only inside an asleep segment of the wake day's main sleep period (hub
+    /// `app/vitals/apple_overnight.py` B-65) — not every reading from 18:00 to 18:00.
     @Test func nightlyRmssdFillsHrvRmssdMsOnTheWakeUpDay() throws {
         let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
-        // Night 17th -> 18th: readings before and after midnight both belong to the 18th.
+        // Night 17th -> 18th asleep 23:00–06:00: readings before and after midnight both count.
+        // 17th 02:00 has no sleep around it and 18th 12:00 is daytime: neither is a night value.
         let days = HKRecoveryAssembler.days(
             window: window, restingHeartRate: [],
-            hrv: [try rmssd(30, at: at(17, 23, 30)), try rmssd(40, at: at(18, 3)), try rmssd(20, at: at(17, 2))],
-            sleep: [])
+            hrv: [try rmssd(30, at: at(17, 23, 30)), try rmssd(40, at: at(18, 3)),
+                  try rmssd(20, at: at(17, 2)), try rmssd(99, at: at(18, 12))],
+            sleep: [asleep(from: at(17, 23), to: at(18, 6))])
         let byDate = Dictionary(uniqueKeysWithValues: days.map { ($0.date, $0) })
         #expect(byDate["2026-09-18"]?.hrvRmssdMs == 35)
-        #expect(byDate["2026-09-17"]?.hrvRmssdMs == 20)
+        #expect(byDate["2026-09-17"]?.hrvRmssdMs == nil)
         #expect(byDate["2026-09-16"]?.hrvRmssdMs == nil)
     }
 
-    @Test func rmssdOnlyNightStillYieldsADatedRow() throws {
+    @Test func rmssdInsideAShortNightStillYieldsADatedRow() throws {
         let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
         let days = HKRecoveryAssembler.days(
-            window: window, restingHeartRate: [], hrv: [try rmssd(42, at: at(18, 4))], sleep: [])
+            window: window, restingHeartRate: [], hrv: [try rmssd(42, at: at(18, 4))],
+            sleep: [asleep(.asleepDeep, from: at(18, 1), to: at(18, 6))])
         let day = try #require(days.last)
         #expect(day.date == "2026-09-18")
         #expect(day.hrvRmssdMs == 42)
+    }
+
+    @Test func rmssdWithoutSleepSegmentsIsNeverGuessed() throws {
+        let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [], hrv: [try rmssd(42, at: at(18, 4))], sleep: [])
+        #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
+    }
+
+    @Test func rmssdInAWakeGapOrANapIsNotANightValue() throws {
+        let window = HKSampleWindow(windowDays: 3, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [],
+            hrv: [try rmssd(30, at: at(18, 1)), try rmssd(80, at: at(18, 2, 15)),
+                  try rmssd(50, at: at(18, 5)), try rmssd(90, at: at(18, 14, 30))],
+            sleep: [asleep(from: at(17, 23), to: at(18, 2)), asleep(.asleepREM, from: at(18, 2, 30), to: at(18, 6)),
+                    asleep(from: at(18, 14), to: at(18, 15)),
+                    asleep(.awake, from: at(18, 2), to: at(18, 2, 30)), asleep(.inBed, from: at(17, 22), to: at(18, 7))])
+        // Main night = 23:00–06:00 (two segments, 30-min wake gap); the 14:00 nap is its own shorter
+        // period ending the same day. Only 01:00 and 05:00 count.
+        #expect(days.first { $0.date == "2026-09-18" }?.hrvRmssdMs == 40)
+    }
+
+    @Test func rmssdNightMeanIsRoundedToTwoDecimalsLikeTheHub() throws {
+        let window = HKSampleWindow(windowDays: 2, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [],
+            hrv: [try rmssd(30, at: at(18, 1)), try rmssd(31, at: at(18, 2)), try rmssd(31, at: at(18, 3))],
+            sleep: [asleep(from: at(17, 23), to: at(18, 6))])
+        #expect(days.last?.hrvRmssdMs == 30.67)
+    }
+
+    @Test func rmssdAfterTheWindowsLastEveningIsNotInvented() throws {
+        // A night that ends on the 19th lies outside a window ending on the 18th.
+        let window = HKSampleWindow(windowDays: 2, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [], hrv: [try rmssd(50, at: at(18, 23))],
+            sleep: [asleep(from: at(18, 22), to: at(19, 6))])
+        #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
+    }
+
+    @Test func restingHeartRateIsTheDayMinimum() {
+        let window = HKSampleWindow(windowDays: 2, now: now, calendar: zurich)
+        let days = HKRecoveryAssembler.days(
+            window: window, restingHeartRate: [rhr(58, at: at(18, 7)), rhr(51, at: at(18, 9)), rhr(55, at: at(18, 20))],
+            hrv: [], sleep: [])
+        #expect(days.last?.rhrBpm == 51)
     }
 
     @Test func sdnnNeverMasqueradesAsRmssdAndAbsenceIsNilNotZero() {
@@ -138,14 +194,6 @@ import JICore
         let days = HKRecoveryAssembler.days(
             window: window, restingHeartRate: [rhr(50, at: at(18, 8))], hrv: [hrv(40, at: at(18, 3))], sleep: [])
         #expect(!days.isEmpty)
-        #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
-    }
-
-    @Test func rmssdAfterTheWindowsLastEveningIsNotInvented() throws {
-        // 18th 20:00 belongs to the night of the 19th — outside a window ending on the 18th.
-        let window = HKSampleWindow(windowDays: 2, now: now, calendar: zurich)
-        let days = HKRecoveryAssembler.days(
-            window: window, restingHeartRate: [], hrv: [try rmssd(50, at: at(18, 20))], sleep: [])
         #expect(days.allSatisfy { $0.hrvRmssdMs == nil })
     }
 

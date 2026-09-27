@@ -133,12 +133,40 @@ private final class CompletionBox: @unchecked Sendable {
         #expect(ISO8601DateFormatter().date(from: raw) != nil)
     }
 
+    /// WD-5 (DEV-12): a 2xx POST also records the per-type arrival the Apple Health screen reads
+    /// (`HealthKitArrival.key(for:)`), so one type's upload never stands in for another's.
+    @Test func successfulPostRecordsPerTypeArrival() async throws {
+        UploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        store.enqueue(HKAnchoredPage(samples: [makeSample(count: 12, start: Date(timeIntervalSince1970: 1_758_000_000))], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try await uploader(store: store, defaults: defaults).sync(spec)
+        let raw = try #require(defaults.string(forKey: HealthKitArrival.key(for: stepsType)))
+        #expect(ISO8601DateFormatter().date(from: raw) != nil)
+        #expect(raw == defaults.string(forKey: HealthKitUploader.lastSuccessKey))
+        #expect(defaults.string(forKey: HealthKitArrival.key(for: HKQuantityType(.restingHeartRate))) == nil)
+    }
+
+    @Test func failedPostRecordsNoArrival() async throws {
+        UploadCapturingURLProtocol.reset()
+        UploadCapturingURLProtocol.statusToReturn = 500
+        defer { UploadCapturingURLProtocol.reset() }
+        let store = FakeHealthStoreReader()
+        store.enqueue(HKAnchoredPage(samples: [makeSample(count: 12, start: Date(timeIntervalSince1970: 1_758_000_000))], deletedObjectIDs: [], newAnchor: nil), for: stepsType)
+        let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+        let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
+        _ = try? await uploader(store: store, defaults: defaults).sync(spec)
+        #expect(defaults.string(forKey: HealthKitArrival.key(for: stepsType)) == nil)
+    }
+
     @Test func emptyPageDoesNotTouchLastUpload() async throws {
         let store = FakeHealthStoreReader()
         let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
         let spec = HKMetricSpec(sampleType: stepsType, metricName: HAEMetricName.stepCount, units: "count", backgroundFrequency: .hourly, mapSamples: HKSampleMapping.perSample(unit: .count()))
         _ = try await uploader(store: store, defaults: defaults).sync(spec)
         #expect(defaults.string(forKey: "hk.upload.lastSuccess") == nil)
+        #expect(defaults.string(forKey: HealthKitArrival.key(for: stepsType)) == nil)
     }
 
     @Test func requestAuthorizationThrowsWhenHealthDataUnavailable() async {

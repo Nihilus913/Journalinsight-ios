@@ -108,7 +108,7 @@ import JICompute
 
     // MARK: - Resting HR / HRV
 
-    @Test func restingHeartRateIsTheDailyMean() async throws {
+    @Test func restingHeartRateIsTheDailyMinimum() async throws {
         let store = FakeHealthStoreReader()
         let bpm = HKUnit(from: "count/min")
         seed(store, kind: .restingHeartRate, [
@@ -117,7 +117,7 @@ import JICompute
             quantity(.restingHeartRate, 61, unit: bpm, at: at(9, 17, 7)),
         ])
         let days = try await provider(store).recovery(windowDays: 3)
-        #expect(days.first { $0.date == "2026-09-18" }?.rhrBpm == 53)
+        #expect(days.first { $0.date == "2026-09-18" }?.rhrBpm == 50) // WD-4: day min, like the hub
         #expect(days.first { $0.date == "2026-09-17" }?.rhrBpm == 61)
     }
 
