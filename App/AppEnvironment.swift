@@ -399,6 +399,26 @@ final class AppEnvironment {
     /// — the newer of the hub's last sync and the last HealthKit upload 2xx), never a fetch time.
     static func glanceLastSync(today: TodayViewModel?) -> Date? { today?.syncedAt }
 
+    /// W-B57-W5 fixer (glance-RHR): the gate never sends RHR, so the glance takes Recovery's latest
+    /// RHR — the RHR KPI's own number — when it is from the verdict's night (that day or the one
+    /// before). Older = left out, never an old number shown as this morning's.
+    static func glanceLatestReadings(today: TodayViewModel?, asOf day: String) -> [String: Double] {
+        guard let hit = KpiMetrics.latest(for: .rhr, recovery: today?.recovery ?? [], nutrition: [], dailyRows: [], gateAverages: nil),
+              let asOf = isoFormatter.date(from: String(day.prefix(10))),
+              let floor = Calendar(identifier: .gregorian).date(byAdding: .day, value: -1, to: asOf),
+              hit.date >= isoFormatter.string(from: floor) else { return [:] }
+        return ["rhr": hit.value]
+    }
+
+    private static let isoFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    static func isoDay(_ date: Date) -> String { String(date.ISO8601Format().prefix(10)) }
+
     private func publishSnapshot(today: TodayViewModel?, recovery: RecoveryViewModel?) {
         let verdict = today?.verdict
         let readiness = today?.readiness ?? recovery?.latestReadiness
@@ -407,7 +427,8 @@ final class AppEnvironment {
         let hrvNormal = recoveryInsight?.normal(for: .hrv)?.range
         let rhrNormal = recoveryInsight?.normal(for: .rhr)?.range
         let gateSignals = today?.morning?.gateSignals
-        let plan = glancePlan?()
+        // W-B57-W5 fixer: the live Training week when RootTabView has one, else the cached B-52 plan.
+        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now())))
         let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)
         let snapshot = HubSnapshot(
             verdictWord: verdict?.word ?? "—",
@@ -426,7 +447,8 @@ final class AppEnvironment {
             hrCap: GateSettingsStore(prefs: prefs).load().hrCapBpm,   // as stored; nil = no cap (no fallback)
             nextSession: plan?.next,
             signals: GlanceSignals.make(gateSignals: gateSignals, hrvNormal: hrvNormal, rhrNormal: rhrNormal,
-                                        sleepGoalH: MorningGateConfig.default.sleepGoalH)
+                                        sleepGoalH: MorningGateConfig.default.sleepGoalH,
+                                        latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
@@ -473,6 +495,16 @@ struct GlancePlan: Equatable {
     var done: Int?
     var total: Int?
     var next: String?
+
+    init(done: Int?, total: Int?, next: String?) {
+        self.done = done; self.total = total; self.next = next
+    }
+
+    /// The glance fields of a Training week (nil = no week known → no plan on the glances).
+    init?(_ week: TrainingWeekSummary?) {
+        guard let week else { return nil }
+        self.init(done: week.planDone, total: week.planTotal, next: week.nextSessionLabel)
+    }
 }
 
 /// B-57 W2 (B-73): JIHealthKit's `HKDailyTotalsReader` rows as JICore `HealthDailyTotals` (a

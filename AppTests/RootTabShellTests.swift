@@ -152,3 +152,28 @@ import UIKit
 @Test func daytimeHrvIsNilWithoutATodayModel() {
     #expect(RootTabView.daytimeHrv(nil) == nil)
 }
+
+// MARK: - W-B57-W5 fixer, A7: progression + week environment, glance plan, republish on week change
+
+/// The verifier tapped Goals "Training plan" = "— No data" with the week at 3 of 4, and Day/Decide
+/// showed no progression or week footer: nothing injected `\.progression` / `\.trainingWeekSummary`
+/// and nothing handed the week to the glances. Both must be shell-wide (outermost, after every
+/// `.sheet`, so Goals/Settings sheets see them), and a week change must republish the snapshot.
+@Test func a7ShellInjectsProgressionAndWeekAndRepublishes() throws {
+    let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+    let bodyStart = try #require(source.range(of: "var body: some View {"))
+    let body = source[bodyStart.upperBound...]
+    let bodyEnd = body.range(of: "\n    /// ")?.lowerBound ?? body.endIndex
+    var lastSheet = body.startIndex
+    var cursor = body.startIndex
+    while let r = body.range(of: ".sheet(", range: cursor..<bodyEnd) { lastSheet = r.lowerBound; cursor = r.upperBound }
+    let progression = try #require(body.range(of: ".environment(\\.progression, progression)"))
+    let week = try #require(body.range(of: ".environment(\\.trainingWeekSummary, weekSummary)"))
+    #expect(progression.lowerBound > lastSheet && week.lowerBound > lastSheet)
+    #expect(body[..<bodyEnd].contains(".onChange(of: weekSummary)"))
+    #expect(source.contains("env.republishSnapshot()"))
+    #expect(source.contains("env.glancePlan = "))
+    #expect(source.contains("progression = ProgressionService("))
+    #expect(source.contains("progression = nil"))
+}
