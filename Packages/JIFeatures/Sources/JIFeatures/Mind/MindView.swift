@@ -26,6 +26,9 @@ public struct MindView: View {
             }
         }
         .jiNativeFormChrome()
+        .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
+        .jiPageGround()
+        .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Mind")
@@ -71,9 +74,8 @@ public struct MindView: View {
                         .jiFont(.subheadline, weight: .bold)
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .tint(theme.color(.info))
+                .buttonStyle(.jiPrimary)   // W-GUI J3: the one action of the check-in card
+                .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .accessibilityIdentifier(model.checkedInToday ? "mind-update-checkin" : "mind-daily-checkin")
             }
             .padding(.vertical, 6)

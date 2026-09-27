@@ -67,6 +67,8 @@ public struct EventSheet: View {
             }
             .accessibilityIdentifier("event-sheet-panel")
             .navigationTitle("Log an event")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("event-cancel") }

@@ -64,6 +64,8 @@ public struct CheckInSheet: View {
             }
             .accessibilityIdentifier("checkin-sheet-panel")
             .navigationTitle("Daily check-in")
+            .scrollContentBackground(.hidden)   // W-GUI tier B: on the ground
+            .jiPageGround()
             .jiTheme(.native)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("checkin-cancel") }
