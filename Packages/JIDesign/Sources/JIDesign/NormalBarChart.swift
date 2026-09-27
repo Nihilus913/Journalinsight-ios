@@ -308,6 +308,14 @@ public nonisolated func sumBarChartAccessibilityLabel(points: [NormalBarPoint], 
     return parts.joined(separator: ", ")
 }
 
+/// Where the latest bar's value sits: inside the top of a bar tall enough to hold it (≥ 35 % of
+/// the scale — Apple Fitness's idiom), else above a short one. Above a tall bar it collided with
+/// the goal line (138 under a 155 goal).
+public nonisolated func sumBarChartLabelInsideBar(value: Double, yMax: Double) -> Bool {
+    guard yMax > 0 else { return false }
+    return value / yMax >= 0.35
+}
+
 /// Bars from zero, one per day, the goal a dashed amber line (a goal is the user's own — the
 /// tick colour `.reduced` is a status use, rule 6), the latest bar labelled, an untracked day a
 /// hollow tick at zero with "—" + its reason word. At AX sizes: one full-width row per day.
@@ -343,12 +351,14 @@ public struct SumBarChart: View {
                     ForEach(points) { p in
                         let slot = normalBarSlotText(p, decimals: decimals)
                         if let v = p.value {
+                            let inside = sumBarChartLabelInsideBar(value: v, yMax: yMax)
                             BarMark(x: .value("Day", p.label), y: .value("Value", v), width: .ratio(0.55))
                                 .foregroundStyle(theme.color(tint).opacity(p.isLatest ? 1 : 0.7))
                                 .clipShape(Capsule())
-                                .annotation(position: .top, spacing: 3) {
+                                .annotation(position: inside ? .overlay : .top, alignment: .top, spacing: inside ? 6 : 3) {
                                     if p.isLatest {
-                                        Text(slot.value).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(tint))
+                                        Text(slot.value).jiFont(.caption, weight: .bold)
+                                            .foregroundStyle(inside ? theme.color(.bg) : theme.color(tint))
                                     }
                                 }
                         } else {
@@ -411,6 +421,14 @@ public struct SumBarChart: View {
 }
 
 
+/// B-76: when EVERY slot is missing for the same reason the chart says it once, centred, instead
+/// of seven "No data"s wall to wall. `nil` = at least one value, or mixed reasons → per slot.
+public nonisolated func normalBarChartSharedMissingReason(points: [NormalBarPoint]) -> JIMissingReason? {
+    guard !points.isEmpty, points.allSatisfy({ $0.value == nil }) else { return nil }
+    let reasons = Set(points.map(\.missingReason))
+    return reasons.count == 1 ? reasons.first : nil
+}
+
 /// B-76: the "—" + reason word of every missing slot, placed by the chart proxy exactly above
 /// its hollow tick at `floor`, each inside its own slot width (so "Not in Health yet" wraps
 /// instead of spanning two nights). A chart overlay, not an `.annotation`: a sized annotation on
@@ -427,23 +445,33 @@ struct MissingSlotLabels: View {
             if let anchor = proxy.plotFrame {
                 let plot = geo[anchor]
                 let slotWidth = max(24, plot.width / CGFloat(max(points.count, 1)) - 2)
-                ForEach(points.filter { $0.value == nil }) { p in
-                    if let x = proxy.position(forX: p.label), let y = proxy.position(forY: floor) {
-                        let slot = normalBarSlotText(p, decimals: decimals)
-                        Color.clear.frame(width: slotWidth, height: 0)
-                            .overlay(alignment: .bottom) {
-                                VStack(spacing: 0) {
-                                    Text(slot.value).jiFont(.caption, weight: .semibold)
-                                    if let reason = slot.reason {
-                                        Text(reason).jiFont(.micro).multilineTextAlignment(.center)
-                                            .lineLimit(3).minimumScaleFactor(0.7)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
-                                .frame(width: slotWidth)
+                if let shared = normalBarChartSharedMissingReason(points: points), let y = proxy.position(forY: floor) {
+                    // Every slot is missing for one reason: say it once, over the row of ticks.
+                    Color.clear.frame(width: plot.width, height: 0)
+                        .overlay(alignment: .bottom) {
+                            Text("— \(shared.rawValue)").jiFont(.caption, weight: .semibold)
                                 .foregroundStyle(theme.color(.muted))
-                            }
-                            .position(x: plot.minX + x, y: plot.minY + y - tickClearance)
+                        }
+                        .position(x: plot.midX, y: plot.minY + y - tickClearance)
+                } else {
+                    ForEach(points.filter { $0.value == nil }) { p in
+                        if let x = proxy.position(forX: p.label), let y = proxy.position(forY: floor) {
+                            let slot = normalBarSlotText(p, decimals: decimals)
+                            Color.clear.frame(width: slotWidth, height: 0)
+                                .overlay(alignment: .bottom) {
+                                    VStack(spacing: 0) {
+                                        Text(slot.value).jiFont(.caption, weight: .semibold)
+                                        if let reason = slot.reason {
+                                            Text(reason).jiFont(.micro).multilineTextAlignment(.center)
+                                                .lineLimit(3).minimumScaleFactor(0.7)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                    .frame(width: slotWidth)
+                                    .foregroundStyle(theme.color(.muted))
+                                }
+                                .position(x: plot.minX + x, y: plot.minY + y - tickClearance)
+                        }
                     }
                 }
             }

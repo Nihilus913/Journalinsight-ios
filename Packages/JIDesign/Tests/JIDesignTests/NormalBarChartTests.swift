@@ -172,3 +172,25 @@ struct SumBarChartTests {
         expectRenders("SumBarChart empty", height: 120) { SumBarChart(points: [], goal: nil, unit: "g", tint: .protein) }
     }
 }
+
+extension NormalBarChartTests {
+    /// B-76: seven missing nights for one reason read as ONE "— No data" over the ticks, not seven
+    /// words wall to wall; a single real night or mixed reasons keep the per-slot words.
+    @Test func allMissingNightsShareOneReasonWord() {
+        let none = (1...7).map { NormalBarPoint(id: "\($0)", label: "d\($0)", value: nil, isLatest: $0 == 7) }
+        #expect(normalBarChartSharedMissingReason(points: none) == .noData)
+        #expect(normalBarChartSharedMissingReason(points: nights) == nil)
+        let mixed = none.dropLast() + [NormalBarPoint(id: "7", label: "d7", value: nil, isLatest: true, missingReason: .notInHealthYet)]
+        #expect(normalBarChartSharedMissingReason(points: Array(mixed)) == nil)
+        #expect(normalBarChartSharedMissingReason(points: []) == nil)
+    }
+}
+
+extension SumBarChartTests {
+    /// The latest value sits inside a tall bar (it collided with the goal line above one), above a short one.
+    @Test func latestLabelGoesInsideATallBar() {
+        #expect(sumBarChartLabelInsideBar(value: 138, yMax: 186))
+        #expect(!sumBarChartLabelInsideBar(value: 20, yMax: 186))
+        #expect(!sumBarChartLabelInsideBar(value: 20, yMax: 0))
+    }
+}
