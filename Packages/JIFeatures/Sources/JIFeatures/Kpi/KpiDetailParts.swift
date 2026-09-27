@@ -35,6 +35,8 @@ struct KpiDetailTrend: View {
     @Binding var range: KpiDetailRange
     /// W-GUI R2: the line wears the metric's colour, never the accent (rule 6).
     var tint: JIColorRole = .text
+    /// W-B57-W3 fixer: the legend's words (`kpiDetailLegendText`); the calibrating legend by default.
+    var legend: String = kpiDetailLegend
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
@@ -65,7 +67,7 @@ struct KpiDetailTrend: View {
                 .accessibilityLabel("\(label) trend")
                 .accessibilityIdentifier("kpi-detail-chart")
                 // W-GUI R2 (mockup 07): the legend is honest until W3 lands the band.
-                Text(kpiDetailLegend).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                Text(legend).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
                 }
             }

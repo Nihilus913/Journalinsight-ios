@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import JICore
+import JICompute
 import JIDesign
 
 /// KPI detail screen (W3b-L2, P-kpi) — reachable from a Today tile tap or a `ji://kpi-detail`
@@ -133,13 +134,19 @@ public struct KpiDetailView: View {
     private var chartSection: some View {
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
                        unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
-                       tint: metricTintRole(model.metric.rawValue))
+                       tint: metricTintRole(model.metric.rawValue),
+                       legend: kpiDetailLegendText(kpiNormal.normal, decimals: model.def.decimals))
+    }
+
+    /// W-B57-W3 fixer: one normal for the NormalBar, the chart legend and the table row.
+    private var kpiNormal: (normal: PersonalNormalResult?, sevenDay: Double?) {
+        KpiNormal.make(points: model.history, today: RecoveryInsightService.localDayKey(Date()))
     }
 
     /// B-57 W3 S2: the metric's 28-day personal normal from the history the chart plots —
     /// fill = the last 7 days, band = your normal, tick = median; "Calibrating" under 14 values.
     private var normalSection: some View {
-        let r = KpiNormal.make(points: model.history, today: RecoveryInsightService.localDayKey(Date()))
+        let r = kpiNormal
         let unit = model.def.unit.isEmpty ? nil : model.def.unit
         return Surface(level: 1) {
             VStack(alignment: .leading, spacing: 8) {
@@ -175,7 +182,7 @@ public struct KpiDetailView: View {
 
     private var tableCard: some View {
         let rows = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
-                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric))
+                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal)
         return Surface(level: 1, padding: 0) {
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
