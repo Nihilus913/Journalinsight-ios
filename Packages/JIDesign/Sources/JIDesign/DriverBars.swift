@@ -2,17 +2,19 @@ import SwiftUI
 
 /// A single named driver contributing to readiness. `value` is a normalized magnitude in
 /// `0...1`; `sourceMissing` follows the same convention as `StatChip`/`ReadinessArcGauge`.
-public struct DriverBar: Identifiable, Sendable, Equatable {
+/// B-57 W3: `nonisolated` so its `Equatable` conformance is usable from pure nonisolated models
+/// (`RecoveryCardModel`) — it is plain data, no MainActor state.
+public nonisolated struct DriverBar: Identifiable, Sendable, Equatable {
     public let id: String
     public let label: String
     public let value: Double?
     public let sourceMissing: Bool
     /// B-57 W3: optional status word shown right of the label ("Low", "In your normal",
     /// "Above goal", "Calibrating", "No reading") and read by VoiceOver instead of the percent.
-    public nonisolated let word: String?
+    public let word: String?
     /// B-57 W3: optional status tint for the fill (`.reduced` = low, `.sleep`). `.go` is ignored
     /// (rule 6 — verdict green is never a driver colour).
-    public nonisolated let tint: JIColorRole?
+    public let tint: JIColorRole?
 
     // nonisolated: DriverBar is a pure data type (like ReadinessContributor in
     // ContributorBreakdown.swift) constructed from JIDesignTests' nonisolated `@Test` funcs
