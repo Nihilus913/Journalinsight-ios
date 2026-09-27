@@ -6,6 +6,7 @@ import JIHub
 import JIPersistence
 import JIVault
 import JIWorkouts
+import UserNotifications
 
 // B-33 §2b.4/§5 + close-out (Toby 2026-09-22 "all in one line"): the bar is five content tabs +
 // the iOS 27 search role, and the search-role Tab HOSTS the whole Journal (the entries list with
@@ -92,6 +93,11 @@ struct RootTabView: View {
     /// fire before this view exists — still has somewhere to land; consumed and cleared here.
     @Binding var pendingDeepLink: DeepLink?
     @State private var showConnection = false
+    /// B-57 W4: first-launch onboarding (before the connection sheet), the user's gate settings
+    /// (optional cap, zones, Avoid Zone 5) for SessionCoach / Training / the Watch builder.
+    @State private var showOnboarding = false
+    @State private var onboardingModel: OnboardingViewModel?
+    @State private var gateSettings = GateSettings()
     // W5a-L0 (P-settings): the gear opens the real Settings screen (section registry, JIFeatures
     // `SettingsView`); `showConnection`/`ConnectionSheet` stay as the pre-connection sheet the
     // Today error card and `connectionPrompt` present. The model is built async (vault unlock
@@ -165,6 +171,22 @@ struct RootTabView: View {
         return RootTab.allCases.first { String(describing: $0) == arguments[arguments.index(after: i)] }
     }
 
+    enum FirstSheet: Equatable { case onboarding, connection }
+
+    /// B-57 W4: today's daytime HRV from the morning's gate signals (`hrv_day`, context only).
+    /// nil = no reading; KpiDetail then says "— No data", never a zero.
+    static func daytimeHrv(_ today: TodayViewModel?) -> Double? {
+        today?.morning?.gateSignals?.first { $0.key == "hrv_day" }?.value
+    }
+
+    /// B-57 W4 (Review Focus 4). Fresh install: onboarding first (local only), then the connection
+    /// sheet on its dismiss — never both at once. `-no-onboarding` (any build) keeps scripted
+    /// simulator runs and sweeps unblocked.
+    static func firstSheet(needsOnboarding: Bool, needsConnection: Bool, arguments: [String] = CommandLine.arguments) -> FirstSheet? {
+        if needsOnboarding && !arguments.contains("-no-onboarding") { return .onboarding }
+        return needsConnection ? .connection : nil
+    }
+
     static func launchArgumentRoute(_ arguments: [String] = CommandLine.arguments) -> RootRoute? {
         guard let i = arguments.firstIndex(of: "-push-route"), arguments.index(after: i) < arguments.endIndex else { return nil }
         return arguments[arguments.index(after: i)] == "kpiList" ? RootRoute.kpiList : nil
@@ -224,7 +246,38 @@ struct RootTabView: View {
             providerRevision = revision
             invalidateProviderScopedModels()
         }
-        .onAppear { if env.needsConnection { showConnection = true } }
+        .onAppear {
+            // B-57 W4 (Toby 2026-09-24): Toby's pre-W4 install keeps cap 175 + Avoid Zone 5 + his
+            // zones; a fresh install gets nothing. Runs once, BEFORE onboarding reads the store.
+            let store = GateSettingsStore(prefs: env.prefs)
+            let migrated = store.migratePreW4InstallIfNeeded()
+            gateSettings = store.load()
+            if migrated {
+                // The hub's missing-file default is the same values, so a failed push changes nothing.
+                let mirror = gateSettingsMirror()
+                Task { await mirror.save(store.load()) }
+            }
+            switch Self.firstSheet(needsOnboarding: OnboardingGate.needsOnboarding(env.prefs), needsConnection: env.needsConnection) {
+            case .onboarding?:
+                onboardingModel = OnboardingViewModel(prefs: env.prefs, mirror: gateSettingsMirror(),
+                                                      reminderCenter: UNUserNotificationCenter.current())
+                showOnboarding = true
+            case .connection?: showConnection = true
+            case nil: break
+            }
+        }
+        .onboardingCover(isPresented: $showOnboarding) {
+            if let onboardingModel {
+                OnboardingFlowView(model: onboardingModel) { showOnboarding = false }
+            }
+        }
+        .onChange(of: showOnboarding) { _, shown in
+            guard !shown else { return }
+            onboardingModel = nil
+            reloadGateSettings()
+            if env.needsConnection { showConnection = true }
+        }
+        .onChange(of: gateSettings) { _, _ in rebuildSendToWatchModel() }
         // W-FIX4 fixer PF-04: the hub's last sync is known whichever tab opens first (a launch
         // onto Recovery never mounts Day, which is what used to build and load Today's model).
         .task(id: providerRevision) { await primeShellSync() }
@@ -287,7 +340,7 @@ struct RootTabView: View {
                 }
             })
         }
-        .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil }) {
+        .sheet(isPresented: $showSettings, onDismiss: { settingsModel = nil; reloadGateSettings() }) {
             if let settingsModel {
                 SettingsView(model: settingsModel)
             } else {
@@ -310,6 +363,38 @@ struct RootTabView: View {
         // fixer2 C3-KPI-GOALS: OUTERMOST, after every `.sheet` — a sheet reads the environment
         // where its modifier sits, so the My KPIs / Settings sheets missed it when it came first.
         .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
+        // B-57 W4: the user's gate settings, outermost too (Training → SessionCoach reads them).
+        .environment(\.gateSettings, gateSettings)
+    }
+
+    /// B-57 W4: the hub mirror for gate settings over the current provider (nil = local only).
+    private func gateSettingsMirror() -> GateSettingsMirror {
+        GateSettingsMirror(prefs: env.prefs, provider: env.providerStore?.provider as? any GateSettingsProviding)
+    }
+
+    /// Re-reads the stored settings (after onboarding, or a change in Gate thresholds).
+    private func reloadGateSettings() {
+        let latest = GateSettingsStore(prefs: env.prefs).load()
+        if latest != gateSettings { gateSettings = latest }
+    }
+
+    /// The Watch builder takes the user's own limits (no cap and no Zone 5 avoidance ⇒ `.none`,
+    /// so no limit is applied). Built with the Training tab; rebuilt when the settings change.
+    private func makeSendToWatchModel() -> SendToWatchViewModel? {
+        guard let templates = env.providerStore?.provider as? any WorkoutTemplatesProviding else { return nil }
+        let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
+        let limits = gateSettings.workoutLimits
+        return SendToWatchViewModel(provider: templates, sender: sender,
+                                    builder: { try WorkoutBuilder.build($0, limits: limits) },
+                                    openSettings: {
+                                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                                    },
+                                    limits: limits)
+    }
+
+    private func rebuildSendToWatchModel() {
+        guard sendToWatchModel != nil else { return }
+        sendToWatchModel = makeSendToWatchModel()
     }
 
     /// Drops every view model that captured `ProviderStore.provider` at init. Deliberately does
@@ -814,12 +899,7 @@ struct RootTabView: View {
                                 drainer: outbox.map { OutboxDrainer(outbox: $0, hub: store.provider) },
                                 now: Date.init
                             )
-                            if let templates = store.provider as? any WorkoutTemplatesProviding {
-                                let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
-                                sendToWatchModel = SendToWatchViewModel(provider: templates, sender: sender, openSettings: {
-                                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-                                })
-                            }
+                            sendToWatchModel = makeSendToWatchModel()
                         }
                 }
             } else {
@@ -840,7 +920,10 @@ struct RootTabView: View {
            let targets = store.provider as? any KpiTargetsProviding {
             KpiDetailView(model: KpiDetailViewModel(
                 metric: metricId, healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, cache: env.cache,
-                makeGoalsSetup: { makeGoalsSetup($0) }
+                makeGoalsSetup: { makeGoalsSetup($0) },
+                // B-57 W4: the medication the user typed + today's daytime HRV (context only).
+                medicationStore: MedicationStore(prefs: env.prefs),
+                daytimeHrv: Self.daytimeHrv(todayModel)
             ))
         } else {
             screenUnavailable(title: "KPI unavailable", systemImage: "chart.line.uptrend.xyaxis")
@@ -929,7 +1012,9 @@ struct RootTabView: View {
                       let targets = provider as? any KpiTargetsProviding else { return nil }
                 return KpiDetailViewModel(metric: metric, healthProvider: provider, nutritionProvider: nutrition,
                                           targetsProvider: targets, cache: env.cache,
-                                          makeGoalsSetup: { makeGoalsSetup($0) })
+                                          makeGoalsSetup: { makeGoalsSetup($0) },
+                                          medicationStore: MedicationStore(prefs: env.prefs),
+                                          daytimeHrv: Self.daytimeHrv(todayModel))
             },
             goalsProvider: provider as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },

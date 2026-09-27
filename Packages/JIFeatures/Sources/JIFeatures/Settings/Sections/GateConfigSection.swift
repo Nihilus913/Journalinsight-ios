@@ -2,13 +2,14 @@ import SwiftUI
 import JICore
 import JIHub
 import JIPersistence
+import UserNotifications
 
 // W5b-L3 (P-gate-config). RN `settings.tsx` Preferences card "Gate config" → pushes `GateConfigView`
 // (RN `app/gate-config.tsx`). Sits after Edit Today in the Preferences band.
 public struct GateConfigSection: SettingsSection {
     public static let sectionId = "w5b.gateConfig"
     public let id = Self.sectionId
-    public let title = "Gate config"
+    public let title = "Gate thresholds"
     public let systemImage = "slider.horizontal.3"
     public let sortKey = SettingsSortKey.preferences + 20
     public let group = SettingsGroupId.kpis
@@ -22,12 +23,12 @@ private struct GateConfigSectionRows: View {
     var body: some View {
         SettingsRowGroup {
             NavigationLink {
-                GateConfigView(model: GateConfigViewModel(targetsProvider: Self.hubTargetsProvider(), prefStore: model.prefs))
+                GateConfigDestination(prefs: model.prefs)
             } label: {
-                SettingsLinkLabel(title: "Gate config", subtitle: "Local threshold overrides, fixture preview, live KPI targets",
+                SettingsLinkLabel(title: "Gate thresholds", subtitle: "How cautious, your HR cap and zones, threshold overrides",
                                   systemImage: "slider.horizontal.3")
             }
-            .accessibilityLabel("Gate config")
+            .accessibilityLabel("Gate thresholds")
             .accessibilityIdentifier("settings.row.gateConfig")
         }
     }
@@ -38,8 +39,22 @@ private struct GateConfigSectionRows: View {
     /// the SAME `HubDataProvider` the app does from the saved connection (`ConnectionConfigStore`,
     /// Keychain-backed — rule 2: the token never leaves the Keychain except into a `HubClient`).
     /// No saved connection → `nil` → the screen's server block explains itself (rule 5).
-    private static func hubTargetsProvider() -> (any KpiTargetsProviding)? {
+    static func hubProvider() -> HubDataProvider? {
         guard let config = try? ConnectionConfigStore().load() else { return nil }
         return HubDataProvider(client: HubClient(config: config))
+    }
+}
+
+/// B-57 W4: built only when the row is pushed (the `RemindersDestination` pattern), so
+/// `UNUserNotificationCenter.current()` is never touched while the Settings list builds in the
+/// host-less test process. The mirror copies gate-settings changes to the hub.
+private struct GateConfigDestination: View {
+    let prefs: PrefStore
+    var body: some View {
+        let hub = GateConfigSectionRows.hubProvider()
+        GateConfigView(model: GateConfigViewModel(
+            targetsProvider: hub, prefStore: prefs,
+            mirror: GateSettingsMirror(prefs: prefs, provider: hub),
+            reminderCenter: UNUserNotificationCenter.current()))
     }
 }

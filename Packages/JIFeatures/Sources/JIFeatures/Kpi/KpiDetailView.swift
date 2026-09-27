@@ -27,14 +27,9 @@ public struct KpiDetailView: View {
 
     public init(model: KpiDetailViewModel) { _model = State(initialValue: model) }
 
-    #if DEBUG
-    /// Test seam (BUG-09): the model the last body evaluation rendered.
-    static weak var debugLastRenderedModel: KpiDetailViewModel?
-    #endif
-
     public var body: some View {
         #if DEBUG
-        let _ = { Self.debugLastRenderedModel = model }()
+        let _ = { model.debugRenderCount += 1 }()
         #endif
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
@@ -116,6 +111,8 @@ public struct KpiDetailView: View {
         if kpiDetailShowsLineTrend(model.metric) {
             normalSection
             chartSection
+            // B-57 W4 (board 2/03): daytime HRV row + the medication check, HRV only.
+            if model.metric == .hrv { DaytimeHrvSection(model: model) }
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
             if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration) {

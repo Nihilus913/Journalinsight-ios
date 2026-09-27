@@ -162,6 +162,17 @@ public nonisolated func gateConfigSleepGoalValue(_ config: MorningGateConfig) ->
     "\(gateConfigFormat(config.sleepGoalH)) h"
 }
 
+public nonisolated extension GateSettings {
+    /// B-57 W4: the user's preset and (optional) cap on top of a gate config (verdict-changing
+    /// fields). A nil cap is passed through: the verdict strings then drop the HR part.
+    func apply(to config: MorningGateConfig) -> MorningGateConfig {
+        var c = config
+        c.hrCapBpm = hrCapBpm
+        c.hrvLowNights = preset.hrvLowNights
+        return c
+    }
+}
+
 /// `MorningGateOverrides` — `Partial<Record<OverridableMorningGateField, number>>`.
 ///
 /// Backed by a `[String: Double]` rather than a keyed-by-enum dictionary on purpose: `JSONEncoder`
@@ -318,9 +329,10 @@ public nonisolated struct GatePreviewResult: Equatable, Sendable {
 /// signature stays honest for a caller that passes its own day.
 public nonisolated func previewMorningGateVerdict(
     _ overrides: MorningGateOverrides,
-    fixture: GatePreviewFixture = .bundled
+    fixture: GatePreviewFixture = .bundled,
+    base: MorningGateConfig = .default
 ) throws -> GatePreviewResult {
-    let config = applyMorningGateOverrides(overrides)
+    let config = applyMorningGateOverrides(overrides, base: base)
     let result = try evaluate(
         today: fixture.today,
         vitals: fixture.vitals.morningVitals,

@@ -72,11 +72,14 @@ private func fix2Model(_ metric: KpiMetricId) throws -> KpiDetailViewModel {
     // The navigation destination closure re-runs (tab focus, deep-link consumption) and builds a
     // brand-new, never-loaded model for the same screen.
     let second = try fix2Model(.steps)
+    let firstRenders = first.debugRenderCount
     host.rootView = KpiDetailView(model: second)
     for _ in 0..<10 { host.view.layoutIfNeeded(); try await Task.sleep(for: .milliseconds(20)) }
     // The screen must still be driven by the model it loaded — not a fresh idle one stuck on the
-    // skeleton ("— No data") that nothing ever loads.
-    #expect(KpiDetailView.debugLastRenderedModel.map(ObjectIdentifier.init) == ObjectIdentifier(first))
+    // skeleton ("— No data") that nothing ever loads. Per-model render counts (not a shared
+    // static) so parallel tests hosting KpiDetail cannot clobber this check (W-B57-W4 fixer).
+    #expect(firstRenders > 0)
+    #expect(second.debugRenderCount == 0)
     window.isHidden = true
 }
 #endif

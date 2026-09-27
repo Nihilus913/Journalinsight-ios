@@ -16,9 +16,14 @@ public nonisolated struct ReminderTime: Codable, Equatable, Hashable, Sendable {
     public init(hour: Int, minute: Int) { self.hour = hour; self.minute = minute }
 }
 
-/// The four daily reminders (`useReminderToggle` instances in `reminders.tsx`), copy verbatim.
+/// The four daily reminders (`useReminderToggle` instances in `reminders.tsx`), copy verbatim,
+/// plus the B-57 W4 one-shot `hrCapCheck` (8-week re-check of the user's own HR cap).
 public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
-    case journal, mind, dose, gateFloor
+    case journal, mind, dose, gateFloor, hrCapCheck
+
+    /// The four repeating daily reminders. `hrCapCheck` is a one-shot dated reminder (8-week
+    /// re-check) and is scheduled only through `scheduleHrCapCheck`.
+    public static let dailyCases: [ReminderKind] = [.journal, .mind, .dose, .gateFloor]
 
     /// RN `content.data.kind`.
     public var tag: String {
@@ -27,6 +32,7 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .mind: "mind-reminder"
         case .dose: "dose-reminder"
         case .gateFloor: "gate-floor"
+        case .hrCapCheck: "hr-cap-check"
         }
     }
 
@@ -41,8 +47,9 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         switch self {
         case .journal: "Time to journal ✍️"
         case .mind: "How are you today? 🧠"
-        case .dose: "Log today's dose 💊"
+        case .dose: "Medication"
         case .gateFloor: "Readiness floor ⏰"
+        case .hrCapCheck: "Check your heart-rate cap"
         }
     }
 
@@ -50,8 +57,9 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         switch self {
         case .journal: "Take a minute to reflect on your day."
         case .mind: "A daily check-in takes about 10 seconds."
-        case .dose: "One tap in the check-in keeps the consecutive-dosing count accurate."
+        case .dose: "Log it in the check-in so the dosing count stays accurate."
         case .gateFloor: "05:10 local — check today's readiness verdict."
+        case .hrCapCheck: "Is your cap still right? JI never changes it for you."
         }
     }
 
@@ -60,8 +68,9 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         switch self {
         case .journal: ReminderTime(hour: 21, minute: 0)
         case .mind: ReminderTime(hour: 9, minute: 0)
-        case .dose: ReminderTime(hour: 8, minute: 30)
+        case .dose: ReminderTime(hour: 8, minute: 30)   // placeholder only: the medication's own usualTime is what gets scheduled (B-57 W4)
         case .gateFloor: ReminderTime(hour: 5, minute: 10)
+        case .hrCapCheck: ReminderTime(hour: 9, minute: 0)
         }
     }
 
@@ -70,8 +79,9 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         switch self {
         case .journal: "Journal reminder"
         case .mind: "Mind check-in reminder"
-        case .dose: "Dose reminder"
+        case .dose: "Medication"
         case .gateFloor: "Readiness floor"
+        case .hrCapCheck: "HR cap check"
         }
     }
 
@@ -79,8 +89,9 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         switch self {
         case .journal: "A daily nudge to take a minute and write."
         case .mind: "A separate daily nudge for the mood/stress/energy check-in — own time, own toggle."
-        case .dose: "Optional nudge to log whether you took your dose today — keeps the readiness gate's consecutive-dosing count accurate."
+        case .dose: "A daily nudge at your medication's time — keeps the readiness gate's consecutive-dosing count accurate."
         case .gateFloor: "A 05:10 local nudge that opens straight into today's readiness rationale."
+        case .hrCapCheck: "JI asks whether your cap is still right. It never changes the number for you."
         }
     }
 }
@@ -161,10 +172,18 @@ public struct ReminderScheduler {
         "ji.reminders.\(workoutTag).\(weekday.rawValue)"
     }
 
-    public nonisolated static func request(kind: ReminderKind, time: ReminderTime, today: String) -> UNNotificationRequest {
+    public nonisolated static func request(kind: ReminderKind, time: ReminderTime, today: String,
+                                           medication: MedicationEntry? = nil) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = kind.notificationTitle
         content.body = kind.notificationBody
+        // B-57 W4: the medication reminder speaks the user's own name, dose and time.
+        if kind == .dose, let med = medication, med.isNamed {
+            content.title = "Medication · \(med.name.trimmingCharacters(in: .whitespacesAndNewlines))"
+            let dose = med.dose.trimmingCharacters(in: .whitespacesAndNewlines)
+            let at = formatTime(hour: time.hour, minute: time.minute)
+            content.body = (dose.isEmpty ? "At \(at)" : "\(dose) at \(at)") + ". Log it in the check-in so the dosing count stays accurate."
+        }
         content.sound = .default
         var userInfo: [String: Any] = [kindKey: kind.tag]
         if kind == .gateFloor { userInfo[deepLinkURLKey] = gateFloorURL(today: today) }
@@ -203,9 +222,10 @@ public struct ReminderScheduler {
     // MARK: daily
 
     /// Cancel-then-add under the kind's identifier (RN `scheduleDailyReminderByKind`).
-    public func schedule(_ kind: ReminderKind, at time: ReminderTime, today: String = Self.todayISO()) async throws {
+    public func schedule(_ kind: ReminderKind, at time: ReminderTime, today: String = Self.todayISO(),
+                         medication: MedicationEntry? = nil) async throws {
         cancel(kind)
-        try await center.add(Self.request(kind: kind, time: time, today: today))
+        try await center.add(Self.request(kind: kind, time: time, today: today, medication: medication))
     }
 
     public func cancel(_ kind: ReminderKind) {
@@ -217,6 +237,45 @@ public struct ReminderScheduler {
         for request in await center.pendingRequests()
         where request.identifier == kind.identifier || Self.isOurs(request, tag: kind.tag) {
             if let t = Self.time(of: request) { return t }
+        }
+        return nil
+    }
+
+    // MARK: HR cap re-check (B-57 W4) — one-shot, dated, rescheduled on every confirmation
+
+    public nonisolated static func hrCapCheckRequest(due: String, capBpm: Int) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = ReminderKind.hrCapCheck.notificationTitle
+        content.body = "Is \(capBpm) bpm still right? JI never changes it for you."
+        content.sound = .default
+        content.userInfo = [kindKey: ReminderKind.hrCapCheck.tag]
+        let parts = due.split(separator: "-").compactMap { Int($0) }
+        var c = DateComponents()
+        if parts.count == 3 { c.year = parts[0]; c.month = parts[1]; c.day = parts[2] }
+        let at = ReminderKind.hrCapCheck.defaultTime
+        c.hour = at.hour; c.minute = at.minute
+        return UNNotificationRequest(identifier: ReminderKind.hrCapCheck.identifier, content: content,
+                                     trigger: UNCalendarNotificationTrigger(dateMatching: c, repeats: false))
+    }
+
+    /// Schedules (replacing) the re-check for 8 weeks after `confirmedOn` (tomorrow if overdue).
+    /// Returns the due date.
+    @discardableResult
+    public func scheduleHrCapCheck(confirmedOn: String, capBpm: Int, today: String = Self.todayISO()) async throws -> String {
+        cancelHrCapCheck()
+        let due = HrCapRecheck.nextDue(confirmedOn: confirmedOn, today: today)
+        try await center.add(Self.hrCapCheckRequest(due: due, capBpm: capBpm))
+        return due
+    }
+
+    public func cancelHrCapCheck() { center.removePendingRequests(withIdentifiers: [ReminderKind.hrCapCheck.identifier]) }
+
+    /// The pending re-check's due date (yyyy-MM-dd), nil = off.
+    public func hrCapCheckDue() async -> String? {
+        for r in await center.pendingRequests() where r.identifier == ReminderKind.hrCapCheck.identifier {
+            guard let c = (r.trigger as? UNCalendarNotificationTrigger)?.dateComponents,
+                  let y = c.year, let m = c.month, let d = c.day else { continue }
+            return String(format: "%04d-%02d-%02d", y, m, d)
         }
         return nil
     }

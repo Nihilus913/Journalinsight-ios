@@ -103,3 +103,52 @@ import UIKit
     #expect(lastSheet > body.startIndex, "body presents sheets")
     #expect(injection.lowerBound > lastSheet, "nutritionGoals must be injected after the last .sheet")
 }
+
+// MARK: - W-B57-W4 LC guard, BUG-21: the My KPIs sheet keeps its Done button and its own stack
+
+/// BUG-21 (W-FIX2): the My KPIs sheet had no Done (swipe-down was the only way out) and its squares
+/// did nothing. The sheet must carry a confirmation-placement Done that closes it, and a square tap
+/// must push KPI detail inside the sheet's own path.
+@Test func bug21MyKpisSheetHasDoneAndPushesSquaresInItsOwnStack() throws {
+    let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+    let sheet = try #require(source.range(of: ".sheet(isPresented: $showKpiList"))
+    let block = source[sheet.upperBound...].prefix(2500)
+    #expect(block.contains("NavigationStack(path: $kpiSheetPath)"))
+    #expect(block.contains("ToolbarItem(placement: .confirmationAction)"))
+    #expect(block.contains("label: \"Done\") { showKpiList = false }"))
+    #expect(block.contains(".accessibilityIdentifier(\"kpis.done\")"))
+    #expect(block.contains("kpiSheetPath.append(route)"))
+}
+
+// MARK: - W-B57-W4 C5: first-launch onboarding order (Review Focus 4)
+
+@Test func onboardingPresentationRules() {
+    #expect(RootTabView.firstSheet(needsOnboarding: true, needsConnection: true, arguments: []) == .onboarding)
+    #expect(RootTabView.firstSheet(needsOnboarding: false, needsConnection: true, arguments: []) == .connection)
+    #expect(RootTabView.firstSheet(needsOnboarding: false, needsConnection: false, arguments: []) == nil)
+    #expect(RootTabView.firstSheet(needsOnboarding: true, needsConnection: true, arguments: ["-no-onboarding"]) == .connection)
+    #expect(RootTabView.firstSheet(needsOnboarding: true, needsConnection: false, arguments: ["-no-onboarding"]) == nil)
+}
+
+/// The pre-W4 migration runs BEFORE onboarding reads the store, and the gate settings reach every
+/// sheet (outermost injection, like nutritionGoals).
+@Test func gateSettingsMigrateFirstAndWrapEverySheet() throws {
+    let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)
+    let migrate = try #require(source.range(of: "migratePreW4InstallIfNeeded()"))
+    let firstSheet = try #require(source.range(of: "Self.firstSheet(needsOnboarding:"))
+    #expect(migrate.lowerBound < firstSheet.lowerBound)
+    let bodyStart = try #require(source.range(of: "var body: some View {"))
+    let body = source[bodyStart.upperBound...]
+    let bodyEnd = body.range(of: "\n    /// ")?.lowerBound ?? body.endIndex
+    let injection = try #require(body.range(of: ".environment(\\.gateSettings", range: body.startIndex..<bodyEnd))
+    var lastSheet = body.startIndex
+    var cursor = body.startIndex
+    while let r = body.range(of: ".sheet(", range: cursor..<bodyEnd) { lastSheet = r.lowerBound; cursor = r.upperBound }
+    #expect(injection.lowerBound > lastSheet)
+}
+
+@Test func daytimeHrvIsNilWithoutATodayModel() {
+    #expect(RootTabView.daytimeHrv(nil) == nil)
+}

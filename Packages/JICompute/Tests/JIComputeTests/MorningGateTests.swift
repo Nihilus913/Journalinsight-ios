@@ -8,12 +8,13 @@ import Testing
 /// — ground truth is `scripts/morning_go.py` executed by the Python interpreter.
 /// Never edit the fixture by hand; run `HealthTraining/scripts/regen_goldens.py`.
 ///
-/// 998 golden cases across 13 case groups: `sessionDoneCases` 216 ·
+/// 1056 golden cases across 14 case groups: `sessionDoneCases` 216 ·
 /// `reducedCompliantCases` 12 · `liftFlagsCases` 51 · `trendKgWkCases` 70 ·
 /// `consecutiveDoseIndexCases` 36 · `rhrCarriedOverCases` 6 ·
 /// `vitalsPresentCases` 7 · `vitalsLineCases` 26 · `fmtVsCases` 47 ·
-/// `prevFromStateCases` 5 · `streakCases` 29 · `bestStreakCases` 29 ·
-/// `evaluateCases` 464 (B-57 W3: 10 "Recovery low" cases appended after the 454). Each golden case is one test case, so the count
+/// `prevFromStateCases` 6 · `streakCases` 29 · `bestStreakCases` 29 ·
+/// `evaluateCases` 464 (B-57 W3: 10 "Recovery low" cases appended after the 454) ·
+/// `evaluatePresetCases` 57 (B-57 W4: presets, legacy state, user cap, no cap). Each golden case is one test case, so the count
 /// `swift test --filter MorningGate` prints is the golden count PLUS ONE:
 /// `morningGateSourcesAvoidAmbientClockAPIs` is a non-golden source-hygiene
 /// guard required by the W6 card's L1 exit criteria ("no `Date()`/
@@ -268,19 +269,21 @@ struct VitalsFixture: Decodable, Sendable {
 
 struct PrevStateFixture: Decodable, Sendable {
     let hrvLow: Bool?
+    let hrvLowN: Int?
     let rhrHigh: Bool?
     let rhrDate: String?
     let sleepLow: Bool?
 
     enum CodingKeys: String, CodingKey {
         case hrvLow = "hrv_low"
+        case hrvLowN = "hrv_low_n"
         case rhrHigh = "rhr_high"
         case rhrDate = "rhr_date"
         case sleepLow = "sleep_low"
     }
 
     var prevState: MorningGatePrevState {
-        MorningGatePrevState(hrvLow: hrvLow, rhrHigh: rhrHigh, rhrDate: rhrDate, sleepLow: sleepLow)
+        MorningGatePrevState(hrvLow: hrvLow, rhrHigh: rhrHigh, rhrDate: rhrDate, sleepLow: sleepLow, hrvLowN: hrvLowN)
     }
 }
 
@@ -291,10 +294,12 @@ struct StateFixture: Decodable, Sendable {
     let rhrDate: String?
     let sleepLow: Bool?
     let prev: PrevStateFixture?
+    let hrvLowN: Int?
 
     enum CodingKeys: String, CodingKey {
         case date
         case hrvLow = "hrv_low"
+        case hrvLowN = "hrv_low_n"
         case rhrHigh = "rhr_high"
         case rhrDate = "rhr_date"
         case sleepLow = "sleep_low"
@@ -308,7 +313,8 @@ struct StateFixture: Decodable, Sendable {
             rhrHigh: rhrHigh,
             rhrDate: rhrDate,
             sleepLow: sleepLow,
-            prev: prev?.prevState
+            prev: prev?.prevState,
+            hrvLowN: hrvLowN
         )
     }
 }
@@ -319,17 +325,21 @@ struct NewStateFixture: Decodable, Sendable {
     let rhrHigh: Bool
     let rhrDate: String?
     let sleepLow: Bool
+    let hrvLowN: Int
 
     enum CodingKeys: String, CodingKey {
         case date
         case hrvLow = "hrv_low"
+        case hrvLowN = "hrv_low_n"
         case rhrHigh = "rhr_high"
         case rhrDate = "rhr_date"
         case sleepLow = "sleep_low"
     }
 
     var newState: MorningGateNewState {
-        MorningGateNewState(date: date, hrvLow: hrvLow, rhrHigh: rhrHigh, rhrDate: rhrDate, sleepLow: sleepLow)
+        MorningGateNewState(
+            date: date, hrvLow: hrvLow, rhrHigh: rhrHigh, rhrDate: rhrDate, sleepLow: sleepLow, hrvLowN: hrvLowN
+        )
     }
 }
 
@@ -602,6 +612,7 @@ struct BestStreakCase: GoldenCase, CustomTestStringConvertible {
 struct EvaluateCase: GoldenCase {
     static let allowedKeys: Set<String> = [
         "today", "m", "db", "state", "dosedDates", "verdict", "conditions", "newState",
+        "hrvLowNights", "hrCapBpm", "noHrCap",
     ]
 
     let today: String
@@ -612,6 +623,10 @@ struct EvaluateCase: GoldenCase {
     let verdict: String
     let conditions: [String]
     let newState: NewStateFixture
+    /// B-57 W4 preset cases only: the preset's night count, the user cap, or `true` = no cap.
+    let hrvLowNights: Int?
+    let hrCapBpm: Int?
+    let noHrCap: Bool?
 }
 
 /// `EvaluateCase` with `db.lifts` linearised into the fixture's key order.
@@ -624,6 +639,7 @@ struct EvaluateFixture: Sendable, CustomTestStringConvertible {
     let verdict: String
     let conditions: [String]
     let newState: MorningGateNewState
+    let config: MorningGateConfig
 
     var testDescription: String { "\(today) -> \(verdict)" }
 }
@@ -656,12 +672,16 @@ enum MorningGolden {
         }
     }()
 
-    static let evaluateCases: [EvaluateFixture] = {
-        let cases = GoldenLoader.require(EvaluateCase.self, file: file, group: "evaluateCases")
-        let orders = MorningFixtureOrder.keyOrders(group: "evaluateCases", path: ["db", "lifts"])
-        precondition(cases.count == orders.count, "evaluateCases/key-order count mismatch")
+    private static func evaluateFixtures(_ group: String) -> [EvaluateFixture] {
+        let cases = GoldenLoader.require(EvaluateCase.self, file: file, group: group)
+        let orders = MorningFixtureOrder.keyOrders(group: group, path: ["db", "lifts"])
+        precondition(cases.count == orders.count, "\(group)/key-order count mismatch")
         return zip(cases, orders).map { golden, order in
-            EvaluateFixture(
+            var config = MorningGateConfig.default
+            if let n = golden.hrvLowNights { config.hrvLowNights = n }
+            if let cap = golden.hrCapBpm { config.hrCapBpm = cap }
+            if golden.noHrCap == true { config.hrCapBpm = nil }
+            return EvaluateFixture(
                 today: golden.today,
                 vitals: golden.m.vitals,
                 db: golden.db.db(lifts: MorningFixtureOrder.lifts(golden.db.lifts ?? [:], order: order)),
@@ -669,10 +689,14 @@ enum MorningGolden {
                 dosedDates: golden.dosedDates,
                 verdict: golden.verdict,
                 conditions: golden.conditions,
-                newState: golden.newState.newState
+                newState: golden.newState.newState,
+                config: config
             )
         }
-    }()
+    }
+
+    static let evaluateCases: [EvaluateFixture] = evaluateFixtures("evaluateCases")
+    static let evaluatePresetCases: [EvaluateFixture] = evaluateFixtures("evaluatePresetCases")
 }
 
 // MARK: - Tests
@@ -766,7 +790,8 @@ func evaluateMatchesPython(_ c: EvaluateFixture) throws {
         vitals: c.vitals,
         db: c.db,
         state: c.state,
-        dosedDates: c.dosedDates
+        dosedDates: c.dosedDates,
+        config: c.config
     )
     #expect(got.verdict == c.verdict, "verdict: got \"\(got.verdict)\", want \"\(c.verdict)\"")
     #expect(got.conditions.count == c.conditions.count, "condition count: got \(got.conditions), want \(c.conditions)")
@@ -774,6 +799,34 @@ func evaluateMatchesPython(_ c: EvaluateFixture) throws {
         #expect(got.conditions[index] == want, "condition[\(index)]: got \"\(got.conditions[index])\", want \"\(want)\"")
     }
     #expect(got.newState == c.newState)
+}
+
+/// B-57 W4: Cautious / Balanced / Push x prior counts, the legacy boolean-only state,
+/// a user cap above/below 175 and no cap — golden group `evaluatePresetCases`.
+@Test(arguments: MorningGolden.evaluatePresetCases)
+func evaluatePresetMatchesPython(_ c: EvaluateFixture) throws {
+    try evaluateMatchesPython(c)
+}
+
+@Test func balancedPresetRedLineIsThePreW4String() {
+    #expect(hrvLowRedLine(nights: 2) == "HRV LOW 2 mornings")
+    #expect(hrvLowRedLine(nights: 1) == "HRV LOW 1 morning")
+    #expect(MorningGateConfig.default.hrvLowNights == 2)
+    #expect(MorningGateConfig.default.hrCapBpm == 175)
+}
+
+@Test func noCapDropsTheHrPart() {
+    #expect(intervalCapText(nil).hasPrefix("Work reps by pace/RPE (no HR limit set). "))
+    #expect(!intervalCapText(nil).contains("capped at HR"))
+    #expect(intervalCapText(175).hasPrefix("Work reps capped at HR 175 (pace/RPE on dosed days). "))
+    #expect(safetyFloorText(nil) == "Safety floor stands (no sprints, symptom days exempt).")
+    #expect(safetyFloorText(175) == "Safety floor stands (HR ≤175, no sprints, symptom days exempt).")
+}
+
+@Test func legacyBooleanStateCountsAsOneNight() {
+    #expect(prevHrvLowN(MorningGatePrevState(hrvLow: true)) == 1)
+    #expect(prevHrvLowN(MorningGatePrevState(hrvLow: false)) == 0)
+    #expect(prevHrvLowN(MorningGatePrevState(hrvLow: true, hrvLowN: 4)) == 4)
 }
 
 /// W6 card, L1 exit: no ambient clock, locale or printf-style formatting in the

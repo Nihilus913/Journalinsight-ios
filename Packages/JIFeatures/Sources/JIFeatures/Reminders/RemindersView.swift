@@ -4,9 +4,10 @@ import JIDesign
 // W5a-L2 — `mobile/app/reminders.tsx`: four daily reminder cards (toggle + hour/minute steppers +
 // status line + notice) and the 7-row workout matrix. Pushed from `Settings/Sections/RemindersSection`.
 
-/// B-57 W1 board 5/08 (layout only — the medication fields and the HR-cap check are W4): a
-/// DAILY card of toggle rows ("Daily · 21:00"), a WORKOUT DAYS card (day · time · toggle), and an
-/// EDIT TIME card whose steppers edit the reminder picked in it.
+/// B-57 W1 board 5/08: a DAILY card of toggle rows ("Daily · 21:00"), a WORKOUT DAYS card
+/// (day · time · toggle), and an EDIT TIME card whose steppers edit the reminder picked in it.
+/// B-57 W4 adds the SAFETY group (8-week HR cap check, off without a cap) and the MEDICATION
+/// group (the user's own name, dose, time, "works for about"; nothing filled in).
 public struct RemindersView: View {
     @Environment(\.jiTheme) private var theme
     @State private var model: RemindersViewModel
@@ -26,19 +27,21 @@ public struct RemindersView: View {
                 }
             }
             Section {
-                ForEach(ReminderKind.allCases, id: \.self) { kind in
+                ForEach(ReminderKind.dailyCases, id: \.self) { kind in
                     DailyReminderRow(kind: kind, model: model)
                 }
             } header: {
                 Text("Daily")
             } footer: {
-                let notices = ReminderKind.allCases.compactMap { model.daily[$0]?.notice }
+                let notices = ReminderKind.dailyCases.compactMap { model.daily[$0]?.notice }
                 if !notices.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(notices, id: \.self) { Text($0).foregroundStyle(theme.color(.reduced)) }
                     }
                 }
             }
+            RemindersSafetySection(model: model)
+            RemindersMedicationSection(model: model)
             WorkoutRemindersSection(model: model)
             EditTimeSection(model: model, editing: $editing)
         }
@@ -73,8 +76,9 @@ extension ReminderKind {
         switch self {
         case .journal: "Journal"
         case .mind: "Mind check-in"
-        case .dose: "Dose"
+        case .dose: "Medication"
         case .gateFloor: "Readiness floor"
+        case .hrCapCheck: "HR cap check"
         }
     }
 
@@ -84,6 +88,7 @@ extension ReminderKind {
         case .mind: "waveform.path"
         case .dose: "pills"
         case .gateFloor: "gauge.with.needle"
+        case .hrCapCheck: "heart.text.square"
         }
     }
 }
@@ -95,8 +100,21 @@ private struct DailyReminderRow: View {
 
     private var state: RemindersViewModel.DailyState? { model.daily[kind] }
     private var timeText: String {
+        if kind == .dose {   // B-57 W4: the medication's own time, never the placeholder
+            guard let t = model.medication?.usualTime else { return "—" }
+            return ReminderScheduler.formatTime(hour: t.hour, minute: t.minute)
+        }
         let t = state?.time ?? kind.defaultTime
         return ReminderScheduler.formatTime(hour: t.hour, minute: t.minute)
+    }
+
+    /// Board: "Concerta · 36 mg · 08:30"; no medication yet = "— not set" + where to add it.
+    private var subtitle: String {
+        guard kind == .dose else { return "Daily · \(timeText)" }
+        guard let med = model.medication, med.isNamed else { return "— not set · add it under Medication" }
+        let dose = med.dose.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ([med.name.trimmingCharacters(in: .whitespacesAndNewlines)] + (dose.isEmpty ? [] : [dose]) + [timeText])
+            .joined(separator: " · ")
     }
 
     var body: some View {
@@ -104,7 +122,7 @@ private struct DailyReminderRow: View {
             get: { state?.enabled ?? false },
             set: { next in Task { await model.setEnabled(kind, next) } }
         )) {
-            JIRow(title: kind.boardTitle, subtitle: "Daily · \(timeText)", systemImage: kind.boardSymbol)
+            JIRow(title: kind.boardTitle, subtitle: subtitle, systemImage: kind.boardSymbol)
         }
         .tint(theme.color(.info))
         .disabled(state?.busy ?? false)
@@ -124,7 +142,8 @@ private struct EditTimeSection: View {
     var body: some View {
         Section {
             Picker(selection: $editing) {
-                ForEach(ReminderKind.allCases, id: \.self) { Text($0.boardTitle).tag(ReminderEditTarget.daily($0)) }
+                // `.dose` follows the medication's own Time row (B-57 W4), so it is not edited here.
+                ForEach(ReminderKind.dailyCases.filter { $0 != .dose }, id: \.self) { Text($0.boardTitle).tag(ReminderEditTarget.daily($0)) }
                 ForEach(Weekday.displayOrder, id: \.self) { Text($0.label).tag(ReminderEditTarget.workout($0)) }
             } label: {
                 Text("Time for").jiFont(.subheadline)

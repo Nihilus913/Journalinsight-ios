@@ -35,9 +35,11 @@ private func makeVM(
     provider: any WorkoutTemplatesProviding,
     sender: FakeWorkoutSender = FakeWorkoutSender(),
     builder: @escaping SendToWatchViewModel.Builder = stubBuilder,
-    openSettings: @escaping () -> Void = {}
+    openSettings: @escaping () -> Void = {},
+    limits: WorkoutHrLimits = .none
 ) -> SendToWatchViewModel {
-    SendToWatchViewModel(provider: provider, sender: sender, builder: builder, now: { fixedNow }, openSettings: openSettings)
+    SendToWatchViewModel(provider: provider, sender: sender, builder: builder, now: { fixedNow }, openSettings: openSettings,
+                         limits: limits)
 }
 
 @Test @MainActor func sendToWatchLoadsTemplatesAndDefaultsDateToToday() async throws {
@@ -133,7 +135,8 @@ private func makeVM(
 
 @Test @MainActor func sendToWatchBuilderErrorBecomesErrorState() async throws {
     let sender = FakeWorkoutSender()
-    let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()), sender: sender, builder: { _ in throw WorkoutBuilderError.capExceeded(bpm: 180) })
+    let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()), sender: sender, builder: { _ in throw WorkoutBuilderError.capExceeded(bpm: 180) },
+                    limits: WorkoutHrLimits(capBpm: 175))
     await vm.load()
     vm.toggle(2)
     await vm.send()
@@ -141,5 +144,22 @@ private func makeVM(
     #expect(msg.contains("175"))
     // Auth was asked, but nothing was scheduled.
     #expect(await sender.calls == [.requestAuthorization])
+}
+// B-57 W4: the footer names only the limits the user set.
+@Test func alertNoteShowsOnlyTheLimitsTheUserSet() {
+    #expect(sendToWatchAlertNote(.none) == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm.")
+    #expect(sendToWatchAlertNote(WorkoutHrLimits(capBpm: 175, zone5FloorBpm: 176))
+            == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm, capped at your 175 bpm, below your Zone 5 (176).")
+}
+
+@Test @MainActor func zone5TargetErrorNamesTheUsersChoice() async throws {
+    let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()),
+                    builder: { _ in throw WorkoutBuilderError.zone5Target(bpm: 180, zone5FloorBpm: 176) },
+                    limits: WorkoutHrLimits(zone5FloorBpm: 176))
+    await vm.load()
+    vm.toggle(2)
+    await vm.send()
+    guard case .error(let msg) = vm.state else { Issue.record("expected .error, got \(vm.state)"); return }
+    #expect(msg == "A step targets 180 bpm — inside your Zone 5 (from 176), which you chose to avoid. Fix the template on the hub.")
 }
 #endif

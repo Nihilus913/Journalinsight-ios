@@ -31,8 +31,8 @@ public enum WorkoutStepPurpose: String, Codable, Sendable, CaseIterable {
 
 /// One prescription step. A `work` step immediately followed by a `recovery` step with the same
 /// `repeat` n > 1 is one interval block of n iterations (Contract rule); every other step has
-/// `repeat == 1`. `hrLo…hrHi` is an absolute-bpm alert range (never a zone), capped at 175
-/// everywhere (`project_docs_map` AWU zones — the builder asserts it).
+/// `repeat == 1`. `hrLo…hrHi` is an absolute-bpm alert range (never a zone). The Watch builder
+/// checks it against the user's own limits (B-57 W4: optional cap, optional Zone 5 avoidance).
 public struct WorkoutStep: Codable, Sendable, Equatable {
     public var purpose: WorkoutStepPurpose
     public var seconds: Int
