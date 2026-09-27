@@ -137,25 +137,30 @@ public struct TrainingWeekView: View {
         }
     }
 
+    /// The action a row offers, or nil when there is none (interval / long run, a rest day with no
+    /// assignable session, a strength day whose session has no hub id) — no chevron without an action.
+    private func action(for day: TrainingWeekDay) -> (() -> Void)? {
+        switch day.kind {
+        case .strength:
+            guard let id = day.sessionId, let s = sessions.first(where: { $0.id == id }) else { return nil }
+            return { editing = s }
+        case .rest:
+            guard !sessions.isEmpty else { return nil }
+            return { pickingFor = day.weekday }
+        case .interval, .longRun:
+            return nil
+        }
+    }
+
     @ViewBuilder private func dayRow(_ day: TrainingWeekDay) -> some View {
         let pending = day.sessionId.map { model.pendingSessionSync.contains($0) } ?? false
         let label = trainingWeekDayAccessibilityLabel(day) + (pending ? ", waiting to sync" : "")
-        switch day.kind {
-        case .strength:
-            Button {
-                if let id = day.sessionId, let s = sessions.first(where: { $0.id == id }) { editing = s }
-            } label: { JIChevronRow { rowLabel(day, pending: pending) } }
+        if let action = action(for: day) {
+            Button(action: action) { JIChevronRow { rowLabel(day, pending: pending) } }
                 .buttonStyle(.plain)
-                .disabled(day.sessionId.flatMap { id in sessions.first { $0.id == id } } == nil)
                 .accessibilityElement(children: .combine).accessibilityLabel(label)
                 .accessibilityIdentifier("training-week-row-\(day.weekday)")
-        case .rest:
-            Button { pickingFor = day.weekday } label: { JIChevronRow { rowLabel(day, pending: pending) } }
-                .buttonStyle(.plain)
-                .disabled(sessions.isEmpty)
-                .accessibilityElement(children: .combine).accessibilityLabel(label)
-                .accessibilityIdentifier("training-week-row-\(day.weekday)")
-        case .interval, .longRun:
+        } else {
             rowLabel(day, pending: pending)
                 .frame(minHeight: JIChevronRowMetrics.minHeight - 2 * JIChevronRowMetrics.verticalPadding)
                 .accessibilityElement(children: .combine).accessibilityLabel(label)
