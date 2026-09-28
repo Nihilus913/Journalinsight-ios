@@ -283,10 +283,15 @@ public final class TodayViewModel {
         _ = loadTodayTilePrefs(prefs: prefs)
         phase = .loading
         restoreFromCache()
+        // W-FIX7 F7-1: today's Apple Health workouts (session done) before the hub answers.
+        await TodayWorkoutsModel.shared.refresh()
         await fetchLive()
     }
 
-    public func refresh() async { await fetchLive() }
+    public func refresh() async {
+        await TodayWorkoutsModel.shared.refresh()
+        await fetchLive()
+    }
 
     private func restoreFromCache() {
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) {
@@ -537,4 +542,60 @@ nonisolated func parseHubTimestamp(_ raw: String?) -> Date? {
     }
     let frac = ISO8601DateFormatter(); frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return frac.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+}
+
+// MARK: - W-FIX7 F7-1 (S1): today's workouts from Apple Health
+
+/// Today's Apple Health workouts, read on the phone (no hub path — Toby 2026-09-28). ONE shared
+/// model so Decide, Day, Training and the glances agree: the App installs `source` (JIHealthKit's
+/// `HKTodayWorkoutsReader`) and `onChange` (republish the widgets / Live Activity); screens read
+/// `completion(sessionLabel:)` and `TrainingWeekSummary.applyingTodayWorkouts`.
+/// No source (tests, previews, `-no-healthkit`) = no workouts = every session as it was.
+@Observable @MainActor
+public final class TodayWorkoutsModel {
+    public static let shared = TodayWorkoutsModel()
+
+    @ObservationIgnored public var source: (any TodayWorkoutsProviding)?
+    /// Fired when a refresh changed the rows (never on an unchanged re-read).
+    @ObservationIgnored public var onChange: (() -> Void)?
+    private var rows: [TodayWorkout] = []
+    private let now: () -> Date
+    private let calendar: Calendar
+
+    public init(source: (any TodayWorkoutsProviding)? = nil, now: @escaping () -> Date = Date.init,
+                calendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = .current; return c }()) {
+        self.source = source; self.now = now; self.calendar = calendar
+    }
+
+    /// The rows read, minus any that started before today (a read from yesterday evening never
+    /// marks this morning's session done).
+    public var workouts: [TodayWorkout] {
+        let today = now()
+        return rows.filter { calendar.isDate($0.start, inSameDayAs: today) }
+    }
+
+    /// Re-reads Health. A failed read keeps the last rows (never flips a done session back).
+    public func refresh() async {
+        guard let source, let fresh = try? await source.todayWorkouts() else { return }
+        guard fresh != rows else { return }
+        rows = fresh
+        onChange?()
+    }
+
+    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's workouts.
+    public func completion(sessionLabel: String?) -> SessionCompletion {
+        SessionCompletion.resolve(planned: PlannedSessionKind.classify(sessionLabel), workouts: workouts)
+    }
+}
+
+public extension TodayViewModel {
+    /// F7-1: the label of today's planned session — the hub's session for today, else the call's session.
+    var plannedSessionLabel: String? {
+        [morning?.sessionForToday, verdict.session].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+
+    /// F7-1: today's session against today's Apple Health workouts (`.none` = unchanged).
+    func sessionCompletion(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionCompletion {
+        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel)
+    }
 }

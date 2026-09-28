@@ -33,7 +33,9 @@ public struct TodayView: View {
     @Environment(\.recoveryInsight) private var recoveryInsight
     /// B-57 W5 C4: the progression rule's lifts and this week's plan (nil in previews → not shown).
     @Environment(\.progression) private var progression
-    @Environment(\.trainingWeekSummary) private var week
+    @Environment(\.trainingWeekSummary) private var plannedWeek
+    /// W-FIX7 F7-1: the week with today's Apple Health workout applied (today's session done).
+    private var week: TrainingWeekSummary? { plannedWeek?.applyingTodayWorkouts(TodayWorkoutsModel.shared.workouts) }
     /// B-57 W5 DEV-10: the user's zones and cap for the cardio line (optional, never a default).
     @Environment(\.gateSettings) private var gateSettings
 
@@ -268,6 +270,8 @@ public struct TodayView: View {
                     Text(card.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // W-FIX7 F7-1: "Done · Traditional strength · 52 min · Bevel" from Apple Health.
+                SessionCompletionLine(completion: model.sessionCompletion(sessionLabel: card.session))
                 // B-57 W5 (board 1/02): "Session 2 of 4 this week" while today's session is still to do.
                 if !card.rows.isEmpty, let ordinal = daySessionOrdinal(week) {
                     Text("\(ordinal.prefix(1).uppercased())\(ordinal.dropFirst()) this week")

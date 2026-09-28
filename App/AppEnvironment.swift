@@ -68,6 +68,8 @@ final class AppEnvironment {
         // B-73: recompute the plan band on the phone on every foreground, even while an upload is
         // in flight. Health read + local math only; it never talks to the hub (Review Focus 4).
         Task { @MainActor [weak self] in await self?.refreshEnergyBand() }
+        // W-FIX7 F7-1: today's Apple Health workouts (session done) on every foreground.
+        Task { @MainActor [weak self] in await self?.refreshTodayWorkouts() }
         guard !uploadInFlight, let uploader = healthKitUploader,
               !CommandLine.arguments.contains("-no-healthkit") else { return }
         uploadInFlight = true
@@ -131,6 +133,7 @@ final class AppEnvironment {
     }
 
     func boot() throws {
+        installTodayWorkouts()
         // W8-L1 appWiring: warm the haptics prefs cache from disk at cold start, so
         // `JIHapticDispatcher.shared.prefs` reflects the persisted enabled/intensity values
         // immediately instead of the open default (enabled, 100) until Settings is visited.
@@ -384,6 +387,39 @@ final class AppEnvironment {
         )
     }
 
+    // MARK: - W-FIX7 F7-1: session done from Apple Health
+
+    /// The shared today-workouts model Decide / Day / Training read (a seam for tests).
+    @ObservationIgnored var todayWorkouts: TodayWorkoutsModel = .shared
+
+    /// Points the model at Apple Health (`-no-healthkit` scripted runs: none, every session as it
+    /// was) and republishes the glances when a workout lands, so the widget and the Live Activity
+    /// say "done" without waiting for the next hub fetch.
+    func installTodayWorkouts() {
+        if todayWorkouts.source == nil, !CommandLine.arguments.contains("-no-healthkit") {
+            todayWorkouts.source = HKTodayWorkoutsReader(store: RealHealthStoreReader())
+        }
+        todayWorkouts.onChange = { [weak self] in self?.republishSnapshot() }
+    }
+
+    func refreshTodayWorkouts() async { await todayWorkouts.refresh() }
+
+    /// F7-1: the glance's session line — "Done · Traditional strength · 52 min · Bevel" once a
+    /// matching workout is in Health today, else the call's own session.
+    static func glanceSession(headlineSession: String?, completion: SessionCompletion) -> String {
+        if completion.isDone, let done = completion.statusText { return done }
+        return headlineSession ?? "No verdict yet"
+    }
+
+    /// F7-1: the Live Activity ends (showing "done") once today's session is done — never restarted
+    /// for that day. Unit-test hosts get nil.
+    @ObservationIgnored var liveActivityFinish: (@MainActor (HubSnapshot) -> Void)? = AppEnvironment.defaultLiveActivityFinish
+
+    static var defaultLiveActivityFinish: (@MainActor (HubSnapshot) -> Void)? {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
+        return { @MainActor snapshot in LiveActivityController.shared.finish(from: snapshot) }
+    }
+
     // MARK: - B-57 W5: glance extras (reason, plan, the user's cap, next session, signals)
 
     /// W3's recovery insight (owned by RootTabView) — read for the HRV/RHR normals on the glances.
@@ -459,11 +495,14 @@ final class AppEnvironment {
         let rhrNormal = recoveryInsight?.normal(for: .rhr)?.range
         let gateSignals = today?.morning?.gateSignals
         // W-B57-W5 fixer: the live Training week when RootTabView has one, else the cached B-52 plan.
-        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now())))
+        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now()))?
+            .applyingTodayWorkouts(todayWorkouts.workouts))
+        // W-FIX7 F7-1: today's session against today's Apple Health workouts.
+        let completion = today.map { $0.sessionCompletion(workouts: todayWorkouts, sessionLabel: headline?.session) } ?? .none
         let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)
         let snapshot = HubSnapshot(
             verdictWord: headline?.word ?? "—",
-            verdictSession: headline?.session ?? "No verdict yet",
+            verdictSession: Self.glanceSession(headlineSession: headline?.session, completion: completion),
             verdictTone: Self.toneString(headline?.tone),
             verdictDate: today?.morning?.verdictDate,
             readiness: readiness,
@@ -482,7 +521,10 @@ final class AppEnvironment {
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
-        if Self.drivesLiveActivity(snapshot) { liveActivity?(snapshot) }
+        if Self.drivesLiveActivity(snapshot) {
+            // F7-1: a done session ends the Live Activity (with "done" on it) instead of refreshing it.
+            if completion.isDone { liveActivityFinish?(snapshot) } else { liveActivity?(snapshot) }
+        }
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
         // kept showing the snapshot it was first rendered with until iOS happened to refresh it.
         #if canImport(WidgetKit)

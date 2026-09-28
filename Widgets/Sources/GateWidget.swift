@@ -118,7 +118,7 @@ private struct GateWidgetView: View {
                 // Board 03: the call and the one signal that drove it.
                 VStack(alignment: .leading, spacing: 1) {
                     Label(snapshot.verdictWord, systemImage: "dumbbell.fill").jiFont(.subheadline, weight: .bold).lineLimit(1)
-                    Text(snapshot.verdictSession).jiFont(.caption, weight: .semibold).lineLimit(1)
+                    glanceSessionText(snapshot.verdictSession).jiFont(.caption, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
                     if let reason = snapshot.reason { Text("Why: \(reason)").jiFont(.caption).lineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,7 +128,7 @@ private struct GateWidgetView: View {
                     eyebrow(tone)
                     Text(snapshot.verdictWord).jiNumeral(.numeralLarge, weight: .heavy).foregroundStyle(tone)
                         .lineLimit(1).minimumScaleFactor(0.5)
-                    Text(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(1)
+                    glanceSessionText(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text)).lineLimit(glanceSessionLineLimit(snapshot.verdictSession))
                     Spacer(minLength: 0)
                     if let reason = snapshot.reason {
                         Text("Why · \(reason)").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(3)
@@ -146,8 +146,8 @@ private struct GateWidgetView: View {
                             eyebrow(tone)
                             Text(snapshot.verdictWord).jiNumeral(.numeralLarge, weight: .heavy).foregroundStyle(tone)
                                 .lineLimit(1).minimumScaleFactor(0.5)
-                            Text(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text))
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                            glanceSessionText(snapshot.verdictSession).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.text))
+                                .lineLimit(glanceSessionLineLimit(snapshot.verdictSession)).minimumScaleFactor(0.8)
                             Spacer(minLength: 0)
                             if let reason = snapshot.reason {
                                 Text("Why: \(reason)").jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(2)

@@ -447,7 +447,9 @@ public struct DecideView: View {
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     // B-57 W5 C4 (board 1/01): the first lift's next weight at the right, "↑ Bench up" when due.
                     // W-FIX5 W5-3: no weight beside a Rest call; stacked at accessibility sizes.
-                    let lift = decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
+                    // W-FIX7 F7-1: a matching Apple Health workout today = done (no weight to lift any more).
+                    let completion = TodayWorkoutsModel.shared.completion(sessionLabel: row.detail)
+                    let lift = completion.isDone ? nil : decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
                                                       lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
                         JIChevronRow {
@@ -457,8 +459,18 @@ public struct DecideView: View {
                                     Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                                         .fixedSize(horizontal: false, vertical: true)
                                     if let lift { sessionLiftText(lift, alignment: .leading) }
+                                    SessionCompletionLine(completion: completion)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                            } else if completion.statusText != nil {
+                                VStack(alignment: .leading, spacing: JISpacing.s1) {
+                                    HStack(spacing: JISpacing.s2) {
+                                        JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+                                        if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
+                                    }
+                                    SessionCompletionLine(completion: completion)
+                                        .padding(.leading, JIChevronRowMetrics.iconWell + JISpacing.s3)
+                                }
                             } else {
                                 JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
                                 if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
@@ -684,5 +696,27 @@ struct DecideReadinessRing: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(decideReadinessCaption(score: score, nights: nights, recovery: recovery, hubRecovery: hubRecovery) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
         .accessibilityIdentifier("today.decide.readinessRing")
+    }
+}
+
+/// W-FIX7 F7-1: the session's status from Apple Health — "Done · Traditional strength · 52 min ·
+/// Bevel" (a check, status green — rule 6) or "Other activity · Walk · 30 min · Workout" (muted,
+/// the session stays open). Nothing at all when Health has no workout today.
+public struct SessionCompletionLine: View {
+    let completion: SessionCompletion
+    @Environment(\.jiTheme) private var theme
+
+    public init(completion: SessionCompletion) { self.completion = completion }
+
+    public var body: some View {
+        if let text = completion.statusText {
+            Label {
+                Text(text).jiFont(.caption, weight: .semibold).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: completion.isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
+            }
+            .foregroundStyle(theme.color(completion.isDone ? .go : .muted))
+            .accessibilityIdentifier(completion.isDone ? "session.done" : "session.otherActivity")
+        }
     }
 }
