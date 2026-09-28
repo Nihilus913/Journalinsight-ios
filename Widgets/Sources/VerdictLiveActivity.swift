@@ -41,7 +41,7 @@ struct VerdictLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.verdictSession).font(.headline).foregroundStyle(theme.color(.text)).lineLimit(1)
+                        glanceSessionText(context.state.verdictSession).font(.headline).foregroundStyle(theme.color(.text)).lineLimit(glanceSessionLineLimit(context.state.verdictSession))
                         if let reason = context.state.reason {
                             Text(reason).font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1)
                         }
@@ -96,7 +96,7 @@ private struct VerdictActivityLockScreenView: View {
                 Text("YOUR CALL").font(.caption2.bold()).foregroundStyle(widgetToneColor(verdictTone(from: state.verdictTone)))
                 Text(state.verdictWord).font(.largeTitle.weight(.heavy)).foregroundStyle(widgetToneColor(verdictTone(from: state.verdictTone)))
                     .lineLimit(1).minimumScaleFactor(0.5)
-                Text(state.verdictSession).font(.headline).foregroundStyle(theme.color(.text)).lineLimit(1)
+                glanceSessionText(state.verdictSession).font(.headline).foregroundStyle(theme.color(.text)).lineLimit(glanceSessionLineLimit(state.verdictSession))
                 if let reason = state.reason { Text("Why: \(reason)").font(.caption).foregroundStyle(theme.color(.muted)).lineLimit(2) }
             }
             Spacer(minLength: 8)
@@ -155,3 +155,15 @@ private struct VerdictActivityLockScreenView: View {
         signals: HubSnapshot.previewSeed.signals
     )
 }
+
+/// W-FIX7 F7-1: the app writes "Done · Traditional strength · 52 min · Bevel" as the session once
+/// Apple Health holds a matching workout today — the glances show it with a check and room for
+/// two lines (type · duration · source app), never truncated to "Done · Tradit…".
+nonisolated func glanceSessionIsDone(_ session: String) -> Bool { session.hasPrefix("Done · ") }
+
+func glanceSessionText(_ session: String) -> Text {
+    guard glanceSessionIsDone(session) else { return Text(session) }
+    return Text("\(Image(systemName: "checkmark.circle.fill")) \(session)")
+}
+
+nonisolated func glanceSessionLineLimit(_ session: String) -> Int { glanceSessionIsDone(session) ? 2 : 1 }
