@@ -113,11 +113,18 @@ public nonisolated struct GateSettingsStore: Sendable {
     private let prefs: PrefStore
     public init(prefs: PrefStore) { self.prefs = prefs }
 
+    /// W-TGT: once the targets document exists (after the §5 import) this reads and writes its
+    /// Limits + caution rule; before that, the `gate.settings` row the import carries over.
     public func load() -> GateSettings {
-        ((try? prefs.get(Self.key, as: GateSettings.self)) ?? nil) ?? GateSettings()
+        if let doc = TargetsStore(prefs: prefs).loadIfPresent() { return GateSettings(targets: doc) }
+        return ((try? prefs.get(Self.key, as: GateSettings.self)) ?? nil) ?? GateSettings()
     }
 
-    public func save(_ settings: GateSettings) throws { try prefs.set(Self.key, settings) }
+    public func save(_ settings: GateSettings) throws {
+        let targets = TargetsStore(prefs: prefs)
+        guard let doc = targets.loadIfPresent() else { return try prefs.set(Self.key, settings) }
+        try targets.save(settings.applied(to: doc))
+    }
 
     /// Toby 2026-09-24: his install keeps cap 175 + Avoid Zone 5 + his zones across the update.
     /// Runs once, before onboarding. A fresh install (no pre-W4 data) gets nothing.
@@ -125,7 +132,7 @@ public nonisolated struct GateSettingsStore: Sendable {
     public func migratePreW4InstallIfNeeded() -> Bool {
         guard !has(Self.migrationKey) else { return false }
         defer { try? prefs.set(Self.migrationKey, true) }
-        guard !has(Self.key), Self.preW4Keys.contains(where: has) else { return false }
+        guard !has(Self.key), !has(TargetsStore.key), Self.preW4Keys.contains(where: has) else { return false }
         try? save(.legacyPreW4)
         return true
     }

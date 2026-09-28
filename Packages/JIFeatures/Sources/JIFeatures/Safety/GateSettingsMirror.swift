@@ -40,7 +40,15 @@ public final class GateSettingsMirror {
         guard hubPending, let provider else { return false }
         let s = store.load()
         do {
-            _ = try await provider.putGateSettings(s.body)
+            // W-TGT: after the §5 import the hub gets the ONE document (`PUT /planning/targets`);
+            // a hub without that route yet (404/405) still gets the W4 body.
+            if let doc = TargetsStore(prefs: prefs).loadIfPresent(), let targets = provider as? any TargetsProviding {
+                do { _ = try await targets.putTargets(doc) } catch HubError.http(status: 404, detail: _), HubError.http(status: 405, detail: _) {
+                    _ = try await provider.putGateSettings(s.body)
+                }
+            } else {
+                _ = try await provider.putGateSettings(s.body)
+            }
             // Only clear when nothing newer was saved while the PUT was in flight.
             if store.load() == s { try? prefs.remove(Self.pendingKey) }
             return true
