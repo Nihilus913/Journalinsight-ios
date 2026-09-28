@@ -90,7 +90,10 @@ public final class TargetsModel {
     public func save(_ next: TargetsDocument) async {
         saveError = nil
         if let mirror {
-            let outcome = await mirror.save(next)
+            // W-FIX8 T-1: removing the LAST goal is the one deliberate "clear every goal" — the only
+            // goals-empty body the hub accepts over stored goals.
+            let clearing = next.goals.isEmpty && !(store.loadIfPresent()?.goals.isEmpty ?? true)
+            let outcome = await mirror.save(next, clearAllGoals: clearing)
             hubPending = outcome == .queued
         } else {
             do { try store.save(next) } catch { saveError = "Couldn't save on this phone — try again." }
@@ -106,6 +109,13 @@ public final class TargetsModel {
     /// too). Goals and Limits are never reset by the app.
     public func resetRules() async {
         await update { $0.rules = TargetRules() }
+    }
+
+    /// W-FIX8 T-1 — launch, before the first push: a phone with no goals adopts the hub's (once
+    /// per install; never a PUT), then re-reads.
+    public func seedFromHub(_ hub: (any TargetsProviding)?, log: (String) -> Void = { _ in }) async {
+        await TargetsMirror.seedFromHubIfNeeded(store: store, hub: hub, log: log)
+        reload()
     }
 
     /// Foreground / reachable-again: sends a queued document, then re-reads.

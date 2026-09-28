@@ -4,13 +4,20 @@ import Foundation
 final class StubURLProtocol: URLProtocol, @unchecked Sendable { // @unchecked: static state guarded by the serial test runner
     nonisolated(unsafe) static var responses: [String: (Int, Data)] = [:]
     nonisolated(unsafe) static var lastRequest: URLRequest?
+    /// W-FIX8 X-1: every request in order ("METHOD /path"), and per-method answers that win over
+    /// `responses` (key "PUT /api/v1/…") — the write-path contract tests need both.
+    nonisolated(unsafe) static var log: [String] = []
+    nonisolated(unsafe) static var methodResponses: [String: (Int, Data)] = [:]
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         Self.lastRequest = request
         let path = request.url!.path
-        let (status, body) = Self.responses[path] ?? (404, Data("{\"detail\":\"not found\"}".utf8))
+        let method = request.httpMethod ?? "GET"
+        Self.log.append("\(method) \(path)")
+        let (status, body) = Self.methodResponses["\(method) \(path)"] ?? Self.responses[path]
+            ?? (404, Data("{\"detail\":\"not found\"}".utf8))
         let resp = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
@@ -28,5 +35,7 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable { // @unchecked: s
     static func reset() {
         responses = [:]
         lastRequest = nil
+        log = []
+        methodResponses = [:]
     }
 }

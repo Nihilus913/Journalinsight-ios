@@ -159,6 +159,13 @@ public nonisolated struct TargetGoals: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey { case weight, kcal, proteinG, carbsG, fatG, stepsDaily, sleepH, strength }
 
+    /// W-FIX8 T-1: no goal at all (a weight goal with only nils counts as none — the hub reads it so).
+    public var isEmpty: Bool {
+        let noWeight = weight.map { $0.baseKg == nil && $0.targetKg == nil && $0.targetDate == nil } ?? true
+        return noWeight && kcal == nil && proteinG == nil && carbsG == nil && fatG == nil
+            && stepsDaily == nil && sleepH == nil && strength.isEmpty
+    }
+
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         weight = c.lenient(WeightTarget.self, .weight)
@@ -241,6 +248,9 @@ public nonisolated struct TargetLimits: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey { case hrCapBpm, hrCapConfirmedOn, zones, avoidZone5 }
 
+    /// W-FIX8 T-1: nothing entered (no cap, no confirmation date, no zones, Zone 5 not avoided).
+    public var isEmpty: Bool { hrCapBpm == nil && hrCapConfirmedOn == nil && zones == nil && !avoidZone5 }
+
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         hrCapBpm = c.lenient(Int.self, .hrCapBpm)
@@ -311,12 +321,16 @@ public nonisolated struct TargetsDocument: Codable, Equatable, Sendable {
     public var goals: TargetGoals
     public var limits: TargetLimits
     public var rules: TargetRules
+    /// W-FIX8 T-1: set ONLY on a queued mirror body whose Goals the user emptied on purpose
+    /// (removed the last goal). The hub refuses a goals-empty body over stored goals (409)
+    /// without it. Never stored in `targets.v1`; encoded only when true (`clear_all_goals`).
+    public var clearAllGoals: Bool = false
 
     public init(goals: TargetGoals = TargetGoals(), limits: TargetLimits = TargetLimits(), rules: TargetRules = TargetRules()) {
         self.version = Self.currentVersion; self.goals = goals; self.limits = limits; self.rules = rules
     }
 
-    enum CodingKeys: String, CodingKey { case version, goals, limits, rules }
+    enum CodingKeys: String, CodingKey { case version, goals, limits, rules, clearAllGoals }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -324,6 +338,7 @@ public nonisolated struct TargetsDocument: Codable, Equatable, Sendable {
         goals = c.lenient(TargetGoals.self, .goals) ?? TargetGoals()
         limits = c.lenient(TargetLimits.self, .limits) ?? TargetLimits()
         rules = c.lenient(TargetRules.self, .rules) ?? TargetRules()
+        clearAllGoals = c.lenient(Bool.self, .clearAllGoals) ?? false
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -332,6 +347,22 @@ public nonisolated struct TargetsDocument: Codable, Equatable, Sendable {
         try c.encode(goals, forKey: .goals)
         try c.encode(limits, forKey: .limits)
         try c.encode(rules, forKey: .rules)
+        if clearAllGoals { try c.encode(true, forKey: .clearAllGoals) }
+    }
+
+    /// W-FIX8 T-1 — "hub wins over empty local": the sections this phone has nothing in take the
+    /// hub's (Goals when every goal is unset, Limits when no cap / zones / Avoid Zone 5, each Rule
+    /// still nil takes the hub's number unless it is the recommended one). Never overwrites a
+    /// value the phone holds.
+    public func adoptingHub(_ hub: TargetsDocument) -> TargetsDocument {
+        var d = self
+        d.clearAllGoals = false
+        if d.goals.isEmpty { d.goals = hub.goals }
+        if d.limits.isEmpty { d.limits = hub.limits }
+        for r in RuleMetric.allCases where d.rules[r] == nil {
+            if let v = hub.rules[r], v != r.recommended { d.rules[r] = v }
+        }
+        return d
     }
 
     /// The hub body: this document with snake_case keys (for `HubClient.send`'s plain encoder).
@@ -394,4 +425,15 @@ extension KeyedEncodingContainer {
     nonisolated mutating func encodeOrNull<T: Encodable>(_ value: T?, _ key: Key) throws {
         if let value { try encode(value, forKey: key) } else { try encodeNil(forKey: key) }
     }
+}
+
+// MARK: - W-FIX8 T-1: the goals-empty write guard
+
+/// A goals-empty mirror body met a hub that holds goals, and the user did not ask to clear them
+/// (`clearAllGoals`). Nothing was written; `server` is the hub's document, for the phone to adopt
+/// ("hub wins over empty local"). Thrown by `TargetsProviding.putTargets` (JIHub) instead of the
+/// PUT, and for the hub's own 409 — the 2026-09-28 14:51 P0 wiped Toby's goals this way.
+public nonisolated struct TargetsWouldClearGoals: Error, Equatable, Sendable {
+    public let server: TargetsDocument
+    public init(server: TargetsDocument) { self.server = server }
 }

@@ -492,7 +492,13 @@ struct RootTabView: View {
         let model = makeTargetsModel(outbox: outbox)
         targetsModel = model
         reloadGateSettings()
-        Task { await model.pushIfPending() }
+        // W-FIX8 T-1: a phone with no goals reads the hub's first (once per install, never a PUT —
+        // the 2026-09-28 14:51 empty first-launch body wiped them), THEN anything queued is sent.
+        let hub = hubScreens as? any TargetsProviding
+        Task {
+            await model.seedFromHub(hub, log: { print("[targets] \($0)") })
+            await model.pushIfPending()
+        }
     }
 
     /// The model over THIS connection's hub (rebuilt on a hub switch, like the tab models).
