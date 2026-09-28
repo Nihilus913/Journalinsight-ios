@@ -91,7 +91,11 @@ public struct EnergyHero: View {
     private var bandDeficit: Double? { band.result?.balanceKcal.map { Double(-$0) } }
     private var usesBand: Bool { bandDeficit != nil }
     private var gated: Bool { !usesBand && report.trackingDays < minTrackingDays }
-    private var deficit: Double? { usesBand ? bandDeficit : (gated ? nil : report.avgDeficitCorrected7d) }
+    /// W-FIX8 M-3: the one rule More › Energy reads too.
+    private var deficit: Double? {
+        energyBalanceDeficit(avgDeficit7d: report.avgDeficitCorrected7d, trackingDays: report.trackingDays,
+                             bandBalanceKcal: band.result?.balanceKcal, minTrackingDays: minTrackingDays)
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {

@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import JICore
 import JIFeatures
+import JIDesign
 import JIPersistence
 @testable import JournalInsight
 
@@ -17,23 +18,32 @@ struct MoreTabTests {
         #expect(RootTabView.moreKpiText(count: 5) == "5 chosen")
     }
 
-    // W-FIX2 BUG-47 (board 4/04): the Settings row reads "Hub synced 07:41", not a pill.
-    @Test func settingsRowReadsHubSyncedTime() {
+    // W-FIX2 BUG-47 (board 4/04): the Settings row is text, not a pill. W-FIX8 M-3: it says what
+    // the sync pill says ("Synced 07:41", "Synced 24 Sep 10:14") — one sync label everywhere.
+    @Test func settingsRowReadsTheOneSyncLabel() {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "Europe/Zurich")!
         let d = Date(timeIntervalSince1970: 1_790_314_860)   // 2026-09-25 05:41Z = 07:41 Zurich
-        #expect(RootTabView.moreSettingsText(syncedAt: d, calendar: cal) == "Hub synced 07:41")
+        #expect(RootTabView.moreSettingsText(syncedAt: d, now: d, calendar: cal) == "Synced 07:41")
+        #expect(RootTabView.moreSettingsText(syncedAt: d, now: d, calendar: cal)
+                == syncedPillText(d, label: .synced, now: d, calendar: cal))
+        #expect(RootTabView.moreSettingsText(syncedAt: d, now: d.addingTimeInterval(86_400), calendar: cal).hasPrefix("Synced 25 "))   // an older day names its day
         #expect(RootTabView.moreSettingsText(syncedAt: nil) == "Not synced yet")
     }
 
     // W-FIX4 PF-04: More's time = Today's sync rule (newer of hub sync / HealthKit upload), never
-    // the moment Today fetched.
+    // the moment Today fetched. W-FIX8 M-3: the upload time is read live (the Apple Health row's
+    // instant), so a 14:55 upload is not shown as "11:03" until Today reloads.
     @Test @MainActor func settingsRowUsesTheSyncTimeNotTheFetchTime() async throws {
         let model = TodayViewModel(provider: MockDataProvider(), cache: OfflineCache(db: try AppDatabase.inMemory()), uploadRecord: nil)
         await model.load()
         #expect(model.fetchedAt != nil)
-        #expect(RootTabView.moreSettingsDate(model) == model.syncedAt)
-        #expect(RootTabView.moreSettingsDate(nil) == nil)
+        #expect(RootTabView.moreSettingsDate(model, lastUpload: nil) == model.syncedAt)
+        #expect(RootTabView.moreSettingsDate(nil, lastUpload: nil) == nil)
+        let upload = Date(timeIntervalSince1970: 1_790_600_100)
+        #expect(RootTabView.moreSettingsDate(nil, lastUpload: upload) == upload)
+        let later = (model.syncedAt ?? upload).addingTimeInterval(3_600)
+        #expect(RootTabView.moreSettingsDate(model, lastUpload: later) == later)
     }
 
     // W-FIX4 fixer PF-04: every tab stack is handed the shell's one sync instant (Today's rule),
@@ -110,7 +120,7 @@ struct MoreTabTests {
     }
 
     // W-B57-W5 guard BUG-47 (board 4/04): the App card's Settings entry is ONE `JIChevronRow`
-    // whose trailing value is the "Hub synced 07:41" text — no pill, no second Settings row.
+    // whose trailing value is the "Synced 07:41" text — no pill, no second Settings row.
     @Test func appCardSettingsIsOneChevronRow() throws {
         let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().appending(path: "App/RootTabView.swift"), encoding: .utf8)

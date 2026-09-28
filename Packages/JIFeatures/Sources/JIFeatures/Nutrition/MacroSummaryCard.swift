@@ -14,15 +14,20 @@ public struct MacroSummaryCard: View {
     let goalsSetupModel: GoalsSetupViewModel?
     /// W-FIX3 BUG-34: the device's today, so a past day is titled by its weekday, never "today".
     let today: String?
+    /// W-FIX8 M-1: where the day's totals came from (Apple Health, or the hub's YAZIO fallback),
+    /// named under the title. nil = not shown.
+    let source: NutritionDataSource?
     @State private var showGoalsSetup = false
     @Environment(\.jiTheme) private var theme
     /// B-73: the user's goals (unset → "Set your goal", no bar).
     @Environment(\.nutritionGoals) private var nutritionGoals
 
-    public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil, today: String? = nil) {
+    public init(day: NutritionDayDetail?, goalsSetupModel: GoalsSetupViewModel? = nil, today: String? = nil,
+                source: NutritionDataSource? = nil) {
         self.day = day
         self.goalsSetupModel = goalsSetupModel
         self.today = today
+        self.source = source
     }
     private var isToday: Bool { guard let day, let today else { return true }; return day.date == today }
 
@@ -50,6 +55,11 @@ public struct MacroSummaryCard: View {
                             GoalsSetupView(model: goalsSetupModel)
                         }
                     }
+                }
+                if day != nil, let source {
+                    Text(source.caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("macro-source")
                 }
                 if let day {
                     kcalHero(day.total)

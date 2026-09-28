@@ -16,7 +16,19 @@ public final class NutritionViewModel {
     /// W-FIX7 N-1: the selected day and the week, Apple Health first — Health's day totals for
     /// every day Health has food, the hub's YAZIO rows only for the days it lacks (the meal list
     /// stays YAZIO's; Health holds day sums only). The hub's own rows are `hubDay` / `hubWeek`.
-    public var day: NutritionDayDetail? { NutritionDayDetail.mergingHealth(hubDay, date: selectedDate, health: health.totals) }
+    /// W-FIX8 M-2: with no hub day detail, the hub's week row for the day stands in (the strip named
+    /// its kcal while the card said "No data").
+    public var day: NutritionDayDetail? {
+        NutritionDayDetail.mergingHealth(hubDay ?? Self.detail(fromWeekRow: hubWeek.first { $0.date == selectedDate }),
+                                         date: selectedDate, health: health.totals)
+    }
+    /// W-FIX8 M-1: where the selected day's totals come from — Apple Health when it has the day's
+    /// food, else the hub's YAZIO rows (the card labels it); nil when neither has the day.
+    public var daySource: NutritionDataSource? {
+        if health.totals.contains(where: { $0.date == selectedDate && $0.hasFood }) { return .appleHealth }
+        guard let t = day?.total, [t.kcal, t.proteinG, t.carbsG, t.fatG].contains(where: { $0 != nil }) else { return nil }
+        return .hub
+    }
     public var week: [NutritionDailyRow] {
         let totals = health.totals
         let merged = NutritionDailyRow.mergingHealth(hubWeek, health: totals)
@@ -49,7 +61,8 @@ public final class NutritionViewModel {
         self.provider = provider
         self.cache = cache
         self.now = now
-        self.selectedDate = initialDate ?? String(now().ISO8601Format().prefix(10))
+        // W-FIX8: the device's local day (Health keys are local days), never the UTC date.
+        self.selectedDate = initialDate ?? energyTodayISO(now())
     }
 
     public var screenState: ScreenState {
@@ -66,7 +79,14 @@ public final class NutritionViewModel {
         }
     }
 
-    private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { energyTodayISO(now()) }
+
+    private static func detail(fromWeekRow row: NutritionDailyRow?) -> NutritionDayDetail? {
+        guard let row, [row.kcalConsumed, row.proteinG, row.carbsG, row.fatG].contains(where: { $0 != nil }) else { return nil }
+        return NutritionDayDetail(date: row.date, total: NutritionDayTotal(kcal: row.kcalConsumed, kcalGoal: row.kcalGoal, proteinG: row.proteinG,
+                                                                          carbsG: row.carbsG, fatG: row.fatG, mealsLogged: row.mealsLogged),
+                                  breakdown: NutritionDayBreakdown(), items: [:])
+    }
 
     public func load() async {
         phase = .loading
@@ -165,6 +185,17 @@ public final class NutritionViewModel {
         case .network: "Hub unreachable — is the Mac awake and on the same network?"
         case .some(let e): "Hub error: \(e)"
         case .none: "Unexpected error: \(error.localizedDescription)"
+        }
+    }
+}
+
+/// W-FIX8 M-1: the source of a nutrition day's totals, named on the Macros card.
+public nonisolated enum NutritionDataSource: Sendable, Equatable {
+    case appleHealth, hub
+    public var caption: String {
+        switch self {
+        case .appleHealth: "From Apple Health"
+        case .hub: "From YAZIO via the hub"
         }
     }
 }
