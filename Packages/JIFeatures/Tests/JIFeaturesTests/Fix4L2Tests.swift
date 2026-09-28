@@ -60,9 +60,9 @@ private func source(_ relative: String) throws -> String {
 
 @Test func pf09_energyExplainerNamesTheTrueIntakeSource() throws {
     let eaten = energyHowWeCalculateSteps[1]
-    #expect(eaten.title.contains("YAZIO"))
-    #expect(!eaten.title.contains("Apple Health"))
-    #expect(!eaten.body.contains("Apple Health"))
+    // W-FIX7 N-1: Apple Health is now the first intake source; YAZIO is the fallback for a day Health lacks.
+    #expect(eaten.title.contains("Apple Health"))
+    #expect(eaten.body.contains("YAZIO"))
     #expect(!energyHowWeCalculateSteps.map(\.body).joined().contains("no food in Health"))
     #expect(energyHowWeCalculateSteps.count == JIExplainers.energyBalanceSteps.count)
     let view = try source("Sources/JIFeatures/Energy/EnergyView.swift")

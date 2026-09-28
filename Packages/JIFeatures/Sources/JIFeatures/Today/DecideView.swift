@@ -468,7 +468,8 @@ public struct DecideView: View {
                             .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
                     }
                     // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
-                    RecoveryScoreCard(compact: true)
+                    // W-FIX7 fixer F7-2: the row says the ring's number (the hub's recovery for the call).
+                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))
                         .padding(.horizontal, JISpacing.s4)
                     JIRowDivider().padding(.leading, JISpacing.s4)
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)

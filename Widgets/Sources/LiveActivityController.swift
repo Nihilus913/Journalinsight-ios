@@ -83,6 +83,9 @@ public final class LiveActivityController {
     private nonisolated(unsafe) var activity: Activity<VerdictActivityAttributes>?
     private var startedAt: Date?
     private var lastUpdateAt: Date?
+    /// W-FIX7 fixer F7-4: the day whose activity ended "done" (this launch, or an ended card still on
+    /// the Lock Screen from an earlier one) — no new card is requested for it.
+    private var finishedDay: Date?
     private let now: () -> Date
 
     /// `now` is a test seam only — production always uses `Date.init`.
@@ -130,6 +133,8 @@ public final class LiveActivityController {
             Task.detached { await box.value.update(content) }
             lastUpdateAt = moment
         } else {
+            // F7-4: today already ended "done" — never a second card beside it.
+            if let finishedDay, Calendar.current.isDate(finishedDay, inSameDayAs: moment) { return }
             guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             do {
                 let newActivity = try Activity.request(attributes: VerdictActivityAttributes(), content: content)
@@ -157,14 +162,24 @@ public final class LiveActivityController {
         let box = UncheckedSendableBox(value: activity)
         let content = ActivityContent(state: state, staleDate: nil)
         Task.detached { await box.value.end(content, dismissalPolicy: .default) }
+        finishedDay = moment
         self.activity = nil
         startedAt = nil
         lastUpdateAt = nil
     }
 
     /// F7-4: adopt the first active verdict activity ActivityKit still lists; end the extras.
+    /// W-FIX7 fixer: ended ("Done") cards from earlier launches — keep today's newest, dismiss the
+    /// rest at once (they stacked, one per relaunch), and remember that today already finished.
     private func adoptRunning(moment: Date) {
         let running = Activity<VerdictActivityAttributes>.activities
+        let ended = running.filter { $0.activityState == .ended }
+        let endedPlan = LiveActivityAdoption.endedPlan(ended: ended.map { (id: $0.id, lastUpdate: $0.content.state.lastUpdate) }, now: moment)
+        for stale in ended where endedPlan.dismiss.contains(stale.id) {
+            let box = UncheckedSendableBox(value: stale)
+            Task.detached { await box.value.end(nil, dismissalPolicy: .immediate) }
+        }
+        if endedPlan.dayFinished { finishedDay = moment }
         let plan = LiveActivityAdoption.plan(running: running.map { (id: $0.id, isActive: $0.activityState == .active || $0.activityState == .stale) })
         for extra in running where plan.end.contains(extra.id) {
             let box = UncheckedSendableBox(value: extra)

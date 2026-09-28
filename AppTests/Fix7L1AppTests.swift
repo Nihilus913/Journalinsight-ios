@@ -81,3 +81,31 @@ struct Fix7L1AppTests {
         #expect(AppEnvironment.glanceSession(headlineSession: nil, completion: .none) == "No verdict yet")
     }
 }
+
+/// W-FIX7 fixer — AppTests read the sim's real HealthKit through `TodayWorkoutsModel.shared` (126/129
+/// while the sim held a workout today); F7-4: the Live Activity waits for the first Health read.
+@Suite(.serialized)
+struct Fix7FixerAppTests {
+    @Test func aUnitTestHostNeverReadsRealHealthWorkouts() {
+        #expect(!AppEnvironment.readsHealthWorkouts(arguments: [], environment: ["XCTestConfigurationFilePath": "/x.xctestconfiguration"]))
+        #expect(!AppEnvironment.readsHealthWorkouts(arguments: ["-no-healthkit"], environment: [:]))
+        #expect(AppEnvironment.readsHealthWorkouts(arguments: [], environment: [:]))
+    }
+
+    @Test @MainActor func theTestHostsSharedWorkoutsModelHasNoRealSource() throws {
+        _ = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true, snapshotStore: SnapshotStore(suiteName: "ji.test.fix7fixer.\(UUID().uuidString)"))
+        #expect(TodayWorkoutsModel.shared.source == nil)
+    }
+
+    private static func snap(word: String = "Go", date: String? = "2026-09-28") -> HubSnapshot {
+        HubSnapshot(verdictWord: word, verdictSession: "Day 1", verdictTone: "green", verdictDate: date, readiness: nil, kpis: [], fetchedAt: Date(), lastSync: nil)
+    }
+
+    @Test func liveActivityWaitsForTheFirstHealthRead() {
+        #expect(AppEnvironment.liveActivityStep(Self.snap(), done: false, workoutsSettled: false) == .none)
+        #expect(AppEnvironment.liveActivityStep(Self.snap(), done: true, workoutsSettled: false) == .none)
+        #expect(AppEnvironment.liveActivityStep(Self.snap(), done: false, workoutsSettled: true) == .update)
+        #expect(AppEnvironment.liveActivityStep(Self.snap(), done: true, workoutsSettled: true) == .finish)
+        #expect(AppEnvironment.liveActivityStep(Self.snap(word: "—"), done: true, workoutsSettled: true) == .none)
+    }
+}

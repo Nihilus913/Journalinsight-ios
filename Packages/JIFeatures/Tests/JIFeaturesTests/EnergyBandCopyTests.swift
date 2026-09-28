@@ -65,7 +65,7 @@ private func band(_ intake: Double = 1800, target: Double = 1800, days: ClosedRa
 /// with no JI-picked number.
 @Test func howWeCalculateNamesTheUsersBandAndKeepsTheIntakeLineage() {
     #expect(energyHowWeCalculateSteps.count == 4)
-    #expect(energyHowWeCalculateSteps[1].title == "Eaten = your YAZIO day total")
+    #expect(energyHowWeCalculateSteps[1].title == "Eaten = your Apple Health food total")   // W-FIX7 N-1
     #expect(energyHowWeCalculateSteps[3] == EnergyBandCopy.bandRuleStep)
     #expect(energyHowWeCalculateSteps[3].body.contains("the daily kcal target you set in Goals, ± 100 kcal"))
     #expect(!energyHowWeCalculateSteps.map(\.body).joined().contains("1617"))

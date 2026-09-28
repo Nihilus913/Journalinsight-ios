@@ -202,8 +202,8 @@ final class AppEnvironment {
         // guessed `.denied` in the meantime (rule 5: no false-confident state).
         // W-DATA fixer R3: the "Computed from these" tiles read the same sources as the screens that
         // show them — Sleep score = the hub's `/vitals/sleep-summary` `score_computed` (the Today
-        // ring's source), Readiness = the recovery score over `/vitals/recovery-inputs` (Decide's
-        // ring, `RecoveryInsightService.score`). A provider that serves neither leaves "—".
+        // ring's source), Readiness = the hub's `/planning/morning` recovery (Decide's ring; W-FIX7
+        // F7-3), else the recovery score over `/vitals/recovery-inputs`. Neither leaves "—".
         let provider = providerStore?.provider
         let window = RecoveryInsightService.windowDays
         let model = HealthPermissionViewModel(
@@ -231,10 +231,16 @@ final class AppEnvironment {
                 return try? await sp.sleepSummary().scoreComputed
             },
             loadReadiness: {
-                guard let rp = provider as? any RecoveryInputsProviding else { return nil }
-                let day = RecoveryInsightService.localDayKey(Date())
-                guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
-                return RecoveryInsightService.score(days: days, today: day)
+                // W-FIX7 fixer F7-3: the hub's recovery for today's call (Decide's ring, 36 on
+                // 2026-09-28) first; the phone's own score only when the hub sent none.
+                await healthReadinessLoad(
+                    hubSignals: { try? await provider?.morning().gateSignals },
+                    onDevice: {
+                        guard let rp = provider as? any RecoveryInputsProviding else { return nil }
+                        let day = RecoveryInsightService.localDayKey(Date())
+                        guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
+                        return RecoveryInsightService.score(days: days, today: day)
+                    })
             }
         )
         Task { [weak self, weak model] in
@@ -396,13 +402,32 @@ final class AppEnvironment {
     /// was) and republishes the glances when a workout lands, so the widget and the Live Activity
     /// say "done" without waiting for the next hub fetch.
     func installTodayWorkouts() {
-        if todayWorkouts.source == nil, !CommandLine.arguments.contains("-no-healthkit") {
+        if todayWorkouts.source == nil, Self.readsHealthWorkouts(arguments: CommandLine.arguments,
+                                                                 environment: ProcessInfo.processInfo.environment) {
             todayWorkouts.source = HKTodayWorkoutsReader(store: RealHealthStoreReader())
         }
         todayWorkouts.onChange = { [weak self] in self?.republishSnapshot() }
     }
 
     func refreshTodayWorkouts() async { await todayWorkouts.refresh() }
+
+    /// W-FIX7 fixer: the real Health workouts reader is installed only in the app itself — never
+    /// under `-no-healthkit`, never in a unit-test host (AppTests read the sim's real HealthKit
+    /// through `TodayWorkoutsModel.shared` and failed whenever the sim held a workout today).
+    static func readsHealthWorkouts(arguments: [String], environment: [String: String]) -> Bool {
+        !arguments.contains("-no-healthkit") && environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    /// W-FIX7 fixer F7-4: what a published snapshot does to the Live Activity. Nothing until the
+    /// first Health workouts read has landed (`workoutsSettled`) — a relaunch that refreshed the
+    /// activity before Health answered requested a new card, then ended it as "done" — one more
+    /// "Done" card per relaunch. A done session finishes it; otherwise it is refreshed.
+    enum LiveActivityStep: Equatable { case none, update, finish }
+
+    static func liveActivityStep(_ snapshot: HubSnapshot, done: Bool, workoutsSettled: Bool) -> LiveActivityStep {
+        guard drivesLiveActivity(snapshot), workoutsSettled else { return .none }
+        return done ? .finish : .update
+    }
 
     /// F7-1: the glance's session line — "Done · Traditional strength · 52 min · Bevel" once a
     /// matching workout is in Health today, else the call's own session.
@@ -521,9 +546,11 @@ final class AppEnvironment {
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
-        if Self.drivesLiveActivity(snapshot) {
-            // F7-1: a done session ends the Live Activity (with "done" on it) instead of refreshing it.
-            if completion.isDone { liveActivityFinish?(snapshot) } else { liveActivity?(snapshot) }
+        // F7-1: a done session ends the Live Activity (with "done" on it) instead of refreshing it.
+        switch Self.liveActivityStep(snapshot, done: completion.isDone, workoutsSettled: todayWorkouts.isSettled) {
+        case .finish: liveActivityFinish?(snapshot)
+        case .update: liveActivity?(snapshot)
+        case .none: break
         }
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
         // kept showing the snapshot it was first rendered with until iOS happened to refresh it.

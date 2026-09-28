@@ -139,7 +139,8 @@ public struct TrainingView: View {
             TrainingDayDetailCard(
                 date: model.selectedDate,
                 detail: model.dayDetail,
-                plannedSession: model.plannedSessionForSelectedDay
+                plannedSession: model.plannedSessionForSelectedDay,
+                healthWorkouts: model.selectedDayHealthWorkouts
             )
             JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in

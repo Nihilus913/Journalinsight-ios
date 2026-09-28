@@ -171,6 +171,15 @@ public nonisolated func healthHubReadiness(_ signals: [GateSignal]?) -> Recovery
     return RecoveryScoreResult(status: .ok, score: Int(value.rounded()), raw: value, components: [], nights: 0, nightsNeeded: 0)
 }
 
+/// W-FIX7 fixer F7-3: the Apple Health › Readiness tile's loader — the hub's recovery for today's
+/// call first (`healthHubReadiness`, 36 on 2026-09-28, Decide's ring), the phone's own score only
+/// when the hub sent none. The on-device score is never computed when the hub has one.
+public nonisolated func healthReadinessLoad(hubSignals: () async -> [GateSignal]?,
+                                            onDevice: () async -> RecoveryScoreResult?) async -> RecoveryScoreResult? {
+    if let hub = healthHubReadiness(await hubSignals()) { return hub }
+    return await onDevice()
+}
+
 /// true = the readiness came from the hub (`healthHubReadiness`), not the phone's own score.
 public nonisolated func healthIsHubReadiness(_ readiness: RecoveryScoreResult?) -> Bool {
     guard let readiness else { return false }

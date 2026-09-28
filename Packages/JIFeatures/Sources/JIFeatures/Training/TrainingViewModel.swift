@@ -153,6 +153,11 @@ public final class TrainingViewModel {
         return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todayWorkouts.workouts)
     }
 
+    /// W-FIX7 fixer: today's Apple Health workouts for the "This day" card — none for any other day.
+    public var selectedDayHealthWorkouts: [TodayWorkout] {
+        selectedDate == todayDateString ? todayWorkouts.workouts : []
+    }
+
     /// B-57 W5: the same summary from the cache alone — for the widgets, Goals and Day when the
     /// Training tab has not been opened. nil when no plan was ever cached. Falls back to Today's
     /// cached gate rows (`"today.gate"`, TodayViewModel's key) for the done count.

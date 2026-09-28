@@ -571,9 +571,11 @@ public final class TodayWorkoutsModel {
     public static let shared = TodayWorkoutsModel()
 
     @ObservationIgnored public var source: (any TodayWorkoutsProviding)?
-    /// Fired when a refresh changed the rows (never on an unchanged re-read).
+    /// Fired on the first successful read and when a refresh changed the rows (never on an unchanged re-read).
     @ObservationIgnored public var onChange: (() -> Void)?
     private var rows: [TodayWorkout] = []
+    /// W-FIX7 fixer F7-4: true once a read from `source` succeeded this launch.
+    private var hasRead = false
     private let now: () -> Date
     private let calendar: Calendar
 
@@ -589,10 +591,18 @@ public final class TodayWorkoutsModel {
         return rows.filter { calendar.isDate($0.start, inSameDayAs: today) }
     }
 
+    /// W-FIX7 fixer F7-4: whether "done" is known yet — no source (tests, `-no-healthkit`), or the
+    /// first read landed. The Live Activity waits for it: a launch that drove the activity before
+    /// Health answered requested a fresh card, then ended it as "done" — one more card per relaunch.
+    public var isSettled: Bool { source == nil || hasRead }
+
     /// Re-reads Health. A failed read keeps the last rows (never flips a done session back).
     public func refresh() async {
         guard let source, let fresh = try? await source.todayWorkouts() else { return }
-        guard fresh != rows else { return }
+        let first = !hasRead
+        hasRead = true
+        // The first read always fires (it settles "done" for the Live Activity), later ones on change.
+        guard fresh != rows || first else { return }
         rows = fresh
         onChange?()
     }

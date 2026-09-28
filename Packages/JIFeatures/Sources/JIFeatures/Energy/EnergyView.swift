@@ -8,16 +8,18 @@ import JIDesign
 public nonisolated let energySubtitle = "What you eat against what you burn, from Apple Health"
 public nonisolated let energyBurnCardCopy = "Resting plus active energy, both read from Apple Health. JI adds them up each day."
 
-/// W-FIX4 PF-09: Energy's "How we calculate" with the true intake lineage — eaten comes from the
-/// YAZIO API (the hub's `core.nutrition_daily`), not from dietary energy in Apple Health. The
+/// W-FIX4 PF-09: Energy's "How we calculate" with the true intake lineage — since W-FIX7 N-1 eaten
+/// is Apple Health's dietary energy first, the hub's YAZIO day total (`core.nutrition_daily`) only
+/// for a day Health lacks. The
 /// burn step is the shared `JIExplainers` copy unchanged. B-57 W2 (B-73): the band step is the
 /// user's own target ± 100 (`EnergyBandCopy.bandRuleStep`), never a JI-picked number.
 public nonisolated let energyHowWeCalculateSteps: [HowWeCalculateStep] = {
     var steps = JIExplainers.energyBalanceSteps
-    steps[1] = HowWeCalculateStep(title: "Eaten = your YAZIO day total",
-                                  body: "The hub reads it from YAZIO each sync. JI only reads the day total; it never logs food.")
+    // W-FIX7 fixer: N-1 made Apple Health the first source of what you ate (YAZIO writes it there).
+    steps[1] = HowWeCalculateStep(title: "Eaten = your Apple Health food total",
+                                  body: "JI reads the day's dietary energy from Apple Health (YAZIO writes it there). A day Health lacks uses the hub's YAZIO day total. JI never logs food.")
     steps[2] = HowWeCalculateStep(title: steps[2].title,
-                                  body: "Averaged over the last 7 complete days. Today counts once it ends. A day with no food logged in YAZIO is skipped, not counted as zero.")
+                                  body: "Averaged over the last 7 complete days. Today counts once it ends. A day with no food logged is skipped, not counted as zero.")
     steps[3] = EnergyBandCopy.bandRuleStep
     return steps
 }()

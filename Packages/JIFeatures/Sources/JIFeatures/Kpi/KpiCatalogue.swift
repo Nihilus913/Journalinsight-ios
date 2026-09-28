@@ -73,7 +73,7 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
                                           health: [HealthDailyTotals] = HealthDailyTotalsFeed.shared.latest) -> [JISquareItem] {
     func square(_ id: KpiMetricId, badge: JISquareBadge) -> JISquareItem {
         let def = KpiMetrics.def(id)
-        let reading = value(id)
+        let reading = kpiHealthFirstReading(id, hub: value(id), health: health)
         if id == .acwr, reading == nil, let load {
             return JISquareItem(id: id.rawValue, label: kpiLoadMinutesDef.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
                                 value: load.minutes.rounded(), decimals: 0, unit: recoveryLoadUnit,
@@ -89,6 +89,23 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
     if group == .onToday { return visible.map { square($0, badge: .selected) } }
     let rest = KpiMetricId.allCases.filter { kpiCatalogueGroup($0) == group && !visible.contains($0) }.map { square($0, badge: .add) }
     return group == .nutrition ? rest + kpiCatalogueExtras(health: health, today: today) : rest
+}
+
+/// W-FIX7 fixer N-1: My KPIs' Calories / Protein / Carbs / Fat read Apple Health's newest day first
+/// (the Fuel / KPI detail source), the hub's YAZIO reading only when it is newer or Health has none.
+/// Every other id is the hub's reading unchanged.
+public nonisolated func kpiHealthFirstReading(_ id: KpiMetricId, hub: KpiReading?, health: [HealthDailyTotals]) -> KpiReading? {
+    let field: KeyPath<HealthDailyTotals, Double?>
+    switch id {
+    case .kcal: field = \.dietaryKcal
+    case .protein: field = \.proteinG
+    case .carbs: field = \.carbsG
+    case .fat: field = \.fatG
+    default: return hub
+    }
+    guard let h = HealthDailyTotals.latest(field, in: health) else { return hub }
+    if let hub, !hub.date.isEmpty, hub.date > h.date { return hub }
+    return KpiReading(value: h.value, date: h.date)
 }
 
 /// Undated values (fixtures and previews): no "as of" caption.
