@@ -79,7 +79,7 @@ public struct TrainingView: View {
         #endif
         .navigationDestination(isPresented: $showWeek) { TrainingWeekView(model: model) }
         .navigationDestination(isPresented: $showLibrary) {
-            if let library = model.library { WorkoutLibraryView(model: library) }
+            if let library = model.library { WorkoutLibraryView(model: library, onSendToWatch: librarySendToWatch) }
         }
         .sheet(item: $dayPreview) { ref in
             TrainingDaySheet(model: model, weekday: ref.weekday, initialRoute: Self.launchArgumentDayRoute())
@@ -244,6 +244,16 @@ public struct TrainingView: View {
     private var heroDayLabel: String {
         guard model.selectedDate != model.todayDateString, let date = trainingStripDate(model.selectedDate) else { return "Today" }
         return date.formatted(Date.FormatStyle(timeZone: trainingStripCalendar.timeZone).weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    /// B40-V7: the library's per-row "Send to Watch" — the same sheet, that workout picked.
+    private var librarySendToWatch: ((WorkoutTemplate) -> Void)? {
+        #if canImport(WorkoutKit)
+        guard let sendToWatch else { return nil }
+        return { template in sendToWatch.pickOnly(template.templateId); showSendToWatch = true }
+        #else
+        nil
+        #endif
     }
 
     private var sendToWatchAction: (() -> Void)? {

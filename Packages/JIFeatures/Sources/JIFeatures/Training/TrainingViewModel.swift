@@ -56,6 +56,10 @@ public final class TrainingViewModel {
     private var everSynced = false
     private var neverSyncedObserved = false
     private var dayDetailTask: Task<Void, Never>?
+    /// B40-V5: set by a day-sheet change; the day detail's `planned_session` (joined server-side
+    /// BEFORE the change) is ignored until a clean live day fetch replaces it, so the hero never
+    /// shows — or starts — the session that was just moved away, online or queued offline.
+    private var plannedSessionEditedLocally = false
 
     /// Per-exercise "arm the reversal confirm / show a save failure" UI state — keyed by
     /// `exerciseId`, read by `LiftSteppers`. Kept on the VM (not local `@State` in the view) so a
@@ -103,10 +107,13 @@ public final class TrainingViewModel {
     /// the source of truth (it joins `plan_session.weekday` server-side); a hub without the field
     /// falls back to the weekday carried on the plan rows themselves, and only then to nothing.
     public var plannedSessionForSelectedDay: PlannedSession? {
-        if let planned = dayDetail?.plannedSession, dayDetail?.date == selectedDate { return planned }
+        if !plannedSessionEditedLocally, let planned = dayDetail?.plannedSession, dayDetail?.date == selectedDate { return planned }
         guard let weekday = selectedPlanWeekday else { return nil }
-        guard let row = exercises.first(where: { $0.weekday == weekday }) else { return nil }
-        return PlannedSession(id: row.sessionId ?? row.exerciseId, name: row.sessionName, weekday: weekday)
+        if let row = exercises.first(where: { $0.weekday == weekday }) {
+            return PlannedSession(id: row.sessionId ?? row.exerciseId, name: row.sessionName, weekday: weekday)
+        }
+        guard plannedSessionEditedLocally, let session = allPlanSessions.first(where: { $0.weekday == weekday }) else { return nil }
+        return PlannedSession(id: session.id, name: session.name, weekday: weekday)
     }
 
     /// Mon = 0 … Sun = 6 for `selectedDate`, computed in the same UTC calendar the day keys use.
@@ -310,6 +317,7 @@ public final class TrainingViewModel {
             let result = try? await SectionLoader.load(key: "training.day.\(date)", cache: self.cache) { try await self.provider.trainingDay(date: date) }
             guard !Task.isCancelled else { return }
             if let value = result?.value { self.dayDetail = value }
+            if let result, result.error == nil, !result.stale { self.plannedSessionEditedLocally = false }
             self.dayDetailLoading = false
         }
     }
@@ -493,6 +501,10 @@ public final class TrainingViewModel {
                 case .refused(let why): return .refused(why)
                 }
             }
+        }
+        if !writes.isEmpty {
+            plannedSessionEditedLocally = true
+            loadDay(for: selectedDate)
         }
         return queued ? .queued : .saved
     }

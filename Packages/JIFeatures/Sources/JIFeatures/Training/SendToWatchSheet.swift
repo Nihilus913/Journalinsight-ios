@@ -135,12 +135,9 @@ public struct SendToWatchSheet: View {
         }
     }
 
-    /// "40 min · 3 steps" — total prescribed time and step count (interval pairs expanded).
-    static func summary(_ t: WorkoutTemplate) -> String {
-        let seconds = t.steps.reduce(0) { $0 + $1.seconds * max($1.repeat, 1) }
-        let steps = t.steps.reduce(0) { $0 + max($1.repeat, 1) }
-        return "\(seconds / 60) min · \(steps) step\(steps == 1 ? "" : "s")"
-    }
+    /// The library row's line ("43 min · 10 steps · 100–175 bpm"), read from `effectiveSegments`
+    /// — B40-V6: the compat `steps` are empty on every segments-only row.
+    static func summary(_ t: WorkoutTemplate) -> String { WorkoutFormat.summary(t) }
 }
 
 extension EnvironmentValues {

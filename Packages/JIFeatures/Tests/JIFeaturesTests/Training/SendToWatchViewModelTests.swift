@@ -54,6 +54,18 @@ private func makeVM(
     #expect(vm.canSend == false)
 }
 
+/// B40-V7: "Send to Watch" on a library row opens the sheet with exactly that workout picked,
+/// and the sheet's own load keeps the pick.
+@Test @MainActor func sendToWatchFromALibraryRowPicksOnlyThatWorkout() async throws {
+    let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()))
+    vm.toggle(1)
+    vm.pickOnly(2)
+    #expect(vm.selected == [2])
+    await vm.load()
+    #expect(vm.selected == [2])
+    #expect(vm.canSend)
+}
+
 @Test @MainActor func sendToWatchMultiSelectToggles() async throws {
     let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()))
     await vm.load()

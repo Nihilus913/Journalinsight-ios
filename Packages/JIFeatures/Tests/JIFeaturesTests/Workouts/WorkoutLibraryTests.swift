@@ -398,6 +398,20 @@ nonisolated final class SegmentGuardedHub: WorkoutLibraryProviding, @unchecked S
         #expect(WorkoutFormat.summary(t) == "1 step · Zone 2")
     }
 
+    #if canImport(WorkoutKit)
+    /// B40-V6: Send to Watch read the compat `steps`, so every segments-only workout (all made in
+    /// the app, all Garmin imports) said "0 min · 0 steps".
+    @Test @MainActor func sendToWatchSummaryReadsSegments() {
+        let t = WorkoutTemplate(templateId: 9, name: "R2 Verify Tempo", activity: "running", location: .outdoor, weekdays: [3], steps: [], updatedAt: "x",
+                                segments: [WorkoutSegment(sport: .running, steps: [
+                                    .cardio(CardioStep(purpose: .warmup, end: .time(seconds: 600), target: .hrZone(1))),
+                                    .cardio(CardioStep(purpose: .work, end: .time(seconds: 1200), target: .hrZone(3))),
+                                ])])
+        #expect(SendToWatchSheet.summary(t) == WorkoutFormat.summary(t))
+        #expect(!SendToWatchSheet.summary(t).hasPrefix("0 min"))
+    }
+    #endif
+
     @Test func strengthPlusRunSummary() {
         let t = WorkoutTemplate(templateId: 2, name: "Friday", activity: "running", location: .outdoor, weekdays: [], steps: [], updatedAt: "x",
                                 segments: [

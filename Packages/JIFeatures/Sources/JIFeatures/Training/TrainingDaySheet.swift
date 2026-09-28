@@ -102,6 +102,11 @@ public struct TrainingDaySheet: View {
     @State private var pendingRemove: TrainingDayPreview.Entry?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if canImport(WorkoutKit)
+    // B40-V7: the library pushed from this sheet keeps its per-row "Send to Watch".
+    @Environment(\.sendToWatchModel) private var sendToWatch
+    @State private var showSendToWatch = false
+    #endif
     private let theme = JITheme.native
 
     public enum Route: Hashable, Sendable {
@@ -117,6 +122,15 @@ public struct TrainingDaySheet: View {
     }
 
     private var preview: TrainingDayPreview { model.dayPreview(weekday: weekday) }
+
+    private var librarySendToWatch: ((WorkoutTemplate) -> Void)? {
+        #if canImport(WorkoutKit)
+        guard let sendToWatch else { return nil }
+        return { template in sendToWatch.pickOnly(template.templateId); showSendToWatch = true }
+        #else
+        nil
+        #endif
+    }
     private var dayName: String { planWeekdayNames[weekday] }
 
     public var body: some View {
@@ -142,10 +156,15 @@ public struct TrainingDaySheet: View {
                             path.removeAll()
                         }
                     case .library:
-                        if let library = model.library { WorkoutLibraryView(model: library) }
+                        if let library = model.library { WorkoutLibraryView(model: library, onSendToWatch: librarySendToWatch) }
                     }
                 }
         }
+        #if canImport(WorkoutKit)
+        .sheet(isPresented: $showSendToWatch) {
+            if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
+        }
+        #endif
         .confirmationDialog("Take \(pendingRemove?.title ?? "") off \(dayName)?",
                             isPresented: Binding(get: { pendingRemove != nil }, set: { if !$0 { pendingRemove = nil } }),
                             titleVisibility: .visible) {

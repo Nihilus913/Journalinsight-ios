@@ -197,9 +197,13 @@ nonisolated final class DayFirstHub: TrainingProviding, PlanSessionWeekdayProvid
         return allSessions
     }
 
+    /// When set, the day detail carries `planned_session` joined from the rows' weekday, as the
+    /// real hub does (every test date here is a Monday = weekday 0).
+    var servesPlanned = false
     func trainingDay(date: String) async throws -> TrainingDayDetail {
         if offline { throw HubError.network("offline") }
-        return TrainingDayDetail(date: date, activities: [], exerciseSets: [])
+        let planned = servesPlanned ? rows.first { $0.weekday == 0 }.map { PlannedSession(id: $0.sessionId ?? 0, name: $0.sessionName, weekday: 0) } : nil
+        return TrainingDayDetail(date: date, activities: [], exerciseSets: [], plannedSession: planned)
     }
     func exercises() async throws -> [Exercise] {
         if offline { throw HubError.network("offline") }
@@ -400,4 +404,39 @@ nonisolated final class RefusingWeekdayHub: TrainingProviding, PlanSessionWeekda
     let o = trainingDayOptions(weekday: 2, spine: spine, templates: library)
     #expect(trainingDayOptionSubtitle(o.library[0]) == "On Wed, Fri")
     #expect(trainingDayOptionSubtitle(o.plan[2]) == "Not on a day")
+}
+
+// MARK: - B40-V5: the hero follows a day change at once
+
+@Test @MainActor func aDayChangeShowsOnTheHeroAtOnceNotAfterRelaunch() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let hub = DayFirstHub(templates: library)
+    hub.servesPlanned = true
+    let vm = makeVM(hub, outbox: Outbox(db: try AppDatabase.inMemory()), cache: cache)
+    await vm.load()
+    for _ in 0..<50 where vm.dayDetail == nil { try await Task.sleep(nanoseconds: 10_000_000) }
+    #expect(vm.plannedSessionForSelectedDay?.name == "Day 1 Full Upper")
+
+    let result = await vm.changeDay(weekday: 0, adding: .planSession(id: 8, name: "Day 2 Full Upper"),
+                                    removing: .strength(id: 7, name: "Day 1 Full Upper", lifts: []))
+
+    #expect(result == .saved)
+    #expect(vm.plannedSessionForSelectedDay?.name == "Day 2 Full Upper")
+}
+
+@Test @MainActor func anOfflineDayChangeIsNotUndoneByTheCachedDayDetail() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let hub = DayFirstHub(templates: library)
+    hub.servesPlanned = true
+    let vm = makeVM(hub, outbox: Outbox(db: try AppDatabase.inMemory()), cache: cache)
+    await vm.load()
+    for _ in 0..<50 where vm.dayDetail == nil { try await Task.sleep(nanoseconds: 10_000_000) }
+    hub.offline = true
+
+    let result = await vm.changeDay(weekday: 0, adding: .planSession(id: 8, name: "Day 2 Full Upper"),
+                                    removing: .strength(id: 7, name: "Day 1 Full Upper", lifts: []))
+    try await Task.sleep(nanoseconds: 100_000_000) // let the day reload fall back to the cache
+
+    #expect(result == .queued)
+    #expect(vm.plannedSessionForSelectedDay?.name == "Day 2 Full Upper")
 }

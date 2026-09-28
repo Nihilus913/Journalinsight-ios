@@ -83,6 +83,9 @@ public final class SendToWatchViewModel {
         if selected.contains(templateId) { selected.remove(templateId) } else { selected.insert(templateId) }
     }
 
+    /// B40-V7: the library row's "Send to Watch" — that workout, and only it, is picked.
+    public func pickOnly(_ templateId: Int) { selected = [templateId] }
+
     public func isSelected(_ templateId: Int) -> Bool { selected.contains(templateId) }
 
     public var isBusy: Bool { state == .loading || state == .sending }

@@ -60,14 +60,6 @@ public struct WorkoutLibraryView: View {
                     onSendToWatch: onSendToWatch)
             }
             .sheet(isPresented: $showingImport) { ImportFromGarminSheet(model: model) }
-            .confirmationDialog("Delete \(pendingDelete?.name ?? "workout")?", isPresented: deleteBinding, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    if let t = pendingDelete { Task { _ = await model.delete(t) } }
-                    pendingDelete = nil
-                }
-            } message: {
-                Text("It is removed from JournalInsight. A copy on Garmin Connect stays there.")
-            }
             .jiTheme(.native)
     }
 
@@ -86,8 +78,9 @@ public struct WorkoutLibraryView: View {
     }
     #endif
 
-    private var deleteBinding: Binding<Bool> {
-        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+    /// B40-V8: the confirmation hangs off the row being deleted, so its popover points at that row.
+    private func deleteBinding(for t: WorkoutTemplate) -> Binding<Bool> {
+        Binding(get: { pendingDelete?.templateId == t.templateId }, set: { if !$0 { pendingDelete = nil } })
     }
 
     /// §8.5: the list without the navigation shell — what a sweep / preview renders.
@@ -172,7 +165,9 @@ public struct WorkoutLibraryView: View {
         .buttonStyle(.pressableScale)
         .accessibilityIdentifier("workouts-row-\(t.templateId)")
         .swipeActions(edge: .trailing) {
+            // B40-V8: the native tint turned the destructive swipe accent green, like Push to Garmin.
             Button(role: .destructive) { pendingDelete = t } label: { Label("Delete", systemImage: "trash") }
+                .tint(theme.color(.danger))
             if model.pushDisabledReason(for: t) == nil {
                 Button { Task { await model.pushToGarmin(t) } } label: { Label("Push to Garmin", systemImage: "arrow.up.circle") }
                     .tint(theme.color(.info))
@@ -187,6 +182,14 @@ public struct WorkoutLibraryView: View {
             }
             .disabled(model.pushDisabledReason(for: t) != nil)
             Button(role: .destructive) { pendingDelete = t } label: { Label("Delete", systemImage: "trash") }
+        }
+        .confirmationDialog("Delete \(t.name)?", isPresented: deleteBinding(for: t), titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task { _ = await model.delete(t) }
+                pendingDelete = nil
+            }
+        } message: {
+            Text("It is removed from JournalInsight. A copy on Garmin Connect stays there.")
         }
     }
 
