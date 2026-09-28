@@ -22,7 +22,13 @@ enum RootTab: Hashable, Identifiable, CaseIterable {
     /// the app did not control (reproduced on the iPhone 17 Pro sim, `repro-01-today.png`).
     /// The bar is now four explicit icons — Today · Recovery · Training · More — plus the
     /// search-role Tab that hosts the Journal; `More` is ours (Nutrition, Energy).
-    static let firstLevel: [RootTab] = [.today, .recovery, .training, .more]
+    static let firstLevel: [RootTab] = leadingTabs + trailingTabs
+    /// W-FIX6 F6-18 (Toby 2026-09-28): Search (the Journal entry point) sits BEFORE More —
+    /// Today · Recovery · Training · Search · More. The bar is drawn leading tabs, the search-role
+    /// Tab, then the trailing tabs, in this order.
+    static let leadingTabs: [RootTab] = [.today, .recovery, .training]
+    static let trailingTabs: [RootTab] = [.more]
+    static let barOrder: [RootTab] = leadingTabs + [.search] + trailingTabs
 
     var title: String {
         switch self {
@@ -76,6 +82,20 @@ struct RootTabView: View {
     /// Decide, the widget and the Live Activity on a four-day-old cached call (2026-09-28).
     static func verdictSource(hub: (any HealthDataProvider)?, dataSource: any HealthDataProvider) -> any HealthDataProvider {
         hub ?? dataSource
+    }
+
+    /// W-FIX6 fixer F6-12/F6-12b: the hub-only screens (Goals, My KPIs, KPI detail, Nutrition,
+    /// Energy, Training, gate settings, templates) are built from THIS connection's hub provider,
+    /// whichever data source the tiles read. The on-device (T2) source conforms to none of their
+    /// protocols, so casting it left Settings' Goals / My KPIs rows dead and More on "Loading…" /
+    /// "No data" while the Hub row said Connected.
+    static func hubScreensSource(hub: (any HealthDataProvider)?, dataSource: any HealthDataProvider) -> any HealthDataProvider {
+        hub ?? dataSource
+    }
+
+    /// The provider the hub-only screens read (nil = no connection yet).
+    private var hubScreens: (any HealthDataProvider)? {
+        env.providerStore.map { Self.hubScreensSource(hub: env.hubProvider, dataSource: $0.provider) }
     }
 
     /// W-FIX4 fixer PF-04: the shell loads Today's model at launch only when it has no live result
@@ -230,7 +250,7 @@ struct RootTabView: View {
         ZStack {
             TabTransition(selection: selectedTab, content: tabContent)
             TabView(selection: $selectedTab) {
-                ForEach(RootTab.firstLevel) { tab in
+                ForEach(RootTab.leadingTabs) { tab in
                     Tab(tab.title, systemImage: tab.symbol, value: tab) {
                         transparentTabContent
                     }
@@ -241,10 +261,21 @@ struct RootTabView: View {
                 // search-role Tab's content (not the pass-through `TabTransition` layer), so
                 // iOS 27 binds the field to this Tab and the bar morphs into it on selection.
                 // The pass-through layer renders nothing for `.search` (see `tabContent`).
-                Tab(value: RootTab.search, role: .search) {
+                // W-FIX6 fixer F6-18: a plain Tab, not `role: .search` — iOS 27 pins the search-role
+                // Tab to the trailing edge whatever the declaration order, so "Search before More"
+                // is only possible without the role. `.searchable` inside still shows the field.
+                Tab(RootTab.search.title, systemImage: RootTab.search.symbol, value: RootTab.search) {
                     searchTab
                 }
                 .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
+                // W-FIX6 F6-18: More after Search.
+                ForEach(RootTab.trailingTabs) { tab in
+                    Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                        transparentTabContent
+                    }
+                    .accessibilityIdentifier(tab.accessibilityIdentifier)
+                    .accessibilityLabel(tab.title)
+                }
             }
             .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
@@ -426,7 +457,7 @@ struct RootTabView: View {
 
     /// B-57 W4: the hub mirror for gate settings over the current provider (nil = local only).
     private func gateSettingsMirror() -> GateSettingsMirror {
-        GateSettingsMirror(prefs: env.prefs, provider: env.providerStore?.provider as? any GateSettingsProviding)
+        GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any GateSettingsProviding)
     }
 
     /// Re-reads the stored settings (after onboarding, or a change in Gate thresholds).
@@ -438,7 +469,7 @@ struct RootTabView: View {
     /// The Watch builder takes the user's own limits (no cap and no Zone 5 avoidance ⇒ `.none`,
     /// so no limit is applied). Built with the Training tab; rebuilt when the settings change.
     private func makeSendToWatchModel() -> SendToWatchViewModel? {
-        guard let templates = env.providerStore?.provider as? any WorkoutTemplatesProviding else { return nil }
+        guard let templates = hubScreens as? any WorkoutTemplatesProviding else { return nil }
         let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
         let limits = gateSettings.workoutLimits
         return SendToWatchViewModel(provider: templates, sender: sender,
@@ -605,7 +636,7 @@ struct RootTabView: View {
         // B-57 W5: the glances read the HRV/RHR normals from the same insight (weak on env).
         env.recoveryInsight = recoveryInsight
         if progression == nil {
-            progression = ProgressionService(provider: store.provider as? any TrainingProviding, cache: env.cache, prefs: env.prefs)
+            progression = ProgressionService(provider: Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding, cache: env.cache, prefs: env.prefs)
         }
         installGlancePlan()
         guard todayModel == nil else { return }
@@ -805,13 +836,13 @@ struct RootTabView: View {
     private func loadMoreSummaries() async {
         if let store = env.providerStore {
             makeTodayModels(store: store)
-            if energyModel == nil, let p = store.provider as? any EnergyProviding {
+            if energyModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any EnergyProviding {
                 energyModel = EnergyViewModel(provider: p, cache: env.cache, now: Date.init, band: env.makeEnergyBand())
             }
-            if nutritionModel == nil, let p = store.provider as? any NutritionProviding {
+            if nutritionModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding {
                 nutritionModel = NutritionViewModel(provider: p, cache: env.cache, now: Date.init)
             }
-            if goalsSetupModel == nil, let p = store.provider as? any GoalsSetupProviding {
+            if goalsSetupModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any GoalsSetupProviding {
                 goalsSetupModel = makeGoalsSetup(p)
             }
         }
@@ -914,7 +945,7 @@ struct RootTabView: View {
     @ViewBuilder
     private var energyTab: some View {
         if let store = env.providerStore {
-            if let provider = store.provider as? any EnergyProviding {
+            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any EnergyProviding {
                 if let energyModel {
                     EnergyView(model: energyModel)
                 } else {
@@ -932,7 +963,7 @@ struct RootTabView: View {
     @ViewBuilder
     private var nutritionTab: some View {
         if let store = env.providerStore {
-            if let provider = store.provider as? any NutritionProviding {
+            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding {
                 if let nutritionModel {
                     NutritionView(model: nutritionModel)
                 } else {
@@ -950,7 +981,7 @@ struct RootTabView: View {
     @ViewBuilder
     private var trainingTab: some View {
         if let store = env.providerStore {
-            if let provider = store.provider as? any TrainingProviding {
+            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding {
                 if let trainingModel {
                     TrainingView(model: trainingModel)
                         .environment(\.sendToWatchModel, sendToWatchModel)
@@ -966,7 +997,7 @@ struct RootTabView: View {
                             trainingModel = TrainingViewModel(
                                 provider: provider, healthProvider: store.provider, cache: env.cache,
                                 outbox: outbox,
-                                drainer: outbox.map { OutboxDrainer(outbox: $0, hub: store.provider) },
+                                drainer: outbox.map { OutboxDrainer(outbox: $0, hub: Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider)) },
                                 now: Date.init
                             )
                             sendToWatchModel = makeSendToWatchModel()
@@ -986,8 +1017,8 @@ struct RootTabView: View {
     @ViewBuilder
     private func kpiDetailDestination(metric: String) -> some View {
         if let store = env.providerStore, let metricId = KpiMetricId(rawValue: metric),
-           let nutrition = store.provider as? any NutritionProviding,
-           let targets = store.provider as? any KpiTargetsProviding {
+           let nutrition = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding,
+           let targets = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any KpiTargetsProviding {
             KpiDetailView(model: KpiDetailViewModel(
                 metric: metricId, healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, cache: env.cache,
                 makeGoalsSetup: { makeGoalsSetup($0) },
@@ -1003,8 +1034,8 @@ struct RootTabView: View {
     @ViewBuilder
     private func kpiListDestination(onSelectKpi: ((String) -> Void)?) -> some View {
         if let store = env.providerStore,
-           let nutrition = store.provider as? any NutritionProviding,
-           let targets = store.provider as? any KpiTargetsProviding {
+           let nutrition = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding,
+           let targets = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any KpiTargetsProviding {
             KpiListView(model: KpiListViewModel(
                 healthProvider: store.provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache
             ), onSelectKpi: onSelectKpi)
@@ -1037,7 +1068,7 @@ struct RootTabView: View {
 
     // TEMP bridge until B-50: hub weekly gate
     private func makeGoalsMirror() -> GoalsMirror? {
-        guard let hub = env.providerStore?.provider, let outbox = try? Outbox(db: .onDisk()) else { return nil }
+        guard let hub = hubScreens, let outbox = try? Outbox(db: .onDisk()) else { return nil }
         return GoalsMirror(outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: hub))
     }
 
@@ -1061,9 +1092,12 @@ struct RootTabView: View {
     // on-disk DB + vault the Journal tab lazily builds (reused if it already did).
     private func makeSettingsModel() async -> SettingsViewModel {
         let provider = env.providerStore?.provider
-        let goals = (provider as? any GoalsSetupProviding).map { makeGoalsSetup($0) }
+        // W-FIX6 fixer F6-12/F6-12b: Goals / My KPIs (+ the KPI detail, the goals mirror) read the
+        // hub whatever the data source is; the tiles' own health reads stay on the data source.
+        let hub = hubScreens
+        let goals = (hub as? any GoalsSetupProviding).map { makeGoalsSetup($0) }
         var kpis: KpiListViewModel?
-        if let provider, let nutrition = provider as? any NutritionProviding, let targets = provider as? any KpiTargetsProviding {
+        if let provider, let nutrition = hub as? any NutritionProviding, let targets = hub as? any KpiTargetsProviding {
             kpis = KpiListViewModel(healthProvider: provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache)
         }
         let db = journalDB ?? (try? AppDatabase.onDisk())
@@ -1085,15 +1119,15 @@ struct RootTabView: View {
             kpiListModel: kpis,
             // W-FIX3 fixer C-e: Settings → My KPIs squares push their detail (same model as the shell's).
             makeKpiDetailModel: { metric in
-                guard let provider, let nutrition = provider as? any NutritionProviding,
-                      let targets = provider as? any KpiTargetsProviding else { return nil }
+                guard let provider, let nutrition = hub as? any NutritionProviding,
+                      let targets = hub as? any KpiTargetsProviding else { return nil }
                 return KpiDetailViewModel(metric: metric, healthProvider: provider, nutritionProvider: nutrition,
                                           targetsProvider: targets, cache: env.cache,
                                           makeGoalsSetup: { makeGoalsSetup($0) },
                                           medicationStore: MedicationStore(prefs: env.prefs),
                                           daytimeHrv: Self.daytimeHrv(todayModel))
             },
-            goalsProvider: provider as? any EnergyProviding,
+            goalsProvider: hub as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },
             syncAction: { try await env.syncNow() }
         ) { config in
@@ -1174,7 +1208,7 @@ struct RootTabView: View {
                         if gateConfigModel == nil {
                             // W-FIX5 W4-1: with the mirror, so a change here reaches the hub and
                             // "Not on the hub yet" clears after the foreground push.
-                            gateConfigModel = GateConfigViewModel(targetsProvider: env.providerStore?.provider as? (any KpiTargetsProviding), prefStore: env.prefs,
+                            gateConfigModel = GateConfigViewModel(targetsProvider: hubScreens as? (any KpiTargetsProviding), prefStore: env.prefs,
                                                                   mirror: gateSettingsMirror(), reminderCenter: UNUserNotificationCenter.current())
                         }
                     }
