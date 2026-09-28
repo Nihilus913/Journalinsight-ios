@@ -130,9 +130,16 @@ public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: 
 public nonisolated func decideSessionLiftShown(verdict: VerdictParts, sessionDetail: String,
                                                lifts: [LiftProgression]) -> (kg: String, caption: String?)? {
     if TodayMorningFlow.isRestDay(verdict) { return nil }
-    if sessionDetail.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("rest") { return nil }
+    let session = sessionDetail.trimmingCharacters(in: .whitespaces).lowercased()
+    if session.hasPrefix("rest") { return nil }
+    // W-FIX6 fixer (F6-11 detail): a cardio session (Long Z2, intervals, a run) has nothing to
+    // lift either — the weight shows only beside a session that names a lift.
+    guard decideSessionLiftKeywords.contains(where: { session.contains($0) }) else { return nil }
     return decideSessionLift(lifts)
 }
+
+/// The words that make a session a lifting session ("Day 1 Full Upper + Z2 40min", "Strength").
+nonisolated let decideSessionLiftKeywords = ["upper", "lower", "full body", "strength", "lift"]
 
 /// W-FIX5 W5-3: at accessibility sizes the session row stacks (title, session, weight) instead of
 /// squeezing three texts into one line and clipping them.
