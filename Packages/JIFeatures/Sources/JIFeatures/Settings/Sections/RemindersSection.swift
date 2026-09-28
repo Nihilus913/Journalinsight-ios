@@ -28,15 +28,16 @@ private struct RemindersSectionRows: View {
             } label: {
                 SettingsLinkLabel(title: "Reminders", systemImage: "bell", trailing: trailing)
             }
-            // W-FIX5 W4-3: the count includes the HR-cap re-check, which lives only as a pending
-            // notification. `.task` re-runs each time the row reappears (back from Reminders).
+            // W-FIX5 W4-3 / W-FIX6 F6-16: the count comes from the pending notifications (daily,
+            // workout days, HR-cap re-check); prefs only where no centre exists. `.task` re-runs each time the row reappears (back from Reminders).
             .task {
                 let prefs = (try? model.prefs.get(RemindersPrefs.prefKey, as: RemindersPrefs.self)) ?? nil
                 trailing = settingsRemindersTrailing(prefs)
                 // Only in the app: the notification centre throws in a host-app-less test process.
                 guard !offscreen, Bundle.main.bundleURL.pathExtension == "app" else { return }
-                let due = await ReminderScheduler(center: UNUserNotificationCenter.current()).hrCapCheckDue()
-                trailing = settingsRemindersTrailing(prefs, hrCapCheckOn: due != nil)
+                // W-FIX6 F6-16: the pending requests are the truth (what the Reminders screen shows).
+                let count = await ReminderScheduler(center: UNUserNotificationCenter.current()).activeCount()
+                trailing = settingsRemindersTrailing(count: count)
             }
             .accessibilityLabel("Reminders")
             .accessibilityIdentifier("settings.row.reminders")

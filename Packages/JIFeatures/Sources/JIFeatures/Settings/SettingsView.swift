@@ -89,7 +89,14 @@ public nonisolated func settingsKpisTrailing(_ count: Int) -> String {
     count == 0 ? "None chosen" : "\(count) chosen"
 }
 
-/// Reminders row: how many daily + workout reminders are switched on ("Off" when none).
+/// W-FIX6 F6-16: the Reminders row count = the pending requests the Reminders screen reads
+/// (`ReminderScheduler.activeCount()`), so the two can never disagree.
+public nonisolated func settingsRemindersTrailing(count: Int) -> String {
+    count == 0 ? "Off" : "\(count) on"
+}
+
+/// Reminders row fallback (no notification centre — host-less tests / offscreen renders): how
+/// many daily + workout reminders the saved prefs say are on ("Off" when none).
 /// W-FIX5 W4-3: plus the HR-cap re-check when it is scheduled (it lives only as a pending
 /// notification, so the caller reads `ReminderScheduler.hrCapCheckDue()`).
 public nonisolated func settingsRemindersTrailing(_ prefs: RemindersPrefs?, hrCapCheckOn: Bool = false) -> String {
@@ -109,16 +116,36 @@ nonisolated private func settingsClock(_ date: Date, now: Date, calendar: Calend
 public nonisolated func settingsSyncTrailing(syncing: Bool, failed: Bool, lastSync: Date?, now: Date,
                                              calendar: Calendar = .autoupdatingCurrent) -> String {
     if syncing { return "Syncing…" }
-    if failed { return "Failed" }
-    guard let lastSync else { return "—" }
-    return settingsClock(lastSync, now: now, calendar: calendar)
+    if failed { return "Sync failed" }
+    // W-FIX6 F6-13: the one place the last-sync time is shown (the Hub row no longer repeats it).
+    guard let lastSync else { return "Last sync —" }
+    return "Last sync \(settingsClock(lastSync, now: now, calendar: calendar))"
+}
+
+/// W-FIX6 F6-13: the caption under Sync now sits on the rows' text inset, not on the 4 pt edge
+/// of the clear row (where "05:10" was clipped at the left margin).
+nonisolated enum SettingsSyncCaption {
+    static let leadingInset: CGFloat = 16
 }
 
 public nonisolated func settingsHubSubtitle(host: String?, lastSync: Date?, now: Date,
                                             calendar: Calendar = .autoupdatingCurrent) -> String {
+    // W-FIX6 F6-13: host only — "· last sync 05:10" wrapped under "✓ Connected" and repeated
+    // the Sync now caption. `lastSync` stays in the signature for callers; the caption shows it.
     guard let host, !host.isEmpty else { return "Not set up" }
-    guard let lastSync else { return host }
-    return "\(host) · last sync \(settingsClock(lastSync, now: now, calendar: calendar))"
+    _ = (lastSync, now, calendar)
+    return host
+}
+
+/// W-FIX6 F6-12: the subtitle of a hub-only row (Goals, My KPIs) whose screen could not be built.
+/// "Connect to your hub" only when no hub is saved; with a hub saved it names the real reason —
+/// on device it was the debug data source set to Apple Watch while the Hub row said Connected.
+public nonisolated func settingsHubOnlySubtitle(action: String, hubConfigured: Bool, dataSource: ProviderKind) -> String {
+    guard hubConfigured else { return "Connect to your hub to \(action)" }
+    switch dataSource {
+    case .appleWatch: return "Reads the hub · data source is Apple Watch (Developer)"
+    case .hub: return "Hub screen not loaded · reopen Settings"
+    }
 }
 
 /// Hub badge — only what a connection test said; nil before one ran (never a guessed "Connected").
@@ -172,12 +199,15 @@ public struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)   // W-GUI M5 (mockup 41): the grouped Form on the page ground
+            .jiSoftTopEdge()   // W-FIX6 F6-15: soft fade under the bar, no hard (green-lit) band edge
             .jiPageGround()
             .environment(model)
             .navigationTitle("Settings")
             .toolbar {
+                // W-FIX6 F6-15: a toolbar item — the bar draws its one glass, so Done sits inside
+                // the bar instead of a 44 pt disc straddling the band's edge.
                 ToolbarItem(placement: .confirmationAction) {
-                    JIGlassButton("checkmark", label: "Done") { dismiss() }
+                    JIToolbarButton("checkmark", label: "Done") { dismiss() }
                         .accessibilityIdentifier("settings.done")
                 }
             }
@@ -223,7 +253,10 @@ public struct SettingsView: View {
                     Button { Task { await model.syncNow() } } label: { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
                         .buttonStyle(.jiPrimary)
                     Text(settingsSyncTrailing(syncing: model.syncing, failed: model.syncFailed, lastSync: model.lastSyncDate, now: Date()))
-                        .jiFont(.caption, tint: .muted).accessibilityIdentifier("settings.root.syncNow.state")
+                        .jiFont(.caption, tint: .muted)
+                        .padding(.leading, SettingsSyncCaption.leadingInset)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.root.syncNow.state")
                 }
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
@@ -322,6 +355,7 @@ struct SettingsSectionsScreen: View {
             }
         }
         .scrollContentBackground(.hidden)   // W-GUI M5: pushed settings screens on the page ground
+        .jiSoftTopEdge()   // W-FIX6 F6-14
         .jiPageGround()
         .jiGlassBackButton()
         .navigationTitle(title)
@@ -421,7 +455,8 @@ private struct PreferencesLinksRows: View {
                 .accessibilityLabel("Goals")
                 .accessibilityIdentifier("settings.row.goals")
             } else {
-                SettingsLinkLabel(title: "Goals", subtitle: "Connect to your hub to edit goals", systemImage: "target")
+                SettingsLinkLabel(title: "Goals", subtitle: settingsHubOnlySubtitle(action: "edit goals", hubConfigured: model.connection.host != nil,
+                                                                                    dataSource: ProviderSwitch.shared.kind), systemImage: "target")
                     .accessibilityIdentifier("settings.row.goals.unavailable")
             }
             if let kpis = model.kpiListModel {
@@ -443,7 +478,8 @@ private struct PreferencesLinksRows: View {
                 .accessibilityLabel("My KPIs")
                 .accessibilityIdentifier("settings.row.kpis")
             } else {
-                SettingsLinkLabel(title: "My KPIs", subtitle: "Connect to your hub to choose KPIs", systemImage: "chart.bar")
+                SettingsLinkLabel(title: "My KPIs", subtitle: settingsHubOnlySubtitle(action: "choose KPIs", hubConfigured: model.connection.host != nil,
+                                                                                      dataSource: ProviderSwitch.shared.kind), systemImage: "chart.bar")
                     .accessibilityIdentifier("settings.row.kpis.unavailable")
             }
         }

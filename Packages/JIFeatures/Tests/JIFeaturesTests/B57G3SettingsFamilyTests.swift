@@ -48,10 +48,10 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
 @Test func syncTrailingPrefersTheStateOverTheTime() {
     let now = at("2026-09-24T12:00:00Z")
     #expect(settingsSyncTrailing(syncing: true, failed: false, lastSync: nil, now: now, calendar: utc) == "Syncing…")
-    #expect(settingsSyncTrailing(syncing: false, failed: true, lastSync: now, now: now, calendar: utc) == "Failed")
-    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: at("2026-09-24T07:41:00Z"), now: now, calendar: utc) == "07:41")
-    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: at("2026-09-20T07:41:00Z"), now: now, calendar: utc) == "20 Sep")
-    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: nil, now: now, calendar: utc) == "—")
+    #expect(settingsSyncTrailing(syncing: false, failed: true, lastSync: now, now: now, calendar: utc) == "Sync failed")   // W-FIX6 F6-13
+    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: at("2026-09-24T07:41:00Z"), now: now, calendar: utc) == "Last sync 07:41")
+    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: at("2026-09-20T07:41:00Z"), now: now, calendar: utc) == "Last sync 20 Sep")
+    #expect(settingsSyncTrailing(syncing: false, failed: false, lastSync: nil, now: now, calendar: utc) == "Last sync —")
 }
 
 @Test func hubRowSaysHostAndLastSyncAndABadgeOnlyFromATest() {
@@ -59,7 +59,7 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
     #expect(settingsHubSubtitle(host: nil, lastSync: nil, now: now, calendar: utc) == "Not set up")
     #expect(settingsHubSubtitle(host: "192.168.1.5", lastSync: nil, now: now, calendar: utc) == "192.168.1.5")
     #expect(settingsHubSubtitle(host: "192.168.1.5", lastSync: at("2026-09-24T07:41:00Z"), now: now, calendar: utc)
-            == "192.168.1.5 · last sync 07:41")
+            == "192.168.1.5")   // W-FIX6 F6-13: the time lives under Sync now
     #expect(settingsHubBadge(nil, testing: false) == nil)
     #expect(settingsHubBadge(nil, testing: true)?.word == "Checking…")
     #expect(settingsHubBadge(.ok(lastSync: nil), testing: false) == BoardStatus(word: "Connected", systemImage: "checkmark", role: .go))
