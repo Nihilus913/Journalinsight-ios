@@ -147,7 +147,7 @@ public struct WorkoutEditorSheet: View {
 
     private func segmentTitle(_ s: EditableSegment, index: Int) -> String {
         let seg = WorkoutSegment(sport: s.sport, steps: s.steps.map(\.step))
-        let time = WorkoutFormat.timedSeconds(seg).map { " · " + WorkoutFormat.duration(seconds: $0) } ?? ""
+        let time = s.sport == .strength ? "" : (WorkoutFormat.timedSeconds(seg).map { " · " + WorkoutFormat.duration(seconds: $0) } ?? "")
         let name = s.sport == .strength ? "Strength" : "Steps"
         return model.segments.count > 1 ? "Part \(index + 1) · \(WorkoutFormat.sport(s.sport))\(time)" : "\(name)\(time)"
     }
