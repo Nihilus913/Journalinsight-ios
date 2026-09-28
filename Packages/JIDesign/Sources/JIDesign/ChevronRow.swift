@@ -11,6 +11,11 @@ public nonisolated enum JIChevronRowMetrics {
     public static let iconWell: CGFloat = 32
     public static let iconWellRadius: CGFloat = 10
     public static let chevron = "chevron.right"
+    /// W-FIX6 F6-6: one line up to xxxLarge; at accessibility sizes the title wraps ("How the
+    /// morni…" at AX3 was `lineLimit(1)`).
+    public static func titleLineLimit(_ size: DynamicTypeSize) -> Int? { size.isAccessibilitySize ? nil : 1 }
+    /// At accessibility sizes the muted value drops under the title instead of squeezing it.
+    public static func stacksValue(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
 }
 
 public struct JIChevronRow<Label: View>: View {
@@ -44,6 +49,7 @@ public extension JIChevronRow where Label == JIChevronRowLabel {
 public struct JIChevronRowLabel: View {
     let title: String, value: String?, systemImage: String?, tint: JIColorRole
     @Environment(\.jiTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init(title: String, value: String? = nil, systemImage: String? = nil, tint: JIColorRole = .info) {
         self.title = title; self.value = value; self.systemImage = systemImage; self.tint = tint
@@ -59,12 +65,55 @@ public struct JIChevronRowLabel: View {
                     .background(theme.color(tint).opacity(0.16), in: RoundedRectangle(cornerRadius: JIChevronRowMetrics.iconWellRadius, style: .continuous))
                     .accessibilityHidden(true)
             }
-            Text(title).jiFont(.body).foregroundStyle(theme.color(.text)).lineLimit(1).minimumScaleFactor(0.8)
-            Spacer(minLength: JISpacing.s2)
-            if let value {
-                Text(value).jiFont(.subheadline).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
+            if JIChevronRowMetrics.stacksValue(typeSize) {
+                VStack(alignment: .leading, spacing: 2) {
+                    titleText
+                    if let value { valueText(value) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                titleText
+                Spacer(minLength: JISpacing.s2)
+                if let value { valueText(value) }
             }
         }
         .padding(.vertical, JIChevronRowMetrics.verticalPadding)
+    }
+
+    private var titleText: some View {
+        Text(title).jiFont(.body).foregroundStyle(theme.color(.text))
+            .lineLimit(JIChevronRowMetrics.titleLineLimit(typeSize))
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
+            .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+            .lineLimit(JIChevronRowMetrics.titleLineLimit(typeSize))
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
+            .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
+    }
+}
+
+/// W-FIX6 F6-5 — "How JI learns your normal", "How JI calculates balance…": the explainer entry
+/// as a disclosure row (report §7 rule 2: a row with a chevron, never a coloured text link),
+/// pushing the same `HowWeCalculate` page `HowWeCalculateLink` did.
+public struct JIHowWeCalculateRow: View {
+    let rowTitle: String, title: String, steps: [HowWeCalculateStep], note: String?
+    @Environment(\.jiTheme) private var theme
+    public init(_ rowTitle: String, title: String, steps: [HowWeCalculateStep], note: String? = nil) {
+        self.rowTitle = rowTitle; self.title = title; self.steps = steps; self.note = note
+    }
+    public var body: some View {
+        NavigationLink {
+            ScrollView { HowWeCalculate(title: title, steps: steps, note: note).padding(20) }
+                .background(theme.color(.bg))
+                .navigationTitle(title)
+        } label: {
+            JIChevronRow(title: rowTitle, systemImage: "function")
+        }
+        .buttonStyle(.pressableScale)
+        .accessibilityLabel(rowTitle)
+        .accessibilityIdentifier("how-we-calculate-link")
     }
 }
