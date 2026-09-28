@@ -245,7 +245,7 @@ private func sample() -> TargetsDocument {
     let goals = goalsFromTargets(model.storedDocument, hub: nil)
     #expect(goals?.nutrition.kcalGoal == 1900)
     #expect(GoalsBoard.targets(goals: goals, macros: model.document.macroGoals, yesterdayKcal: nil, yesterdayProteinG: nil,
-                               yesterdaySteps: nil).first?.subtitle == "goal 1900 a day")
+                               yesterdaySteps: nil).first?.subtitle == "goal 1,900 a day")
 }
 
 /// §5 at launch over the app's OfflineCache: a rule the user changed on the hub (`kpi.targets`) is
@@ -291,7 +291,7 @@ private func sample() -> TargetsDocument {
 @Test func kpiSquaresReadTheirGoalFromTargets() {
     #expect(kpiListGoalCaption(.steps, value: 6420, targets: sample()) == "goal 8,500")
     #expect(kpiListGoalCaption(.weight, value: 79.5, targets: sample()) == "goal 76.5")
-    #expect(kpiListGoalCaption(.sleep, value: 80, targets: .empty) == "no goal")
+    #expect(kpiListGoalCaption(.sleep, value: 80, targets: .empty) == nil)   // fixer 2 R2: score square, hours goal
     #expect(kpiListGoalCaption(.acwr, value: 1.04, targets: .empty) == "band 0.80–1.30")
     #expect(kpiListGoalCaption(.kcal, value: 1540, targets: sample()) == "goal 1,750")   // fixer 1f: Targets, not a band word
     #expect(kpiListGoalCaption(.kcal, value: 1540, targets: nil) == nil)           // no document: the nutrition snapshot decides

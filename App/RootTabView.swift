@@ -866,11 +866,16 @@ struct RootTabView: View {
     /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →
     /// target, from the same hub goals document Settings' row reads (`settingsGoalsTrailing`).
     private var moreGoalsRow: MoreRowValue {
-        Self.moreGoalsRowValue(goalsFromTargets(targetsModel?.storedDocument, hub: goalsShown(hub: energyModel?.goals, saved: savedGoals)))
+        let doc = targetsModel?.storedDocument
+        return Self.moreGoalsRowValue(goalsFromTargets(doc, hub: goalsShown(hub: energyModel?.goals, saved: savedGoals)),
+                                      countOtherGoals: doc != nil)
     }
 
-    static func moreGoalsRowValue(_ goals: Goals?) -> MoreRowValue {
-        moreGoalsValue(currentKg: goals?.weight.baseKg, targetKg: goals?.weight.targetKg)
+    /// W-TGT fixer 2 R2: without a weight goal the row counts the other goals the user set ("2 goals
+    /// set") — only from the phone's own document (the hub's nutrition block is seeded, not his).
+    static func moreGoalsRowValue(_ goals: Goals?, countOtherGoals: Bool = false) -> MoreRowValue {
+        moreGoalsValue(currentKg: goals?.weight.baseKg, targetKg: goals?.weight.targetKg,
+                       otherGoals: countOtherGoals ? goalsSetCount(goals) : 0)
     }
 
     /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.

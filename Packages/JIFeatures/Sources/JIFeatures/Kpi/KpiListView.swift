@@ -134,7 +134,9 @@ public nonisolated func kpiListGoalCaption(_ id: KpiMetricId, value: Double?, ta
     let metric: GoalMetric
     switch id {
     case .steps: metric = .steps
-    case .sleep: metric = .sleep
+    // W-TGT fixer 2 R2: the Sleep square is the score (0–100) and its goal is hours — a caption
+    // "goal 7.5 h" under "94" mixes the two, so the score square carries no goal line.
+    case .sleep: return nil
     case .weight: metric = .weight
     case .acwr: return "band \(targetsNumber(doc.rule(.loadBandLow), 2))–\(targetsNumber(doc.rule(.loadBandHigh), 2))"
     // W-TGT fixer 1f (mock 05): the food squares say the goal too ("goal 1,617", "goal 155 g",
@@ -145,7 +147,6 @@ public nonisolated func kpiListGoalCaption(_ id: KpiMetricId, value: Double?, ta
         return targets.goal(m).map { targetsGoalCaption(m, $0) } ?? "no goal"
     default: return nil
     }
-    // Sleep's square is the score (0–100); its goal is hours, so it is named, not compared.
     return doc.goal(metric).map { targetsGoalCaption(metric, $0) } ?? "no goal"
 }
 

@@ -18,7 +18,7 @@ import UniformTypeIdentifiers
 // MARK: - More rows
 
 @Test func moreNutritionShowsTodaysKcalOverTheGoal() {
-    #expect(moreNutritionValue(consumedKcal: 467.4, goalKcal: 1617).text == "467 / 1617 kcal")
+    #expect(moreNutritionValue(consumedKcal: 467.4, goalKcal: 1617).text == "467 / 1,617 kcal")
     #expect(moreNutritionValue(consumedKcal: 467, goalKcal: 1617).style == .kcal)
     #expect(moreNutritionValue(consumedKcal: 467, goalKcal: nil).text == "467 kcal")
     #expect(moreNutritionValue(consumedKcal: nil, goalKcal: 1617).text == "— No data")

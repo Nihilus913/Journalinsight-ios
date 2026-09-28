@@ -16,6 +16,7 @@ struct KpiDetailTargetsCard: View {
     let unit: String
     @Environment(\.targets) private var injectedDoc
     @Environment(\.targetsModel) private var targetsModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var editing: TargetSubject?
     private let theme = JITheme.native
 
@@ -64,7 +65,7 @@ struct KpiDetailTargetsCard: View {
     }
 
     private var normalText: String {
-        normal.map { "\(bandText($0)) · 28 days" } ?? "— \(JIMissingReason.calibrating.rawValue)"
+        normal.map { "\(kpiTargetsNormalPrefix(metric))\(bandText($0)) · 28 days" } ?? "— \(JIMissingReason.calibrating.rawValue)"
     }
 
     private func bandText(_ n: PersonalNormalResult) -> String {
@@ -76,20 +77,38 @@ struct KpiDetailTargetsCard: View {
     }
 
     private func line(title: String, tag: String?, value: String, id: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).jiFont(.body, tint: .text)
-                if let tag { Text(tag).jiFont(.caption, tint: tag == "yours" ? .info : .muted) }
+        // W-TGT fixer 2 R3: at accessibility sizes the row stacks (title · tag, then the value), so
+        // "recommended" never hyphen-breaks in a squeezed left column.
+        let ax = typeSize.isAccessibilitySize
+        let layout = ax ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                        : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: JISpacing.s3))
+        return layout {
+            if ax {
+                Text([title, tag].compactMap { $0 }.joined(separator: " · ")).jiFont(.body, tint: .text)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).jiFont(.body, tint: .text)
+                    if let tag { Text(tag).jiFont(.caption, tint: tag == "yours" ? .info : .muted).lineLimit(1).fixedSize() }
+                }
+                .layoutPriority(1)
+                Spacer(minLength: JISpacing.s2)
             }
-            Spacer(minLength: JISpacing.s2)
             Text(value).jiFont(.body, weight: .semibold, tint: value.hasPrefix("—") || value == "no goal" ? .muted : .text)
-                .multilineTextAlignment(.trailing)
+                .multilineTextAlignment(ax ? .leading : .trailing)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, JISpacing.s3)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("kpi-detail-targets-\(id)")
     }
+}
+
+/// The card's normal row names what it is a normal of when the goal is in another unit: the
+/// Sleep KPI is the 0–100 score, its goal hours ("score 71–91 · 28 days").
+public nonisolated func kpiTargetsNormalPrefix(_ metric: KpiMetricId) -> String {
+    metric == .sleep ? "score " : ""
 }
 
 public nonisolated let kpiTargetsCardCaption = "One place to change these: Edit opens the same sheet as Settings › Targets."

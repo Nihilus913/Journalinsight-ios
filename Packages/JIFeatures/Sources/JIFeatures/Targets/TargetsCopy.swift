@@ -409,7 +409,9 @@ public nonisolated func targetsFieldText(_ v: Double?, decimals: Int) -> String 
 /// What the editor sheet holds while the user types. `applied(to:)` writes it into the document
 /// (one number per metric and kind); a blank goal is "no goal", a blank rule is "recommended".
 public nonisolated struct TargetEditDraft: Equatable, Sendable {
-    public enum Failure: Error, Equatable, Sendable { case unreadable(String) }
+    /// `unreadable`: not a number. `invalid`: a number the document can't hold (a goal at or below
+    /// zero, a deficit that leaves no kcal target) — the words the sheet shows under the field.
+    public enum Failure: Error, Equatable, Sendable { case unreadable(String), invalid(String) }
 
     public let subject: TargetSubject
     /// The goal number (kcal: the tracker's daily goal before any deficit).
@@ -470,7 +472,23 @@ public nonisolated struct TargetEditDraft: Equatable, Sendable {
         }
     }
 
+    /// Why Save is off (nil = the typed numbers can be saved). W-TGT fixer 2 R1: a deficit as big as
+    /// the goal made "Target -398,383 kcal" and saved it; a goal is above zero, the kcal target too.
+    public var validationMessage: String? {
+        guard case .goal(let m) = subject, case .value(let goal) = targetsParse(goalText) else { return nil }
+        guard goal > 0 else { return "A goal is above zero. Leave it blank for no goal." }
+        guard m == .kcal, !trackerIncludesDeficit, case .value(let d) = targetsParse(deficitText) else { return nil }
+        guard d >= 0 else { return "The deficit is zero or more." }
+        if let target = kcalTargetPreview, target <= 0 {
+            return deficitIsWeeklyLoss
+                ? "That weekly loss leaves no kcal to eat. Lower it below the goal."
+                : "The deficit must be smaller than the daily goal (\(targetsNumber(goal, 0)) kcal)."
+        }
+        return nil
+    }
+
     public func applied(to document: TargetsDocument) -> Result<TargetsDocument, Failure> {
+        if let why = validationMessage { return .failure(.invalid(why)) }
         var doc = document
         for (rule, text) in ruleTexts.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
             switch targetsParse(text) {
@@ -564,7 +582,9 @@ public nonisolated func targetsNormalMetric(_ s: TargetSubject) -> KpiMetricId? 
     case .goal(.fat): .fat
     case .goal(.steps): .steps
     case .goal(.weight): .weight
-    case .goal(.sleep): .sleep
+    // W-TGT fixer 2 R2: the sleep goal is hours; the sleep KPI is the 0–100 score. No hours
+    // history on the phone = no normal (never the score's band under an hours goal).
+    case .goal(.sleep): nil
     case .loadBand: .acwr
     case .rule, .hrCap, .zones, .avoidZone5: nil
     }

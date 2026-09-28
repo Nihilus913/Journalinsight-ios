@@ -102,10 +102,10 @@ struct MoreTabTests {
     // W-B57-W2 fixer MORE-NUTRITION-GOAL: the More Nutrition row divides by the user's target only;
     // YAZIO's day goal (1739/1617) is never passed in, and an unset goal shows consumed alone.
     @Test func nutritionRowUsesOnlyTheUserKcalTarget() {
-        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: nil).text == "1200 kcal")
-        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: .unset).text == "1200 kcal")
+        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: nil).text == "1,200 kcal")
+        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: .unset).text == "1,200 kcal")
         let mine = MacroGoals(kcal: KcalGoal(goalKcal: 1900, basis: .includesDeficit))
-        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: mine).text == "1200 / 1900 kcal")
+        #expect(RootTabView.moreNutritionRowValue(consumedKcal: 1200, userGoals: mine).text == "1,200 / 1,900 kcal")
         #expect(RootTabView.moreNutritionRowValue(consumedKcal: nil, userGoals: mine).lead == "—")
     }
 

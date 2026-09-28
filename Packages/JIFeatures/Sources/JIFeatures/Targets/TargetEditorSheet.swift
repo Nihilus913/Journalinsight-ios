@@ -70,7 +70,7 @@ public struct TargetEditorSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
-                        .disabled(saving)
+                        .disabled(saving || draft.validationMessage != nil)
                         .accessibilityIdentifier("targetEditor.save")
                 }
             }
@@ -84,6 +84,8 @@ public struct TargetEditorSheet: View {
         switch d.applied(to: document) {
         case .failure(.unreadable(let field)):
             error = "\(field): type a number, or leave it blank."
+        case .failure(.invalid(let why)):
+            error = why
         case .success(let next):
             if subject == .hrCap, let onSaveCap {
                 saving = true
@@ -125,14 +127,21 @@ public struct TargetEditorSheet: View {
         } header: {
             Text("Goal")
         } footer: {
-            Text(goalFooter(m)).fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("targetEditor.goalFooter")
+            VStack(alignment: .leading, spacing: 4) {
+                // W-TGT fixer 2 R1: the reason Save is off sits under the numbers that cause it.
+                if let why = draft.validationMessage {
+                    Text(why).jiFont(.footnote, tint: .danger).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("targetEditor.invalid")
+                }
+                Text(goalFooter(m)).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("targetEditor.goalFooter")
+            }
         }
     }
 
     private func goalFooter(_ m: GoalMetric) -> String {
         guard m == .kcal else { return "Leave blank for no goal. JI never fills one in." }
-        guard let target = draft.kcalTargetPreview else { return "Leave the goal blank for none. JI never subtracts twice." }
+        guard let target = draft.kcalTargetPreview, target > 0 else { return "Leave the goal blank for none. JI never subtracts twice." }
         return "Target \(targetsNumber(target, 0)) kcal. Leave the goal blank for none. JI never subtracts twice."
     }
 
@@ -189,7 +198,9 @@ public struct TargetEditorSheet: View {
     // MARK: Normal
 
     @ViewBuilder private var normalSection: some View {
-        if case .goal = subject {
+        // W-TGT fixer 2 R2: only a goal whose own metric has history (the sleep goal is hours, the
+        // sleep KPI a 0–100 score — no hours history, so no row rather than a score under hours).
+        if case .goal = subject, targetsNormalMetric(subject) != nil {
             Section {
                 if let normal, normal.lastSevenText != nil || normal.normalText != nil {
                     if let last = normal.lastSevenText { LabeledContent("Last 7 days", value: last) }
@@ -229,7 +240,7 @@ struct TargetStepperField: View {
     /// The − / + circle grows with the text size so the glyph never spills out of it (AX3).
     @ScaledMetric(relativeTo: .body) private var stepSize: CGFloat = 30
     /// Value + unit share one fixed column, so every row's − / + sit on the same x (mock 02).
-    @ScaledMetric(relativeTo: .body) private var valueColumn: CGFloat = 118
+    @ScaledMetric(relativeTo: .body) private var valueColumn: CGFloat = 150
     private let theme = JITheme.native
 
     var body: some View {
@@ -250,7 +261,7 @@ struct TargetStepperField: View {
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                         // AX3: the number keeps its width; the unit gives way first ("4…" was cut).
-                        .frame(minWidth: typeSize.isAccessibilitySize ? stepSize * 2.4 : 44)
+                        .frame(minWidth: typeSize.isAccessibilitySize ? stepSize * 2.4 : 72)
                         .layoutPriority(1)
                         .decimalPadKeyboard()
                         .accessibilityLabel(unit.map { "\(title) in \($0)" } ?? title)
