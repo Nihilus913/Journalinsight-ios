@@ -26,8 +26,9 @@ private func fix5Source(_ relative: String) throws -> String {
 /// read the pending HR-cap re-check.
 @Test func w43RemindersRowCountsTheHrCapCheck() throws {
     let body = try fix5Source("Sources/JIFeatures/Settings/Sections/RemindersSection.swift")
-    #expect(body.contains("hrCapCheckOn:"))
-    #expect(body.contains("hrCapCheckDue()"))
+    // W-FIX6 F6-16 supersedes the prefs + hrCapCheckOn sum: the row counts the pending requests,
+    // and `activeCount()` includes the HR-cap re-check (Fix6L2Tests pins that).
+    #expect(body.contains("activeCount()"))
 }
 
 /// X2: the four state faces are gallery/sweep entries (and ledger rows, HT side).

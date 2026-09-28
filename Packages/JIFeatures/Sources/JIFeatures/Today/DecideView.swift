@@ -76,6 +76,36 @@ public func decideSubmit(model: VerdictOverrideViewModel, date: String, choice: 
 /// rows (or the reason line when there are none).
 public nonisolated func decideWord(_ parts: VerdictParts) -> String { verdictUserWord(parts) }
 
+/// W-FIX6 F6-11 (S1): the ONE headline of the morning call — the word, session and tone Decide
+/// shows, and the very same strings the widgets and the Live Activity carry (they used to show the
+/// hub's raw "GO (auto-regulated)" in green beside Decide's amber "Modified").
+public nonisolated struct VerdictHeadline: Equatable, Sendable {
+    public let word: String, session: String
+    public let tone: VerdictTone
+}
+
+/// `override` must already be the one for the verdict's date (`overrideForVerdictDate`).
+/// No verdict = "—" + "No verdict yet" (never a guessed call).
+public nonisolated func verdictHeadline(parts: VerdictParts, override: VerdictOverride?) -> VerdictHeadline {
+    guard parts.tone != .muted || override != nil else { return VerdictHeadline(word: "—", session: parts.session, tone: .muted) }
+    let shown = effectiveVerdictParts(parts: parts, override: override)
+    return VerdictHeadline(word: decideWord(shown), session: shown.session, tone: shown.tone)
+}
+
+/// W-FIX6 F6-11: the hero's kicker. A call from another day (a cache, or the hub's `is_stale`
+/// before morning_go ran) is never "your call for today" — it names its own day.
+public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String) -> String {
+    guard let verdictDate, verdictDate != today || isStale == true else { return "YOUR CALL FOR TODAY" }
+    let parse = DateFormatter()
+    parse.calendar = Calendar(identifier: .gregorian); parse.locale = Locale(identifier: "en_US_POSIX")
+    parse.timeZone = TimeZone(identifier: "UTC"); parse.dateFormat = "yyyy-MM-dd"
+    guard let d = parse.date(from: String(verdictDate.prefix(10))) else { return "LAST CALL" }
+    let out = DateFormatter()
+    out.calendar = parse.calendar; out.locale = parse.locale; out.timeZone = parse.timeZone
+    out.dateFormat = "EEE, MMM d"
+    return "LAST CALL · " + out.string(from: d).uppercased()
+}
+
 /// B-57 W1 Decide "Session" row. The hub sends no session time or exercise list to Today, so W1
 /// shows the session name only (time, exercises and first working weight: W5 progression).
 /// W-FIX1 BUG-03: the line under Decide's session on an amber (auto-regulated) day — the hub's
@@ -100,9 +130,16 @@ public nonisolated func decideSessionRowText(sessionForToday: String?, verdict: 
 public nonisolated func decideSessionLiftShown(verdict: VerdictParts, sessionDetail: String,
                                                lifts: [LiftProgression]) -> (kg: String, caption: String?)? {
     if TodayMorningFlow.isRestDay(verdict) { return nil }
-    if sessionDetail.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("rest") { return nil }
+    let session = sessionDetail.trimmingCharacters(in: .whitespaces).lowercased()
+    if session.hasPrefix("rest") { return nil }
+    // W-FIX6 fixer (F6-11 detail): a cardio session (Long Z2, intervals, a run) has nothing to
+    // lift either — the weight shows only beside a session that names a lift.
+    guard decideSessionLiftKeywords.contains(where: { session.contains($0) }) else { return nil }
     return decideSessionLift(lifts)
 }
+
+/// The words that make a session a lifting session ("Day 1 Full Upper + Z2 40min", "Strength").
+nonisolated let decideSessionLiftKeywords = ["upper", "lower", "full body", "strength", "lift"]
 
 /// W-FIX5 W5-3: at accessibility sizes the session row stacks (title, session, weight) instead of
 /// squeezing three texts into one line and clipping them.
@@ -131,8 +168,14 @@ public nonisolated func decideHeroTintRole(tone: VerdictTone, syncing: Bool) -> 
 /// score it is just the word.
 /// W-B57-W3 fixer: with no Garmin readiness the ring carries the recovery score (the gate's own
 /// inputs) and its own calibration count — never "7 of 7 so far · Calibrating" beside a score.
-public nonisolated func decideReadinessCaption(score: Double?, nights: Int?, recovery: RecoveryScoreResult? = nil) -> String {
-    if score != nil {
+/// W-FIX6 F6-11: never "n of n so far · Calibrating" — once the count is met it is dropped (the
+/// remaining reason is the score's own, not the night count).
+public nonisolated func decideReadinessCaption(score: Double?, nights: Int?, recovery: RecoveryScoreResult? = nil,
+                                               hubRecovery: Double? = nil) -> String {
+    if let score {
+        if let hubRecovery, hubRecovery == score {
+            return hubRecovery < Double(RecoveryScore.lowScore) ? "Recovery low" : "Recovery"
+        }
         guard let recovery, recovery.status == .ok, let s = recovery.score, Double(s) == score else { return "Readiness" }
         return s < RecoveryScore.lowScore ? "Recovery low" : "Recovery"
     }
@@ -140,19 +183,29 @@ public nonisolated func decideReadinessCaption(score: Double?, nights: Int?, rec
         switch recovery.status {
         case .calibrating:
             let need = recovery.nightsNeeded
-            let n = min(max(recovery.nights, 0), need)
+            let n = max(recovery.nights, 0)
+            guard n < need else { return "Recovery · \(JIMissingReason.calibrating.rawValue)" }
             return "Recovery needs \(need) nights · \(n) of \(need) so far · \(JIMissingReason.calibrating.rawValue)"
         case .missing, .ok:
             return "Recovery · \(JIMissingReason.noData.rawValue)"
         }
     }
-    let n = min(max(nights ?? 0, 0), 7)
+    let n = max(nights ?? 0, 0)
+    guard n < 7 else { return "Readiness · \(JIMissingReason.noData.rawValue)" }
     return "Readiness needs 7 overnight nights · \(n) of 7 so far · \(JIMissingReason.calibrating.rawValue)"
 }
 
-/// W-B57-W3 fixer: the ring's number — the hub's readiness when present, else the recovery score.
-public nonisolated func decideRingScore(readiness: Double?, recovery: RecoveryScoreResult?) -> Double? {
+/// W-FIX6 F6-11: the hub's own recovery score for the call (`gate_signals` key `recovery`), nil when
+/// the hub did not send one.
+public nonisolated func decideHubRecovery(_ signals: [GateSignal]?) -> Double? {
+    signals?.first { $0.key == "recovery" }?.value
+}
+
+/// W-B57-W3 fixer: the ring's number — the hub's readiness when present, then (W-FIX6 F6-11) the
+/// hub's recovery score for the call, else the on-device recovery score.
+public nonisolated func decideRingScore(readiness: Double?, recovery: RecoveryScoreResult?, hubRecovery: Double? = nil) -> Double? {
     if let readiness { return readiness }
+    if let hubRecovery { return hubRecovery }
     guard let recovery, recovery.status == .ok, let s = recovery.score else { return nil }
     return Double(s)
 }
@@ -199,6 +252,8 @@ public struct DecideView: View {
     let onAdvance: () -> Void
     /// W-GUI T1: overnight nights already on the phone (the readiness ring's "n of 7"); nil = unknown.
     let calibrationNights: Int?
+    /// W-FIX6 F6-11: the hub's `is_stale` for this call (nil = not sent).
+    let isStale: Bool?
     @State private var showAdjust = false
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
@@ -214,12 +269,13 @@ public struct DecideView: View {
     public init(verdict: VerdictParts, readiness: Double?, syncing: Bool, gateSignals: [GateSignal]?,
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
-                banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, onAdvance: @escaping () -> Void) {
+                banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, isStale: Bool? = nil,
+                onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
-        self.calibrationNights = calibrationNights
+        self.calibrationNights = calibrationNights; self.isStale = isStale
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -328,7 +384,7 @@ public struct DecideView: View {
                         SyncedPill(date: syncedAt, now: now).fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Text("YOUR CALL FOR TODAY").jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                Text(decideCallHeader(verdictDate: verdictDate, isStale: isStale, today: RecoveryInsightService.localDayKey(now))).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                 // AX sizes: the ring drops under the words (side by side it squeezed the verdict to one
                 // character per line); below AX it sits beside them as in mockup 01.
                 let heroLayout = typeSize.isAccessibilitySize
@@ -349,8 +405,10 @@ public struct DecideView: View {
                         }
                     }
                     if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
-                    DecideReadinessRing(score: decideRingScore(readiness: readiness, recovery: recoveryInsight?.result),
-                                        nights: calibrationNights, recovery: readiness == nil ? recoveryInsight?.result : nil)
+                    let hubRecovery = decideHubRecovery(gateSignals)
+                    DecideReadinessRing(score: decideRingScore(readiness: readiness, recovery: recoveryInsight?.result, hubRecovery: hubRecovery),
+                                        nights: calibrationNights, recovery: readiness == nil ? recoveryInsight?.result : nil,
+                                        hubRecovery: readiness == nil ? hubRecovery : nil)
                 }
                 if !syncing, let wasCaption {
                     Text(wasCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
@@ -602,6 +660,7 @@ public struct VerdictAdjustForm: View {
 struct DecideReadinessRing: View {
     let score: Double?, nights: Int?
     var recovery: RecoveryScoreResult? = nil
+    var hubRecovery: Double? = nil
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var side: CGFloat = 64
 
@@ -616,14 +675,14 @@ struct DecideReadinessRing: View {
                     Text("—").jiNumeral(.numeralSmall, tint: .muted)
                 }
             }
-            Text(decideReadinessCaption(score: score, nights: nights, recovery: recovery))
+            Text(decideReadinessCaption(score: score, nights: nights, recovery: recovery, hubRecovery: hubRecovery))
                 .jiFont(.micro).foregroundStyle(theme.color(.muted))
                 .multilineTextAlignment(.center)
                 .frame(width: side * 1.9)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(decideReadinessCaption(score: score, nights: nights, recovery: recovery) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
+        .accessibilityLabel(decideReadinessCaption(score: score, nights: nights, recovery: recovery, hubRecovery: hubRecovery) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
         .accessibilityIdentifier("today.decide.readinessRing")
     }
 }

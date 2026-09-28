@@ -336,7 +336,7 @@ public struct GateRationaleView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("gateRationale.weeklyNotes")
             }
-            HowWeCalculateLink("How JI calculates balance and the plan band", title: JIExplainers.energyBalanceTitle,
+            JIHowWeCalculateRow("How JI calculates balance and the plan band", title: JIExplainers.energyBalanceTitle,
                                steps: JIExplainers.energyBalanceSteps, note: JIExplainers.energyBalanceNote)
         }
     }

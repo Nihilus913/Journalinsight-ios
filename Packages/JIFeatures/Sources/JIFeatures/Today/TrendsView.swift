@@ -15,13 +15,19 @@ public nonisolated struct TrendsCardModel: Identifiable, Sendable, Equatable {
     public let unit: String?, decimals: Int, value: Double?, tint: JIColorRole, status: JISignalStatus
     /// B-57 W3: the card's 28-day personal normal (nil = Calibrating — never a fallback band).
     public var normal: PersonalNormalResult? = nil
+    /// W-FIX6 F6-9: "as of 19 Sep" when the value is an older reading (no reading in the last 7
+    /// days); nil when the value is the 7-day mean.
+    public var asOf: String? = nil
 }
 
 /// `averages` is no longer read (W-FIX1 BUG-04: its `avg_*_7d` follow the hub's `window_days`);
 /// the parameter stays so `TodayView`'s call site is unchanged. `today` = the phone's local day
-/// (the normal's window is today−34 … today−7).
+/// (the normal's window is today−34 … today−7). W-FIX6 F6-8: `load` = the gate-input Load (7-day
+/// minutes + band, `RecoveryInsightService.loadReading`) — the same number Today's Load square and
+/// the KPI detail show; ACWR stays the fallback for a hub that serves one.
 public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?,
-                                    today: String = RecoveryInsightService.localDayKey(Date())) -> [TrendsCardModel] {
+                                    today: String = RecoveryInsightService.localDayKey(Date()),
+                                    load: RecoveryLoadReading? = nil) -> [TrendsCardModel] {
     typealias Series = (value: Double?, points: [(date: String, value: Double?)])
     func rec(_ f: @escaping (RecoveryDay) -> Double?) -> Series {
         let pts = recovery.map { (date: $0.date, value: f($0)) }
@@ -38,13 +44,34 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
         return TrendsCardModel(id: id, group: group, name: name, systemImage: symbol, unit: unit, decimals: decimals, value: s.value,
                                tint: metricTintRole(id), status: KpiNormal.status(value: s.value, normal: normal), normal: normal)
     }
+    /// W-FIX6 F6-8: an ACWR the hub really sent keeps the card; else the gate-input minutes.
+    func loadCard() -> TrendsCardModel {
+        let acwr = card("load", .recovery, "Load", "bolt", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
+        guard acwr.value == nil, let load else { return acwr }
+        return TrendsCardModel(id: "load", group: .recovery, name: "Load", systemImage: "bolt", unit: recoveryLoadUnit, decimals: 0,
+                               value: load.minutes.rounded(), tint: metricTintRole("load"),
+                               status: KpiNormal.status(value: load.minutes, normal: load.normal), normal: load.normal)
+    }
+    /// W-FIX6 F6-9: weigh-ins are sparse — with none in the last 7 days the card shows the last one
+    /// with its date (the Today square's rule), never "No data" while a weight exists.
+    func weightCard() -> TrendsCardModel {
+        var c = card("weight", .body, "Weight", "scalemass", day("weight_kg"), unit: "kg", decimals: 1)
+        guard c.value == nil,
+              let last = daily.filter({ ($0.values["weight_kg"] ?? nil)?.isFinite == true }).max(by: { $0.date < $1.date }),
+              let kg = last.values["weight_kg"] ?? nil else { return c }
+        let normal = c.normal
+        c = TrendsCardModel(id: c.id, group: c.group, name: c.name, systemImage: c.systemImage, unit: c.unit, decimals: c.decimals,
+                            value: kg, tint: c.tint, status: KpiNormal.status(value: kg, normal: normal), normal: normal,
+                            asOf: kpiAsOfLabel(valueDate: last.date, today: today))
+        return c
+    }
     return [
         // W-FIX1 BUG-06: nightly HRV only, never the hub's 7-day `hrv_weekly_avg` mix.
         card("hrv", .recovery, "HRV", "waveform.path.ecg", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms"),
         card("rhr", .recovery, "Resting HR", "heart", rec(\.rhrBpm), unit: "bpm"),
         card("sleep", .recovery, "Sleep", "moon", rec { $0.sleepDurationSec.map { $0 / 3600 } }, unit: "h", decimals: 1),
         // W-FIX1 BUG-12: an ACWR of 0.00 is the hub's invented ratio (no load source) → "—".
-        card("load", .recovery, "Load", "bolt", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2),
+        loadCard(),
         // W-FIX1 BUG-04/BUG-32: the macros are the mean of the last 7 daily rows (`gate.daily`),
         // the same value KpiDetail's "Last 7 days" shows — not the hub's `avg_*_7d`, which is
         // computed over the whole `window_days` (28 here), and carbs/fat are no longer "No data".
@@ -52,7 +79,7 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
         card("protein", .nutrition, "Protein", "fork.knife", day("protein_g"), unit: "g"),
         card("carbs", .nutrition, "Carbs", "leaf", day("carbs_g"), unit: "g"),
         card("fat", .nutrition, "Fat", "drop", day("fat_g"), unit: "g"),
-        card("weight", .body, "Weight", "scalemass", day("weight_kg"), unit: "kg", decimals: 1),
+        weightCard(),
         card("steps", .body, "Steps", "figure.walk", day("steps"), unit: nil),
     ]
 }
@@ -91,13 +118,15 @@ public struct TrendsView: View {
     @Environment(\.jiTheme) private var theme
     /// B-57 W2 (B-73): the user's goals — the nutrition cards' goal tick (unset → no tick).
     @Environment(\.nutritionGoals) private var nutritionGoals
+    /// W-FIX6 F6-8: the gate-input Load (the number Today's Load square shows).
+    @Environment(\.recoveryInsight) private var recoveryInsight
 
     public init(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?, onSelectKpi: ((String) -> Void)? = nil) {
         self.recovery = recovery; self.daily = daily; self.averages = averages; self.onSelectKpi = onSelectKpi
     }
 
     public var body: some View {
-        let all = trendsCards(recovery: recovery, daily: daily, averages: averages)
+        let all = trendsCards(recovery: recovery, daily: daily, averages: averages, load: recoveryInsight?.loadReading)
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Your last 7 days against your normal from the 28 days before.")
@@ -145,6 +174,9 @@ public struct TrendsView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(jiValueText(c.value, decimals: c.decimals)).jiNumeral(.numeralCompact, tint: c.value == nil ? .muted : c.tint)
                         if c.value != nil, let u = c.unit { Text(u).jiFont(.caption).foregroundStyle(theme.color(.muted)) }
+                    }
+                    if let asOf = c.asOf {
+                        Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).accessibilityIdentifier("trends.card.\(c.id).asOf")
                     }
                     Label(c.status.word, systemImage: c.status.symbolName).jiFont(.caption, weight: .semibold)
                         .foregroundStyle(theme.color(c.status.role))

@@ -22,7 +22,9 @@ public struct HealthBackloadSection: View {
             LabeledContent("Last Apple upload", value: model.lastAppleUpload ?? "never")
                 .font(.footnote)
             statusRow
+            // W-FIX6 fixer (V-37): the section's action is a JI button, never a green text link.
             Button("Backload to Apple Health") { Task { await model.start() } }
+                .buttonStyle(.jiPrimary)
                 .disabled(model.isRunning)
         }
     }

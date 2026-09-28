@@ -110,7 +110,8 @@ public struct TodayView: View {
                        overrideModel: verdictOverrideModel,
                        syncedAt: model.syncedAt,
                        normals: decideSignalNormals(recovery: model.recovery),
-                       banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)) { model.morningEvent(.gateResponded) }
+                       banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
+                       isStale: model.morning?.isStale) { model.morningEvent(.gateResponded) }
         } else {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {
@@ -323,7 +324,7 @@ public struct TodayView: View {
     /// Board 02 Fuel today: today's food row (or the latest real one, named by its day), then the
     /// planned lunch, which has no source on the phone yet.
     private var fuelCard: some View {
-        let fuel = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString)
+        let fuel = dayFuel(daily: model.gate?.daily ?? [], today: todayDateString, kcalGoal: nutritionGoals.kcalGoal)
         // W-GUI T3 (mockup 02): kcal + goal + "n left · your goal", the kcal ring against the goal
         // (only when a goal exists — no ring for a missing goal), three macro tiles of ONE size
         // (JITile .macroTile) with a goal tick only where the user set one (W2 `nutritionGoals`),
@@ -515,11 +516,14 @@ public nonisolated struct DayFuel: Equatable, Sendable {
 }
 
 /// Today's food row from the gate's daily rows (`resolveTodayRow`): nil stays nil, never 0.
-public nonisolated func dayFuel(daily: [DailyKpiRow], today: String) -> DayFuel {
+/// W-FIX6 F6-7: `kcalGoal` is the user's own goal (`nutritionGoals.kcalGoal`, the one Goals ›
+/// Calories reads) — never the row's hub-seeded `kcal_goal`, which said "752 under your goal"
+/// while Goals said "Set your goal". nil = no goal: no goal line, no ring.
+public nonisolated func dayFuel(daily: [DailyKpiRow], today: String, kcalGoal: Double? = nil) -> DayFuel {
     let row = resolveTodayRow(daily.sorted { $0.date > $1.date }).row
     func v(_ key: String) -> Double? { row.flatMap { $0.values[key] ?? nil } }
     let hasFood = v("kcal_consumed") != nil || v("protein_g") != nil
-    return DayFuel(kcal: v("kcal_consumed"), kcalGoal: v("kcal_goal"), protein: v("protein_g"), carbs: v("carbs_g"), fat: v("fat_g"),
+    return DayFuel(kcal: v("kcal_consumed"), kcalGoal: kcalGoal, protein: v("protein_g"), carbs: v("carbs_g"), fat: v("fat_g"),
                    asOf: hasFood ? kpiAsOfLabel(valueDate: row?.date, today: today) : nil)
 }
 

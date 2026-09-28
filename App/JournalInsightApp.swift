@@ -118,7 +118,7 @@ struct JournalInsightApp: App {
                     // Registration is additive to ntfy and never fatal — a Simulator launch simply
                     // logs `.unavailable` (see `ApnsRegistration`).
                     ApnsRegistration.shared.providerSource = { [weak env] in
-                        env?.providerStore?.provider as? any PushTokenProviding
+                        (env?.hubProvider ?? env?.providerStore?.provider) as? any PushTokenProviding  // W-FIX6 fixer: hub-only
                     }
                     await ApnsRegistration.shared.registerOnLaunch()
                 }
@@ -133,7 +133,7 @@ struct JournalInsightApp: App {
                         env.foregroundHealthUpload() // B-65: last night reaches the hub on open
                         // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
                         let mirror = GateSettingsMirror(prefs: env.prefs,
-                                                        provider: env.providerStore?.provider as? any GateSettingsProviding)
+                                                        provider: (env.hubProvider ?? env.providerStore?.provider) as? any GateSettingsProviding)
                         Task { @MainActor in await mirror.pushIfPending() }
                     } else {
                         watchdog?.stop()

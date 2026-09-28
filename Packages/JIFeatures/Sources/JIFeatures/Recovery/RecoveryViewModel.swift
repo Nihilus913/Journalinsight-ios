@@ -27,6 +27,9 @@ public final class RecoveryViewModel {
     private let cache: OfflineCache
     private let now: () -> Date
     private static let key = "recovery.days"
+    /// W-FIX6 F6-1: 42 nights, so the cards' normal (today−34 … today−7, `PersonalNormal`) sees
+    /// the same 28 nights the KPI detail and the hub use — 28 fetched nights left only 21 in it.
+    public static let windowDays = RecoveryInsightService.windowDays
     /// Whether recovery has ever synced successfully — set from a warm cache or the first clean
     /// live fetch, never cleared by a later failure (mirrors `TodayViewModel.everSynced`).
     private var everSynced = false
@@ -100,7 +103,7 @@ public final class RecoveryViewModel {
         do {
             let provider = self.provider
             let cache = self.cache
-            let result = try await SectionLoader.load(key: Self.key, cache: cache) { try await provider.recovery(windowDays: 28) }
+            let result = try await SectionLoader.load(key: Self.key, cache: cache) { try await provider.recovery(windowDays: Self.windowDays) }
 
             if let value = result.value { days = value }
             fetchedAt = result.fetchedAt ?? fetchedAt
