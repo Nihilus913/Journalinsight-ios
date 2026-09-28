@@ -343,16 +343,27 @@ public final class HealthKitUploader: Sendable {
 
     /// `hk.upload.dailyTotals.<type>`: day → the total the hub has already received.
     static func dailyLedgerKey(_ spec: HKMetricSpec) -> String { "hk.upload.dailyTotals.\(spec.sampleType.identifier)" }
-    /// First day (ISO) on the daily-total path. An install that already sent raw samples starts
-    /// TOMORROW, so no day on the hub mixes raw sums with totals (the raw days stay as they are
-    /// and the hub's outlier rule judges them); a fresh install starts with its first sync.
+    /// swift-fix5's start day (ISO): an install with a raw-sample anchor got TOMORROW here, so the
+    /// switch day and yesterday's remainder were never sent (F6-10). Read once, for the migration.
     static func dailyStartKey(_ spec: HKMetricSpec) -> String { "\(dailyLedgerKey(spec)).since" }
+    /// F6-10: first day (ISO) on the daily-total path. Days before it are the raw path's; from it
+    /// on, the ledger says what the hub holds.
+    static func dailyStartKeyV2(_ spec: HKMetricSpec) -> String { "\(dailyLedgerKey(spec)).start.v2" }
+    private static let openStart = "0000-01-01"
 
     /// The anchored query only says WHICH local days changed; for each, the statistics query gives
     /// HealthKit's source-merged total. The hub sums a day's increment deliveries, so the POST
     /// carries total − already delivered (0.1 kcal steps); the hub's sum is the HealthKit total.
-    /// A day without a HealthKit total is skipped (never a 0). Ledger and anchor move only after a
-    /// 2xx, so a failed POST is retried whole.
+    /// Yesterday and today are always re-checked, so a finished day's final total goes out even
+    /// when no new sample starts on it (F6-10). A day without a HealthKit total is skipped (never
+    /// a 0). Ledger, start and anchor move only after a 2xx, so a failed POST is retried whole.
+    ///
+    /// Switch from the raw-sample path (an anchor exists, no start yet): the change page holds
+    /// exactly the samples the hub has not seen, so for each day from the first changed day to
+    /// today the hub holds (raw sum of the day) − (raw sum of the new samples), by sample start
+    /// day like the raw path. That seeds the ledger, and the POST sends yesterday's remainder and
+    /// today's total. An install that ran swift-fix5 (start stored as its switch day + 1, nothing
+    /// sent since) restarts on its switch day with an empty ledger — nothing raw arrived that day.
     private func syncDailyTotals(_ spec: HKMetricSpec, type: HKQuantityType, unit: HKUnit,
                                  statistics: any HealthStoreUploadStatistics, now: Date) async throws -> Int {
         var anchor = readAnchor(spec.anchorKey)
@@ -360,6 +371,7 @@ public final class HealthKitUploader: Sendable {
         let windowStart = now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400)
         let since: Date? = anchor == nil ? windowStart : nil
         var touched = Set<Date>()
+        var newSamples: [HKSample] = []
         while true {
             let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, since: since, limit: Self.pageLimit)
             for sample in page.samples {
@@ -371,53 +383,127 @@ public final class HealthKitUploader: Sendable {
                     day = next
                 }
             }
+            newSamples += page.samples
             anchor = page.newAnchor ?? anchor
             guard page.samples.count >= Self.pageLimit else { break }
         }
         let iso = { (d: Date) in HKSampleWindow.isoDay(d, calendar: self.calendar) }
         let today = calendar.startOfDay(for: now)
-        let startKey = Self.dailyStartKey(spec)
-        let startDay: String
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        let floorDay = iso(calendar.startOfDay(for: windowStart))
+        let ledgerKey = Self.dailyLedgerKey(spec)
+        var sent = (anchorDefaults?.dictionary(forKey: ledgerKey) as? [String: Double]) ?? [:]
+        let round1 = { (v: Double) in (v * 10).rounded() / 10 }
+
+        // Start day (v2), migrating on the first run of this build.
+        let startKey = Self.dailyStartKeyV2(spec)
+        var startDay: String
+        var dayCandidates = touched.union([yesterday, today])
+        var seeds: [String: Double] = [:]
         if let stored = anchorDefaults?.string(forKey: startKey) {
             startDay = stored
+        } else if let legacy = anchorDefaults?.string(forKey: Self.dailyStartKey(spec)) {
+            if legacy == Self.openStart {
+                startDay = legacy
+            } else {
+                let legacyDate = calendar.date(from: DateComponents(
+                    year: Int(legacy.prefix(4)), month: Int(legacy.dropFirst(5).prefix(2)), day: Int(legacy.dropFirst(8).prefix(2))))
+                let switchDay = legacyDate.flatMap { calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: $0)) } ?? today
+                startDay = iso(min(switchDay, today))
+                dayCandidates.formUnion(daysFrom(min(switchDay, today), through: today))
+            }
+        } else if hadAnchor {
+            let first = min(touched.min() ?? today, today)
+            startDay = iso(first)
+            dayCandidates.formUnion(daysFrom(first, through: today))
+            let rawAll = try await rawSumsByStartDay(spec, unit: unit, from: first)
+            let rawNew = rawSumsByStartDay(newSamples, unit: unit)
+            for day in daysFrom(first, through: today) {
+                let key = iso(day)
+                seeds[key] = round1(max(0, (rawAll[key] ?? 0) - (rawNew[key] ?? 0)))
+            }
         } else {
-            startDay = hadAnchor ? iso(calendar.date(byAdding: .day, value: 1, to: today) ?? today) : "0000-01-01"
-            anchorDefaults?.set(startDay, forKey: startKey)
+            startDay = Self.openStart
         }
-        let floorDay = iso(calendar.startOfDay(for: windowStart))
-        let days = touched.filter { $0 <= today && iso($0) >= startDay && iso($0) >= floorDay }.sorted()
+
+        let days = dayCandidates.filter { $0 <= today && iso($0) >= startDay && iso($0) >= floorDay }.sorted()
+        func persist() {
+            sent = sent.filter { $0.key >= floorDay }
+            anchorDefaults?.set(sent, forKey: ledgerKey)
+            anchorDefaults?.set(startDay, forKey: startKey)
+            writeAnchor(anchor, key: spec.anchorKey)
+        }
         guard let first = days.first, let lastDay = days.last,
               let end = calendar.date(byAdding: .day, value: 1, to: lastDay) else {
-            writeAnchor(anchor, key: spec.anchorKey)
+            persist()
             return 0
         }
         let raw = try await statistics.dailySumsExcludingOwnWrites(for: type, unit: unit, start: first, end: end, calendar: calendar)
         let totals = Dictionary(raw.map { (iso($0.key), $0.value) }, uniquingKeysWith: +)
-        let ledgerKey = Self.dailyLedgerKey(spec)
-        var sent = (anchorDefaults?.dictionary(forKey: ledgerKey) as? [String: Double]) ?? [:]
-        let round1 = { (v: Double) in (v * 10).rounded() / 10 }
         var points: [HAEDataPoint] = []
         var delivered: [String: Double] = [:]
         for day in days {
             let key = iso(day)
-            guard let total = totals[key].map(round1) else { continue }
-            let delta = round1(total - (sent[key] ?? 0))
-            guard abs(delta) >= 0.05 else { continue }
+            guard let total = totals[key].map(round1) else {
+                // No HealthKit total yet: remember what the raw path left on the hub, send nothing.
+                if sent[key] == nil, let seed = seeds[key], seed > 0 { delivered[key] = seed }
+                continue
+            }
+            // A switch seed never exceeds the merged total: the raw days stay as they are.
+            let already = sent[key] ?? seeds[key].map { min($0, total) } ?? 0
+            let delta = round1(total - already)
+            guard abs(delta) >= 0.05 else {
+                if sent[key] == nil, seeds[key] != nil { delivered[key] = already }
+                continue
+            }
             points.append(HAEDataPoint(date: HAEDate.format(day, timeZone: calendar.timeZone), qty: delta, source: "HealthKit daily total"))
             delivered[key] = total
         }
         if !points.isEmpty {
             let envelope = HAEEnvelope(metrics: [HAEMetric(name: spec.metricName, units: spec.units, data: points)])
             let _: HAEUploadResponse = try await hub.post(Self.uploadPath, body: envelope)
-            sent.merge(delivered) { _, new in new }
-            sent = sent.filter { $0.key >= floorDay }
-            anchorDefaults?.set(sent, forKey: ledgerKey)
             let arrived = ISO8601DateFormatter().string(from: Date())
             anchorDefaults?.set(arrived, forKey: Self.lastSuccessKey)
             anchorDefaults?.set(arrived, forKey: HealthKitArrival.key(for: spec.sampleType))
         }
-        writeAnchor(anchor, key: spec.anchorKey)
+        sent.merge(delivered) { _, new in new }
+        persist()
         return points.count
+    }
+
+    /// Local days `[from, through]`, both start-of-day.
+    private func daysFrom(_ from: Date, through: Date) -> [Date] {
+        var out: [Date] = []
+        var day = calendar.startOfDay(for: from)
+        while day <= through {
+            out.append(day)
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return out
+    }
+
+    /// Raw per-day sums as the raw path delivered them: each sample whole, on its START day.
+    private func rawSumsByStartDay(_ samples: [HKSample], unit: HKUnit) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for case let q as HKQuantitySample in samples {
+            out[HKSampleWindow.isoDay(q.startDate, calendar: calendar), default: 0] += q.quantity.doubleValue(for: unit)
+        }
+        return out
+    }
+
+    /// One-off raw read from `from` (fresh query, its anchor is discarded — the change feed's
+    /// anchor stays the persisted one).
+    private func rawSumsByStartDay(_ spec: HKMetricSpec, unit: HKUnit, from: Date) async throws -> [String: Double] {
+        var cursor: HKQueryAnchor?
+        var all: [HKSample] = []
+        while true {
+            let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: cursor, since: calendar.startOfDay(for: from), limit: Self.pageLimit)
+            all += page.samples
+            cursor = page.newAnchor ?? cursor
+            guard page.samples.count >= Self.pageLimit, cursor != nil else { break }
+        }
+        return rawSumsByStartDay(all, unit: unit)
     }
 
     // MARK: - Anchor persistence
