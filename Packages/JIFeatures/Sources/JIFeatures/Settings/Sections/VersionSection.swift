@@ -28,10 +28,16 @@ private struct VersionSectionRows: View {
                                 hub: settingsHubSubtitle(host: model.connection.host, lastSync: model.lastSyncDate, now: Date()),
                                 hubConnected: { if case .ok? = model.connection.status { true } else { false } }()))
             } label: {
-                SettingsLinkLabel(title: "About & version", systemImage: "info.circle", trailing: info.appVersion)
+                SettingsLinkLabel(title: "About & version", systemImage: "info.circle", trailing: settingsVersionTrailing(info))
             }
             .accessibilityLabel("About & version")
             .accessibilityIdentifier("settings.row.version")
         }
     }
+}
+
+/// "2.0.0 (2609280826)": the build number shows next to the version so an over-the-air install
+/// (scripts/ota_build.sh stamps yyMMddHHmm) can be checked against the install page.
+nonisolated func settingsVersionTrailing(_ info: VersionInfo) -> String {
+    info.build == "0" || info.build == "1" ? info.appVersion : "\(info.appVersion) (\(info.build))"
 }
