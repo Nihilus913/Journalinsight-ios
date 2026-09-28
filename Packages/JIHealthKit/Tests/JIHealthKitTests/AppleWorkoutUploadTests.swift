@@ -189,6 +189,45 @@ enum WorkoutFixture {
 
     private static let now = WorkoutFixture.date("2026-09-28 17:00:00 +0200")
 
+    // MARK: - Backfill window (Toby 2026-09-28: a Settings choice; 30 days by default)
+
+    @Test func theChosenWindowSetsTheFirstSyncStart() async throws {
+        for (choice, days) in [(WorkoutBackfill.days90, 90.0), (.days120, 120), (.year, 365)] {
+            let d = defaults()
+            WorkoutBackfill.set(choice, defaults: d)
+            let reader = FakeWorkoutUploadReader()
+            _ = try await uploader(reader, defaults: d).syncWorkouts(now: Self.now)
+            let since = try #require(reader.sinceSeen.first ?? nil)
+            #expect(abs(since.timeIntervalSince(Self.now) + days * 86_400) < 1)
+        }
+        let d = defaults()
+        WorkoutBackfill.set(.all, defaults: d)
+        let reader = FakeWorkoutUploadReader()
+        _ = try await uploader(reader, defaults: d).syncWorkouts(now: Self.now)
+        #expect(reader.sinceSeen.first! == nil) // everything HealthKit holds
+    }
+
+    @Test func wideningTheWindowResendsFromTheNewStartNarrowingKeepsTheAnchor() async throws {
+        WorkoutCapturingURLProtocol.reset()
+        let d = defaults()
+        let first = FakeWorkoutUploadReader()
+        first.enqueue(AppleWorkoutPage(records: [WorkoutFixture.records()[0]], fetchedCount: 1, newAnchor: HKQueryAnchor(fromValue: 3)))
+        _ = try await uploader(first, defaults: d).syncWorkouts(now: Self.now)
+        #expect(d.data(forKey: HealthKitUploader.workoutAnchorKey) != nil)
+
+        WorkoutBackfill.set(.year, defaults: d)           // wider → anchor cleared, re-send (idempotent by UUID)
+        #expect(d.data(forKey: HealthKitUploader.workoutAnchorKey) == nil)
+        let second = FakeWorkoutUploadReader()
+        second.enqueue(AppleWorkoutPage(records: [WorkoutFixture.records()[0]], fetchedCount: 1, newAnchor: HKQueryAnchor(fromValue: 4)))
+        _ = try await uploader(second, defaults: d).syncWorkouts(now: Self.now)
+        let since = try #require(second.sinceSeen.first ?? nil)
+        #expect(abs(since.timeIntervalSince(Self.now) + 365 * 86_400) < 1)
+
+        WorkoutBackfill.set(.days30, defaults: d)         // narrower → nothing deleted, anchor kept
+        #expect(d.data(forKey: HealthKitUploader.workoutAnchorKey) != nil)
+        #expect(WorkoutBackfill.current(d) == .days30)
+    }
+
     // MARK: - A-4: the POST body is the frozen contract
 
     @Test func postBodyMatchesTheFrozenFixture() async throws {
@@ -220,7 +259,7 @@ enum WorkoutFixture {
 
     // MARK: - Anchor, backfill, no re-send storm
 
-    @Test func firstSyncBackfills120DaysThenResumesFromThePersistedAnchor() async throws {
+    @Test func firstSyncBackfillsTheDefault30DaysThenResumesFromThePersistedAnchor() async throws {
         WorkoutCapturingURLProtocol.reset()
         let d = defaults()
         let reader = FakeWorkoutUploadReader()
@@ -228,7 +267,7 @@ enum WorkoutFixture {
         _ = try await uploader(reader, defaults: d).syncWorkouts(now: Self.now)
 
         let since = try #require(reader.sinceSeen.first ?? nil)
-        #expect(abs(since.timeIntervalSince(Self.now) + 120 * 86_400) < 1)
+        #expect(abs(since.timeIntervalSince(Self.now) + 30 * 86_400) < 1)
         #expect(reader.anchorsSeen.first! == nil)
         #expect(d.data(forKey: HealthKitUploader.workoutAnchorKey) != nil)
 

@@ -554,8 +554,8 @@ public final class HealthKitUploader: Sendable {
     /// Workouts per POST, keeping one body well inside `HubClient`'s 15 s timeout.
     public nonisolated static let workoutBatchSize = 5
 
-    /// Uploads Apple workouts new/changed since the persisted anchor (first run: the last
-    /// `firstSyncDays` = 120 days, once). Idempotent on the hub by workout UUID. X-1: nothing is
+    /// Uploads Apple workouts new/changed since the persisted anchor (first run: the window
+    /// chosen in Settings, `WorkoutBackfill`, 30 days by default). Idempotent on the hub by workout UUID. X-1: nothing is
     /// POSTed for an empty page, deletions are never sent, a failed read or POST sends nothing
     /// partial and leaves the anchor where it was (the page is retried whole). Returns the
     /// number of workouts sent.
@@ -584,7 +584,8 @@ public final class HealthKitUploader: Sendable {
 
     private func workoutPass(_ reader: any HealthStoreWorkoutUploadReading, now: Date) async throws -> Int {
         var anchor = readAnchor(Self.workoutAnchorKey)
-        let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
+        // First run (or a widened window): the Settings choice, not `firstSyncDays`.
+        let since: Date? = anchor == nil ? WorkoutBackfill.current(anchorDefaults).since(now: now) : nil
         var sent = 0
         while true {
             let page = try await reader.anchoredWorkoutRecords(anchor: anchor, since: since, limit: Self.workoutPageLimit)
