@@ -14,7 +14,7 @@ nonisolated public func orderedSessionNames(_ exercises: [Exercise]) -> [String]
 
 /// This-week's plan, grouped by `sessionName` (oracle: `TrainingWeekStrip.tsx`). B-45: the hub
 /// NOW exposes `plan_session.weekday` per row (W-B46 Contract), so each session row carries the
-/// weekday it is planned for and taps through to `AssignWeekdaySheet`. A hub without the field
+/// weekday it is planned for and taps through to an assign action (B-82: the day-first `TrainingDaySheet` replaced the old sheet). A hub without the field
 /// leaves `weekday == nil` and the row reads "Not assigned" — never a fabricated Mon–Sun grid.
 /// Which plan session a week-strip row stands for: the id the assign sheet writes with, and the
 /// weekday it currently shows. A pure helper so the precedence — cached spine first (it is the one
@@ -46,14 +46,14 @@ public struct TrainingWeekStrip: View {
     let planSessions: [PlanSessionOut]
     /// B-52: plan-session ids whose weekday is queued but not yet accepted by the hub.
     let pendingSync: Set<Int>
-    let onAssign: ((AssignWeekdaySheet.Session) -> Void)?
+    let onAssign: ((TrainingSessionRef) -> Void)?
     @Environment(\.jiTheme) private var theme
     public init(
         exercises: [Exercise],
         highlightedWeekday: Int? = nil,
         planSessions: [PlanSessionOut] = [],
         pendingSync: Set<Int> = [],
-        onAssign: ((AssignWeekdaySheet.Session) -> Void)? = nil
+        onAssign: ((TrainingSessionRef) -> Void)? = nil
     ) {
         self.exercises = exercises; self.highlightedWeekday = highlightedWeekday
         self.planSessions = planSessions; self.pendingSync = pendingSync; self.onAssign = onAssign
@@ -120,7 +120,7 @@ public struct TrainingWeekStrip: View {
         // affordance: a tap would enqueue a write the hub can only 404.
         if let onAssign, let sessionId {
             Button {
-                onAssign(AssignWeekdaySheet.Session(id: sessionId, name: name, weekday: weekday))
+                onAssign(TrainingSessionRef(id: sessionId, name: name, weekday: weekday))
             } label: {
                 row
             }

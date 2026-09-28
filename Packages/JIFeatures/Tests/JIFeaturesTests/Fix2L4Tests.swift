@@ -129,12 +129,8 @@ private func makeTrainingVM(hub: PlanWeekdayFakeProvider, outbox: Outbox) throws
 }
 
 // MARK: - BUG-48
-
-@Test @MainActor func theWeekdayPickerListsNotAssignedThenMonToSunAndHidesItsLabel() {
-    #expect(AssignWeekdaySheet.pickerOptions.map(\.title) == ["Not assigned"] + planWeekdayNames)
-    #expect(AssignWeekdaySheet.pickerOptions.map(\.tag) == [-1, 0, 1, 2, 3, 4, 5, 6])
-    #expect(AssignWeekdaySheet.showsPickerLabel == false)
-}
+// Retired by W-B40 L3 (B-82): `AssignWeekdaySheet`'s weekday picker is gone — the day-first
+// `TrainingDaySheet` starts from the day (see Training/TrainingDayFirstTests.swift).
 
 // MARK: - W-FIX2 fixer BUG-19: Today's grid is handed every EditToday square, not the four chips
 
