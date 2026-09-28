@@ -1,5 +1,6 @@
 import Foundation
 import JICore
+import JICompute
 import JIDesign
 
 // W-TGT L3 (P-targets, spec HT docs/superpowers/specs/2026-09-28-targets-alignment-design.md §4,
@@ -30,6 +31,14 @@ public nonisolated enum TargetSubject: Hashable, Sendable, Identifiable {
         case .hrCap: "limit.hrCap"
         case .zones: "limit.zones"
         case .avoidZone5: "limit.avoidZone5"
+        }
+    }
+
+    /// A Limit (cap, zones, Avoid Zone 5): the editor says "Limit" where a goal says "Goal".
+    public var isLimit: Bool {
+        switch self {
+        case .hrCap, .zones, .avoidZone5: true
+        case .goal, .rule, .loadBand: false
         }
     }
 
@@ -389,9 +398,10 @@ public nonisolated func targetsParse(_ text: String) -> TargetsParsed {
 /// The text a field starts with for a stored value ("" when none).
 public nonisolated func targetsFieldText(_ v: Double?, decimals: Int) -> String {
     guard let v else { return "" }
-    // Whole numbers without a trailing ".0" in a field; no grouping (it is typed over).
-    if v.rounded() == v { return jiNumber(v, 0) }
-    return jiNumber(v, decimals)
+    // Whole numbers without a trailing ".0"; grouped like every caption ("1,600" in the field and
+    // "Recommended 1,600" under it — W-TGT fixer 1c). `targetsParse` reads the grouping back.
+    if v.rounded() == v, decimals < 2 { return targetsNumber(v, 0) }
+    return targetsNumber(v, decimals)
 }
 
 // MARK: - Editor draft
@@ -412,10 +422,14 @@ public nonisolated struct TargetEditDraft: Equatable, Sendable {
     /// weight only: yyyy-MM-dd or nil.
     public var weightDate: String?
     public var ruleTexts: [RuleMetric: String]
+    /// HR cap only (a Limit, spec §4 "Limits use the same sheet with Limit instead of Goal"):
+    /// the typed cap in bpm; "" = no cap.
+    public var limitText: String
 
     public init(subject: TargetSubject, document doc: TargetsDocument) {
         self.subject = subject
         goalText = ""; deficitText = ""; deficitIsWeeklyLoss = false; trackerIncludesDeficit = false; weightDate = nil
+        limitText = subject == .hrCap ? targetsFieldText(doc.limits.hrCapBpm.map(Double.init), decimals: 0) : ""
         var rules: [RuleMetric: String] = [:]
         for r in subject.rules { rules[r] = targetsFieldText(doc.rule(r), decimals: targetsRuleDecimals(r)) }
         ruleTexts = rules
@@ -468,6 +482,14 @@ public nonisolated struct TargetEditDraft: Equatable, Sendable {
             case .invalid: return .failure(.unreadable(targetsRuleTitle(rule)))
             }
         }
+        if subject == .hrCap {
+            switch targetsParse(limitText) {
+            case .none: doc.limits.hrCapBpm = nil
+            case .value(let v): doc.limits.hrCapBpm = Int(v.rounded())
+            case .invalid: return .failure(.unreadable("HR cap"))
+            }
+            return .success(doc)
+        }
         guard case .goal(let m) = subject else { return .success(doc) }
         let parsed = targetsParse(goalText)
         if parsed == .invalid { return .failure(.unreadable(targetsGoalTitle(m))) }
@@ -499,12 +521,19 @@ public nonisolated struct TargetEditDraft: Equatable, Sendable {
         return .success(doc)
     }
 
+    /// The cap as the Limits engine takes it (`GateConfigViewModel.changeHrCap`): digits, or nil
+    /// for "no cap" — so the re-check reminder and the hub mirror follow the one editor too.
+    public var capText: String? {
+        guard case .value(let v) = targetsParse(limitText) else { return nil }
+        return String(Int(v.rounded()))
+    }
+
     /// − / + on a field: steps from the typed value (or the recommendation / nothing).
     public static func stepped(_ text: String, by delta: Double, decimals: Int, from fallback: Double?) -> String {
         let base: Double? = if case .value(let v) = targetsParse(text) { v } else { fallback }
         guard let base else { return text }
         let next = ((base + delta) * 1000).rounded() / 1000
-        return jiNumber(next, decimals)
+        return targetsNumber(next, decimals)
     }
 }
 
@@ -514,6 +543,36 @@ public nonisolated struct TargetNormalInfo: Equatable, Sendable {
     public let normalText: String?
     public init(lastSevenText: String?, normalText: String?) { self.lastSevenText = lastSevenText; self.normalText = normalText }
 }
+
+/// The "Your normal" lines from a metric's plotted history — the ONE computation KPI detail and
+/// Settings › Targets share (nil when the 28-day band and the 7-day mean are both unknown).
+public nonisolated func targetNormalInfo(points: [(date: String, value: Double?)], today: String,
+                                         decimals: Int, unit: String) -> TargetNormalInfo? {
+    let r = KpiNormal.make(points: points, today: today)
+    guard r.normal != nil || r.sevenDay != nil else { return nil }
+    let suffix = unit.isEmpty ? "" : " \(unit)"
+    return TargetNormalInfo(lastSevenText: r.sevenDay.map { targetsNumber($0, decimals) + suffix },
+                            normalText: r.normal.map { "\(targetsNumber($0.low, decimals))–\(targetsNumber($0.high, decimals))" })
+}
+
+/// The KPI whose history gives a subject's normal (nil = a Limit / Rule without one).
+public nonisolated func targetsNormalMetric(_ s: TargetSubject) -> KpiMetricId? {
+    switch s {
+    case .goal(.kcal): .kcal
+    case .goal(.protein): .protein
+    case .goal(.carbs): .carbs
+    case .goal(.fat): .fat
+    case .goal(.steps): .steps
+    case .goal(.weight): .weight
+    case .goal(.sleep): .sleep
+    case .loadBand: .acwr
+    case .rule, .hrCap, .zones, .avoidZone5: nil
+    }
+}
+
+/// The editor's normal block when this phone has not read the metric's history yet — never a
+/// claim about how many days exist (W-TGT fixer 1c).
+public nonisolated let targetEditorNoNormalText = "Not read on this phone yet. Open the metric from Today once and it shows here."
 
 /// The subject a KPI's Targets card edits (nil = the KPI has neither goal nor rule).
 public nonisolated func targetsSubject(for metric: KpiMetricId) -> TargetSubject? {

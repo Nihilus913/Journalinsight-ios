@@ -50,11 +50,17 @@ struct KpiDetailTargetsCard: View {
             .accessibilityIdentifier("kpi-detail-targets")
             .sheet(item: $editing) { s in
                 TargetEditorSheet(subject: s, document: document,
-                                  normal: TargetNormalInfo(lastSevenText: sevenDay.map(valueText), normalText: normal.map(bandText))) { next in
+                                  normal: kpiDetailTargetNormal) { next in
                     await targetsModel?.save(next)
                 }
             }
         }
+    }
+
+    /// The same lines `targetNormalInfo` gives Settings › Targets (one computation, two doors).
+    private var kpiDetailTargetNormal: TargetNormalInfo? {
+        guard sevenDay != nil || normal != nil else { return nil }
+        return TargetNormalInfo(lastSevenText: sevenDay.map(valueText), normalText: normal.map(bandText))
     }
 
     private var normalText: String {

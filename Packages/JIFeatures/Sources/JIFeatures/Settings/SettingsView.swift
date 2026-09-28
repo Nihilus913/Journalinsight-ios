@@ -18,11 +18,25 @@ import JIPersistence
 // sits behind one pushed row. `SettingsRoot.rows` is the one map, and a test pins that every
 // registered section stays reachable from it.
 
-// B-57 W1 r4 (fixer g3, board 5/01 decided from the PNG): CONNECTION = Hub · Apple Health ·
-// Sync now (the real sync action) · PREFERENCES = Home & widgets · Targets · Appearance ·
-// Reminders · Haptics (a toggle, not a push) (W-TGT L3: Goals, My KPIs, Gate thresholds → Targets) · DATA = the four rows + footer · ADVANCED =
-// About & version, plus the two destinations the board has no row for, so they stay reachable:
-// Gate config and Haptic strength (the intensity slider + "Feel it").
+// W-TGT fixer 1e (mock 04, spec §4): the root is CONNECTION (Sync & hub · Apple Health) ·
+// TODAY (Home & widgets · Targets) · PHONE (Appearance · Haptics & notifications · Reminders) ·
+// APP (About & version · Developer, debug only). Sync now and the four data rows moved into
+// Sync & hub; the Haptics switch and strength into Haptics & notifications. Every registry
+// section stays reachable from one of these rows (a test pins it).
+
+/// The root's four groups (mock 04). `SettingsGroup` stays the sections' sortKey band.
+public nonisolated enum SettingsRootGroup: String, CaseIterable, Sendable, Equatable {
+    case connection, today, phone, app
+
+    public var title: String {
+        switch self {
+        case .connection: "Connection"
+        case .today: "Today"
+        case .phone: "Phone"
+        case .app: "App"
+        }
+    }
+}
 
 /// One row (or run of inline rows) on the Settings root.
 public nonisolated struct SettingsRootRow: Sendable, Identifiable, Equatable {
@@ -31,13 +45,11 @@ public nonisolated struct SettingsRootRow: Sendable, Identifiable, Equatable {
         case inline
         /// One row that pushes a screen holding these sections.
         case push(title: String, systemImage: String, placeholder: String?)
-        /// The board's "Sync now" action row (shown only when the app passed a sync action).
-        case syncNow
-        /// The board's Haptics on/off switch, inline.
-        case hapticsToggle
+        /// Home & widgets (mock 05): its own screen — Cards, On Today, Widgets & Live Activity.
+        case homeWidgets
     }
     public let id: String
-    public let group: SettingsGroup
+    public let group: SettingsRootGroup
     public let kind: Kind
     public let sectionIds: [String]
 }
@@ -45,37 +57,42 @@ public nonisolated struct SettingsRootRow: Sendable, Identifiable, Equatable {
 public nonisolated enum SettingsRoot {
     public static let rows: [SettingsRootRow] = {
         var rows: [SettingsRootRow] = [
-            .init(id: "hub", group: .connection, kind: .push(title: "Hub", systemImage: "server.rack", placeholder: nil),
-                  sectionIds: ["l0.hub"]),
+            .init(id: "hub", group: .connection,
+                  kind: .push(title: "Sync & hub", systemImage: "arrow.triangle.2.circlepath", placeholder: nil),
+                  sectionIds: [SyncNowSection.sectionId, "l0.hub"] + settingsDataSectionIds),
             .init(id: "health", group: .connection, kind: .push(title: "Apple Health", systemImage: "heart", placeholder: nil),
                   sectionIds: ["l0.health"]),
-            .init(id: "syncNow", group: .connection, kind: .syncNow, sectionIds: []),
-            // W-TGT L3 (mock 04): Home & widgets (card order, the On Today squares, widgets), then
-            // Targets — one row for Goals, My KPIs' captions and Gate thresholds (spec §4, D3).
-            .init(id: "home", group: .preferences,
-                  kind: .push(title: "Home & widgets", systemImage: "square.grid.2x2",
-                              placeholder: SettingsGroupId.widgets.placeholder),
+            .init(id: "home", group: .today, kind: .homeWidgets,
                   sectionIds: ["l3.editToday", OnTodaySection.sectionId, "l5.weeklyPlan"]),
-            .init(id: "preferences", group: .preferences, kind: .inline, sectionIds: ["l0.preferences"]),
-            .init(id: "phone", group: .preferences, kind: .inline, sectionIds: ["l1.appearance", "l2.reminders"]),
-            .init(id: "haptics", group: .preferences, kind: .hapticsToggle, sectionIds: []),
-            .init(id: "data", group: .data, kind: .inline, sectionIds: settingsDataSectionIds),
-            .init(id: "about", group: .advanced, kind: .inline, sectionIds: ["l4.version"]),
-            .init(id: "hapticStrength", group: .advanced,
-                  kind: .push(title: "Haptic strength", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
+            .init(id: "targets", group: .today, kind: .inline, sectionIds: ["l0.preferences"]),
+            .init(id: "appearance", group: .phone, kind: .inline, sectionIds: ["l1.appearance"]),
+            .init(id: "haptics", group: .phone,
+                  kind: .push(title: "Haptics & notifications", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
                   sectionIds: ["w8.haptics"]),
+            .init(id: "reminders", group: .phone, kind: .inline, sectionIds: ["l2.reminders"]),
+            .init(id: "about", group: .app, kind: .inline, sectionIds: ["l4.version"]),
         ]
         #if DEBUG
-        rows.append(.init(id: "developer", group: .advanced,
+        rows.append(.init(id: "developer", group: .app,
                           kind: .push(title: "Developer", systemImage: "hammer", placeholder: nil),
                           sectionIds: ["l3.provider"]))
         #endif
         return rows
     }()
 
-    /// The board's four headers, in order.
-    public static var headers: [String] { SettingsGroup.allCases.map(\.title) }
+    /// Mock 04's four headers, in order.
+    public static var headers: [String] { SettingsRootGroup.allCases.map(\.title) }
 }
+
+/// Sync & hub row (mock 04): the last sync, then what else lives behind it.
+public nonisolated func settingsSyncHubSubtitle(lastSync: Date?, now: Date, calendar: Calendar = .autoupdatingCurrent) -> String {
+    let rest = "backup, data quality, mirrors, export"
+    guard let lastSync else { return "Not synced yet · \(rest)" }
+    return "Hub synced \(settingsClock(lastSync, now: now, calendar: calendar)) · \(rest)"
+}
+
+/// The Today group's footer (mock 04).
+public nonisolated let settingsTodayFooter = "Goals, My KPIs and Gate thresholds were three screens for one thing. Targets is that thing; the square picker lives with the rest of the Home layout."
 
 // MARK: - Trailing values (pure; every one from real state, "—"/nil when unknown)
 
@@ -179,14 +196,13 @@ public struct SettingsView: View {
     @Environment(\.jiTheme) private var theme
     private let model: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var haptics: HapticsViewModel?
 
     public init(model: SettingsViewModel) { self.model = model }
 
     public var body: some View {
         NavigationStack {
             Form {
-                ForEach(SettingsGroup.allCases, id: \.self) { group in
+                ForEach(SettingsRootGroup.allCases, id: \.self) { group in
                     Section {
                         ForEach(SettingsRoot.rows.filter { $0.group == group }) { row in
                             rootRow(row)
@@ -194,8 +210,8 @@ public struct SettingsView: View {
                     } header: {
                         Text(group.title)
                     } footer: {
-                        if group == .data {
-                            Text(settingsDataFooter).accessibilityIdentifier("settings.data.footer")
+                        if group == .today {
+                            Text(settingsTodayFooter).accessibilityIdentifier("settings.today.footer")
                         }
                     }
                 }
@@ -214,7 +230,6 @@ public struct SettingsView: View {
                 }
             }
             .task {
-                if haptics == nil { haptics = HapticsViewModel(prefs: model.prefs) }
                 // The Hub badge only says what a real test said: run one when a hub is set up.
                 if model.connection.host != nil, model.connection.status == nil, !model.connection.testing {
                     await model.connection.test()
@@ -247,44 +262,22 @@ public struct SettingsView: View {
             }
             .accessibilityLabel(title)
             .accessibilityIdentifier("settings.root.\(row.id)")
-        case .syncNow:
-            if model.canSyncNow {
-                // W-GUI M5 (mockup 43): Sync now is the screen's ONE primary button; its state
-                // ("Synced 07:41" / "Syncing…" / "Failed") sits under it as a caption.
-                VStack(alignment: .leading, spacing: JISpacing.s2) {
-                    Button { Task { await model.syncNow() } } label: { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
-                        .buttonStyle(.jiPrimary)
-                    Text(settingsSyncTrailing(syncing: model.syncing, failed: model.syncFailed, lastSync: model.lastSyncDate, now: Date()))
-                        .jiFont(.caption, tint: .muted)
-                        .padding(.leading, SettingsSyncCaption.leadingInset)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("settings.root.syncNow.state")
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                .disabled(model.syncing)
-                .accessibilityLabel("Sync now")
-                .accessibilityHint("Sends Apple Health to the hub, then asks the hub to sync Garmin and YAZIO")
-                .accessibilityIdentifier("settings.root.syncNow")
+        case .homeWidgets:
+            NavigationLink {
+                HomeWidgetsView().environment(model)
+            } label: {
+                SettingsLinkLabel(title: "Home & widgets", subtitle: homeWidgetsSubtitle(squares: model.kpiSelectedCount),
+                                  systemImage: "square.grid.2x2")
             }
-        case .hapticsToggle:
-            if let haptics {
-                Toggle(isOn: Binding(get: { haptics.enabled }, set: { haptics.setEnabled($0) })) {
-                    SettingsLinkLabel(title: "Haptics", systemImage: "iphone.radiowaves.left.and.right")
-                }
-                .tint(theme.color(.info))
-                .onAppear { haptics.refresh() }
-                .accessibilityLabel(haptics.enabled ? "Haptics On" : "Haptics Off")
-                .accessibilityIdentifier("settings.root.haptics")
-            } else {
-                SettingsLinkLabel(title: "Haptics", systemImage: "iphone.radiowaves.left.and.right")
-            }
+            .accessibilityLabel("Home & widgets")
+            .accessibilityIdentifier("settings.root.\(row.id)")
         }
     }
 
     private func subtitle(for id: String) -> String? {
         switch id {
-        case "hub": settingsHubSubtitle(host: model.connection.host, lastSync: model.lastSyncDate, now: Date())
+        case "hub": model.connection.host == nil ? "Not set up · backup, data quality, mirrors, export"
+            : settingsSyncHubSubtitle(lastSync: model.lastSyncDate, now: Date())
         case "developer": "Data source switch (debug builds only)"
         default: nil
         }
@@ -348,9 +341,26 @@ struct SettingsSectionsScreen: View {
                         .accessibilityIdentifier("settings.screen.title")
                 }
             }
-            ForEach(sections, id: \.id) { section in
+            // The four DATA rows share one card with their footer (as in `GroupSettingsView`).
+            let split = settingsPartitionDataSections(sections.map(\.id))
+            ForEach(sections.filter { split.standalone.contains($0.id) }, id: \.id) { section in
                 AnyView(section.body)
                     .accessibilityIdentifier("settings.section.\(section.id)")
+            }
+            if !split.data.isEmpty {
+                Section {
+                    ForEach(split.data, id: \.self) { id in
+                        if let section = sections.first(where: { $0.id == id }) {
+                            AnyView(section.body)
+                                .environment(\.settingsRowsOnly, true)
+                                .accessibilityIdentifier("settings.section.\(section.id)")
+                        }
+                    }
+                } header: {
+                    Text(SettingsGroup.data.title)
+                } footer: {
+                    Text(settingsDataFooter).accessibilityIdentifier("settings.data.footer")
+                }
             }
             if let placeholder {
                 Section { Text(placeholder).jiFont(.body, tint: .muted) }

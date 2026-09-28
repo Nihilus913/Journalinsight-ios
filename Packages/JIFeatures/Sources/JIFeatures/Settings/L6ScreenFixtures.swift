@@ -177,6 +177,25 @@ enum L6Fixtures {
         })
     }
 
+    /// W-TGT fixer 1e/1f: the root's Sync & hub screen and Home & widgets (mock 05) over the mock
+    /// provider (in-memory; never the hub).
+    static func settingsSyncHub() -> AnyView {
+        guard let prefs = prefStore else { return unavailable("Sync & hub") }
+        let model = SettingsViewModel(store: connectionStore, prefs: prefs, syncAction: {}, onSaved: { _ in })
+        let row = SettingsRoot.rows.first { $0.id == "hub" }
+        let sections = (row?.sectionIds ?? []).compactMap { id in model.sections.first { $0.id == id } }
+        return AnyView(NavigationStack { SettingsSectionsScreen(title: "Sync & hub", sections: sections).environment(model) })
+    }
+
+    static func homeWidgets() -> AnyView {
+        guard let prefs = prefStore, let db else { return unavailable("Home & widgets") }
+        let kpis = KpiListViewModel(healthProvider: provider, nutritionProvider: provider, targetsProvider: provider,
+                                    prefStore: prefs, cache: OfflineCache(db: db))
+        let model = SettingsViewModel(store: connectionStore, prefs: prefs, kpiListModel: kpis, onSaved: { _ in })
+        let targets = TargetsModel.fixture(TargetsFixtures.document)
+        return AnyView(NavigationStack { HomeWidgetsView().environment(model).environment(\.targetsModel, targets) })
+    }
+
     static func settingsSync() -> AnyView { settingsGroup(.sync) }
     static func settingsWidgets() -> AnyView { settingsGroup(.widgets) }
     static func settingsHome() -> AnyView { settingsGroup(.home) }

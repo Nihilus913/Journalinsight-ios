@@ -5,6 +5,6 @@ import Testing
 @Test func settingsRootKeepsHubAndHealthRows() {
     let ids = SettingsRoot.rows.map(\.id)
     #expect(ids.contains("hub") && ids.contains("health"))
-    #expect(SettingsRoot.rows.contains { if case .syncNow = $0.kind { return true } else { return false } })
+    #expect(SettingsRoot.rows.contains { $0.sectionIds.contains(SyncNowSection.sectionId) })   // Sync now lives in Sync & hub
     #expect(!settingsSyncTrailing(syncing: true, failed: false, lastSync: nil, now: .init()).isEmpty)
 }

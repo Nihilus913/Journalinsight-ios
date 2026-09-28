@@ -37,10 +37,15 @@ public final class TargetsModel {
     @ObservationIgnored private var limitsModelCache: GateConfigViewModel?
     /// Called after every change (the shell refreshes the energy band, gate settings, widgets).
     private let onChange: (@MainActor (TargetsDocument) -> Void)?
+    /// The editor's "Your normal" block when opened from Settings › Targets: the same computation
+    /// KPI detail runs, over the history this phone already holds (W-TGT fixer 1c).
+    private let normalProvider: (@MainActor (TargetSubject) -> TargetNormalInfo?)?
 
     public init(prefs: PrefStore, mirror: TargetsMirror? = nil,
                 makeLimitsModel: (@MainActor () -> GateConfigViewModel)? = nil,
+                normal: (@MainActor (TargetSubject) -> TargetNormalInfo?)? = nil,
                 onChange: (@MainActor (TargetsDocument) -> Void)? = nil) {
+        self.normalProvider = normal
         self.store = TargetsStore(prefs: prefs)
         self.mirror = mirror
         self.makeLimitsModel = makeLimitsModel
@@ -52,6 +57,9 @@ public final class TargetsModel {
     }
 
     public var canEditLimits: Bool { makeLimitsModel != nil }
+
+    /// "Your normal" for a subject (nil = no history on this phone, or none for this subject).
+    public func normal(for subject: TargetSubject) -> TargetNormalInfo? { normalProvider?(subject) }
 
     /// The Limits engine, built once per model (its foreground observer lives with it).
     public var limitsModel: GateConfigViewModel? {

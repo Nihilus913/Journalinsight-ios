@@ -22,6 +22,10 @@ enum TargetsFixtures {
         return AnyView(NativeScreenPreview { NavigationStack { TargetsView(model: model, today: { "2026-09-28" }) } })
     }
 
+    static func editorCap() -> AnyView {
+        AnyView(NativeScreenPreview { TargetEditorSheet(subject: .hrCap, document: document) { _ in } })
+    }
+
     static func editor() -> AnyView {
         AnyView(NativeScreenPreview {
             TargetEditorSheet(subject: .goal(.kcal), document: document,

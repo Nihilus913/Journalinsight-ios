@@ -143,5 +143,5 @@ private func entry(_ id: Int64, _ date: String, mood: String? = nil) -> Entry {
     for section in SettingsRegistry.sections {
         #expect(reachable.contains(section.id), "\(section.id) is not reachable from the Settings root")
     }
-    #expect(SettingsRoot.headers == ["Connection", "Preferences", "Data", "Advanced"])
+    #expect(SettingsRoot.headers == ["Connection", "Today", "Phone", "App"])   // W-TGT fixer 1e (mock 04)
 }

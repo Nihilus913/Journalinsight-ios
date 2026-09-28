@@ -207,3 +207,24 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
 }
 
 #endif
+
+#if canImport(UIKit) && !os(watchOS)
+/// W-TGT fixer proof: Settings, Sync & hub, Home & widgets and the editor (goal + cap) whole-screen
+/// at default size and AX3. Writes PNGs only when `JI_TGT_PROOF_DIR` is set.
+@Test @MainActor func tgtFixerProofRender() throws {
+    guard let dir = ProcessInfo.processInfo.environment["JI_TGT_PROOF_DIR"] else { return }
+    let outDir = URL(fileURLWithPath: dir, isDirectory: true)
+    try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+    let slugs = ["settings", "sync-&-hub", "home-&-widgets", "target-editor", "target-editor-cap", "targets"]
+    for entry in ScreenRegistry.entries.filter({ slugs.contains($0.slug) }) {
+        for cell in [SweepCell(device: "proof-tall", width: 393, height: 2200, dark: false, ax: false),
+                     SweepCell(device: "proof-tall", width: 393, height: 5200, dark: false, ax: true)] {
+            let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+            let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+            let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+            CGImageDestinationAddImage(dest, image, nil)
+            #expect(CGImageDestinationFinalize(dest))
+        }
+    }
+}
+#endif

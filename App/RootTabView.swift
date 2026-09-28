@@ -500,7 +500,9 @@ struct RootTabView: View {
         let mirror = outbox.map { outbox in
             TargetsMirror(prefs: env.prefs, outbox: outbox, drainer: hubScreens.map { OutboxDrainer(outbox: outbox, hub: $0) })
         }
-        return TargetsModel(prefs: env.prefs, mirror: mirror, makeLimitsModel: { makeLimitsModel() }) { _ in
+        let cache = env.cache
+        return TargetsModel(prefs: env.prefs, mirror: mirror, makeLimitsModel: { makeLimitsModel() },
+                            normal: { KpiDetailViewModel.cachedTargetNormal($0, cache: cache) }) { _ in
             // A goal / limit / rule changed: Today Fuel, KPI captions, Goals (the band reads the same
             // document), the Watch limits and the glances follow at once.
             reloadGateSettings()

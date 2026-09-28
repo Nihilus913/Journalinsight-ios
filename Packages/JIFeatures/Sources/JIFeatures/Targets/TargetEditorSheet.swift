@@ -11,6 +11,9 @@ public struct TargetEditorSheet: View {
     let subject: TargetSubject
     let normal: TargetNormalInfo?
     let onSave: (TargetsDocument) async -> Void
+    /// HR cap: the Limits engine's save (re-check reminder, gate settings, mirror); false = not
+    /// saved. nil = no Limits engine here (previews) — the cap then goes through `onSave`.
+    let onSaveCap: ((String?) async -> Bool)?
     private let document: TargetsDocument
     @State private var draft: TargetEditDraft
     @State private var error: String?
@@ -21,8 +24,10 @@ public struct TargetEditorSheet: View {
     private let theme = JITheme.native
 
     public init(subject: TargetSubject, document: TargetsDocument, normal: TargetNormalInfo? = nil,
+                onSaveCap: ((String?) async -> Bool)? = nil,
                 onSave: @escaping (TargetsDocument) async -> Void) {
         self.subject = subject
+        self.onSaveCap = onSaveCap
         self.document = document
         self.normal = normal
         self.onSave = onSave
@@ -36,6 +41,7 @@ public struct TargetEditorSheet: View {
         NavigationStack {
             Form {
                 if case .goal(let m) = subject { goalSection(m) }
+                if subject == .hrCap { limitSection }
                 ForEach(subject.rules, id: \.self) { ruleSection($0) }
                 normalSection
                 if let error {
@@ -79,6 +85,13 @@ public struct TargetEditorSheet: View {
         case .failure(.unreadable(let field)):
             error = "\(field): type a number, or leave it blank."
         case .success(let next):
+            if subject == .hrCap, let onSaveCap {
+                saving = true
+                let ok = await onSaveCap(d.capText)
+                saving = false
+                if ok { dismiss() } else { error = "HR cap: type a number, or leave it blank." }
+                return
+            }
             saving = true
             await onSave(next)
             saving = false
@@ -121,6 +134,20 @@ public struct TargetEditorSheet: View {
         guard m == .kcal else { return "Leave blank for no goal. JI never fills one in." }
         guard let target = draft.kcalTargetPreview else { return "Leave the goal blank for none. JI never subtracts twice." }
         return "Target \(targetsNumber(target, 0)) kcal. Leave the goal blank for none. JI never subtracts twice."
+    }
+
+    // MARK: Limit (spec §4: "Limits use the same sheet with Limit instead of Goal")
+
+    @ViewBuilder private var limitSection: some View {
+        Section {
+            field(title: "HR cap", text: $draft.limitText, unit: "bpm", step: 1, decimals: 0, fallback: nil, id: "limit")
+        } header: {
+            Text("Limit")
+        } footer: {
+            Text("Leave blank for no cap. Change a limit with your clinician, not with a good week.")
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("targetEditor.limitFooter")
+        }
     }
 
     // MARK: Rule
@@ -168,7 +195,8 @@ public struct TargetEditorSheet: View {
                     if let last = normal.lastSevenText { LabeledContent("Last 7 days", value: last) }
                     if let band = normal.normalText { LabeledContent("Your normal", value: band) }
                 } else {
-                    Text("Shown on this metric's detail once there are enough days.").jiFont(.footnote, tint: .muted)
+                    Text(targetEditorNoNormalText).jiFont(.footnote, tint: .muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             } header: {
                 Text("Your normal · computed")
@@ -198,6 +226,10 @@ struct TargetStepperField: View {
     let fallback: Double?
     let id: String
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// The − / + circle grows with the text size so the glyph never spills out of it (AX3).
+    @ScaledMetric(relativeTo: .body) private var stepSize: CGFloat = 30
+    /// Value + unit share one fixed column, so every row's − / + sit on the same x (mock 02).
+    @ScaledMetric(relativeTo: .body) private var valueColumn: CGFloat = 118
     private let theme = JITheme.native
 
     var body: some View {
@@ -205,19 +237,31 @@ struct TargetStepperField: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
             : AnyLayout(HStackLayout(spacing: 8))
         layout {
-            Text(title).jiFont(.body, tint: .text).fixedSize(horizontal: false, vertical: true)
+            // AX3: the unit moves up beside the title ("Wanted deficit · kcal/day"), so the typed
+            // number keeps the whole row under it and nothing is cut.
+            Text(typeSize.isAccessibilitySize ? [title, unit].compactMap { $0 }.joined(separator: " · ") : title)
+                .jiFont(.body, tint: .text).fixedSize(horizontal: false, vertical: true)
             if !typeSize.isAccessibilitySize { Spacer(minLength: 4) }
             HStack(spacing: 8) {
+                // Mock 02: "2,117 kcal  − +" — the typed value and its unit, then the steppers
+                // last, so the − / + columns line up down the sheet whatever the unit's width.
+                HStack(spacing: 4) {
+                    TextField("—", text: $text)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        // AX3: the number keeps its width; the unit gives way first ("4…" was cut).
+                        .frame(minWidth: typeSize.isAccessibilitySize ? stepSize * 2.4 : 44)
+                        .layoutPriority(1)
+                        .decimalPadKeyboard()
+                        .accessibilityLabel(unit.map { "\(title) in \($0)" } ?? title)
+                        .accessibilityIdentifier("targetEditor.\(id).field")
+                    if let unit, !typeSize.isAccessibilitySize { Text(unit).jiFont(.subheadline, tint: .muted).lineLimit(1).fixedSize() }
+                }
+                .frame(width: typeSize.isAccessibilitySize ? nil : valueColumn, alignment: .trailing)
+                .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
                 stepButton("minus") { text = TargetEditDraft.stepped(text, by: -step, decimals: decimals, from: fallback) }
                     .accessibilityLabel("\(title) decrease")
                     .accessibilityIdentifier("targetEditor.\(id).decrease")
-                TextField("—", text: $text)
-                    .multilineTextAlignment(.trailing)
-                    .frame(minWidth: 48, maxWidth: typeSize.isAccessibilitySize ? .infinity : 80)
-                    .numberPadKeyboard()
-                    .accessibilityLabel(unit.map { "\(title) in \($0)" } ?? title)
-                    .accessibilityIdentifier("targetEditor.\(id).field")
-                if let unit { Text(unit).jiFont(.subheadline, tint: .muted).lineLimit(1).fixedSize() }
                 stepButton("plus") { text = TargetEditDraft.stepped(text, by: step, decimals: decimals, from: fallback) }
                     .accessibilityLabel("\(title) increase")
                     .accessibilityIdentifier("targetEditor.\(id).increase")
@@ -228,12 +272,24 @@ struct TargetStepperField: View {
     private func stepButton(_ glyph: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: glyph)
-                .jiFont(.footnote, weight: .bold)
+                .font(.system(size: stepSize * 0.42, weight: .bold))
                 .foregroundStyle(theme.color(.text))
-                .frame(width: 30, height: 30)
+                .frame(width: stepSize, height: stepSize)
                 .background(theme.color(.surface2), in: Circle())
         }
         .buttonStyle(.pressableScale)
+    }
+}
+
+extension View {
+    /// Targets numbers are never negative (a cap, a goal, a rule), so the sheet opens the decimal
+    /// pad — digits and one separator — not the punctuation keyboard (W-TGT fixer 1c).
+    @ViewBuilder func decimalPadKeyboard() -> some View {
+        #if os(iOS)
+        self.keyboardType(.decimalPad)
+        #else
+        self
+        #endif
     }
 }
 

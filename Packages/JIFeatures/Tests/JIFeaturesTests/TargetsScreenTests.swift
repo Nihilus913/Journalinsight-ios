@@ -164,7 +164,7 @@ private func sample() -> TargetsDocument {
 }
 
 @Test func steppingStartsFromTheTypedValueOrTheRecommendation() {
-    #expect(TargetEditDraft.stepped("1600", by: 50, decimals: 0, from: nil) == "1650")
+    #expect(TargetEditDraft.stepped("1600", by: 50, decimals: 0, from: nil) == "1,650")   // grouped like its caption
     #expect(TargetEditDraft.stepped("", by: -0.05, decimals: 2, from: 1.30) == "1.25")
     #expect(TargetEditDraft.stepped("", by: 50, decimals: 0, from: nil) == "")   // a goal never starts from a default
 }
@@ -293,7 +293,8 @@ private func sample() -> TargetsDocument {
     #expect(kpiListGoalCaption(.weight, value: 79.5, targets: sample()) == "goal 76.5")
     #expect(kpiListGoalCaption(.sleep, value: 80, targets: .empty) == "no goal")
     #expect(kpiListGoalCaption(.acwr, value: 1.04, targets: .empty) == "band 0.80–1.30")
-    #expect(kpiListGoalCaption(.kcal, value: 1540, targets: sample()) == nil)      // the nutrition snapshot decides
+    #expect(kpiListGoalCaption(.kcal, value: 1540, targets: sample()) == "goal 1,750")   // fixer 1f: Targets, not a band word
+    #expect(kpiListGoalCaption(.kcal, value: 1540, targets: nil) == nil)           // no document: the nutrition snapshot decides
 }
 
 @Test func goalsRowsOpenTheirOwnGoal() {

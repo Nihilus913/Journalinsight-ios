@@ -4,13 +4,12 @@ import JIDesign
 
 // W-TGT L3 (mock 01) — Settings › Targets: ONE screen, three sections (Goals · Limits · Rules)
 // over the ONE document. Replaces Settings › Goals / Goals setup and Gate thresholds (spec §4).
-// A row opens the editor sheet (Goals, Rules), the cap sheet or the zones screen (Limits). The
+// A row opens the editor sheet (Goals, Rules, the HR cap as a Limit) or the zones screen. The
 // "How the morning call works" card heads the Rules. W-GUI primitives: grouped cards on the
 // ground, icon wells, one header, glass back.
 public struct TargetsView: View {
     @Bindable var model: TargetsModel
     @State private var editing: TargetSubject?
-    @State private var showCapSheet = false
     @State private var showZones = false
     @State private var showHowItWorks = false
     @State private var confirmReset = false
@@ -89,16 +88,14 @@ public struct TargetsView: View {
         }
         .task { if !offscreen { model.reload() } }
         .sheet(item: $editing) { subject in
-            TargetEditorSheet(subject: subject, document: model.document) { next in await model.save(next) }
-        }
-        .sheet(isPresented: $showCapSheet) {
-            if let limits = model.limitsModel {
-                HrCapChangeSheet(current: limits.gateSettings.hrCapBpm) { text in
-                    let ok = await limits.changeHrCap(text)
-                    model.reload()
-                    return ok
-                }
-            }
+            TargetEditorSheet(subject: subject, document: model.document, normal: model.normal(for: subject),
+                              onSaveCap: subject == .hrCap ? model.limitsModel.map { limits in
+                                  { text in
+                                      let ok = await limits.changeHrCap(text)
+                                      model.reload()
+                                      return ok
+                                  }
+                              } : nil) { next in await model.save(next) }
         }
         .navigationDestination(isPresented: $showZones) {
             if let limits = model.limitsModel { TargetsZonesScreen(limits: limits) { model.reload() } }
@@ -200,7 +197,7 @@ public struct TargetsView: View {
 
     private func open(_ s: TargetSubject) {
         switch s {
-        case .hrCap: showCapSheet = true
+        case .hrCap: editing = s   // spec §4: the ONE editor, with Limit instead of Goal
         case .zones: showZones = true
         case .avoidZone5: break
         case .goal, .rule, .loadBand: editing = s
