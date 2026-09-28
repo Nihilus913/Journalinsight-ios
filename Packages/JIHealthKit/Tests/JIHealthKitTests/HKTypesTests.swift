@@ -11,6 +11,7 @@ import JICore
             .stepCount, .activeEnergy, .exerciseTime, .restingHeartRate, .hrvSDNN, .hrvRMSSD,
             .sleepAnalysis, .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex, .workouts,
             .basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat,
+            .dietaryFiber, .dietarySugar,
         ]
         #expect(Set(HKReadKind.allCases) == expected)
     }
@@ -29,6 +30,14 @@ import JICore
         for kind in [HKReadKind.basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat] {
             #expect(HKReadKind.allReadTypes.contains(kind.sampleType!))
         }
+    }
+
+    /// W-FIX7 N-2: fibre + sugar (YAZIO writes them to Health) are read-only quantity kinds in
+    /// the read request, so My KPIs Fibre / Sugar can read them.
+    @Test func n2FibreAndSugarAreQuantityKindsInTheReadRequest() {
+        #expect((HKReadKind.dietaryFiber.sampleType as? HKQuantityType)?.identifier == HKQuantityTypeIdentifier.dietaryFiber.rawValue)
+        #expect((HKReadKind.dietarySugar.sampleType as? HKQuantityType)?.identifier == HKQuantityTypeIdentifier.dietarySugar.rawValue)
+        for kind in [HKReadKind.dietaryFiber, .dietarySugar] { #expect(HKReadKind.allReadTypes.contains(kind.sampleType!)) }
     }
 
     @Test func everyKindExceptRMSSDAlwaysResolves() {

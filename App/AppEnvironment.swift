@@ -583,12 +583,19 @@ struct GlancePlan: Equatable {
 
 /// B-57 W2 (B-73): JIHealthKit's `HKDailyTotalsReader` rows as JICore `HealthDailyTotals` (a
 /// field-for-field copy), so JIFeatures' `EnergyBandService` never imports HealthKit.
+/// W-FIX7 N-1 / N-2: + fibre and sugar; every successful read is published to `feed`, which
+/// Fuel, Nutrition, Energy and the KPI screens read (Apple Health first, YAZIO only for the
+/// days Health lacks) — one Health read per foreground, not one per screen.
 struct HealthDailyTotalsAdapter: HealthDailyTotalsProviding {
     let reader: HKDailyTotalsReader
+    var feed: HealthDailyTotalsFeed = .shared
     func dailyTotals(days: Int) async throws -> [HealthDailyTotals] {
-        try await reader.dailyRows(days: days).map {
+        let rows = try await reader.dailyRows(days: days).map {
             HealthDailyTotals(date: $0.date, basalKcal: $0.basalKcal, activeKcal: $0.activeKcal, dietaryKcal: $0.dietaryKcal,
-                              proteinG: $0.proteinG, carbsG: $0.carbsG, fatG: $0.fatG)
+                              proteinG: $0.proteinG, carbsG: $0.carbsG, fatG: $0.fatG, fiberG: $0.fiberG, sugarG: $0.sugarG)
         }
+        let feed = self.feed
+        await MainActor.run { feed.publish(rows) }
+        return rows
     }
 }

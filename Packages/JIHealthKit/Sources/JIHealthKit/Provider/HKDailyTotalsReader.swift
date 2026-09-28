@@ -57,7 +57,7 @@ extension RealHealthStoreReader: HealthStoreStatistics, HealthStoreUploadStatist
     }
 }
 
-/// The on-device reader for nutrition + energy: six source-merged daily sums over the last
+/// The on-device reader for nutrition + energy: eight source-merged daily sums over the last
 /// `days` local days (today included), laid on `HKSampleWindow`'s calendar grid, oldest first.
 ///
 /// Its row is `HKDailyTotalsReader.Day`, a field-for-field twin of JICore's
@@ -74,16 +74,19 @@ public struct HKDailyTotalsReader: Sendable {
         public var proteinG: Double?
         public var carbsG: Double?
         public var fatG: Double?
+        /// W-FIX7 N-2: dietary fibre + sugar (g), same nil-not-0 rule.
+        public var fiberG: Double?
+        public var sugarG: Double?
 
         public init(date: String, basalKcal: Double? = nil, activeKcal: Double? = nil, dietaryKcal: Double? = nil,
-                    proteinG: Double? = nil, carbsG: Double? = nil, fatG: Double? = nil) {
+                    proteinG: Double? = nil, carbsG: Double? = nil, fatG: Double? = nil, fiberG: Double? = nil, sugarG: Double? = nil) {
             self.date = date; self.basalKcal = basalKcal; self.activeKcal = activeKcal; self.dietaryKcal = dietaryKcal
-            self.proteinG = proteinG; self.carbsG = carbsG; self.fatG = fatG
+            self.proteinG = proteinG; self.carbsG = carbsG; self.fatG = fatG; self.fiberG = fiberG; self.sugarG = sugarG
         }
 
         /// True when Health returned anything at all for this day.
         public var hasAnyValue: Bool {
-            [basalKcal, activeKcal, dietaryKcal, proteinG, carbsG, fatG].contains { $0 != nil }
+            [basalKcal, activeKcal, dietaryKcal, proteinG, carbsG, fatG, fiberG, sugarG].contains { $0 != nil }
         }
     }
 
@@ -121,9 +124,11 @@ public struct HKDailyTotalsReader: Sendable {
         let protein = try await sums(.dietaryProtein, .gram())
         let carbs = try await sums(.dietaryCarbs, .gram())
         let fat = try await sums(.dietaryFat, .gram())
+        let fiber = try await sums(.dietaryFiber, .gram())
+        let sugar = try await sums(.dietarySugar, .gram())
         return window.days.map { key in
             Day(date: key, basalKcal: basal[key], activeKcal: active[key], dietaryKcal: dietary[key],
-                proteinG: protein[key], carbsG: carbs[key], fatG: fat[key])
+                proteinG: protein[key], carbsG: carbs[key], fatG: fat[key], fiberG: fiber[key], sugarG: sugar[key])
         }
     }
 }

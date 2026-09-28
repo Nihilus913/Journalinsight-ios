@@ -9,7 +9,8 @@ import HealthKit
 /// other file in `Sources/JIHealthKit` stays HK-identifier-free and works off `HKReadKind`
 /// instead. Read set per the W2d card plus B-57 W2 (B-73): steps, active energy, exercise time,
 /// resting HR, HRV (SDNN + RMSSD), sleep analysis, body mass/fat/lean/BMI, workouts; resting
-/// (basal) energy; dietary energy, protein, carbohydrates and fat (read-only; JI never logs food).
+/// (basal) energy; dietary energy, protein, carbohydrates and fat (read-only; JI never logs food); W-FIX7 N-2:
+/// dietary fibre and sugar.
 public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case stepCount
     case activeEnergy
@@ -33,6 +34,9 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case dietaryProtein
     case dietaryCarbs
     case dietaryFat
+    /// W-FIX7 N-2: fibre + sugar the food app (YAZIO) writes to Health — My KPIs Fibre / Sugar. Read-only.
+    case dietaryFiber
+    case dietarySugar
 
     /// `nil` only for `.hrvRMSSD` when the iOS 27 RMSSD type isn't available — every other kind
     /// always resolves to a concrete `HKSampleType`.
@@ -55,6 +59,8 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         case .dietaryProtein: return HKQuantityType(HKQuantityTypeIdentifier.dietaryProtein)
         case .dietaryCarbs: return HKQuantityType(HKQuantityTypeIdentifier.dietaryCarbohydrates)
         case .dietaryFat: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFatTotal)
+        case .dietaryFiber: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFiber)
+        case .dietarySugar: return HKQuantityType(HKQuantityTypeIdentifier.dietarySugar)
         }
     }
 
