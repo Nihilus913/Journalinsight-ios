@@ -23,6 +23,11 @@ extension HubDataProvider: TrainingProviding {
     public func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut {
         try await client.send("PUT", "/api/v1/planning/plan-sessions/\(sessionId)", body: PlanSessionWeekdayUpdate(weekday: weekday))
     }
+
+    /// W-B40 fixer (B40-V1): the whole plan, cardio and rest sessions included.
+    public func planSessions() async throws -> [PlanSessionOut] {
+        try await client.get("/api/v1/planning/plan-sessions")
+    }
 }
 
 /// B-52: the same write, seen through the narrow protocol `OutboxDrainer` replays `"plan_weekday"`

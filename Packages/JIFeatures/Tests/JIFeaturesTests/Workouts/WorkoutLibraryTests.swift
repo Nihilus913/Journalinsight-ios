@@ -414,3 +414,14 @@ nonisolated final class SegmentGuardedHub: WorkoutLibraryProviding, @unchecked S
         #expect(WorkoutFormat.garminLabel(.outdated) == "Garmin outdated")
     }
 }
+
+
+// W-B40 fixer: the editor and Import sheet are reachable by a scripted simulator run.
+@Test func workoutLibraryLaunchRouteParsesItsArgument() {
+    #expect(workoutLibraryLaunchRoute(["app", "-workout-library-open", "new"]) == .newWorkout)
+    #expect(workoutLibraryLaunchRoute(["app", "-workout-library-open", "import"]) == .importSheet)
+    #expect(workoutLibraryLaunchRoute(["app", "-workout-library-open", "t9"]) == .edit(9))
+    #expect(workoutLibraryLaunchRoute(["app", "-workout-library-open", "x"]) == nil)
+    #expect(workoutLibraryLaunchRoute(["app", "-workout-library-open"]) == nil)
+    #expect(workoutLibraryLaunchRoute(["app"]) == nil)
+}

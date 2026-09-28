@@ -160,7 +160,12 @@ public struct PlanSessionOut: Codable, Sendable, Equatable, Identifiable {
     public var id: Int
     public var name: String
     public var weekday: Int?
-    public init(id: Int, name: String, weekday: Int?) { self.id = id; self.name = name; self.weekday = weekday }
+    /// `plan.plan_session.session_type` — "strength" | "cardio" | "rest". Only
+    /// `GET /planning/plan-sessions` (W-B40 fixer) carries it; nil everywhere else.
+    public var sessionType: String?
+    public init(id: Int, name: String, weekday: Int?, sessionType: String? = nil) {
+        self.id = id; self.name = name; self.weekday = weekday; self.sessionType = sessionType
+    }
 }
 
 /// Mon = 0 … Sun = 6 (Python's `date.weekday()`, which is what `plan.plan_session.weekday` holds).

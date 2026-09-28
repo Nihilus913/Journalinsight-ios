@@ -50,7 +50,22 @@ public nonisolated func trainingDayEntrySubtitle(_ entry: TrainingDayPreview.Ent
     case .strength(_, _, let lifts):
         lifts.isEmpty ? "Strength" : "Strength · \(lifts.count) lift\(lifts.count == 1 ? "" : "s")"
     case .template(let t): WorkoutFormat.summary(t)
-    case .scheduled(_, let kind): "\(kind.word.prefix(1).uppercased() + kind.word.dropFirst()) · follows the morning-call schedule"
+    case .session(_, _, let kind): "\(trainingKindTitle(kind)) · in your plan"
+    case .scheduled(_, let kind): "\(trainingKindTitle(kind)) · follows the morning-call schedule"
+    }
+}
+
+/// "Long run", "Intervals", "Rest", "Strength".
+nonisolated func trainingKindTitle(_ kind: TrainingWeekDayKind) -> String {
+    kind.word.prefix(1).uppercased() + kind.word.dropFirst()
+}
+
+/// The glyph for a plan kind (the library rows use their template's sport).
+nonisolated func trainingKindSymbol(_ kind: TrainingWeekDayKind) -> String {
+    switch kind {
+    case .strength: "dumbbell.fill"
+    case .interval, .longRun: "figure.run"
+    case .rest: "bed.double.fill"
     }
 }
 
@@ -71,6 +86,7 @@ nonisolated func trainingDayEntrySymbol(_ entry: TrainingDayPreview.Entry) -> St
     switch entry {
     case .strength: "dumbbell.fill"
     case .template(let t): WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running))
+    case .session(_, _, let kind): trainingKindSymbol(kind)
     case .scheduled: "calendar"
     }
 }
@@ -354,7 +370,7 @@ struct TrainingDayPicker: View {
         } label: {
             HStack(spacing: JISpacing.s3) {
                 if !typeSize.isAccessibilitySize {
-                    Image(systemName: o.template.map { t in WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running)) } ?? "dumbbell.fill")
+                    Image(systemName: o.template.map { t in WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running)) } ?? trainingKindSymbol(o.kind))
                         .font(.title3).foregroundStyle(theme.color(.muted))
                         .frame(width: 28).accessibilityHidden(true)
                 }

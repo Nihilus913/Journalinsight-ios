@@ -33,6 +33,9 @@ public nonisolated struct TrainingWeekDay: Sendable, Equatable, Identifiable {
     /// true = trained, false = a past strength day below the floor, nil = unknown / not yet.
     public let done: Bool?
     public let isToday: Bool
+    /// W-B40 fixer (B40-V2): the B-40 library workouts on this day that are not a plan session
+    /// (the day sheet lists them too) — the strip marks them so strip and sheet agree.
+    public var extras: [String] = []
     public var id: Int { weekday }
 }
 
@@ -61,7 +64,30 @@ public nonisolated struct TrainingWeekSummary: Sendable, Equatable {
     }
 }
 
-nonisolated struct WeekSpineEntry: Equatable { let id: Int?; let name: String; let weekday: Int? }
+nonisolated struct WeekSpineEntry: Equatable { let id: Int?; let name: String; let weekday: Int?; var kind: TrainingWeekDayKind = .strength }
+
+/// W-B40 fixer (B40-V1): what a plan session is, from the hub's `session_type`. Cardio splits into
+/// intervals and long runs by name — the plan table has no finer type.
+nonisolated func trainingSessionKind(type: String?, name: String) -> TrainingWeekDayKind {
+    switch type?.lowercased() {
+    case "rest": return .rest
+    case "cardio":
+        let key = name.lowercased()
+        return key.contains("interval") || key.contains("4x4") || key.contains("4×4") ? .interval : .longRun
+    default: return .strength
+    }
+}
+
+/// The strength spine plus the plan's cardio / rest sessions the hub lists
+/// (`GET /planning/plan-sessions`) — the ones no exercise row carries. Each id once.
+nonisolated func trainingDaySpine(strength: [WeekSpineEntry], sessions: [PlanSessionOut]) -> [WeekSpineEntry] {
+    let known = Set(strength.compactMap(\.id))
+    return strength + sessions.compactMap { s in
+        let kind = trainingSessionKind(type: s.sessionType, name: s.name)
+        guard kind != .strength, !known.contains(s.id) else { return nil }
+        return WeekSpineEntry(id: s.id, name: s.name, weekday: s.weekday, kind: kind)
+    }
+}
 
 /// The cached plan-session spine first (it holds the offline-queued weekday), then any session
 /// only the exercise rows know about. One entry per session name.
@@ -79,10 +105,17 @@ nonisolated func weekSpine(planSessions: [PlanSessionOut], exercises: [Exercise]
     return out
 }
 
+/// `otherSessions` (W-B40 fixer): the hub's full plan-session list. When it holds the plan's
+/// cardio sessions, I / R follow THEIR weekdays (what the day sheet changes); without it (an older
+/// hub, nothing cached yet) they follow the morning-call schedule as before. `templates`: the
+/// B-40 library, whose workouts on a day are that day's `extras`.
 public nonisolated func trainingWeekSummary(
-    planSessions: [PlanSessionOut], exercises: [Exercise], daily: [DailyKpiRow], today: String
+    planSessions: [PlanSessionOut], exercises: [Exercise], daily: [DailyKpiRow], today: String,
+    otherSessions: [PlanSessionOut] = [], templates: [WorkoutTemplate] = []
 ) -> TrainingWeekSummary {
     let spine = weekSpine(planSessions: planSessions, exercises: exercises)
+    let others = trainingDaySpine(strength: [], sessions: otherSessions)
+    let linkSpine = spine + others
     let assigned = spine.filter { $0.weekday.map { (0...6).contains($0) } ?? false }.count
     guard let todayWd = try? CalendarMath.isoWeekday(today), let monday = try? CalendarMath.addDays(today, -todayWd) else {
         return TrainingWeekSummary(days: [], planTotal: spine.count, assigned: assigned, planDone: nil, next: nil)
@@ -97,6 +130,10 @@ public nonisolated func trainingWeekSummary(
         if !strength.isEmpty {
             kind = .strength
             name = strength.map(\.name).joined(separator: " + ")
+        } else if !others.isEmpty {
+            if let c = others.first(where: { $0.weekday == wd && ($0.kind == .interval || $0.kind == .longRun) }) {
+                kind = c.kind; name = c.name
+            }
         } else if let planned = try? JICompute.sessionFor(date) {
             if planned.type == .interval { kind = .interval; name = planned.name }
             else if planned.type == .z2 { kind = .longRun; name = planned.name }
@@ -109,8 +146,9 @@ public nonisolated func trainingWeekSummary(
             case .neutral, .future: done = nil
             }
         }
+        let extras = templates.filter { $0.weekdays.contains(wd) && linkedSession($0, spine: linkSpine) == nil }.map(\.name)
         days.append(TrainingWeekDay(weekday: wd, date: date, kind: kind, sessionName: name,
-                                    sessionId: strength.first?.id, done: done, isToday: date == today))
+                                    sessionId: strength.first?.id, done: done, isToday: date == today, extras: extras))
     }
     let hasWeekRows = daily.contains { $0.date >= monday && $0.date <= today }
     let doneCount = days.filter { $0.done == true }.count

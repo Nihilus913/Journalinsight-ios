@@ -23,13 +23,17 @@ public nonisolated enum TrainingDayWrite: Sendable, Equatable {
     case templateWeekdays(WorkoutTemplate, [Int])
 }
 
-/// A day's preview: its entries in plan order (strength first, then library workouts), or the
-/// morning-call schedule's fixed interval / long run when nothing is assigned. Empty = rest.
+/// A day's preview: its entries in plan order (strength, then the plan's cardio / rest sessions —
+/// or, while the hub hasn't listed those, the morning-call schedule's fixed interval / long run —
+/// then library workouts). Empty = rest.
 public nonisolated struct TrainingDayPreview: Sendable, Equatable {
     public enum Entry: Sendable, Equatable, Identifiable {
         /// A plan session (nil id = the hub never told us its `plan_session` id: shown, not changeable).
         case strength(id: Int?, name: String, lifts: [Exercise])
         case template(WorkoutTemplate)
+        /// A cardio / rest plan session the hub lists (W-B40 fixer, B40-V1): changeable like a
+        /// strength session, through its `plan_session` weekday.
+        case session(id: Int, name: String, kind: TrainingWeekDayKind)
         /// The fixed gate schedule (`JICompute.sessionFor`) — not assignable, never removed here.
         case scheduled(name: String, kind: TrainingWeekDayKind)
 
@@ -37,6 +41,7 @@ public nonisolated struct TrainingDayPreview: Sendable, Equatable {
             switch self {
             case .strength(let id, let name, _): "s\(id.map(String.init) ?? name)"
             case .template(let t): "t\(t.templateId)"
+            case .session(let id, _, _): "s\(id)"
             case .scheduled(let name, _): "c\(name)"
             }
         }
@@ -45,6 +50,7 @@ public nonisolated struct TrainingDayPreview: Sendable, Equatable {
             switch self {
             case .strength(_, let name, _): name
             case .template(let t): t.name
+            case .session(_, let name, _): name
             case .scheduled(let name, _): name
             }
         }
@@ -54,6 +60,7 @@ public nonisolated struct TrainingDayPreview: Sendable, Equatable {
             switch self {
             case .strength(let id?, let name, _): .planSession(id: id, name: name)
             case .template(let t): .template(t)
+            case .session(let id, let name, _): .planSession(id: id, name: name)
             case .strength(nil, _, _), .scheduled: nil
             }
         }
@@ -74,6 +81,8 @@ public nonisolated struct TrainingDayOption: Sendable, Equatable, Identifiable {
     /// Mon = 0 … Sun = 6 — the days it is on now (drives "On Mon, Fri" / "Not on a day").
     public let currentDays: [Int]
     public let isOnThisDay: Bool
+    /// What it is (a library row: `.strength` = no plan kind; the glyph comes from the template).
+    public let kind: TrainingWeekDayKind
     /// The library row it came from (nil for a plan session).
     public let template: WorkoutTemplate?
 }
@@ -102,13 +111,18 @@ nonisolated func trainingDayPreview(
 ) -> TrainingDayPreview {
     let wd = day.weekday
     var entries: [TrainingDayPreview.Entry] = spine.filter { $0.weekday == wd }.map { s in
-        .strength(id: s.id, name: s.name, lifts: exercises.filter { $0.sessionName == s.name })
+        if s.kind != .strength, let id = s.id { return .session(id: id, name: s.name, kind: s.kind) }
+        return .strength(id: s.id, name: s.name, lifts: exercises.filter { $0.sessionName == s.name })
     }
     for t in templates where t.weekdays.contains(wd) && linkedSession(t, spine: spine) == nil {
         entries.append(.template(t))
     }
-    if entries.isEmpty, day.kind == .interval || day.kind == .longRun {
-        entries.append(.scheduled(name: day.sessionName ?? (day.kind.word.prefix(1).uppercased() + day.kind.word.dropFirst()), kind: day.kind))
+    // B40-V1: the schedule stands in only while the hub hasn't listed the plan's own cardio
+    // sessions for this day — and a library workout added to the day never hides it.
+    let hasPlanCardio = entries.contains { if case .session = $0 { true } else { false } }
+    if !hasPlanCardio, day.kind == .interval || day.kind == .longRun {
+        let at = entries.firstIndex { if case .template = $0 { true } else { false } } ?? entries.endIndex
+        entries.insert(.scheduled(name: day.sessionName ?? (day.kind.word.prefix(1).uppercased() + day.kind.word.dropFirst()), kind: day.kind), at: at)
     }
     return TrainingDayPreview(weekday: wd, date: day.date, isToday: day.isToday, entries: entries)
 }
@@ -120,17 +134,17 @@ nonisolated func trainingDayOptions(weekday wd: Int, spine: [WeekSpineEntry], te
             linkedIds.insert(id)
             let days = s.weekday.map { [$0] } ?? []
             return TrainingDayOption(id: "t\(t.templateId)", title: s.name, choice: .planSession(id: id, name: s.name),
-                                     currentDays: days, isOnThisDay: days.contains(wd), template: t)
+                                     currentDays: days, isOnThisDay: days.contains(wd), kind: s.kind, template: t)
         }
         let days = Array(Set(t.weekdays)).sorted()
         return TrainingDayOption(id: "t\(t.templateId)", title: t.name, choice: .template(t),
-                                 currentDays: days, isOnThisDay: days.contains(wd), template: t)
+                                 currentDays: days, isOnThisDay: days.contains(wd), kind: .strength, template: t)
     }
     let plan: [TrainingDayOption] = spine.compactMap { s in
         guard let id = s.id, !linkedIds.contains(id) else { return nil }
         let days = s.weekday.map { [$0] } ?? []
         return TrainingDayOption(id: "s\(id)", title: s.name, choice: .planSession(id: id, name: s.name),
-                                 currentDays: days, isOnThisDay: days.contains(wd), template: nil)
+                                 currentDays: days, isOnThisDay: days.contains(wd), kind: s.kind, template: nil)
     }
     return TrainingDayOptions(plan: plan, library: library)
 }

@@ -32,6 +32,11 @@ public struct WorkoutLibraryView: View {
     public var body: some View {
         content
             .navigationTitle("Workouts")
+            // W-B40 fixer (B40-V3): inline, like the day sheet and picker it is pushed from — a
+            // large title here was drawn over the "14 workouts · 10 on Garmin Connect" header at AX3.
+            #if os(iOS) || os(visionOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button { editing = EditorTarget(template: nil) } label: { Image(systemName: "plus") }
@@ -39,7 +44,12 @@ public struct WorkoutLibraryView: View {
                         .accessibilityIdentifier("workouts-new")
                 }
             }
-            .task { await model.load() }
+            .task {
+                await model.load()
+                #if DEBUG
+                openLaunchRoute()
+                #endif
+            }
             .refreshable { await model.load() }
             .sheet(item: $editing) { target in
                 WorkoutEditorSheet(
@@ -60,6 +70,21 @@ public struct WorkoutLibraryView: View {
             }
             .jiTheme(.native)
     }
+
+    #if DEBUG
+    /// W-B40 fixer: `-workout-library-open new|import|t<id>` opens the editor (new / that row) or
+    /// the Import sheet once the library is up — with `-training-day <d> -training-day-route
+    /// library`, a scripted simulator run reaches both without a tap (the r1 verify host had none).
+    private func openLaunchRoute() {
+        switch workoutLibraryLaunchRoute(CommandLine.arguments) {
+        case .newWorkout?: editing = EditorTarget(template: nil)
+        case .importSheet?: showingImport = true
+        case .edit(let id)?:
+            if let t = model.templates.first(where: { $0.templateId == id }) { editing = EditorTarget(template: t) }
+        case nil: break
+        }
+    }
+    #endif
 
     private var deleteBinding: Binding<Bool> {
         Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
@@ -237,5 +262,22 @@ struct WorkoutLibraryRow: View {
             .foregroundStyle(state == .outdated ? theme.color(.reduced) : theme.color(.muted))
             .accessibilityLabel(WorkoutFormat.garminAccessibility(state))
             .fixedSize()
+    }
+}
+
+/// The DEBUG launch route `-workout-library-open` names (nil = none / not understood).
+nonisolated enum WorkoutLibraryLaunchRoute: Equatable, Sendable {
+    case newWorkout, importSheet, edit(Int)
+}
+
+nonisolated func workoutLibraryLaunchRoute(_ arguments: [String]) -> WorkoutLibraryLaunchRoute? {
+    guard let i = arguments.firstIndex(of: "-workout-library-open"), i + 1 < arguments.count else { return nil }
+    let v = arguments[i + 1]
+    switch v {
+    case "new": return .newWorkout
+    case "import": return .importSheet
+    default:
+        guard v.hasPrefix("t"), let id = Int(v.dropFirst()) else { return nil }
+        return .edit(id)
     }
 }

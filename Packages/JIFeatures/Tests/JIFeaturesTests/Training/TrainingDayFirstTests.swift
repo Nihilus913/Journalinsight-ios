@@ -53,9 +53,56 @@ private func day(_ wd: Int, kind: TrainingWeekDayKind = .rest, name: String? = n
 @Test func previewFallsBackToTheMorningCallScheduleOnlyWhenNothingIsAssigned() {
     let empty = trainingDayPreview(day: day(3, kind: .longRun, name: "Long Z2"), spine: spine, exercises: [], templates: library)
     #expect(empty.entries == [.scheduled(name: "Long Z2", kind: .longRun)])
-    // A library run on the day wins over the fixed schedule.
+    // B40-V1: a library run on the day is ADDED — it never hides the day's scheduled session.
     let tue = trainingDayPreview(day: day(1, kind: .interval, name: "Intervals"), spine: spine, exercises: [], templates: library)
-    #expect(tue.entries.map(\.title) == ["Norwegian 4×4"])
+    #expect(tue.entries.map(\.title) == ["Intervals", "Norwegian 4×4"])
+}
+
+// MARK: - B40-V1: the plan's cardio / rest sessions are changeable
+
+private let hubSessions = [
+    PlanSessionOut(id: 1, name: "Day 1 Full Upper", weekday: 0, sessionType: "strength"),
+    PlanSessionOut(id: 5, name: "Interval Run", weekday: 5, sessionType: "cardio"),
+    PlanSessionOut(id: 6, name: "Long Zone 2", weekday: 3, sessionType: "cardio"),
+    PlanSessionOut(id: 7, name: "Rest", weekday: nil, sessionType: "rest"),
+]
+private let fullSpine = trainingDaySpine(strength: spine, sessions: hubSessions)
+
+@Test func theDaySpineAddsThePlansCardioAndRestSessionsOnce() {
+    #expect(fullSpine.map(\.name) == ["Day 1 Full Upper", "Day 2 Full Upper", "Day 4 Full Upper", "Interval Run", "Long Zone 2", "Rest"])
+    #expect(fullSpine.map(\.kind) == [.strength, .strength, .strength, .interval, .longRun, .rest])
+    #expect(trainingDaySpine(strength: spine, sessions: []) == spine)
+}
+
+@Test func addingALibraryWorkoutNeverHidesThePlansCardioSession() {
+    let verify = run("Verify Easy 30", id: 9, weekdays: [3], minutes: 30)
+    let p = trainingDayPreview(day: day(3, kind: .longRun, name: "Long Zone 2"), spine: fullSpine, exercises: [], templates: [verify])
+    #expect(p.entries.map(\.title) == ["Long Zone 2", "Verify Easy 30"])
+    #expect(p.entries[0] == .session(id: 6, name: "Long Zone 2", kind: .longRun))
+    #expect(p.entries[0].choice == .planSession(id: 6, name: "Long Zone 2"))   // Change + Take off
+}
+
+@Test func thePickerOffersThePlansCardioAndRestSessions() {
+    let o = trainingDayOptions(weekday: 2, spine: fullSpine, templates: library)
+    #expect(o.plan.map(\.title) == ["Day 1 Full Upper", "Day 2 Full Upper", "Day 4 Full Upper", "Interval Run", "Long Zone 2", "Rest"])
+    #expect(o.plan.map(\.kind) == [.strength, .strength, .strength, .interval, .longRun, .rest])
+    #expect(o.plan[4].currentDays == [3])
+}
+
+@Test func aCardioSessionMovesAndComesOffThroughItsPlanSession() {
+    #expect(trainingDayWrites(weekday: 3, adding: nil, removing: .session(id: 6, name: "Long Zone 2", kind: .longRun), spine: fullSpine, templates: library)
+            == [.sessionWeekday(id: 6, name: "Long Zone 2", weekday: nil)])
+    #expect(trainingDayWrites(weekday: 4, adding: .planSession(id: 6, name: "Long Zone 2"), removing: nil, spine: fullSpine, templates: library)
+            == [.sessionWeekday(id: 6, name: "Long Zone 2", weekday: 4)])
+}
+
+@Test func sessionKindComesFromTheHubsSessionType() {
+    #expect(trainingSessionKind(type: "cardio", name: "Interval Run") == .interval)
+    #expect(trainingSessionKind(type: "cardio", name: "Norwegian 4x4") == .interval)
+    #expect(trainingSessionKind(type: "cardio", name: "Long Zone 2") == .longRun)
+    #expect(trainingSessionKind(type: "rest", name: "Rest") == .rest)
+    #expect(trainingSessionKind(type: "strength", name: "Day 1") == .strength)
+    #expect(trainingSessionKind(type: nil, name: "Day 1") == .strength)
 }
 
 @Test func aRestDayHasNoEntriesAndSaysSo() {
@@ -140,7 +187,15 @@ nonisolated final class DayFirstHub: TrainingProviding, PlanSessionWeekdayProvid
     ]
     var offline = false
     var weekdayCalls: [(Int, Int?)] = []
+    /// `GET /planning/plan-sessions` (nil = an older hub without the route).
+    var allSessions: [PlanSessionOut]?
     init(templates: [WorkoutTemplate]) { workouts = FakeWorkoutHub(rows: templates) }
+
+    func planSessions() async throws -> [PlanSessionOut] {
+        if offline { throw HubError.network("offline") }
+        guard let allSessions else { throw PlanSessionListUnavailable() }
+        return allSessions
+    }
 
     func trainingDay(date: String) async throws -> TrainingDayDetail {
         if offline { throw HubError.network("offline") }
@@ -157,6 +212,7 @@ nonisolated final class DayFirstHub: TrainingProviding, PlanSessionWeekdayProvid
         if offline { throw HubError.network("offline") }
         weekdayCalls.append((sessionId, weekday))
         for i in rows.indices where rows[i].sessionId == sessionId { rows[i].weekday = weekday }
+        if let i = allSessions?.firstIndex(where: { $0.id == sessionId }) { allSessions?[i].weekday = weekday }
         return PlanSessionOut(id: sessionId, name: rows.first { $0.sessionId == sessionId }?.sessionName ?? "", weekday: weekday)
     }
     func workoutTemplates() async throws -> [WorkoutTemplate] {
@@ -260,6 +316,44 @@ private func makeVM(_ hub: DayFirstHub, outbox: Outbox, cache: OfflineCache) -> 
     #expect(!after.entries.contains { vm.isPending($0) })
 }
 
+@Test @MainActor func thePlansCardioSessionCanBeTakenOffAndMovedFromTheDaySheet() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let hub = DayFirstHub(templates: library)
+    hub.allSessions = [PlanSessionOut(id: 7, name: "Day 1 Full Upper", weekday: 0, sessionType: "strength"),
+                       PlanSessionOut(id: 8, name: "Day 2 Full Upper", weekday: nil, sessionType: "strength"),
+                       PlanSessionOut(id: 6, name: "Long Zone 2", weekday: 3, sessionType: "cardio")]
+    let vm = makeVM(hub, outbox: Outbox(db: try AppDatabase.inMemory()), cache: cache)
+    await vm.load()
+
+    #expect(vm.dayOptions(weekday: 2).plan.map(\.title) == ["Day 1 Full Upper", "Day 2 Full Upper", "Long Zone 2"])
+    let thu = vm.dayPreview(weekday: 3)
+    #expect(thu.entries == [.session(id: 6, name: "Long Zone 2", kind: .longRun)])
+    #expect(vm.weekSummary.days[3].kind == .longRun)
+
+    #expect(await vm.changeDay(weekday: 3, adding: nil, removing: thu.entries[0]) == .saved)
+    #expect(hub.weekdayCalls.last?.0 == 6 && hub.weekdayCalls.last?.1 == nil)
+    #expect(vm.dayPreview(weekday: 3).isRest)
+    #expect(vm.weekSummary.days[3].kind == .rest)
+    #expect(vm.planSessions.map(\.id) == [7, 8])   // a cardio session never becomes a strength row
+
+    #expect(await vm.changeDay(weekday: 4, adding: .planSession(id: 6, name: "Long Zone 2"), removing: nil) == .saved)
+    #expect(vm.weekSummary.days[4].kind == .longRun)
+    // A cold relaunch reads it back from the cache.
+    let again = makeVM(hub, outbox: Outbox(db: try AppDatabase.inMemory()), cache: cache)
+    hub.offline = true
+    await again.load()
+    #expect(again.dayPreview(weekday: 4).entries.map(\.title).contains("Long Zone 2"))
+}
+
+@Test @MainActor func anOlderHubWithoutThePlanSessionListStillShowsTheSchedule() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let vm = makeVM(DayFirstHub(templates: library), outbox: Outbox(db: try AppDatabase.inMemory()), cache: cache)
+    await vm.load()
+    // Thu 2026-10-01: the morning-call schedule's long run, never dropped.
+    #expect(vm.dayPreview(weekday: 3).entries.map(\.title).count == 1)
+    guard case .scheduled = vm.dayPreview(weekday: 3).entries.first else { Issue.record("schedule fallback"); return }
+}
+
 @Test @MainActor func aRefusedSessionPickIsSaidOutLoudAndRolledBack() async throws {
     let cache = OfflineCache(db: try AppDatabase.inMemory())
     let outbox = Outbox(db: try AppDatabase.inMemory())
@@ -301,6 +395,8 @@ nonisolated final class RefusingWeekdayHub: TrainingProviding, PlanSessionWeekda
     #expect(trainingLiftLine(bare) == nil)
     #expect(trainingDayEntrySubtitle(.strength(id: 1, name: "A", lifts: [])) == "Strength")
     #expect(trainingDayEntrySubtitle(.scheduled(name: "Long Z2", kind: .longRun)) == "Long run · follows the morning-call schedule")
+    #expect(trainingDayEntrySubtitle(.session(id: 6, name: "Long Zone 2", kind: .longRun)) == "Long run · in your plan")
+    #expect(trainingDayEntrySubtitle(.session(id: 7, name: "Rest", kind: .rest)) == "Rest · in your plan")
     let o = trainingDayOptions(weekday: 2, spine: spine, templates: library)
     #expect(trainingDayOptionSubtitle(o.library[0]) == "On Wed, Fri")
     #expect(trainingDayOptionSubtitle(o.plan[2]) == "Not on a day")

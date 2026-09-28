@@ -46,6 +46,22 @@ extension HubClientTests {
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/plan-sessions/7")
     }
 
+    /// W-B40 fixer (B40-V1): the whole plan, cardio and rest included, with its session type.
+    @Test func planSessionsListsTheWholePlanWithItsSessionType() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/planning/plan-sessions"] = (200, Data("""
+        [{"id":1,"name":"Day 1 Full Upper","weekday":0,"session_type":"strength"},
+         {"id":6,"name":"Long Zone 2","weekday":3,"session_type":"cardio"},
+         {"id":7,"name":"Rest","weekday":null,"session_type":"rest"}]
+        """.utf8))
+        let rows = try await configuredProvider().planSessions()
+        #expect(rows.map(\.id) == [1, 6, 7])
+        #expect(rows.map(\.sessionType) == ["strength", "cardio", "rest"])
+        #expect(rows[2].weekday == nil)
+        #expect(StubURLProtocol.lastRequest?.httpMethod == "GET")
+        #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/plan-sessions")
+    }
+
     @Test func exercisesDecodesContractFixture() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.responses["/api/v1/planning/exercises"] = (200, Data("""

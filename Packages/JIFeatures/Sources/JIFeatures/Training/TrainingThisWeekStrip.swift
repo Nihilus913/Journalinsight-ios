@@ -2,7 +2,13 @@ import SwiftUI
 import JICore
 import JIDesign
 
-public nonisolated let trainingWeekLegend = "S strength · I intervals · R long run"
+public nonisolated let trainingWeekLegend = "S strength · I intervals · R long run · + library workout"
+
+/// The letter in a day circle: the plan kind, or "+" for an otherwise-rest day that holds a
+/// library workout (W-B40 fixer, B40-V2 — the day sheet lists it, so the strip must too).
+public nonisolated func trainingWeekDayGlyph(_ d: TrainingWeekDay) -> String {
+    d.kind == .rest && !d.extras.isEmpty ? "+" : d.kind.rawValue
+}
 
 public nonisolated func trainingWeekDayAccessibilityLabel(_ d: TrainingWeekDay) -> String {
     var parts = [planWeekdayNames[d.weekday]]
@@ -10,6 +16,7 @@ public nonisolated func trainingWeekDayAccessibilityLabel(_ d: TrainingWeekDay) 
     parts.append(d.kind.word)
     if d.kind == .strength, let name = d.sessionName { parts.append(name) }
     if d.done == true { parts.append("done") } else if d.done == false { parts.append("missed") }
+    if !d.extras.isEmpty { parts.append("plus " + d.extras.joined(separator: ", ")) }
     return parts.joined(separator: ", ")
 }
 
@@ -68,17 +75,26 @@ public struct TrainingThisWeekStrip: View {
     private func dayCell(_ d: TrainingWeekDay) -> some View {
         let selected = d.date == selectedDate
         return VStack(spacing: 6) {
+            let workoutOnly = d.kind == .rest && !d.extras.isEmpty
             ZStack {
-                if d.kind == .rest {
+                if d.kind == .rest && !workoutOnly {
                     Circle().strokeBorder(theme.color(.muted), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 } else {
                     Circle().fill(d.done == true ? theme.color(.go).opacity(0.3) : theme.color(.nested))
                 }
                 if selected { Circle().strokeBorder(theme.color(.info), lineWidth: 2) }
-                Text(d.kind.rawValue).jiFont(.subheadline, weight: .bold)
-                    .foregroundStyle(theme.color(d.kind == .rest ? .muted : .text))
+                Text(trainingWeekDayGlyph(d)).jiFont(.subheadline, weight: .bold)
+                    .foregroundStyle(theme.color(d.kind == .rest && !workoutOnly ? .muted : .text))
             }
             .frame(width: 34, height: 34)
+            // A plan day that ALSO holds a library workout: a small "+" badge.
+            .overlay(alignment: .topTrailing) {
+                if !d.extras.isEmpty && !workoutOnly {
+                    Text("+").jiFont(.micro, weight: .bold).foregroundStyle(theme.color(.text))
+                        .offset(x: 4, y: -4)
+                        .accessibilityHidden(true)
+                }
+            }
             Text(String(trainingWeekdayShortNames[d.weekday].prefix(1)))
                 .jiFont(.caption, weight: d.isToday ? .bold : .regular)
                 .foregroundStyle(theme.color(d.isToday ? .text : .muted))
