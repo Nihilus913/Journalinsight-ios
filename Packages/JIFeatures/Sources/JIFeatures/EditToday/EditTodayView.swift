@@ -9,7 +9,8 @@ import JIPersistence
 public struct EditTodayView: View {
     @State private var model: EditTodayViewModel
     @State private var nameDraft = ""
-    /// W-GUI T7: set when the screen is a sheet (Day's Edit button) — Done is a glass checkmark.
+    /// W-GUI T7: set when the screen is a sheet (Day's Edit button) — Done is a checkmark toolbar
+    /// button (W-FIX8 G-1: the bar draws the glass; a JIGlassButton there was glass inside glass).
     private let onDone: (() -> Void)?
     @Environment(\.jiTheme) private var theme
 
@@ -62,7 +63,7 @@ public struct EditTodayView: View {
         .toolbar {
             if let onDone {
                 ToolbarItem(placement: .confirmationAction) {
-                    JIGlassButton("checkmark", label: "Done", action: onDone).accessibilityIdentifier("editToday.done")
+                    JIToolbarButton("checkmark", label: "Done", action: onDone).accessibilityIdentifier("editToday.done")
                 }
             }
         }
