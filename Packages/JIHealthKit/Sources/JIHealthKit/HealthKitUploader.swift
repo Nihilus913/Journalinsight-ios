@@ -2,6 +2,7 @@
 import Foundation
 import HealthKit
 import JIHub
+import Synchronization
 
 /// One Apple Watch metric this app reads and uploads. Deliberately HK-identifier-agnostic at the
 /// call site inside this file (`HKQuantityTypeIdentifier`/`HKCategoryTypeIdentifier` construction
@@ -231,14 +232,24 @@ public final class HealthKitUploader: Sendable {
     private let statistics: (any HealthStoreUploadStatistics)?
     /// Local-day grid for daily totals (device zone).
     private let calendar: Calendar
+    /// W-B81 A-4: the Apple-workout reader (the real reader conforms); `nil` = no workout upload.
+    private let workoutReader: (any HealthStoreWorkoutUploadReading)?
+    /// Offset the workout dates are written in (the device's, never UTC — frozen README).
+    private let timeZone: TimeZone
+    /// One workout sync at a time; a trigger that arrives mid-run asks for one more pass instead of
+    /// a parallel one (observer + foreground + Connect firing together = no duplicate POSTs).
+    private let workoutRun = Mutex(WorkoutRunState())
 
-    public init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], appGroupSuite: String = HealthKitUploader.appGroupSuite) {
+    public init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], appGroupSuite: String = HealthKitUploader.appGroupSuite,
+                timeZone: TimeZone = .current) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = UserDefaults(suiteName: appGroupSuite)
         self.statistics = store as? any HealthStoreUploadStatistics
         self.calendar = Self.deviceCalendar()
+        self.workoutReader = store as? any HealthStoreWorkoutUploadReading
+        self.timeZone = timeZone
     }
 
     private static func deviceCalendar() -> Calendar {
@@ -248,13 +259,16 @@ public final class HealthKitUploader: Sendable {
     /// Test seam: inject a `UserDefaults` double directly, matching `HealthKitBackloader`'s own
     /// pattern for the same reason (a bogus suite name isn't guaranteed `nil` across toolchains).
     init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], defaults: UserDefaults?,
-         statistics: (any HealthStoreUploadStatistics)? = nil, calendar: Calendar? = nil) {
+         statistics: (any HealthStoreUploadStatistics)? = nil, calendar: Calendar? = nil,
+         workouts: (any HealthStoreWorkoutUploadReading)? = nil, timeZone: TimeZone = .current) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = defaults
         self.statistics = statistics
         self.calendar = calendar ?? Self.deviceCalendar()
+        self.workoutReader = workouts
+        self.timeZone = timeZone
     }
 
     /// The launch request — the only one the app makes without a tap. W-FIX8 M-1: it asks for the
@@ -263,7 +277,10 @@ public final class HealthKitUploader: Sendable {
     /// of a phone that granted Health before it existed. Already-answered types never re-prompt.
     public func requestAuthorization() async throws {
         guard store.isHealthDataAvailable else { throw HealthKitUploaderError.healthDataUnavailable }
-        try await store.requestAuthorization(toRead: Set(specs.map { $0.sampleType as HKObjectType }).union(HKReadKind.allReadTypes))
+        var types = Set(specs.map { $0.sampleType as HKObjectType }).union(HKReadKind.allReadTypes)
+        // W-B81: the workout reader also needs the HR series, route, distance/energy and effort types.
+        if workoutReader != nil { types.formUnion(HKWorkoutUploadTypes.readTypes) }
+        try await store.requestAuthorization(toRead: types)
     }
 
     /// Enables background delivery for every configured metric and registers an observer that
@@ -283,6 +300,17 @@ public final class HealthKitUploader: Sendable {
             }
             queries.append(query)
         }
+        // W-B81 A-4: a finished Watch workout wakes the app like the daily types do.
+        if workoutReader != nil, let workoutType = HKReadKind.workouts.sampleType {
+            try await store.enableBackgroundDelivery(for: workoutType, frequency: .immediate)
+            let query = store.startObserving(workoutType) { [weak self] completion in
+                Task { [weak self] in
+                    defer { completion() }
+                    _ = try? await self?.syncWorkouts()
+                }
+            }
+            queries.append(query)
+        }
         return queries
     }
 
@@ -295,6 +323,10 @@ public final class HealthKitUploader: Sendable {
         for spec in specs {
             do { results[spec.metricName] = .success(try await sync(spec)) }
             catch { results[spec.metricName] = .failure(error) }
+        }
+        if workoutReader != nil {
+            do { results[Self.workoutsResultKey] = .success(try await syncWorkouts()) }
+            catch { results[Self.workoutsResultKey] = .failure(error) }
         }
         return results
     }
@@ -510,6 +542,70 @@ public final class HealthKitUploader: Sendable {
         return rawSumsByStartDay(all, unit: unit)
     }
 
+    // MARK: - Apple workouts (W-B81 A-4)
+
+    /// `syncAll()` result key for the workout upload.
+    public nonisolated static let workoutsResultKey = "workouts"
+    /// Anchor of the `HKWorkout` change feed (same `hk.upload.anchor.<type>` scheme as the metrics).
+    public nonisolated static let workoutAnchorKey = "hk.upload.anchor.HKWorkoutTypeIdentifier"
+    /// HealthKit objects per anchored page — each workout pulls its HR series and route, so pages
+    /// stay small (a 45-min outdoor run ≈ 2.7 k route points + 500 HR readings).
+    public nonisolated static let workoutPageLimit = 25
+    /// Workouts per POST, keeping one body well inside `HubClient`'s 15 s timeout.
+    public nonisolated static let workoutBatchSize = 5
+
+    /// Uploads Apple workouts new/changed since the persisted anchor (first run: the last
+    /// `firstSyncDays` = 120 days, once). Idempotent on the hub by workout UUID. X-1: nothing is
+    /// POSTed for an empty page, deletions are never sent, a failed read or POST sends nothing
+    /// partial and leaves the anchor where it was (the page is retried whole). Returns the
+    /// number of workouts sent.
+    @discardableResult
+    @concurrent
+    public func syncWorkouts(now: Date = Date()) async throws -> Int {
+        guard let reader = workoutReader else { return 0 }
+        let mayRun = workoutRun.withLock { state -> Bool in
+            if state.running { state.again = true; return false }
+            state.running = true; return true
+        }
+        guard mayRun else { return 0 }
+        var sent = 0
+        do {
+            repeat { sent += try await workoutPass(reader, now: now) }
+            while workoutRun.withLock { state -> Bool in
+                if state.again { state.again = false; return true }
+                state.running = false; return false
+            }
+        } catch {
+            workoutRun.withLock { $0 = WorkoutRunState() }
+            throw error
+        }
+        return sent
+    }
+
+    private func workoutPass(_ reader: any HealthStoreWorkoutUploadReading, now: Date) async throws -> Int {
+        var anchor = readAnchor(Self.workoutAnchorKey)
+        let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
+        var sent = 0
+        while true {
+            let page = try await reader.anchoredWorkoutRecords(anchor: anchor, since: since, limit: Self.workoutPageLimit)
+            let workouts = page.records.map { AppleWorkoutMapper.payload($0, timeZone: timeZone) }
+            var batchStart = 0
+            while batchStart < workouts.count {
+                let batch = Array(workouts[batchStart..<min(batchStart + Self.workoutBatchSize, workouts.count)])
+                let _: HAEUploadResponse = try await hub.post(Self.uploadPath, body: HAEEnvelope(workouts: batch))
+                let arrived = ISO8601DateFormatter().string(from: Date())
+                anchorDefaults?.set(arrived, forKey: Self.lastSuccessKey)
+                if let type = HKReadKind.workouts.sampleType { anchorDefaults?.set(arrived, forKey: HealthKitArrival.key(for: type)) }
+                sent += batch.count
+                batchStart += Self.workoutBatchSize
+            }
+            // Only after every batch of the page is on the hub.
+            writeAnchor(page.newAnchor, key: Self.workoutAnchorKey)
+            anchor = page.newAnchor ?? anchor
+            guard page.fetchedCount >= Self.workoutPageLimit else { return sent }
+        }
+    }
+
     // MARK: - Anchor persistence
 
     private func readAnchor(_ key: String) -> HKQueryAnchor? {
@@ -521,5 +617,11 @@ public final class HealthKitUploader: Sendable {
         guard let anchor, let data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true) else { return }
         anchorDefaults?.set(data, forKey: key)
     }
+}
+
+/// `running`: a workout sync is in flight; `again`: a trigger arrived meanwhile → one more pass.
+struct WorkoutRunState: Sendable {
+    var running = false
+    var again = false
 }
 #endif

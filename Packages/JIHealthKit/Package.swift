@@ -9,6 +9,6 @@ let package = Package(
     dependencies: [.package(path: "../JICore"), .package(path: "../JIHub"), .package(path: "../JICompute")],
     targets: [
         .target(name: "JIHealthKit", dependencies: ["JICore", "JIHub", "JICompute"], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
-        .testTarget(name: "JIHealthKitTests", dependencies: ["JIHealthKit", "JICompute"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .testTarget(name: "JIHealthKitTests", dependencies: ["JIHealthKit", "JICompute"], exclude: ["Fixtures"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )

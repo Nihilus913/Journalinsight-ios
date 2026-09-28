@@ -93,4 +93,30 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         Set(availableCases.compactMap { $0.sampleType as HKObjectType? })
     }
 }
+
+/// W-B81 A-4: the extra HealthKit types the Apple-workout uploader reads for each workout — its
+/// heart-rate series and statistics, route, distance/energy statistics and the effort scores.
+/// Named here because this is the one file allowed to spell HK identifiers (see `HKReadKind`).
+/// Read-only; requested by `HealthKitUploader.requestAuthorization` (not by the permission
+/// screen's `HKReadKind` verdict, so an older grant never flips back to "not determined").
+public enum HKWorkoutUploadTypes {
+    public static var heartRate: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.heartRate) }
+    public static var activeEnergy: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.activeEnergyBurned) }
+    /// Total distance, whichever statistic the workout carries (first non-nil wins, in this order).
+    public static var distances: [HKQuantityType] {
+        [HKQuantityTypeIdentifier.distanceWalkingRunning, .distanceCycling, .distanceSwimming, .distanceWheelchair,
+         .distanceDownhillSnowSports, .distanceRowing, .distancePaddleSports, .distanceCrossCountrySkiing, .distanceSkatingSports]
+            .map { HKQuantityType($0) }
+    }
+    /// `workoutEffortScore` (the user's 1–10 rating) and `estimatedWorkoutEffortScore` (Apple's).
+    public static var workoutEffort: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.workoutEffortScore) }
+    public static var estimatedWorkoutEffort: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.estimatedWorkoutEffortScore) }
+    public static var route: HKSeriesType { HKSeriesType.workoutRoute() }
+
+    public static var readTypes: Set<HKObjectType> {
+        var types: Set<HKObjectType> = [HKWorkoutType.workoutType(), heartRate, activeEnergy, workoutEffort, estimatedWorkoutEffort, route]
+        for d in distances { types.insert(d) }
+        return types
+    }
+}
 #endif
