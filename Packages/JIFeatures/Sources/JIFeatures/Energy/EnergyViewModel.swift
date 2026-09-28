@@ -11,7 +11,19 @@ public final class EnergyViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, empty, error(String) }
 
     public private(set) var phase: Phase = .idle
-    public private(set) var report: EnergyReport?
+    /// W-FIX7 N-1: the hub's report with Apple Health's intake on every day Health has food (the
+    /// day's deficit recomputed from it the hub's way); YAZIO only for the days Health lacks. The
+    /// 7-day aggregates stay the hub's. `hubReport` = as fetched.
+    public private(set) var report: EnergyReport? {
+        get {
+            guard var r = hubReport else { return nil }
+            r.days = EnergyDay.mergingHealth(r.days, health: health.totals)
+            return r
+        }
+        set { hubReport = newValue }
+    }
+    private var hubReport: EnergyReport?
+    private var health: HealthTotalsSource
     public private(set) var goals: Goals?
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
@@ -33,7 +45,8 @@ public final class EnergyViewModel {
     public var onSectionUpdate: (() -> Void)?
 
     public init(provider: any EnergyProviding, cache: OfflineCache, now: @escaping () -> Date = Date.init,
-                band: EnergyBandService? = nil) {
+                band: EnergyBandService? = nil, healthFeed: HealthDailyTotalsFeed = .shared) {
+        self.health = HealthTotalsSource(feed: healthFeed)
         self.provider = provider; self.cache = cache; self.now = now; self.band = band
     }
 
@@ -87,6 +100,7 @@ public final class EnergyViewModel {
     }
 
     private func restoreFromCache() {
+        health.restore(from: cache)
         if let hit = try? cache.get(Self.keys.energy, as: EnergyReport.self) {
             report = hit.value; fetchedAt = hit.fetchedAt; everSynced = true
         }

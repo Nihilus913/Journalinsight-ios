@@ -52,15 +52,28 @@ final class FakeStatistics: HealthStoreStatistics, @unchecked Sendable { // test
         let fake = FakeStatistics()
         _ = try await HKDailyTotalsReader(store: fake, calendar: Self.utc, now: { Self.now }).dailyRows(days: 1)
         for k in [HKReadKind.basalEnergy, .activeEnergy, .dietaryEnergy] { #expect(fake.unitsAsked[Self.id(k)] == .kilocalorie()) }
-        for k in [HKReadKind.dietaryProtein, .dietaryCarbs, .dietaryFat] { #expect(fake.unitsAsked[Self.id(k)] == .gram()) }
+        for k in [HKReadKind.dietaryProtein, .dietaryCarbs, .dietaryFat, .dietaryFiber, .dietarySugar] { #expect(fake.unitsAsked[Self.id(k)] == .gram()) }
     }
 
     /// Review Focus 1: burn must come from the source-merged statistics seam. The reader's only
-    /// dependency is `HealthStoreStatistics`, so exactly the six types go through it.
+    /// dependency is `HealthStoreStatistics`, so exactly the eight types go through it (W-FIX7 N-2
+    /// adds fibre + sugar).
     @Test func everyTotalGoesThroughTheStatisticsSeam() async throws {
         let fake = FakeStatistics()
         _ = try await HKDailyTotalsReader(store: fake, calendar: Self.utc, now: { Self.now }).dailyRows(days: 1)
-        #expect(Set(fake.unitsAsked.keys) == Set([HKReadKind.basalEnergy, .activeEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat].map(Self.id)))
+        #expect(Set(fake.unitsAsked.keys) == Set([HKReadKind.basalEnergy, .activeEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat,
+                                                  .dietaryFiber, .dietarySugar].map(Self.id)))
+    }
+
+    /// W-FIX7 N-2: fibre + sugar land on their day; a day without them stays nil (never 0).
+    @Test func n2FibreAndSugarLandOnTheirDay() async throws {
+        let fake = FakeStatistics()
+        fake.sums[Self.id(.dietaryFiber)] = [Self.day("2026-09-24"): 31.5]
+        fake.sums[Self.id(.dietarySugar)] = [Self.day("2026-09-24"): 42]
+        let rows = try await HKDailyTotalsReader(store: fake, calendar: Self.utc, now: { Self.now }).dailyRows(days: 2)
+        #expect(rows[1] == HKDailyTotalsReader.Day(date: "2026-09-24", fiberG: 31.5, sugarG: 42))
+        #expect(rows[1].hasAnyValue)
+        #expect(rows[0].fiberG == nil && rows[0].sugarG == nil)
     }
 
     /// Review Focus 1 (source pin): the reader file sums with `.cumulativeSum` statistics and

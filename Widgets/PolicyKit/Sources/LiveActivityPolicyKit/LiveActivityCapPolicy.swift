@@ -24,3 +24,35 @@ public enum LiveActivityCapPolicy {
         return activeElapsed >= activeCap || staleElapsed >= staleCap
     }
 }
+
+/// W-FIX7 F7-4: what to do with the verdict activities already running when the app (re)starts —
+/// `Activity<…>.activities` survives an app relaunch, the controller's own reference does not.
+/// Adopt the first active one; end every other active one (duplicates from earlier launches).
+/// Ended / dismissed ones are never adopted — a finished day is not re-opened.
+public enum LiveActivityAdoption {
+    public struct Plan<ID: Hashable>: Equatable {
+        public var adopt: ID?
+        public var end: [ID]
+    }
+
+    public static func plan<ID: Hashable>(running: [(id: ID, isActive: Bool)]) -> Plan<ID> {
+        let active = running.filter(\.isActive).map(\.id)
+        return Plan(adopt: active.first, end: Array(active.dropFirst()))
+    }
+
+    /// W-FIX7 fixer F7-4: the ended ("Done") cards still on the Lock Screen. Keep today's newest one
+    /// (the day's "done" card), dismiss every other one at once; `dayFinished` = today already
+    /// ended its activity, so no new card is requested for it (a finished day is not re-opened).
+    public struct EndedPlan<ID: Hashable>: Equatable {
+        public var keep: ID?
+        public var dismiss: [ID]
+        public var dayFinished: Bool { keep != nil }
+    }
+
+    public static func endedPlan<ID: Hashable>(ended: [(id: ID, lastUpdate: Date)], now: Date,
+                                               calendar: Calendar = .current) -> EndedPlan<ID> {
+        let today = ended.filter { calendar.isDate($0.lastUpdate, inSameDayAs: now) }
+        let keep = today.max { $0.lastUpdate < $1.lastUpdate }?.id
+        return EndedPlan(keep: keep, dismiss: ended.map(\.id).filter { $0 != keep })
+    }
+}

@@ -282,6 +282,34 @@ public struct DecideView: View {
     private var wasCaption: String? { override == nil ? nil : effectiveVerdict(parts: verdict, override: override).wasCaption }
     private var submitting: Bool { overrideModel?.phase == .submitting }
 
+    /// The session row's label (W-FIX5 W5-3 stacking; W-FIX7 F7-1 the Apple Health status line).
+    @ViewBuilder
+    private func sessionRowLabel(_ row: (title: String, detail: String), lift: (kg: String, caption: String?)?,
+                                 completion: SessionCompletion) -> some View {
+        if decideSessionRowStacked(typeSize) {
+            VStack(alignment: .leading, spacing: JISpacing.s1) {
+                JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
+                Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let lift { sessionLiftText(lift, alignment: .leading) }
+                SessionCompletionLine(completion: completion)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if completion.statusText != nil {
+            VStack(alignment: .leading, spacing: JISpacing.s1) {
+                HStack(spacing: JISpacing.s2) {
+                    JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+                    if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
+                }
+                SessionCompletionLine(completion: completion)
+                    .padding(.leading, JIChevronRowMetrics.iconWell + JISpacing.s3)
+            }
+        } else {
+            JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+            if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
+        }
+    }
+
     /// B-57 W5 C4: the first lift's next weight, "↑ Bench up" under it when due.
     private func sessionLiftText(_ lift: (kg: String, caption: String?), alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 2) {
@@ -440,30 +468,20 @@ public struct DecideView: View {
                             .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
                     }
                     // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
-                    RecoveryScoreCard(compact: true)
+                    // W-FIX7 fixer F7-2: the row says the ring's number (the hub's recovery for the call).
+                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))
                         .padding(.horizontal, JISpacing.s4)
                     JIRowDivider().padding(.leading, JISpacing.s4)
                     let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     // B-57 W5 C4 (board 1/01): the first lift's next weight at the right, "↑ Bench up" when due.
                     // W-FIX5 W5-3: no weight beside a Rest call; stacked at accessibility sizes.
-                    let lift = decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
+                    // W-FIX7 F7-1: a matching Apple Health workout today = done (no weight to lift any more).
+                    let completion = TodayWorkoutsModel.shared.completion(sessionLabel: row.detail)
+                    let lift = completion.isDone ? nil : decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
                                                       lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
-                        JIChevronRow {
-                            if decideSessionRowStacked(typeSize) {
-                                VStack(alignment: .leading, spacing: JISpacing.s1) {
-                                    JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
-                                    Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    if let lift { sessionLiftText(lift, alignment: .leading) }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
-                                if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
-                            }
-                        }
+                        JIChevronRow { sessionRowLabel(row, lift: lift, completion: completion) }
                         .padding(.horizontal, JISpacing.s4)
                     }
                     .task { if !offscreen { await progression?.refreshIfNeeded() } }
@@ -684,5 +702,27 @@ struct DecideReadinessRing: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(decideReadinessCaption(score: score, nights: nights, recovery: recovery, hubRecovery: hubRecovery) + (score.map { ", \(jiNumber($0, 0))" } ?? ""))
         .accessibilityIdentifier("today.decide.readinessRing")
+    }
+}
+
+/// W-FIX7 F7-1: the session's status from Apple Health — "Done · Traditional strength · 52 min ·
+/// Bevel" (a check, status green — rule 6) or "Other activity · Walk · 30 min · Workout" (muted,
+/// the session stays open). Nothing at all when Health has no workout today.
+public struct SessionCompletionLine: View {
+    let completion: SessionCompletion
+    @Environment(\.jiTheme) private var theme
+
+    public init(completion: SessionCompletion) { self.completion = completion }
+
+    public var body: some View {
+        if let text = completion.statusText {
+            Label {
+                Text(text).jiFont(.caption, weight: .semibold).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: completion.isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
+            }
+            .foregroundStyle(theme.color(completion.isDone ? .go : .muted))
+            .accessibilityIdentifier(completion.isDone ? "session.done" : "session.otherActivity")
+        }
     }
 }

@@ -144,7 +144,10 @@ public struct TrendsView: View {
                         if group == .nutrition { Text("7 d vs 28 d").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
                     }
                     Columns(minimum: 150, spacing: 12) {
-                        ForEach(trendsShownCards(trendsCards(all, filter: group), hiddenRaw: hiddenRaw, editing: editing)) { c in card(c) }
+                        // W-FIX7 fixer F7-5: every card of a group with a dated one reserves the line (equal tiles).
+                        let shown = trendsShownCards(trendsCards(all, filter: group), hiddenRaw: hiddenRaw, editing: editing)
+                        let reserveAsOf = trendsReservesAsOfLine(shown)
+                        ForEach(shown) { c in card(c, reserveAsOf: reserveAsOf) }
                     }
                 }
                 NormalBarLegend()
@@ -162,7 +165,7 @@ public struct TrendsView: View {
         }
     }
 
-    private func card(_ c: TrendsCardModel) -> some View {
+    private func card(_ c: TrendsCardModel, reserveAsOf: Bool) -> some View {
         let hidden = trendsHiddenIds(hiddenRaw).contains(c.id)
         return Button {
             if editing { hiddenRaw = trendsToggleHidden(hiddenRaw, id: c.id) } else { onSelectKpi?(c.id) }
@@ -175,15 +178,15 @@ public struct TrendsView: View {
                         Text(jiValueText(c.value, decimals: c.decimals)).jiNumeral(.numeralCompact, tint: c.value == nil ? .muted : c.tint)
                         if c.value != nil, let u = c.unit { Text(u).jiFont(.caption).foregroundStyle(theme.color(.muted)) }
                     }
-                    if let asOf = c.asOf {
-                        Text(asOf).jiFont(.caption).foregroundStyle(theme.color(.muted)).accessibilityIdentifier("trends.card.\(c.id).asOf")
-                    }
+                    TrendsAsOfLine(card: c, reserve: reserveAsOf)
                     Label(c.status.word, systemImage: c.status.symbolName).jiFont(.caption, weight: .semibold)
                         .foregroundStyle(theme.color(c.status.role))
                     NormalBar(value: c.value, normal: c.normal?.range, median: c.normal?.median, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // W-FIX7 F7-5: fill the grid row so tiles in a row are equal height (W-GUI equal tiles).
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxHeight: .infinity)
             .opacity(editing && hidden ? 0.45 : 1)
             .overlay(alignment: .topTrailing) {
                 if editing {

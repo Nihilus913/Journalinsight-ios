@@ -52,3 +52,32 @@ private nonisolated struct AppTotalsFake: HealthDailyTotalsProviding {
         .deletingLastPathComponent().appending(path: "App/AppEnvironment.swift"), encoding: .utf8)
     #expect(!source.contains("GoalsMirror"))       // the environment has no mirror hook at all
 }
+
+// W-FIX7 N-1 / N-2: the adapter carries fibre + sugar and publishes every read to the shared
+// Health totals feed (Fuel, Nutrition, Energy, KPIs read it — one Health read per foreground).
+#if canImport(HealthKit)
+import HealthKit
+import JIHealthKit
+
+private nonisolated struct AdapterStatsFake: HealthStoreStatistics {
+    func dailySums(for type: HKQuantityType, unit: HKUnit, start: Date, end: Date, calendar: Calendar) async throws -> [Date: Double] {
+        let today = calendar.startOfDay(for: Date())
+        switch type.identifier {
+        case HKQuantityTypeIdentifier.dietaryFiber.rawValue: return [today: 27]
+        case HKQuantityTypeIdentifier.dietarySugar.rawValue: return [today: 38]
+        case HKQuantityTypeIdentifier.dietaryEnergyConsumed.rawValue: return [today: 1400]
+        default: return [:]
+        }
+    }
+}
+
+@Test @MainActor func adapterMapsFibreSugarAndPublishesToTheFeed() async throws {
+    let feed = HealthDailyTotalsFeed()
+    let adapter = HealthDailyTotalsAdapter(reader: HKDailyTotalsReader(store: AdapterStatsFake()), feed: feed)
+    let rows = try await adapter.dailyTotals(days: 2)
+    let today = try #require(rows.last)
+    #expect(today.fiberG == 27 && today.sugarG == 38 && today.dietaryKcal == 1400)
+    #expect(rows.first?.fiberG == nil)
+    #expect(feed.latest == rows)
+}
+#endif

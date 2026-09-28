@@ -1,6 +1,9 @@
 import SwiftUI
 import JIDesign
 
+/// W-FIX7 F7-6: the backload action's role on the Apple Health screen — never a second primary.
+public nonisolated let healthBackloadButtonRole: DecideButtonRole = .secondary
+
 /// Settings section (W2h, B-9): fills the Garmin → Apple Health delta. Embedded in
 /// `ConnectionSheet`. Purely a view over `HealthBackloadViewModel.Phase` — no HealthKit import
 /// here (JIFeatures never imports JIHealthKit; see the wave card).
@@ -23,8 +26,9 @@ public struct HealthBackloadSection: View {
                 .font(.footnote)
             statusRow
             // W-FIX6 fixer (V-37): the section's action is a JI button, never a green text link.
+            // W-FIX7 F7-6: secondary — Apple Health's one primary is Connect (report §7).
             Button("Backload to Apple Health") { Task { await model.start() } }
-                .buttonStyle(.jiPrimary)
+                .buttonStyle(.jiSecondary)
                 .disabled(model.isRunning)
         }
     }

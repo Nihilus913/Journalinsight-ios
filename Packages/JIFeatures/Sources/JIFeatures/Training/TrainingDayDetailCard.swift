@@ -2,6 +2,11 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// W-FIX7 fixer: the card is empty only when the hub logged nothing AND Health has no workout today.
+public nonisolated func trainingDayDetailIsEmpty(detail: TrainingDayDetail?, healthWorkouts: [TodayWorkout]) -> Bool {
+    (detail?.activities ?? []).isEmpty && (detail?.exerciseSets ?? []).isEmpty && healthWorkouts.isEmpty
+}
+
 /// The selected day's activities + logged sets (oracle: `TrainingDayDetailCard.tsx`), the
 /// Training-side counterpart to Nutrition's meal timeline. `detail == nil` (loading / offline with
 /// nothing cached) renders the same empty copy as a genuinely empty `{activities: [], exercise_sets: []}`
@@ -13,9 +18,12 @@ public struct TrainingDayDetailCard: View {
     /// the hub has no `plan_session` for the day (or predates the field) — the card then reads
     /// exactly as it did before rather than inventing a session.
     let plannedSession: PlannedSession?
+    /// W-FIX7 fixer: today's Apple Health workouts (the ones that mark the session done) — listed
+    /// here, so the card never says "No training logged" beside "Done". Empty for any other day.
+    let healthWorkouts: [TodayWorkout]
     @Environment(\.jiTheme) private var theme
-    public init(date: String, detail: TrainingDayDetail?, plannedSession: PlannedSession? = nil) {
-        self.date = date; self.detail = detail; self.plannedSession = plannedSession
+    public init(date: String, detail: TrainingDayDetail?, plannedSession: PlannedSession? = nil, healthWorkouts: [TodayWorkout] = []) {
+        self.date = date; self.detail = detail; self.plannedSession = plannedSession; self.healthWorkouts = healthWorkouts
     }
 
     private struct SetGroup: Identifiable { let id: String; let label: String; let sets: [DayExerciseSet] }
@@ -33,7 +41,7 @@ public struct TrainingDayDetailCard: View {
 
     public var body: some View {
         let activities = detail?.activities ?? []
-        let isEmpty = activities.isEmpty && groups.isEmpty
+        let isEmpty = trainingDayDetailIsEmpty(detail: detail, healthWorkouts: healthWorkouts)
         Surface {
             VStack(alignment: .leading, spacing: 10) {
                 Text(formattedDate).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
@@ -49,6 +57,14 @@ public struct TrainingDayDetailCard: View {
                     Text("No training logged for this day yet.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("training-day-detail-empty")
                 } else {
+                    ForEach(Array(healthWorkouts.enumerated()), id: \.offset) { idx, workout in
+                        JIRow(title: workout.activityName, subtitle: workout.sourceName.map { "Apple Health · \($0)" } ?? "Apple Health",
+                              systemImage: "heart.text.square", tint: theme.color(.info)) {
+                            Text("\(workout.durationMinutes) min").accessibilityLabel("\(workout.durationMinutes) minutes")
+                        }
+                        .accessibilityIdentifier("training-day-health-workout")
+                        if idx != healthWorkouts.count - 1 || !activities.isEmpty { Divider().overlay(theme.color(.hairlineNested)) }
+                    }
                     // §2b.2: activities are 44-pt inset-grouped rows, hairline-separated.
                     ForEach(Array(activities.enumerated()), id: \.element.activityId) { idx, activity in
                         JIRow(title: activity.name ?? activity.type, systemImage: "figure.run", tint: theme.color(.info)) {

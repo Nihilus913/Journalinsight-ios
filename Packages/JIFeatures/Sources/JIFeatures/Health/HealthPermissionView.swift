@@ -73,8 +73,8 @@ nonisolated struct HealthReadRow: Sendable, Equatable, Identifiable {
 }
 
 /// What JI reads from Apple Health and whether it can. HealthKit never confirms a read grant, so
-/// "Read" means access was answered (JI then sees data after the first sync). Workouts are on the
-/// board but no read path ships yet, so that row says so instead of claiming it.
+/// "Read" means access was answered (JI then sees data after the first sync). W-FIX7: Workouts
+/// (session done) and Food (macros, fibre, sugar) are read on this iPhone, never uploaded.
 nonisolated func healthReadRows(permission: HKPermission, capabilities: DataCapability) -> [HealthReadRow] {
     let status: BoardStatus = switch permission {
     case .granted: BoardStatus(word: "Read", systemImage: "checkmark", role: .go)
@@ -86,8 +86,8 @@ nonisolated func healthReadRows(permission: HKPermission, capabilities: DataCapa
         HealthReadRow(title: "Overnight HRV", subtitle: hrvSubtitle, systemImage: "waveform.path", tint: .reduced, status: status),
         HealthReadRow(title: "Sleep", subtitle: "Duration and stages", systemImage: "moon", tint: .info, status: status),
         HealthReadRow(title: "Resting HR", subtitle: "Overnight only", systemImage: "heart", tint: .danger, status: status),
-        HealthReadRow(title: "Workouts", subtitle: "Feeds training load", systemImage: "dumbbell", tint: .muted,
-                      status: BoardStatus(word: "Not read yet", systemImage: "minus", role: .muted)),
+        HealthReadRow(title: "Workouts", subtitle: "Marks today's session done", systemImage: "dumbbell", tint: .muted, status: status),
+        HealthReadRow(title: "Food", subtitle: "Calories, macros, fibre, sugar", systemImage: "fork.knife", tint: .info, status: status),
     ]
 }
 
@@ -118,41 +118,91 @@ nonisolated func healthReadArrivals(_ record: UserDefaults? = UserDefaults(suite
                        restingHR: HealthKitArrival.lastUpload(for: [.restingHeartRate], in: record))
 }
 
-/// The "JI reads" rows with the arrival-based status on the read types; Workouts keep their
-/// honest "Not read yet" (no read path ships yet).
-nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, now: Date = Date()) -> [HealthReadRow] {
+/// W-FIX7: what this iPhone read from Health this launch (Workouts, Food are never uploaded, so
+/// their row keys off the local read, not an upload time).
+nonisolated struct HealthLocalReads: Sendable, Equatable {
+    var workouts = false, food = false
+    static let none = HealthLocalReads()
+}
+
+nonisolated func healthLocalReadStatus(_ read: Bool) -> BoardStatus {
+    read ? BoardStatus(word: "Read on iPhone", systemImage: "checkmark", role: .go)
+         : BoardStatus(word: "No data yet", systemImage: "minus", role: .muted)
+}
+
+/// The "JI reads" rows with the arrival-based status on the uploaded types and the local read on
+/// Workouts / Food.
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, local: HealthLocalReads = .none,
+                                       now: Date = Date()) -> [HealthReadRow] {
     healthReadRowsArrival(capabilities: capabilities,
-                          arrivals: HealthReadArrivals(hrv: lastUpload, sleep: lastUpload, restingHR: lastUpload), now: now)
+                          arrivals: HealthReadArrivals(hrv: lastUpload, sleep: lastUpload, restingHR: lastUpload), local: local, now: now)
 }
 
 /// DEV-12: each row's status keys off ITS type's last upload — never a permission lookup.
-nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: HealthReadArrivals, now: Date = Date()) -> [HealthReadRow] {
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: HealthReadArrivals, local: HealthLocalReads = .none,
+                                       now: Date = Date()) -> [HealthReadRow] {
     let byTitle = ["Overnight HRV": arrivals.hrv, "Sleep": arrivals.sleep, "Resting HR": arrivals.restingHR]
+    let localByTitle = ["Workouts": local.workouts, "Food": local.food]
     return healthReadRows(permission: .notDetermined, capabilities: capabilities).map { row in
+        if let read = localByTitle[row.title] {
+            return HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint,
+                                 status: healthLocalReadStatus(read))
+        }
         guard let arrival = byTitle[row.title] else { return row }
         return HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint,
                              status: healthArrivalStatus(lastUpload: arrival, now: now))
     }
 }
 
-/// The "Computed from these" tiles (mockup 47): Readiness = JI's recovery score from Apple signals
-/// (the number Decide's ring shows; "— · Calibrating" / "— · No data" without one), Sleep score
-/// "— · hub, Apple night" (present only when the hub sent one), Body Battery "— · Garmin only"
+/// The "Computed from these" tiles (mockup 47): Readiness = the hub's recovery for today's call
+/// (W-FIX7 F7-3), else JI's recovery score from Apple signals ("— · Calibrating" / "— · No data"
+/// without one), Sleep score = the hub's Apple-night score ("— · No data" without one), Body
+/// Battery "— · Garmin only"
 /// (true: never for Readiness or Sleep score, report §7 rule 6).
 public nonisolated struct HealthComputedTile: Equatable, Sendable, Identifiable {
     public let id: String, title: String, value: String, note: String
 }
 public nonisolated func healthComputedTiles(sleepScore: Double?, readiness: RecoveryScoreResult? = nil) -> [HealthComputedTile] {
     let ready: (value: String, note: String) = switch readiness?.status {
-    case .ok: readiness?.score.map { ("\($0)", "JI, Apple signals") } ?? ("—", JIMissingReason.noData.rawValue)
+    case .ok:
+        readiness?.score.map { ("\($0)", healthIsHubReadiness(readiness) ? "hub, today's call" : "JI, Apple signals") }
+            ?? ("—", JIMissingReason.noData.rawValue)
     case .missing: ("—", JIMissingReason.noData.rawValue)
     case .calibrating, nil: ("—", JIMissingReason.calibrating.rawValue)
     }
+    // W-FIX7 F7-3: a missing Sleep score says why ("— · No data"), never only its source.
+    let sleep: (value: String, note: String) = sleepScore.flatMap { $0.isFinite ? (jiNumber($0, 0), "hub, Apple night") : nil }
+        ?? ("—", JIMissingReason.noData.rawValue)
     return [
         HealthComputedTile(id: "readiness", title: "Readiness", value: ready.value, note: ready.note),
-        HealthComputedTile(id: "sleep", title: "Sleep score", value: sleepScore.map { jiNumber($0, 0) } ?? "—", note: "hub, Apple night"),
+        HealthComputedTile(id: "sleep", title: "Sleep score", value: sleep.value, note: sleep.note),
         HealthComputedTile(id: "bodyBattery", title: "Body Battery", value: "—", note: "Garmin only"),
     ]
+}
+
+/// W-FIX7 F7-3: the Readiness tile shows the hub's recovery for today's call (`/planning/morning`
+/// `gate_signals` key `recovery`, the number Decide's ring shows — 36 on 2026-09-28) when the hub
+/// sent one. It travels as a `RecoveryScoreResult` with no components (an on-device score always
+/// carries its four) so `HealthPermissionViewModel.readiness` keeps its type. nil = no hub value;
+/// the loader then falls back to the on-device score.
+public nonisolated func healthHubReadiness(_ signals: [GateSignal]?) -> RecoveryScoreResult? {
+    guard let value = decideHubRecovery(signals), value.isFinite else { return nil }
+    return RecoveryScoreResult(status: .ok, score: Int(value.rounded()), raw: value, components: [], nights: 0, nightsNeeded: 0)
+}
+
+/// W-FIX7 fixer F7-3: the Apple Health › Readiness tile's loader — the hub's recovery for today's
+/// call first (`healthHubReadiness`, 36 on 2026-09-28, Decide's ring), the phone's own score only
+/// when the hub sent none. The on-device score is never computed when the hub has one.
+public nonisolated func healthReadinessLoad(hubSignals: () async -> [GateSignal]?,
+                                            onDevice: () async -> RecoveryScoreResult?) async -> RecoveryScoreResult? {
+    if let hub = healthHubReadiness(await hubSignals()) { return hub }
+    return await onDevice()
+}
+
+/// true = the readiness came from the hub (`healthHubReadiness`), not the phone's own score.
+public nonisolated func healthIsHubReadiness(_ readiness: RecoveryScoreResult?) -> Bool {
+    guard let readiness else { return false }
+    return readiness.status == .ok && readiness.components.isEmpty && readiness.nightsNeeded == 0
 }
 public nonisolated let healthArrivalCaption = "\u{201C}Connected\u{201D} means data arrived; iOS does not report read permissions. Apple\u{2019}s own Readiness score is not shared with apps: JI computes its own from the same signals. To change access: Settings \u{203A} Health \u{203A} Sharing \u{203A} Apps."
 
@@ -200,7 +250,9 @@ public struct HealthPermissionBoardSections: View {
             }
         }
         Section("JI reads") {
-            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, arrivals: healthReadArrivals())) { row in
+            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, arrivals: healthReadArrivals(),
+                                           local: HealthLocalReads(workouts: TodayWorkoutsModel.shared.hasReadHealth,
+                                                                   food: !HealthDailyTotalsFeed.shared.latest.isEmpty))) { row in
                 SettingsLinkLabel(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage,
                                   badge: row.status, tint: theme.color(row.tint))
                 .accessibilityElement(children: .combine)

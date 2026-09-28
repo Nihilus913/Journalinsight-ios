@@ -65,7 +65,7 @@ private func result(_ status: RecoveryScoreStatus, score: Int?, nights: Int = 20
 
 @Test func decideAndRationaleMountTheCardAndDropTheDoubledRow() throws {
     let decide = try s1Source("Sources/JIFeatures/Today/DecideView.swift")
-    #expect(decide.contains("RecoveryScoreCard(compact: true)"))
+    #expect(decide.contains("RecoveryScoreCard(compact: true"))   // W-FIX7 fixer: + hubRecovery
     #expect(decide.contains("RecoveryScoreCard.visibleSignals("))
     let rationale = try s1Source("Sources/JIFeatures/GateRationale/GateRationaleView.swift")
     #expect(rationale.contains("RecoveryScoreCard()"))

@@ -37,7 +37,19 @@ public final class TodayViewModel {
 
     public private(set) var phase: Phase = .idle
     public private(set) var morning: MorningResponse?
-    public private(set) var gate: GateResponse?
+    /// W-FIX7 N-1 (Fuel): the hub's gate rows with Apple Health's food (kcal, protein, carbs,
+    /// fat) on every day Health has it — Fuel and the Protein / Calories squares read Health first,
+    /// YAZIO only for the days Health lacks. Every other key stays the hub's. `hubGate` = as fetched.
+    public private(set) var gate: GateResponse? {
+        get {
+            guard var g = hubGate else { return nil }
+            g.daily = DailyKpiRow.mergingHealth(g.daily, health: fuelHealth.totals)
+            return g
+        }
+        set { hubGate = newValue }
+    }
+    private var hubGate: GateResponse?
+    private var fuelHealth: HealthTotalsSource
     public private(set) var recovery: [RecoveryDay] = []
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
@@ -126,7 +138,9 @@ public final class TodayViewModel {
     ///   it; nil = `provider` (the hub itself, previews, tests).
     public init(provider: any HealthDataProvider, verdictProvider: (any HealthDataProvider)? = nil, cache: OfflineCache,
                 prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
-                uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) {
+                uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
+                healthFeed: HealthDailyTotalsFeed = .shared) {
+        self.fuelHealth = HealthTotalsSource(feed: healthFeed)
         self.provider = provider; self.verdictProvider = verdictProvider ?? provider
         self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
     }
@@ -283,16 +297,22 @@ public final class TodayViewModel {
         _ = loadTodayTilePrefs(prefs: prefs)
         phase = .loading
         restoreFromCache()
+        // W-FIX7 F7-1: today's Apple Health workouts (session done) before the hub answers.
+        await TodayWorkoutsModel.shared.refresh()
         await fetchLive()
     }
 
-    public func refresh() async { await fetchLive() }
+    public func refresh() async {
+        await TodayWorkoutsModel.shared.refresh()
+        await fetchLive()
+    }
 
     private func restoreFromCache() {
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) {
             morning = m.value; fetchedAt = m.fetchedAt; morningFetchedAt = m.fetchedAt; everSynced = true
         }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
+        fuelHealth.restore(from: cache)   // W-FIX7 N-1: last launch's Health food until this launch's read lands
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
@@ -537,4 +557,72 @@ nonisolated func parseHubTimestamp(_ raw: String?) -> Date? {
     }
     let frac = ISO8601DateFormatter(); frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return frac.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+}
+
+// MARK: - W-FIX7 F7-1 (S1): today's workouts from Apple Health
+
+/// Today's Apple Health workouts, read on the phone (no hub path — Toby 2026-09-28). ONE shared
+/// model so Decide, Day, Training and the glances agree: the App installs `source` (JIHealthKit's
+/// `HKTodayWorkoutsReader`) and `onChange` (republish the widgets / Live Activity); screens read
+/// `completion(sessionLabel:)` and `TrainingWeekSummary.applyingTodayWorkouts`.
+/// No source (tests, previews, `-no-healthkit`) = no workouts = every session as it was.
+@Observable @MainActor
+public final class TodayWorkoutsModel {
+    public static let shared = TodayWorkoutsModel()
+
+    @ObservationIgnored public var source: (any TodayWorkoutsProviding)?
+    /// Fired on the first successful read and when a refresh changed the rows (never on an unchanged re-read).
+    @ObservationIgnored public var onChange: (() -> Void)?
+    private var rows: [TodayWorkout] = []
+    /// W-FIX7 fixer F7-4: true once a read from `source` succeeded this launch.
+    private var hasRead = false
+    private let now: () -> Date
+    private let calendar: Calendar
+
+    public init(source: (any TodayWorkoutsProviding)? = nil, now: @escaping () -> Date = Date.init,
+                calendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = .current; return c }()) {
+        self.source = source; self.now = now; self.calendar = calendar
+    }
+
+    /// The rows read, minus any that started before today (a read from yesterday evening never
+    /// marks this morning's session done).
+    public var workouts: [TodayWorkout] {
+        let today = now()
+        return rows.filter { calendar.isDate($0.start, inSameDayAs: today) }
+    }
+
+    /// W-FIX7 fixer F7-4: whether "done" is known yet — no source (tests, `-no-healthkit`), or the
+    /// first read landed. The Live Activity waits for it: a launch that drove the activity before
+    /// Health answered requested a fresh card, then ended it as "done" — one more card per relaunch.
+    public var isSettled: Bool { source == nil || hasRead }
+    /// W-FIX7: a Health workouts read succeeded this launch (Settings › Apple Health "Workouts" row).
+    public var hasReadHealth: Bool { hasRead }
+
+    /// Re-reads Health. A failed read keeps the last rows (never flips a done session back).
+    public func refresh() async {
+        guard let source, let fresh = try? await source.todayWorkouts() else { return }
+        let first = !hasRead
+        hasRead = true
+        // The first read always fires (it settles "done" for the Live Activity), later ones on change.
+        guard fresh != rows || first else { return }
+        rows = fresh
+        onChange?()
+    }
+
+    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's workouts.
+    public func completion(sessionLabel: String?) -> SessionCompletion {
+        SessionCompletion.resolve(planned: PlannedSessionKind.classify(sessionLabel), workouts: workouts)
+    }
+}
+
+public extension TodayViewModel {
+    /// F7-1: the label of today's planned session — the hub's session for today, else the call's session.
+    var plannedSessionLabel: String? {
+        [morning?.sessionForToday, verdict.session].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+
+    /// F7-1: today's session against today's Apple Health workouts (`.none` = unchanged).
+    func sessionCompletion(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionCompletion {
+        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel)
+    }
 }

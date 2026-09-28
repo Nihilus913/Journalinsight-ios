@@ -68,6 +68,8 @@ final class AppEnvironment {
         // B-73: recompute the plan band on the phone on every foreground, even while an upload is
         // in flight. Health read + local math only; it never talks to the hub (Review Focus 4).
         Task { @MainActor [weak self] in await self?.refreshEnergyBand() }
+        // W-FIX7 F7-1: today's Apple Health workouts (session done) on every foreground.
+        Task { @MainActor [weak self] in await self?.refreshTodayWorkouts() }
         guard !uploadInFlight, let uploader = healthKitUploader,
               !CommandLine.arguments.contains("-no-healthkit") else { return }
         uploadInFlight = true
@@ -131,6 +133,7 @@ final class AppEnvironment {
     }
 
     func boot() throws {
+        installTodayWorkouts()
         // W8-L1 appWiring: warm the haptics prefs cache from disk at cold start, so
         // `JIHapticDispatcher.shared.prefs` reflects the persisted enabled/intensity values
         // immediately instead of the open default (enabled, 100) until Settings is visited.
@@ -199,8 +202,8 @@ final class AppEnvironment {
         // guessed `.denied` in the meantime (rule 5: no false-confident state).
         // W-DATA fixer R3: the "Computed from these" tiles read the same sources as the screens that
         // show them — Sleep score = the hub's `/vitals/sleep-summary` `score_computed` (the Today
-        // ring's source), Readiness = the recovery score over `/vitals/recovery-inputs` (Decide's
-        // ring, `RecoveryInsightService.score`). A provider that serves neither leaves "—".
+        // ring's source), Readiness = the hub's `/planning/morning` recovery (Decide's ring; W-FIX7
+        // F7-3), else the recovery score over `/vitals/recovery-inputs`. Neither leaves "—".
         let provider = providerStore?.provider
         let window = RecoveryInsightService.windowDays
         let model = HealthPermissionViewModel(
@@ -228,10 +231,16 @@ final class AppEnvironment {
                 return try? await sp.sleepSummary().scoreComputed
             },
             loadReadiness: {
-                guard let rp = provider as? any RecoveryInputsProviding else { return nil }
-                let day = RecoveryInsightService.localDayKey(Date())
-                guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
-                return RecoveryInsightService.score(days: days, today: day)
+                // W-FIX7 fixer F7-3: the hub's recovery for today's call (Decide's ring, 36 on
+                // 2026-09-28) first; the phone's own score only when the hub sent none.
+                await healthReadinessLoad(
+                    hubSignals: { try? await provider?.morning().gateSignals },
+                    onDevice: {
+                        guard let rp = provider as? any RecoveryInputsProviding else { return nil }
+                        let day = RecoveryInsightService.localDayKey(Date())
+                        guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
+                        return RecoveryInsightService.score(days: days, today: day)
+                    })
             }
         )
         Task { [weak self, weak model] in
@@ -384,6 +393,58 @@ final class AppEnvironment {
         )
     }
 
+    // MARK: - W-FIX7 F7-1: session done from Apple Health
+
+    /// The shared today-workouts model Decide / Day / Training read (a seam for tests).
+    @ObservationIgnored var todayWorkouts: TodayWorkoutsModel = .shared
+
+    /// Points the model at Apple Health (`-no-healthkit` scripted runs: none, every session as it
+    /// was) and republishes the glances when a workout lands, so the widget and the Live Activity
+    /// say "done" without waiting for the next hub fetch.
+    func installTodayWorkouts() {
+        if todayWorkouts.source == nil, Self.readsHealthWorkouts(arguments: CommandLine.arguments,
+                                                                 environment: ProcessInfo.processInfo.environment) {
+            todayWorkouts.source = HKTodayWorkoutsReader(store: RealHealthStoreReader())
+        }
+        todayWorkouts.onChange = { [weak self] in self?.republishSnapshot() }
+    }
+
+    func refreshTodayWorkouts() async { await todayWorkouts.refresh() }
+
+    /// W-FIX7 fixer: the real Health workouts reader is installed only in the app itself — never
+    /// under `-no-healthkit`, never in a unit-test host (AppTests read the sim's real HealthKit
+    /// through `TodayWorkoutsModel.shared` and failed whenever the sim held a workout today).
+    static func readsHealthWorkouts(arguments: [String], environment: [String: String]) -> Bool {
+        !arguments.contains("-no-healthkit") && environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    /// W-FIX7 fixer F7-4: what a published snapshot does to the Live Activity. Nothing until the
+    /// first Health workouts read has landed (`workoutsSettled`) — a relaunch that refreshed the
+    /// activity before Health answered requested a new card, then ended it as "done" — one more
+    /// "Done" card per relaunch. A done session finishes it; otherwise it is refreshed.
+    enum LiveActivityStep: Equatable { case none, update, finish }
+
+    static func liveActivityStep(_ snapshot: HubSnapshot, done: Bool, workoutsSettled: Bool) -> LiveActivityStep {
+        guard drivesLiveActivity(snapshot), workoutsSettled else { return .none }
+        return done ? .finish : .update
+    }
+
+    /// F7-1: the glance's session line — "Done · Traditional strength · 52 min · Bevel" once a
+    /// matching workout is in Health today, else the call's own session.
+    static func glanceSession(headlineSession: String?, completion: SessionCompletion) -> String {
+        if completion.isDone, let done = completion.statusText { return done }
+        return headlineSession ?? "No verdict yet"
+    }
+
+    /// F7-1: the Live Activity ends (showing "done") once today's session is done — never restarted
+    /// for that day. Unit-test hosts get nil.
+    @ObservationIgnored var liveActivityFinish: (@MainActor (HubSnapshot) -> Void)? = AppEnvironment.defaultLiveActivityFinish
+
+    static var defaultLiveActivityFinish: (@MainActor (HubSnapshot) -> Void)? {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return nil }
+        return { @MainActor snapshot in LiveActivityController.shared.finish(from: snapshot) }
+    }
+
     // MARK: - B-57 W5: glance extras (reason, plan, the user's cap, next session, signals)
 
     /// W3's recovery insight (owned by RootTabView) — read for the HRV/RHR normals on the glances.
@@ -459,11 +520,14 @@ final class AppEnvironment {
         let rhrNormal = recoveryInsight?.normal(for: .rhr)?.range
         let gateSignals = today?.morning?.gateSignals
         // W-B57-W5 fixer: the live Training week when RootTabView has one, else the cached B-52 plan.
-        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now())))
+        let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now()))?
+            .applyingTodayWorkouts(todayWorkouts.workouts))
+        // W-FIX7 F7-1: today's session against today's Apple Health workouts.
+        let completion = today.map { $0.sessionCompletion(workouts: todayWorkouts, sessionLabel: headline?.session) } ?? .none
         let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)
         let snapshot = HubSnapshot(
             verdictWord: headline?.word ?? "—",
-            verdictSession: headline?.session ?? "No verdict yet",
+            verdictSession: Self.glanceSession(headlineSession: headline?.session, completion: completion),
             verdictTone: Self.toneString(headline?.tone),
             verdictDate: today?.morning?.verdictDate,
             readiness: readiness,
@@ -482,7 +546,12 @@ final class AppEnvironment {
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
-        if Self.drivesLiveActivity(snapshot) { liveActivity?(snapshot) }
+        // F7-1: a done session ends the Live Activity (with "done" on it) instead of refreshing it.
+        switch Self.liveActivityStep(snapshot, done: completion.isDone, workoutsSettled: todayWorkouts.isSettled) {
+        case .finish: liveActivityFinish?(snapshot)
+        case .update: liveActivity?(snapshot)
+        case .none: break
+        }
         // W-B34 (B-34): the widgets' timelines are `.never` — without this signal a placed widget
         // kept showing the snapshot it was first rendered with until iOS happened to refresh it.
         #if canImport(WidgetKit)
@@ -541,12 +610,19 @@ struct GlancePlan: Equatable {
 
 /// B-57 W2 (B-73): JIHealthKit's `HKDailyTotalsReader` rows as JICore `HealthDailyTotals` (a
 /// field-for-field copy), so JIFeatures' `EnergyBandService` never imports HealthKit.
+/// W-FIX7 N-1 / N-2: + fibre and sugar; every successful read is published to `feed`, which
+/// Fuel, Nutrition, Energy and the KPI screens read (Apple Health first, YAZIO only for the
+/// days Health lacks) — one Health read per foreground, not one per screen.
 struct HealthDailyTotalsAdapter: HealthDailyTotalsProviding {
     let reader: HKDailyTotalsReader
+    var feed: HealthDailyTotalsFeed = .shared
     func dailyTotals(days: Int) async throws -> [HealthDailyTotals] {
-        try await reader.dailyRows(days: days).map {
+        let rows = try await reader.dailyRows(days: days).map {
             HealthDailyTotals(date: $0.date, basalKcal: $0.basalKcal, activeKcal: $0.activeKcal, dietaryKcal: $0.dietaryKcal,
-                              proteinG: $0.proteinG, carbsG: $0.carbsG, fatG: $0.fatG)
+                              proteinG: $0.proteinG, carbsG: $0.carbsG, fatG: $0.fatG, fiberG: $0.fiberG, sugarG: $0.sugarG)
         }
+        let feed = self.feed
+        await MainActor.run { feed.publish(rows) }
+        return rows
     }
 }

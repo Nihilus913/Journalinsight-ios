@@ -130,13 +130,17 @@ public struct TrainingView: View {
                 onSendToWatch: sendToWatchAction,
                 onStart: { showSessionCoach = true },
                 tint: subtitle.word == nil ? nil : trainingToneColor(subtitle.tone, theme))
+            // W-FIX7 F7-1: today's session done (or another activity) from Apple Health.
+            SessionCompletionLine(completion: model.selectedDayCompletion)
+                .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
             JISectionHeader("Readiness")
             GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
             JISectionHeader("This day")
             TrainingDayDetailCard(
                 date: model.selectedDate,
                 detail: model.dayDetail,
-                plannedSession: model.plannedSessionForSelectedDay
+                plannedSession: model.plannedSessionForSelectedDay,
+                healthWorkouts: model.selectedDayHealthWorkouts
             )
             JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in

@@ -137,8 +137,25 @@ public final class TrainingViewModel {
     public var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
     /// B-57 W5: this week, from the rows on screen (updates with every optimistic assignment).
+    /// W-FIX7 F7-1: today's day is done when Apple Health holds a matching workout today.
     public var weekSummary: TrainingWeekSummary {
         trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString)
+            .applyingTodayWorkouts(todayWorkouts.workouts)
+    }
+
+    /// W-FIX7 F7-1: the shared Apple Health workouts model (a seam for tests).
+    @ObservationIgnored public var todayWorkouts: TodayWorkoutsModel = .shared
+
+    /// W-FIX7 F7-1: the selected day's session against today's workouts — `.none` for any other day.
+    public var selectedDayCompletion: SessionCompletion {
+        guard selectedDate == todayDateString,
+              let day = weekSummary.days.first(where: { $0.isToday }) else { return .none }
+        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todayWorkouts.workouts)
+    }
+
+    /// W-FIX7 fixer: today's Apple Health workouts for the "This day" card — none for any other day.
+    public var selectedDayHealthWorkouts: [TodayWorkout] {
+        selectedDate == todayDateString ? todayWorkouts.workouts : []
     }
 
     /// B-57 W5: the same summary from the cache alone — for the widgets, Goals and Day when the
@@ -475,5 +492,36 @@ public final class TrainingViewModel {
         case .some(let e): "Hub error: \(e)"
         case .none: "Unexpected error: \(error.localizedDescription)"
         }
+    }
+}
+
+// MARK: - W-FIX7 F7-1: session done from Apple Health
+
+public extension TrainingWeekDay {
+    /// What this day's plan is, for matching a workout: S = strength, I / R = cardio, – = rest.
+    nonisolated var plannedSessionKind: PlannedSessionKind {
+        switch kind {
+        case .strength: .strength
+        case .interval, .longRun: .cardio
+        case .rest: .rest
+        }
+    }
+}
+
+public extension TrainingWeekSummary {
+    /// F7-1: today's day marked done when `workouts` (today's, from Apple Health) hold one of the
+    /// planned kind. A non-matching workout or none changes nothing. The done count moves only for
+    /// a strength day and only when it was known (nil stays "—", never a guessed count).
+    nonisolated func applyingTodayWorkouts(_ workouts: [TodayWorkout]) -> TrainingWeekSummary {
+        guard !workouts.isEmpty, let i = days.firstIndex(where: { $0.isToday }), days[i].done != true else { return self }
+        let today = days[i]
+        guard SessionCompletion.resolve(planned: today.plannedSessionKind, workouts: workouts).isDone else { return self }
+        var out = days
+        out[i] = TrainingWeekDay(weekday: today.weekday, date: today.date, kind: today.kind, sessionName: today.sessionName,
+                                 sessionId: today.sessionId, done: true, isToday: true)
+        let strengthDone = out.filter { $0.kind == .strength && $0.done == true }.count
+        let done = today.kind == .strength ? planDone.map { _ in min(strengthDone, planTotal) } : planDone
+        let next = out.first { $0.kind == .strength && $0.date >= today.date && $0.done != true }
+        return TrainingWeekSummary(days: out, planTotal: planTotal, assigned: assigned, planDone: done, next: next)
     }
 }

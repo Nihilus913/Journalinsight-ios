@@ -11,8 +11,8 @@ import JICore
     #expect(healthArrivalStatus(lastUpload: today, now: now, calendar: utc).word == "Connected · 07:41")
     #expect(healthArrivalStatus(lastUpload: nil, now: now, calendar: utc).word == "No data yet")
     let rows = healthReadRowsArrival(capabilities: [.hrvRMSSD], lastUpload: today, now: now)
-    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts"])
-    #expect(rows[0].status.word.hasPrefix("Connected") && rows[3].status.word == "Not read yet")
+    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts", "Food"])
+    #expect(rows[0].status.word.hasPrefix("Connected") && rows[3].status.word == "No data yet")
     #expect(!rows.contains { $0.status.word == "Declined" })
 }
 
@@ -20,7 +20,7 @@ import JICore
     let tiles = healthComputedTiles(sleepScore: nil)
     #expect(tiles.map(\.title) == ["Readiness", "Sleep score", "Body Battery"])
     #expect(tiles[0].value == "—" && tiles[0].note == "Calibrating")
-    #expect(tiles[1].value == "—" && tiles[1].note == "hub, Apple night")     // never "Garmin only"
+    #expect(tiles[1].value == "—" && tiles[1].note == "No data")     // W-FIX7 F7-3: the reason; never "Garmin only"
     #expect(tiles[2].note == "Garmin only")
     #expect(healthComputedTiles(sleepScore: 89)[1].value == "89")
     #expect(healthArrivalCaption.contains("data arrived"))
