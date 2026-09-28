@@ -45,7 +45,9 @@ import JIDesign
         #expect(todayKpiRingMax(.sleep) == 100)
         #expect(todayKpiRingMax(.readiness) == 100)
         #expect(todayKpiRingMax(.bodyBattery) == 100)
-        #expect(todayKpiRingMax(.steps) == todayStepsGoal)
+        // W-TGT L3: steps ring only against the user's own goal; no goal = no ring (no 8,000 default).
+        #expect(todayKpiRingMax(.steps) == nil)
+        #expect(todayKpiRingMax(.steps, stepsGoal: 9000) == 9000)
         for id in [KpiMetricId.hrv, .rhr, .acwr, .weight, .kcal, .protein, .carbs, .fat] {
             #expect(todayKpiRingMax(id) == nil, "\(id.rawValue) is baseline-relative — never a ring (§4b)")
         }

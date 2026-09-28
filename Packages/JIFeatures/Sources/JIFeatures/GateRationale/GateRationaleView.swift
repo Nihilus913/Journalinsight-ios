@@ -81,7 +81,10 @@ public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals
                                                  load: Double?, loadMissing: JIMissingReason = .noData,
                                                  loadReading: RecoveryLoadReading? = nil) -> [GateCountedRow] {
     var rows: [GateCountedRow] = (signals ?? []).map { sig in
-        let m = decideSignalRowModel(sig, normal: normals[sig.key], recoveryNormal: recoveryNormals[sig.key])
+        // W-TGT: the rationale explains the hub's own call, so its sleep row reads against the number
+        // the hub gated on (its signal threshold), exactly as before.
+        let m = decideSignalRowModel(sig, normal: normals[sig.key], recoveryNormal: recoveryNormals[sig.key],
+                                     sleepGoalH: sig.key == "sleep_h" ? sig.threshold : nil)
         let sentence: String
         if sig.status == .context {
             sentence = [gateSignalNoteText(sig).map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }, "Shown, not counted."]

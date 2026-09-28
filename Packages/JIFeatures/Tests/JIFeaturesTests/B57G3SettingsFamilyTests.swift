@@ -82,22 +82,19 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
 
 // MARK: - Settings root structure
 
-@Test func rootHasSyncNowUnderConnectionAndHapticsAsAToggle() {
-    let connection = SettingsRoot.rows.filter { $0.group == .connection }.map(\.id)
-    #expect(connection == ["hub", "health", "syncNow"])
-    let prefs = SettingsRoot.rows.filter { $0.group == .preferences }
-    #expect(prefs.map(\.id) == ["preferences", "home", "haptics"])
-    #expect(prefs.first { $0.id == "haptics" }?.kind == .hapticsToggle)
-    #expect(prefs.first { $0.id == "preferences" }?.sectionIds == ["l0.preferences", "l1.appearance", "l2.reminders"])
+// W-TGT fixer 1e: mock 04 supersedes the B-57 board root (Sync now + Haptics switch moved into
+// their screens); `TgtFixerTests.settingsRootIsMock04` pins the new root.
+@Test @MainActor func syncNowAndHapticsLiveBehindTheirRootRows() {
+    #expect(SettingsRoot.rows.first { $0.id == "hub" }?.sectionIds.contains(SyncNowSection.sectionId) == true)
+    #expect(SettingsRoot.rows.first { $0.id == "haptics" }?.sectionIds == [HapticsSection.sectionId])
+    #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences"])
 }
 
-@Test @MainActor func gateConfigAndHapticStrengthMoveUnderAdvanced() {
-    let advanced = SettingsRoot.rows.filter { $0.group == .advanced }
-    let ids = advanced.flatMap(\.sectionIds)
-    #expect(ids.contains(GateConfigSection.sectionId))
-    #expect(ids.contains(HapticsSection.sectionId))
-    #expect(ids.first == VersionSection.sectionId)
-    #expect(SettingsRoot.rows.filter { $0.group == .preferences }.flatMap(\.sectionIds).contains(GateConfigSection.sectionId) == false)
+/// W-TGT L3: Gate thresholds is gone from Settings (merged into Targets, spec §4).
+@Test @MainActor func gateThresholdsRowIsGone() {
+    #expect(SettingsRoot.rows.first { $0.group == .app }?.sectionIds.first == VersionSection.sectionId)
+    #expect(!SettingsRoot.rows.flatMap(\.sectionIds).contains("w5b.gateConfig"))
+    #expect(!SettingsRegistry.sections.map(\.id).contains("w5b.gateConfig"))
 }
 
 @MainActor

@@ -61,7 +61,7 @@ public nonisolated func squareBadgeHitSide(side: CGFloat) -> CGFloat { max(side,
 public nonisolated func squareAccessibilityLabel(_ item: JISquareItem) -> String {
     var parts = [item.label]
     if let v = item.value {
-        var value = jiNumber(v, item.decimals)
+        var value = jiGroupedNumber(v, item.decimals)
         if let unit = item.unit, !unit.isEmpty { value += " \(unit)" }
         if let goal = item.goalText { value += " \(goal)" }
         parts.append(value)
@@ -177,7 +177,7 @@ struct MetricSquare: View {
             .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(item.value == nil ? .muted : item.tint))
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(jiValueText(item.value, decimals: item.decimals))
+                Text(item.value.map { $0.isFinite ? jiGroupedNumber($0, item.decimals) : "—" } ?? "—")
                     .jiNumeral(.numeralCompact, tint: item.value == nil ? .muted : item.tint)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 if item.value != nil, let unit = item.unit, !unit.isEmpty {

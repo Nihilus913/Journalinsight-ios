@@ -65,6 +65,18 @@ public nonisolated func jiValueText(_ value: Double?, decimals: Int) -> String {
     return jiNumber(value, decimals)
 }
 
+/// Grouped fixed decimals ("1,850", "27.5") for large hero figures — same fixed en_GB grouping as the
+/// Targets captions, so a square's value and its "goal 1,617" line read alike (W-TGT r3).
+public nonisolated func jiGroupedNumber(_ value: Double, _ decimals: Int) -> String {
+    let f = NumberFormatter()
+    f.locale = Locale(identifier: "en_GB")
+    f.numberStyle = .decimal
+    f.usesGroupingSeparator = true
+    f.minimumFractionDigits = max(0, decimals)
+    f.maximumFractionDigits = max(0, decimals)
+    return f.string(from: NSNumber(value: value)) ?? jiNumber(value, decimals)
+}
+
 /// Rule 5 for text-only cells (tables, list rows): a real value with its unit, or "—" plus exactly
 /// one reason word ("— No data") — never a bare dash.
 public nonisolated func jiValueOrReasonText(_ value: Double?, decimals: Int, unit: String? = nil,

@@ -179,13 +179,7 @@ private func decideViewSource() -> URL {
     #expect(notes == ["This week (under-fueling): bring kcal back up toward goal — this is chronic under-fueling, not a plateau."])
 }
 
-@Test func bug27_gateConfigPreviewShowsTheUserWord() throws {
-    let result = try previewMorningGateVerdict(MorningGateOverrides())
-    #expect(result.verdict == "GO — Norwegian 4x4 intervals")     // raw stays for the flip compare
-    #expect(result.displayVerdict == "Full · Norwegian 4x4 intervals")
-    #expect(GatePreviewResult(verdict: "MODIFIED — swap intervals for easy Z2 30-40min", conditions: []).displayVerdict
-        == "Modified · swap intervals for easy Z2 30-40min")
-}
+// W-TGT L3: the GateConfig fixture preview is deleted (spec §4), and its verdict-word test with it.
 
 @Test func bug27_anOverrideCaptionSaysTheUserWord() {
     let full = VerdictOverride(date: "2026-09-25", choice: .full, reason: "Feel good", session: "")

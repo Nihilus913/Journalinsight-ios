@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICompute
+import JICore
 @testable import JIFeatures
 
 /// B-57 W3 S3 (spec §0.3): once the recovery score is live, no screen W3 owns calls 7 h a floor or a
@@ -22,16 +23,19 @@ import JICompute
     #expect(hits.isEmpty, "floor wording left: \(hits)")
 }
 
-@Test func gateConfigGarminKnobIsNotCalledSleepGoal() {
-    #expect(MorningGateOverridableField.minSleepH.label == "Garmin nights: min sleep for intervals")
-    #expect(MorningGateOverridableField.minSleepH.group == .recoverySignals)
-    #expect(!MorningGateOverridableField.minSleepH.explanation.lowercased().contains("goal"))
+/// W-TGT L3: the Garmin interval knob is a Targets rule, never called the sleep goal.
+@Test func garminKnobIsARuleNotTheSleepGoal() {
+    #expect(targetsRuleTitle(.intervalMinSleep) == "Garmin nights · interval floor")
+    #expect(!targetsRuleExplanation(.intervalMinSleep).lowercased().contains("goal"))
 }
 
-@Test func gateConfigSleepGoalRowIsReadOnlyAndNotAGateRule() {
-    #expect(gateConfigSleepGoalTitle == "Sleep goal")
-    #expect(gateConfigSleepGoalValue(MorningGateConfig.default) == "7 h")
-    #expect(gateConfigSleepGoalExplanation == "A goal, not a gate rule. Short nights reach the call through the recovery score.")
-    // No field of the Sleep group is a stepper any more: the goal row is the whole group.
-    #expect(MorningGateOverridableField.allCases.filter { $0.group == .sleep }.isEmpty)
+/// W-TGT L3 (D2): the sleep goal is a Goal the user types — "— h / no goal" until then, never 7 h.
+@Test func sleepGoalIsAUserGoalNilUntilTyped() {
+    let row = TargetsRows.goals(.empty).first { $0.subject == .goal(.sleep) }
+    #expect(row?.value == "— h")
+    #expect(row?.subtitle == "no goal")
+    var doc = TargetsDocument.empty
+    doc.goals.sleepH = 7
+    #expect(TargetsRows.goals(doc).first { $0.subject == .goal(.sleep) }?.value == "7.0 h")
+    #expect(targetsGoalCaption(.sleep, 7) == "goal 7 h")
 }

@@ -10,8 +10,6 @@ public struct KpiListView: View {
     @Bindable private var model: KpiListViewModel
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
     private let theme = JITheme.native
-    /// B-57 W2 (B-73): the user's goals for the nutrition squares' captions.
-    @Environment(\.nutritionGoals) private var nutritionGoals
     /// W-FIX5 WD-2: the 7-day Load the Today square shows (nil = the square says why).
     @Environment(\.recoveryInsight) private var recoveryInsight
 
@@ -50,7 +48,7 @@ public struct KpiListView: View {
         }
         .jiPageGround()
         .jiTheme(.native)
-        .navigationTitle("My KPIs")
+        .navigationTitle(kpiListTitle)
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .task { await recoveryInsight?.refreshIfStale() }   // WD-2: the Load square's reading
@@ -83,19 +81,39 @@ public struct KpiListView: View {
                 .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, JISpacing.s4)
-            ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
-                let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
-                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { nutritionGoals.caption(for: $0, value: $1) },
-                                              load: recoveryInsight?.loadReading)
-                if !items.isEmpty {
-                    HStack(alignment: .firstTextBaseline) {
-                        JISectionHeader(kpiListGroupHeader(group, count: items.count))
-                    }
-                    SquareGrid(items: items, family: squareTileFamily(catalog: true), onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
-                        guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
-                        if model.toggle(id, selected: group != .onToday) { announceTodayChange() }
-                    })
+            KpiCatalogueGrids(model: model, onSelectKpi: onSelectKpi)
+        }
+    }
+}
+
+/// W-TGT fixer 1f: the picker's square grids (On Today · Recovery · Nutrition) — the On Today
+/// screen and Settings › Home & widgets draw the same ones. Captions read Targets ("goal" is
+/// yours, "your normal" computed); food squares read Apple Health first (live, else cached).
+struct KpiCatalogueGrids: View {
+    @Bindable var model: KpiListViewModel
+    let onSelectKpi: ((String) -> Void)?
+    @Environment(\.nutritionGoals) private var nutritionGoals
+    @Environment(\.targets) private var targets
+    @Environment(\.targetsModel) private var targetsModel
+    @Environment(\.recoveryInsight) private var recoveryInsight
+
+    var body: some View {
+        let doc = targetsModel?.document ?? targets
+        ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
+            let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
+                                          today: String(Date().ISO8601Format().prefix(10)),
+                                          goalCaption: { kpiListGoalCaption($0, value: $1, targets: doc) ?? nutritionGoals.caption(for: $0, value: $1) },
+                                          load: recoveryInsight?.loadReading, health: model.healthTotals)
+            if !items.isEmpty {
+                HStack(alignment: .firstTextBaseline) {
+                    JISectionHeader(kpiListGroupHeader(group, count: items.count))
                 }
+                SquareGrid(items: items, family: squareTileFamily(catalog: true), onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
+                    guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
+                    if model.toggle(id, selected: group != .onToday) {
+                        NotificationCenter.default.post(name: todayTilePrefsDidChange, object: nil)
+                    }
+                })
             }
         }
     }
@@ -108,8 +126,34 @@ public nonisolated func kpiListDetailMetric(_ squareId: String) -> String? {
 }
 
 
+/// W-TGT L3 (mock 05): the caption of a square whose goal lives in the targets document only
+/// (steps, sleep, weight) — "goal 7,000" / "goal 7 h" / "goal 75.0", "no goal" without one; the
+/// load square shows its band rule. nil = the nutrition captions decide (`NutritionGoalsSnapshot`).
+public nonisolated func kpiListGoalCaption(_ id: KpiMetricId, value: Double?, targets: TargetsDocument?) -> String? {
+    let doc = targets ?? .empty
+    let metric: GoalMetric
+    switch id {
+    case .steps: metric = .steps
+    // W-TGT fixer 2 R2: the Sleep square is the score (0–100) and its goal is hours — a caption
+    // "goal 7.5 h" under "94" mixes the two, so the score square carries no goal line.
+    case .sleep: return nil
+    case .weight: metric = .weight
+    case .acwr: return "band \(targetsNumber(doc.rule(.loadBandLow), 2))–\(targetsNumber(doc.rule(.loadBandHigh), 2))"
+    // W-TGT fixer 1f (mock 05): the food squares say the goal too ("goal 1,617", "goal 155 g",
+    // "no goal") — never a status word computed against another source's band.
+    case .kcal, .protein, .carbs, .fat:
+        guard let targets else { return nil }
+        let m: GoalMetric = switch id { case .kcal: .kcal; case .protein: .protein; case .carbs: .carbs; default: .fat }
+        return targets.goal(m).map { targetsGoalCaption(m, $0) } ?? "no goal"
+    default: return nil
+    }
+    return doc.goal(metric).map { targetsGoalCaption(metric, $0) } ?? "no goal"
+}
+
 // MARK: - W-GUI R4 (mockup 23) copy, pure
 
+/// The picker's title: it is Home & widgets › On Today (spec §4), no longer "My KPIs".
+public nonisolated let kpiListTitle = "On Today"
 public nonisolated let kpiListSubtitle = "Every metric is a square. Ticked ones sit on Today."
 public nonisolated let kpiListCaption = "Any square can go on a widget. Today holds \(KpiSelection.minSelected) to \(KpiSelection.maxSelected)."
 /// "On Today · 6" for the first group; the others are their names.

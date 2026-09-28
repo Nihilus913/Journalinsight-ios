@@ -84,7 +84,7 @@ private func loadDays(missing: Set<Int> = [10, 20]) -> [RecoveryInputDay] {
     #expect(moreNutritionLatestIntake(today: today, todayKcal: 400, week: week)?.date == today)
     #expect(moreNutritionLatestIntake(today: today, todayKcal: nil, week: []) == nil)
     let v = moreNutritionValue(consumedKcal: 865, goalKcal: 1617, asOf: "as of Sep 24")
-    #expect(v.text == "865 / 1617 kcal · as of Sep 24")
+    #expect(v.text == "865 / 1,617 kcal · as of Sep 24")
     #expect(moreNutritionValue(consumedKcal: nil, goalKcal: 1617, asOf: nil).text == "— No data")
 }
 

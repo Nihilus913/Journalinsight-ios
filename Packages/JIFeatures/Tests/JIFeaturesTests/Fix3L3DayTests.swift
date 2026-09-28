@@ -85,15 +85,14 @@ struct Fix3L3DayTests {
 
     // MARK: Tonight
 
+    /// W-TGT L3 (D2): the goal is the user's typed one (Targets), "—" until typed — never the gate's.
     @Test func tonightIsTheSleepGoalAndLastNight() {
-        let goal = GateSignal(key: "sleep_h", label: "Sleep time", value: 6.6, unit: "h", threshold: 7, direction: .min,
-                              scaleMin: 0, scaleMax: 10, status: .amber, note: nil)
         let now = ISO8601DateFormatter().date(from: "2026-09-25T10:00:00Z")!
-        let t = dayTonight(signals: [goal], recovery: [RecoveryDay(date: "2026-09-25", sleepDurationSec: 23_760)], now: now)
-        #expect(t.goalText == "Sleep goal 7 h")
+        let t = dayTonight(sleepGoalH: 7.5, recovery: [RecoveryDay(date: "2026-09-25", sleepDurationSec: 23_760)], now: now)
+        #expect(t.goalText == "Sleep goal 7.5 h")
         #expect(t.lastNightText == "Last night 6.6 h")
-        let empty = dayTonight(signals: nil, recovery: [], now: now)
-        #expect(empty.goalText == "Sleep goal — No data")
+        let empty = dayTonight(sleepGoalH: nil, recovery: [], now: now)
+        #expect(empty.goalText == "Sleep goal —")
         #expect(empty.lastNightText == "Last night — No data")
     }
 }

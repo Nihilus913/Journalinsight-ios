@@ -24,7 +24,7 @@ struct SquareGridTests {
     @Test func accessibilityLabelSpellsValueStatusAndBadge() {
         #expect(squareAccessibilityLabel(hrv) == "HRV, 25 ms, Watch")
         #expect(squareAccessibilityLabel(rhr) == "Resting HR, no value, No data")
-        #expect(squareAccessibilityLabel(kcal) == "Calories, 1619 kcal / —")
+        #expect(squareAccessibilityLabel(kcal) == "Calories, 1,619 kcal / —")
         #expect(squareBadgeActionLabel(hrv) == "Hide HRV")
         #expect(squareBadgeActionLabel(kcal) == "Add Calories")
         #expect(squareBadgeActionLabel(JISquareItem(id: "s", label: "Steps", value: nil, badge: .selected)) == "Remove Steps from Today")

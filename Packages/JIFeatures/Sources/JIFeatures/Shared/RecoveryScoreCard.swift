@@ -35,6 +35,8 @@ public nonisolated func recoveryScoreCardText(result: RecoveryScoreResult?, reas
 /// and the note.
 public struct RecoveryScoreCard: View {
     @Environment(\.recoveryInsight) private var insight
+    /// W-TGT L3: the user's sleep goal (nil until typed).
+    @Environment(\.targets) private var targets
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
     private let compact: Bool
@@ -51,7 +53,7 @@ public struct RecoveryScoreCard: View {
 
     private var model: RecoveryCardModel {
         RecoveryCardModel.make(result: insight?.result, reasonWord: insight == nil ? JIMissingReason.noData.rawValue : insight?.reasonWord,
-                               sleepGoalH: MorningGateConfig.default.sleepGoalH)
+                               sleepGoalH: targets?.goal(.sleep))   // W-TGT: the user's goal, nil until typed
     }
 
     public var body: some View {

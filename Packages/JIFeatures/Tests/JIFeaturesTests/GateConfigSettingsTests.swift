@@ -14,7 +14,7 @@ import JIPersistence
         if let stored { try GateSettingsStore(prefs: prefs).save(stored) }
         let hub = GateSettingsHubFake(); hub.fail = hubFails
         let center = FakeNotificationCenter()
-        let vm = GateConfigViewModel(targetsProvider: nil, prefStore: prefs,
+        let vm = GateConfigViewModel(prefStore: prefs,
                                      mirror: GateSettingsMirror(prefs: prefs, provider: hub),
                                      reminderCenter: center, today: { "2026-09-24" })
         vm.loadLocal()
@@ -23,11 +23,11 @@ import JIPersistence
 
     @Test func settingsFlowIntoTheEffectiveConfig() async throws {
         let (vm, _, _, _) = try make()
-        #expect(vm.effectiveConfig.hrCapBpm == nil && vm.effectiveConfig.hrvLowNights == 2)   // no app default cap
+        #expect(vm.gateSettings.hrCapBpm == nil && vm.gateSettings.preset.hrvLowNights == 2)   // no app default cap
         await vm.setPreset(.push)
         _ = await vm.changeHrCap("168")
-        #expect(vm.effectiveConfig.hrvLowNights == 3)
-        #expect(vm.effectiveConfig.hrCapBpm == 168)
+        #expect(vm.gateSettings.preset.hrvLowNights == 3)
+        #expect(vm.gateSettings.hrCapBpm == 168)
     }
 
     @Test func changeHrCapRejectsNonNumbersAndSavesNothing() async throws {
@@ -63,7 +63,6 @@ import JIPersistence
         #expect(vm.capValueText == "None")
         #expect(vm.capSubtitle == "You chose no limit. Tap to add one — only you change it.")
         #expect(vm.recheckSubtitle == nil)
-        #expect(!vm.previewWithOverrides.conditions.joined().contains("HR ≤"))
     }
 
     @Test func aFreshInstallSaysNoLimitNotADefault() throws {
@@ -105,15 +104,30 @@ import JIPersistence
         #expect(s.zones == nil && s.avoidZone5 == false)
     }
 
-    @Test func useRecommendedResetsThePresetButNeverTheCap() async throws {
+    /// W-TGT L3: "Reset rules to recommended" (Targets) puts the caution preset back to Balanced
+    /// and never touches the cap (a Limit) — the same promise "Use recommended" made.
+    @Test func resetRulesResetsThePresetButNeverTheCap() async throws {
         let (vm, prefs, _, _) = try make()
+        try TargetsStore(prefs: prefs).save(.empty)   // after the §5 import
         await vm.setPreset(.cautious)
         _ = await vm.changeHrCap("160")
-        vm.useRecommended()
-        try await Task.sleep(for: .milliseconds(50))
+        await TargetsModel(prefs: prefs).resetRules()
         let s = GateSettingsStore(prefs: prefs).load()
         #expect(s.preset == .balanced)
         #expect(s.hrCapBpm == 160)
+    }
+
+    /// W-TGT L3: a Limits write starts from the stored document — a caution rule changed in Targets
+    /// after this model loaded is never overwritten with the model's stale preset.
+    @Test func aLimitWriteNeverClobbersARuleChangedInTargets() async throws {
+        let (vm, prefs, _, _) = try make()
+        try TargetsStore(prefs: prefs).save(.empty)
+        vm.loadLocal()
+        await TargetsModel(prefs: prefs).update { $0.rules[.hrvLowNights] = 3 }
+        _ = await vm.changeHrCap("166")
+        let doc = TargetsStore(prefs: prefs).load()
+        #expect(doc.rules[.hrvLowNights] == 3)
+        #expect(doc.limits.hrCapBpm == 166)
     }
 
     /// Review Focus 3: the phone keeps the value and says so.
@@ -137,13 +151,6 @@ import JIPersistence
         #expect(hub.puts.last?.hrCapBpm == 168)
         #expect(changed.fired)
         #expect(vm.hubPending == false)
-    }
-
-    @Test func previewUsesTheUsersCap() async throws {
-        let (vm, _, _, _) = try make()
-        _ = await vm.changeHrCap("161")
-        let lines = vm.previewWithOverrides.conditions.joined(separator: "\n")
-        #expect(!lines.contains("HR 175"))
     }
 }
 

@@ -195,6 +195,28 @@ public final class KpiDetailViewModel {
 
     public func refresh() async { await fetchLive() }
 
+    /// W-TGT fixer 1c: "Your normal" for Settings › Targets' editor, from the history this phone
+    /// already holds (KPI detail's cache, else the My KPIs cache; Apple Health day totals first) —
+    /// the same `targetNormalInfo` KPI detail's own sheet shows, so the two doors never disagree.
+    public static func cachedTargetNormal(_ subject: TargetSubject, cache: OfflineCache,
+                                          healthFeed: HealthDailyTotalsFeed = .shared,
+                                          today: String = RecoveryInsightService.localDayKey(Date())) -> TargetNormalInfo? {
+        guard let metric = targetsNormalMetric(subject) else { return nil }
+        func rows<T: Decodable & Sendable>(_ keys: [String], _ type: T.Type) -> T? {
+            for key in keys { if let hit = try? cache.get(key, as: type) { return hit.value } }
+            return nil
+        }
+        var health = HealthTotalsSource(feed: healthFeed)
+        health.restore(from: cache)
+        let recovery = rows([keys.recovery, "kpi.recovery"], [RecoveryDay].self) ?? []
+        let hubNutrition = rows([keys.nutrition, KpiListViewModel.nutritionCacheKey], [NutritionDailyRow].self) ?? []
+        let daily = rows([keys.gate, "kpi.gate"], GateResponse.self)?.daily ?? []
+        let nutrition = NutritionDailyRow.mergingHealth(hubNutrition, health: health.totals)
+        let points = KpiMetrics.history(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: daily)
+        let def = KpiDetailDef(KpiMetrics.def(metric))
+        return targetNormalInfo(points: points, today: today, decimals: def.decimals, unit: def.unit)
+    }
+
     private func restoreFromCache() {
         health.restore(from: cache)
         let macro = isNutritionKpi(metric)

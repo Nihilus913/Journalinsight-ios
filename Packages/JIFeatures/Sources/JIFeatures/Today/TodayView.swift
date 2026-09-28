@@ -21,6 +21,8 @@ public struct TodayView: View {
     @State private var weekModel: TrainingViewModel?
     @State private var showEditToday = false
     @Environment(\.nutritionGoals) private var nutritionGoals
+    /// W-TGT L3: the sleep goal (Tonight) reads the targets document — nil until typed (D2).
+    @Environment(\.targets) private var targets
     @Environment(\.dynamicTypeSize) private var typeSize
     /// W-FIX3 C-g: the Coach card's measured height (it grows with type size and its sentence).
     @State private var coachCardHeight: CGFloat = 0
@@ -408,7 +410,7 @@ public struct TodayView: View {
 
     /// Board 02 Tonight: the sleep goal the morning call uses, and last night against it.
     private var tonightCard: some View {
-        let t = dayTonight(signals: model.morning?.gateSignals, recovery: model.recovery, now: Date())
+        let t = dayTonight(sleepGoalH: targets?.goal(.sleep), recovery: model.recovery, now: Date())
         return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(t.goalText).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
@@ -537,14 +539,16 @@ public nonisolated let dayPlannedLunchText = "Planned lunch — meal plan not on
 
 public nonisolated struct DayTonight: Equatable, Sendable { public let goalText, lastNightText: String }
 
-/// Board 02 Tonight: the sleep goal the morning call gates on (`sleep_h`) and last night's length
-/// (≤ 36 h old, else "—"). No bedtime: nothing on the phone knows one.
-public nonisolated func dayTonight(signals: [GateSignal]?, recovery: [RecoveryDay], now: Date) -> DayTonight {
+/// Board 02 Tonight: the user's sleep goal and last night's length (≤ 36 h old, else "—"). No
+/// bedtime: nothing on the phone knows one.
+/// W-TGT L3 (D2): the goal is the one the user typed in Targets — "Sleep goal —" until then, never
+/// the gate's 7 h constant.
+public nonisolated func dayTonight(sleepGoalH: Double?, recovery: [RecoveryDay], now: Date) -> DayTonight {
     let missing = "— \(JIMissingReason.noData.rawValue)"
-    let goal = signals?.first { $0.key == "sleep_h" }.map { "\(decideCompactNumber($0.threshold)) h" }
+    let goal = sleepGoalH.map { "\(decideCompactNumber($0)) h" }
     let night = recovery.sorted { $0.date > $1.date }.first { $0.sleepDurationSec != nil }
         .flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0.sleepDurationSec : nil }
-    return DayTonight(goalText: "Sleep goal \(goal ?? missing)",
+    return DayTonight(goalText: "Sleep goal \(goal ?? "—")",
                       lastNightText: "Last night \(night.map { "\(jiNumber($0 / 3600, 1)) h" } ?? missing)")
 }
 
@@ -560,10 +564,11 @@ public nonisolated func todayNavigationSubtitleShown(state: TodayMorningState) -
 /// §4b: a Today ring is only ever drawn for a metric with a real, bounded scale — a 0–100 score or
 /// a count against a goal. Everything else (HRV, RHR, ACWR, weight, macros) is baseline-relative
 /// and stays a number, never a ring. `nil` = "no ring for this KPI".
-public nonisolated func todayKpiRingMax(_ id: KpiMetricId) -> Double? {
+/// W-TGT L3: Steps rings only against the user's own goal (Targets); no goal = no ring.
+public nonisolated func todayKpiRingMax(_ id: KpiMetricId, stepsGoal: Double? = nil) -> Double? {
     switch id {
     case .sleep, .readiness, .bodyBattery: 100
-    case .steps: todayStepsGoal
+    case .steps: stepsGoal.flatMap { $0 > 0 ? $0 : nil }
     case .hrv, .rhr, .acwr, .weight, .kcal, .protein, .carbs, .fat: nil
     }
 }
@@ -576,11 +581,6 @@ public nonisolated func todayKpiRingRole(_ id: KpiMetricId) -> JIColorRole {
     default: .reduced
     }
 }
-
-/// §4b: Steps is a bounded ring only against a goal. The hub carries no per-day step goal yet, so
-/// the ring uses the oracle's default target; a hub-supplied goal replaces this constant when one
-/// lands (P-goals).
-public nonisolated let todayStepsGoal: Double = 8_000
 
 /// The number under a Today ring — a whole, grouped figure (a 0–100 score or a step count).
 public nonisolated func todayRingValueText(_ value: Double) -> String {

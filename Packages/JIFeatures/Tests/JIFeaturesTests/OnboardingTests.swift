@@ -54,6 +54,26 @@ import JIPersistence
         #expect(await ReminderScheduler(center: center).hrCapCheckDue() == "2026-11-19")
     }
 
+    /// W-TGT L3 (spec §4: "onboarding writes the same document"): after the §5 import the answers
+    /// land in the ONE targets document — Limits + the caution rule — and nothing else in it moves.
+    @Test func afterTheImportOnboardingWritesTheTargetsDocument() async throws {
+        let prefs = try PrefStore(db: AppDatabase.inMemory())
+        var doc = TargetsDocument()
+        doc.goals.proteinG = 140
+        try TargetsStore(prefs: prefs).save(doc)
+        let (vm, _, _, _) = try make(prefs: prefs)
+        await vm.continueTapped(); await vm.continueTapped()
+        vm.wantsCap = true; vm.hrCapText = "166"
+        await vm.continueTapped()
+        vm.preset = .push
+        await vm.continueTapped()
+        let after = TargetsStore(prefs: prefs).load()
+        #expect(after.limits.hrCapBpm == 166)
+        #expect(after.rules[.hrvLowNights] == 3)
+        #expect(after.goals.proteinG == 140)
+        #expect(after.goals.sleepH == nil)
+    }
+
     /// "No" = no cap: nothing to re-check, and the Zone 5 toggle stays the user's own choice.
     @Test func answeringNoSavesNoCapAndNoRecheck() async throws {
         let (vm, prefs, center, hub) = try make()
@@ -192,7 +212,7 @@ import JIPersistence
     @Test func gateConfigWalkThroughStartsFromTheStoredSettings() throws {
         let prefs = PrefStore(db: try AppDatabase.inMemory())
         try GateSettingsStore(prefs: prefs).save(.legacyPreW4)
-        let gc = GateConfigViewModel(targetsProvider: nil, prefStore: prefs)
+        let gc = GateConfigViewModel(prefStore: prefs)
         let vm = gc.makeOnboardingModel()
         #expect(vm.step == .welcome && vm.wantsCap == true && vm.hrCapText == "175")
     }

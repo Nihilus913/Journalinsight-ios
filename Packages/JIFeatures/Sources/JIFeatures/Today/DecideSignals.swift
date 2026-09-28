@@ -90,8 +90,12 @@ public nonisolated func decideHubBand(_ note: String?) -> ClosedRange<Double>? {
 /// W-B57-W3 fixer: `recoveryNormal` is the recovery score's 28-night normal (`RecoveryInsightService`)
 /// — the band the score compares a 7-day mean against, so it also applies to "HRV (7-day)" when the
 /// hub's own baseline is still warming up.
+/// W-TGT L3 (D2): the sleep-time goal is the user's (Targets `sleepGoalH`, nil until typed) — "goal
+/// 7 h" and above/below only once typed; without one the row is the hours and the hub's own call,
+/// no goal word.
 public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRange<Double>? = nil,
-                                             recoveryNormal: ClosedRange<Double>? = nil) -> DecideSignalRowModel {
+                                             recoveryNormal: ClosedRange<Double>? = nil,
+                                             sleepGoalH: Double? = nil) -> DecideSignalRowModel {
     let decimals = s.key == "sleep_h" ? 1 : 0
     var status = decideSignalStatus(s)
     var shownNormal: ClosedRange<Double>? = nil
@@ -99,8 +103,12 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
     if s.status == .context {
         detail = gateSignalNoteText(s)
     } else if s.key == "sleep_h" {
-        detail = "goal \(decideCompactNumber(s.threshold)) h"
-        if s.value != nil { status = s.status == .pass ? .aboveGoal : .belowGoal }
+        if let goal = sleepGoalH {
+            detail = "goal \(decideCompactNumber(goal)) h"
+            if let v = s.value { status = v >= goal ? .aboveGoal : .belowGoal }
+        } else {
+            detail = nil
+        }
     } else if s.value == nil {
         detail = "no overnight value yet"
     } else if let band = decideHubBand(s.note) ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
@@ -163,6 +171,8 @@ public struct DecideSignalsSection: View {
     @Environment(\.gateRationaleModel) private var rationaleModel
     @Environment(\.gateRespondModel) private var respondModel
     @Environment(\.recoveryInsight) private var recoveryInsight
+    /// W-TGT L3: the user's sleep goal for the sleep-time row (nil until typed).
+    @Environment(\.targets) private var targets
     @Environment(\.jiTheme) private var theme
     @State private var showRationale = false
 
@@ -178,7 +188,8 @@ public struct DecideSignalsSection: View {
         // W-GUI T1 (mockup 01): the rows live in the "What drove it" grouped card — the section
         // header is the card's, the reference note sits under it, rows are separated by hairlines.
         let recoveryNormals = decideRecoveryNormals(recoveryInsight)
-        let models = signals.map { decideSignalRowModel($0, normal: normals[$0.key], recoveryNormal: recoveryNormals[$0.key]) }
+        let models = signals.map { decideSignalRowModel($0, normal: normals[$0.key], recoveryNormal: recoveryNormals[$0.key],
+                                                        sleepGoalH: targets?.goal(.sleep)) }
         let rows = VStack(alignment: .leading, spacing: 0) {
             whyNote.fixedSize(horizontal: false, vertical: true).padding(.vertical, JISpacing.s1)
             ForEach(Array(models.enumerated()), id: \.element.id) { index, m in

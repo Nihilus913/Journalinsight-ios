@@ -7,11 +7,13 @@ import JIPersistence
 
 // W-FIX5 L2: DEV-15, DEV-16, W4-1, W4-2, W4-3, W4-4 (docs/audits/2026-09-25-regression-bugs.md).
 
-@MainActor private func goalsFixture() throws -> (GoalsSetupViewModel, Outbox, GoalsRecorder) {
+/// W-TGT L3: the goals copy is the targets document now (after the §5 import).
+@MainActor private func goalsFixture() throws -> (GoalsSetupViewModel, Outbox, TargetsHubFake) {
     let db = try AppDatabase.inMemory()
     let outbox = Outbox(db: db)
-    let hub = GoalsRecorder(); hub.fail = .network("down")
-    let mirror = GoalsMirror(outbox: outbox, drainer: OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, goals: hub))
+    let hub = TargetsHubFake(); hub.fail = .network("down")
+    try TargetsStore(prefs: PrefStore(db: db)).save(.empty)
+    let mirror = GoalsMirror(prefs: PrefStore(db: db), outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: hub))
     let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(), macroStore: MacroGoalsStore(prefs: PrefStore(db: db)),
                                  mirror: mirror, hubPendingSource: { GoalsSetupViewModel.goalsPending(in: outbox) })
     return (vm, outbox, hub)
@@ -49,7 +51,7 @@ import JIPersistence
     let prefs = try PrefStore(db: AppDatabase.inMemory())
     let hub = GateSettingsHubFake(); hub.fail = true
     let name = Notification.Name("fix5.l2.test.active")
-    let vm = GateConfigViewModel(targetsProvider: nil, prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub),
+    let vm = GateConfigViewModel(prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub),
                                  foregroundNotification: name, today: { "2026-09-27" })
     vm.loadLocal()
     #expect(await vm.changeHrCap("170"))
@@ -64,7 +66,7 @@ import JIPersistence
 @Test @MainActor func w41ForegroundSyncReReadsTheFlag() async throws {
     let prefs = try PrefStore(db: AppDatabase.inMemory())
     let hub = GateSettingsHubFake(); hub.fail = true
-    let vm = GateConfigViewModel(targetsProvider: nil, prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub))
+    let vm = GateConfigViewModel(prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub))
     vm.loadLocal()
     await vm.setPreset(.cautious)
     #expect(vm.hubPending)
@@ -79,7 +81,7 @@ import JIPersistence
     #expect(OnboardingViewModel.NightsProgress(recovery: r) == .init(have: 9, need: 14))
     #expect(OnboardingViewModel.NightsProgress(recovery: nil) == nil)
     let prefs = try PrefStore(db: AppDatabase.inMemory())
-    let vm = GateConfigViewModel(targetsProvider: nil, prefStore: prefs)
+    let vm = GateConfigViewModel(prefStore: prefs)
     #expect(vm.makeOnboardingModel(recovery: r).nightsSoFar == .init(have: 9, need: 14))
     #expect(vm.makeOnboardingModel().nightsSoFar == nil)
     #expect(OnboardingCopy.nightsValue(.init(have: 9, need: 14)) == "9")

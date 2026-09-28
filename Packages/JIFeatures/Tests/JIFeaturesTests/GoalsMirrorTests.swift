@@ -5,13 +5,17 @@ import JICompute
 import JIPersistence
 @testable import JIFeatures
 
-@MainActor private func fixture(hubFails: HubError? = nil) throws -> (GoalsMirror, Outbox, MacroGoalsStore, GoalsRecorder) {
+/// W-TGT L3: the goals copy is the ONE targets document (`PUT /planning/targets`), after the §5
+/// import (the document exists).
+@MainActor private func fixture(hubFails: HubError? = nil) throws -> (GoalsMirror, Outbox, MacroGoalsStore, TargetsHubFake) {
     let db = try AppDatabase.inMemory()
     let outbox = Outbox(db: db)
-    let store = MacroGoalsStore(prefs: PrefStore(db: db))
-    let hub = GoalsRecorder(); hub.fail = hubFails
-    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, goals: hub)
-    return (GoalsMirror(outbox: outbox, drainer: drainer), outbox, store, hub)
+    let prefs = PrefStore(db: db)
+    try TargetsStore(prefs: prefs).save(.empty)
+    let store = MacroGoalsStore(prefs: prefs)
+    let hub = TargetsHubFake(); hub.fail = hubFails
+    let drainer = OutboxDrainer(outbox: outbox, hub: hub)
+    return (GoalsMirror(prefs: prefs, outbox: outbox, drainer: drainer), outbox, store, hub)
 }
 
 @MainActor private final class SaveCounter { var n = 0 }
@@ -25,28 +29,25 @@ private func goals(_ goal: Double, _ basis: KcalGoalBasis, protein: Double? = ni
     MacroGoals(kcal: KcalGoal(goalKcal: goal, basis: basis), proteinG: protein)
 }
 
-/// Round trip, phone half: user save → Outbox row → PUT body the hub receives. Only the fields
-/// the user set are sent; kcal_goal is the user's target.
-@Test @MainActor func pushSendsOnlyTheUserEnteredFields() async throws {
+/// Round trip, phone half: user save → Outbox row (kind `targets`) → the ONE document the hub
+/// receives, with the user's goals and nothing invented.
+@Test @MainActor func pushSendsTheTargetsDocumentWithTheUsersGoals() async throws {
     let (mirror, outbox, _, hub) = try fixture()
-    guard case .delivered(let server) = await mirror.push(goals(1600, .includesDeficit, protein: 160)) else { Issue.record("not delivered"); return }
-    #expect(hub.patches == [GoalsUpdate(nutrition: .init(kcalGoal: 1600, proteinG: 160, carbsG: nil, fatG: nil))])
-    #expect(server?.nutrition.proteinG == 160)
+    guard case .delivered = await mirror.push(goals(1600, .includesDeficit, protein: 160)) else { Issue.record("not delivered"); return }
+    #expect(hub.puts.count == 1)
+    #expect(hub.puts.last?.macroGoals == goals(1600, .includesDeficit, protein: 160))
+    #expect(hub.puts.last?.goals.sleepH == nil)          // never seeded (D2)
     #expect(try outbox.pending().isEmpty)
 }
 
 @Test @MainActor func pushSendsTheTargetNotTheTypedGoal() async throws {
     let (mirror, _, _, hub) = try fixture()
     _ = await mirror.push(goals(2300, .subtractDeficit(.deficit(kcalPerDay: 500))))
-    #expect(hub.patches.first?.nutrition?.kcalGoal == 1800)
+    #expect(hub.puts.first?.goal(.kcal) == 1800)
 }
 
-@Test @MainActor func unsetGoalsQueueNothing() async throws {
-    let (mirror, outbox, _, hub) = try fixture()
+@Test @MainActor func unsetGoalsPatchIsNil() {
     #expect(GoalsMirror.patch(for: .unset) == nil)
-    #expect(await mirror.push(.unset) == .nothingToSend)
-    #expect(hub.patches.isEmpty)
-    #expect(try outbox.pending().isEmpty)
 }
 
 /// Review Focus 3.
@@ -62,7 +63,7 @@ private func goals(_ goal: Double, _ basis: KcalGoalBasis, protein: Double? = ni
     await vm.load()
     #expect(vm.macroGoals == .unset)
     #expect(vm.burnWindow?.burnKcal == 2300)
-    #expect(hub.patches.isEmpty)                  // Review Focus 4: only a user save pushes
+    #expect(hub.puts.isEmpty)                     // Review Focus 4: only a user save pushes
     #expect(try outbox.pending().isEmpty)
 }
 

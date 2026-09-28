@@ -45,14 +45,14 @@ import JICore
     @Test func supportingTargetsAreCaloriesProteinTrainingStrengthSteps() {
         let rows = GoalsBoard.targets(goals: goals, macros: userMacros, yesterdayKcal: 1619, yesterdayProteinG: 127, yesterdaySteps: nil)
         #expect(rows.map(\.title) == ["Calories", "Protein", goalsTrainingPlanTitle, "Bench press", "Daily steps"])
-        #expect(rows[0].subtitle == "goal 1617 a day")
-        #expect(rows[0].value == "1619 kcal")
-        #expect(rows[0].status == "On target")
+        #expect(rows[0].subtitle == "goal 1,617 a day")
+        #expect(rows[0].value == "1,619 kcal")
+        #expect(rows[0].status == "On goal")
         #expect(rows[1].value == "127 g")
-        #expect(rows[1].status == "Below target")
+        #expect(rows[1].status == "Below goal")
         #expect(rows[2].value == "— No data")   // B-57 W5: no cached week → "—" + reason, not a fixed "of 4"
         #expect(rows[3].value == "50.0 kg")
-        #expect(rows[4].subtitle == "target 15000")
+        #expect(rows[4].subtitle == "goal 15,000 a day")
         #expect(rows[4].value == "— No data")
         #expect(rows[4].status == nil)
     }
@@ -75,8 +75,8 @@ import JICore
     @Test func calorieRowUsesTheUserTargetNotTheTypedGoalWhenJISubtractsADeficit() {
         let m = MacroGoals(kcal: KcalGoal(goalKcal: 2400, basis: .subtractDeficit(.deficit(kcalPerDay: 500))), proteinG: 160)
         let rows = GoalsBoard.targets(goals: goals, macros: m, yesterdayKcal: 1900, yesterdayProteinG: 160, yesterdaySteps: nil)
-        #expect(rows[0].subtitle == "goal 1900 a day")
-        #expect(rows[0].status == "On target")
+        #expect(rows[0].subtitle == "goal 1,900 a day")
+        #expect(rows[0].status == "On goal")
         #expect(rows[1].subtitle == "goal 160 g a day")
     }
 

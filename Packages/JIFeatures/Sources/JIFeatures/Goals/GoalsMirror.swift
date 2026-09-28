@@ -3,58 +3,46 @@ import JICore
 import JIPersistence
 
 // TEMP bridge until B-50: hub weekly gate
-/// B-73: one-way copy of the user's nutrition goals to `PUT /api/v1/planning/goals`, so the hub's
-/// weekly gate reads the same kcal target until the hub is retired (B-50). The phone's PrefStore
-/// is the source of truth. Called ONLY from `GoalsSetupViewModel.saveNutrition` (a user save):
-/// never on foreground, never on a band recompute, so there is no PUT storm (Review Focus 4).
-/// Outbox-first: the row is durable before any network call. Delete this file with B-50.
+/// B-73: copies the user's nutrition goals to the hub so its weekly gate reads the same kcal target
+/// until the hub is retired (B-50). The phone's PrefStore is the source of truth. Called ONLY from
+/// `GoalsSetupViewModel.saveNutrition` (a user save): never on foreground, never on a band
+/// recompute, so there is no PUT storm (Review Focus 4).
+/// W-TGT L3 (L1 hand-off): the copy is the ONE targets document (`PUT /planning/targets`, outbox
+/// kind `targets`, via `TargetsMirror`); `/planning/goals` is read-only on the hub now.
 @MainActor
 public final class GoalsMirror {
-    private let outbox: Outbox
-    private let drainer: OutboxDrainer?
+    private let targets: TargetsMirror
 
-    public init(outbox: Outbox, drainer: OutboxDrainer?) {
-        self.outbox = outbox; self.drainer = drainer
+    public init(targets: TargetsMirror) { self.targets = targets }
+
+    public convenience init(prefs: PrefStore, outbox: Outbox, drainer: OutboxDrainer?) {
+        self.init(targets: TargetsMirror(prefs: prefs, outbox: outbox, drainer: drainer))
     }
 
-    /// The PUT body: only what the user set. Unset fields are omitted (the hub keeps its value).
-    /// nil when nothing is set, so nothing is queued.
+    /// The nutrition part of the old goals PUT (kept for readers of the hub's goals document).
+    /// nil when nothing is set.
     public nonisolated static func patch(for goals: MacroGoals) -> GoalsUpdate? {
         guard !goals.isUnset else { return nil }
         return GoalsUpdate(nutrition: .init(kcalGoal: goals.targetKcal, proteinG: goals.proteinG,
                                             carbsG: goals.carbsG, fatG: goals.fatG))
     }
 
-    /// What a save's push did. `delivered` = the hub has the row (its document when this push's
-    /// own attempt landed; nil when another drainer retired the row first). `queued` = still in
-    /// the outbox (offline / rejected). `nothingToSend` = nothing set, nothing queued.
+    /// What a save's push did. `delivered` = the hub has the document (the hub's goals document is
+    /// re-read by the caller when it needs one, so this carries nil). `queued` = still in the
+    /// outbox (offline / rejected). `nothingToSend` = no targets document yet: the §5 import
+    /// carries the stored goals over and queues the first body itself.
     public enum PushOutcome: Equatable, Sendable {
         case delivered(Goals?)
         case queued
         case nothingToSend
     }
 
-    /// Queues the patch, then drains until its row has an answer. fixer2 RF3-STATUS: a drain that
-    /// joins a pass already in flight (started before this row was enqueued) gets that pass's
-    /// results WITHOUT this row, and a second drainer instance (the retry scheduler) can retire
-    /// the row under us — neither is "offline". Delivery is judged by the row itself: gone from
-    /// the outbox = delivered; a failed attempt still pending = queued; no attempt yet = one more
-    /// pass of our own.
     @discardableResult
     public func push(_ goals: MacroGoals) async -> PushOutcome {
-        guard let patch = Self.patch(for: goals) else { return .nothingToSend }
-        guard let id = try? outbox.enqueue(kind: OutboxDrainer.goalsKind, payload: patch) else { return .queued }
-        guard let drainer else { return .queued }
-        for _ in 0..<2 {
-            let results = await drainer.drainOnce()
-            if case .success(.goals(let server)) = results[id] { return .delivered(server) }
-            guard isPending(id) else { return .delivered(nil) }
-            if results[id] != nil { return .queued }   // attempted and failed: still queued
+        guard targets.store.loadIfPresent() != nil else { return .nothingToSend }
+        switch await targets.update({ $0.macroGoals = goals }) {
+        case .delivered: return .delivered(nil)
+        case .queued: return .queued
         }
-        return .queued
-    }
-
-    private func isPending(_ id: Int64) -> Bool {
-        (try? outbox.pending())?.contains { $0.id == id } ?? true
     }
 }

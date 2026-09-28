@@ -542,7 +542,7 @@ final class AppEnvironment {
             hrCap: GateSettingsStore(prefs: prefs).load().hrCapBpm,   // as stored; nil = no cap (no fallback)
             nextSession: plan?.next,
             signals: GlanceSignals.make(gateSignals: gateSignals, hrvNormal: hrvNormal, rhrNormal: rhrNormal,
-                                        sleepGoalH: MorningGateConfig.default.sleepGoalH,
+                                        sleepGoalH: TargetsStore(prefs: prefs).load().goal(.sleep),   // W-TGT: the user's goal, nil until typed
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)

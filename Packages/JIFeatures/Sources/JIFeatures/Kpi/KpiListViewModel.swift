@@ -46,6 +46,11 @@ public final class KpiListViewModel {
     private let prefStore: PrefStore
     private let cache: OfflineCache
     private let now: () -> Date
+    /// W-TGT fixer 1f: Apple Health's day totals — the live feed, else the band's cached read — so
+    /// a Calories square says what Today's Fuel says (it read YAZIO's "1183 as of 24 Sep" while
+    /// Today showed 1850, because the squares read only the live feed, empty before the first read).
+    private var health: HealthTotalsSource
+    public var healthTotals: [HealthDailyTotals] { health.totals }
     /// W-B34 L1: the `OfflineCache` key the last-fetched `[NutritionDailyRow]` lives under —
     /// public so `AppEnvironment.publishSnapshot` can fill the widget snapshot's nutrition KPIs
     /// from cache (never a new fetch).
@@ -58,8 +63,10 @@ public final class KpiListViewModel {
         targetsProvider: any KpiTargetsProviding,
         prefStore: PrefStore,
         cache: OfflineCache,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        healthFeed: HealthDailyTotalsFeed = .shared
     ) {
+        self.health = HealthTotalsSource(feed: healthFeed)
         self.now = now
         self.healthProvider = healthProvider
         self.nutritionProvider = nutritionProvider
@@ -126,6 +133,7 @@ public final class KpiListViewModel {
 
     private func restoreFromCache() {
         if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value; fetchedAt = hit.fetchedAt }
+        health.restore(from: cache)
         if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value }
         if let hit = try? cache.get(Self.keys.gate, as: GateResponse.self) { dailyRows = hit.value.daily; gateAverages = hit.value.averages }
         if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { targets = hit.value }

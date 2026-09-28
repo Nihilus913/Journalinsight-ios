@@ -8,5 +8,5 @@ import Testing
     #expect(goalsProgressFraction(startText: "80.4 kg", latestKg: nil, targetText: "75.0") == nil)
     #expect(goalsProgressFraction(startText: "75.0 kg", latestKg: 75, targetText: "75.0") == nil)
     #expect(goalsProgressFraction(startText: "80.0 kg", latestKg: 70, targetText: "75.0") == 1)
-    #expect(goalsYoursCaption.hasPrefix("Targets are yours to set"))
+    #expect(goalsYoursCaption.hasPrefix("Goals are yours to set"))
 }

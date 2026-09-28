@@ -58,7 +58,8 @@ public struct GoalsSetupView: View {
     @State private var weightDate: String = ""
     @State private var benchTarget: Double = 100
     @State private var rowTarget: Double = 100
-    @State private var stepsDaily: Int = 15000
+    /// W-TGT: nil = no step goal (never a seeded number).
+    @State private var stepsDaily: Int?
     // B-73: the nutrition goals are the user's own (PrefStore `goals.macros`), never seeded from
     // the hub document or a default. Every field starts empty ("Set your goal").
     @State private var nutritionDraft = NutritionDraft(.unset)
@@ -154,7 +155,8 @@ public struct GoalsSetupView: View {
                 }
 
                 Section("Activity") {
-                    Stepper(goalsSetupStepsLabel(stepsDaily), value: $stepsDaily, in: 0...50000, step: 500)
+                    Stepper(stepsDaily.map(goalsSetupStepsLabel) ?? "Daily steps: —",
+                            value: Binding(get: { stepsDaily ?? 0 }, set: { stepsDaily = $0 }), in: 0...50000, step: 500)
                         .accessibilityIdentifier("goals-setup-steps-daily")
                 }
 
@@ -243,7 +245,7 @@ public struct GoalsSetupView: View {
         weightDate = goals.weight.targetDate ?? ""
         benchTarget = goals.strength.first { $0.exercise == "bench" }?.targetKg ?? 100
         rowTarget = goals.strength.first { $0.exercise == "row" }?.targetKg ?? 100
-        stepsDaily = goals.stepsDaily ?? 15000
+        stepsDaily = goals.stepsDaily
     }
 
     private func save() {
@@ -272,5 +274,5 @@ public struct GoalsSetupView: View {
 }
 
 /// W-FIX5 DEV-16: a plain String (not a LocalizedStringKey) so the count is never grouped
-/// ("15'000" in de_CH); Goals shows 15000.
+/// ("12'000" in de_CH); Goals shows 12000.
 nonisolated func goalsSetupStepsLabel(_ steps: Int) -> String { "Daily steps: " + String(steps) }

@@ -31,8 +31,10 @@ private nonisolated func kcalInt(_ v: Double?) -> Int? {
 public nonisolated func moreNutritionValue(consumedKcal: Double?, goalKcal: Double?, asOf: String? = nil) -> MoreRowValue {
     guard let consumed = kcalInt(consumedKcal) else { return .missing() }
     let day = asOf.map { " · \($0)" } ?? ""
-    guard let goal = kcalInt(goalKcal), goal > 0 else { return MoreRowValue(lead: "\(consumed)", rest: "kcal" + day, style: .kcal) }
-    return MoreRowValue(lead: "\(consumed)", rest: "/ \(goal) kcal" + day, style: .kcal)
+    // Grouped like every Targets number ("1,617", W-TGT fixer 2 R3).
+    let lead = targetsNumber(Double(consumed), 0)
+    guard let goal = kcalInt(goalKcal), goal > 0 else { return MoreRowValue(lead: lead, rest: "kcal" + day, style: .kcal) }
+    return MoreRowValue(lead: lead, rest: "/ \(targetsNumber(Double(goal), 0)) kcal" + day, style: .kcal)
 }
 
 /// W-DATA fixer R1 (DEV-11): today's intake when logged, else the newest logged day of the week
@@ -51,13 +53,25 @@ public nonisolated func moreEnergyValue(avgDeficit7d: Double?, trackingDays: Int
 }
 
 /// Goals: the latest weight → the goals document's target weight.
-public nonisolated func moreGoalsValue(currentKg: Double?, targetKg: Double?) -> MoreRowValue {
-    guard let target = targetKg, target.isFinite, target > 0 else { return .missing("No goal set") }
+/// W-TGT fixer 2 R2: no weight goal but other goals set = "2 goals set", never "No goal set".
+public nonisolated func moreGoalsValue(currentKg: Double?, targetKg: Double?, otherGoals: Int = 0) -> MoreRowValue {
+    guard let target = targetKg, target.isFinite, target > 0 else {
+        guard otherGoals > 0 else { return .missing("No goal set") }
+        return MoreRowValue(lead: "\(otherGoals)", rest: otherGoals == 1 ? "goal set" : "goals set", style: .plain)
+    }
     let targetText = String(format: "%.1f", target)
     guard let current = currentKg, current.isFinite, current > 0 else {
         return MoreRowValue(lead: "—", rest: "→ \(targetText) kg", style: .muted)
     }
     return MoreRowValue(lead: String(format: "%.1f", current), rest: "→ \(targetText) kg", style: .plain)
+}
+
+/// The goals besides the weight goal (daily kcal, protein, carbs, fat, steps) that are set.
+public nonisolated func goalsSetCount(_ goals: Goals?) -> Int {
+    guard let goals else { return 0 }
+    let n = goals.nutrition
+    let values: [Double?] = [n.kcalGoal, n.proteinG, n.carbsG, n.fatG, goals.stepsDaily.map(Double.init)]
+    return values.filter { v in v.map { $0.isFinite && $0 > 0 } ?? false }.count
 }
 
 /// Mind: the latest WHO-5 percentage. None yet → "— No data".

@@ -97,5 +97,12 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today first week") { ScreenStateFaces.firstWeek() },
         ScreenEntry(name: "Today error") { ScreenStateFaces.error() },
         ScreenEntry(name: "Today no source") { ScreenStateFaces.noSource() },
+        // MARK: W-TGT L3 — Settings › Targets (mock 01) + the one editor sheet (mock 02)
+        ScreenEntry(name: "Targets") { TargetsFixtures.targets() },
+        ScreenEntry(name: "Target editor") { TargetsFixtures.editor() },
+        // W-TGT fixer: the HR cap in the same editor (Limit), Sync & hub, Home & widgets (mock 05)
+        ScreenEntry(name: "Target editor cap") { TargetsFixtures.editorCap() },
+        ScreenEntry(name: "Sync & hub") { L6Fixtures.settingsSyncHub() },
+        ScreenEntry(name: "Home & widgets") { L6Fixtures.homeWidgets() },
     ]
 }

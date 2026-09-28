@@ -44,7 +44,7 @@ private struct UnassignedSection: SettingsSection {
         WeeklyPlanSection.sectionId: .home,
         AppearanceSection.sectionId: .home,
         PreferencesLinksSection.sectionId: .kpis,
-        GateConfigSection.sectionId: .kpis,
+        OnTodaySection.sectionId: .home,   // W-TGT L3: the square picker is Home layout
         HapticsSection.sectionId: .haptics,
         RemindersSection.sectionId: .haptics,
         HealthSection.sectionId: .health,
