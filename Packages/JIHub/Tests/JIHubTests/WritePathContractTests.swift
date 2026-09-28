@@ -134,6 +134,17 @@ extension HubClientTests {
         "HubDataProvider+VerdictOverride.swift: POST /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+VerdictOverride.swift: DELETE /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+Push.swift: POST /api/v1/planning/push-token": "upsert this device's token",
+        // W-B40 X-1 (XC half): the workout library's writes — see HubDataProviderWorkoutsTests.
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates":
+            "create one template; a segment-less draft is refused before sending (WorkoutTemplateWouldClear)",
+        "HubDataProvider+Workouts.swift: PUT /api/v1/planning/workout-templates/\\(id)":
+            "keyed replace of one template; a segment-less draft is refused before sending (hub: ≥1 segment)",
+        "HubDataProvider+Workouts.swift: DELETE /api/v1/planning/workout-templates/\\(id)":
+            "one keyed template, only from an explicit user delete",
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates/\\(id)/push-garmin":
+            "no body; hub pushes its own stored row to Garmin",
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates/import-garmin":
+            "no body; hub-side idempotent import, skips templates edited since import",
     ]
 
     @Test func everyHubWriteIsReviewed() throws {
