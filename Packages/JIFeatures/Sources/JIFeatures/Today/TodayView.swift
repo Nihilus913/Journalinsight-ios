@@ -274,6 +274,11 @@ public struct TodayView: View {
                 }
                 // W-FIX7 F7-1: "Done · Traditional strength · 52 min · Bevel" from Apple Health.
                 SessionCompletionLine(completion: model.sessionCompletion(sessionLabel: card.session))
+                // W-B81 A-5: today's completed workouts as the hub holds them (Apple Watch run: distance · HR · time).
+                ForEach(model.hubWorkouts, id: \.activityId) { activity in
+                    CompletedWorkoutRow(activity: activity)
+                        .accessibilityIdentifier("today.day.completedWorkout.\(activity.activityId)")
+                }
                 // B-57 W5 (board 1/02): "Session 2 of 4 this week" while today's session is still to do.
                 if !card.rows.isEmpty, let ordinal = daySessionOrdinal(week) {
                     Text("\(ordinal.prefix(1).uppercased())\(ordinal.dropFirst()) this week")

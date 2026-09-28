@@ -41,6 +41,8 @@ public struct TrainingDayDetailCard: View {
 
     public var body: some View {
         let activities = detail?.activities ?? []
+        // W-B81 A-5: the hub's rows win — a Health workout the uploader already delivered is not listed twice.
+        let healthWorkouts = healthWorkoutsNotOnHub(self.healthWorkouts, hub: activities)
         let isEmpty = trainingDayDetailIsEmpty(detail: detail, healthWorkouts: healthWorkouts)
         Surface {
             VStack(alignment: .leading, spacing: 10) {
@@ -65,14 +67,10 @@ public struct TrainingDayDetailCard: View {
                         .accessibilityIdentifier("training-day-health-workout")
                         if idx != healthWorkouts.count - 1 || !activities.isEmpty { Divider().overlay(theme.color(.hairlineNested)) }
                     }
-                    // §2b.2: activities are 44-pt inset-grouped rows, hairline-separated.
+                    // §2b.2: activities are inset-grouped rows, hairline-separated. W-B81 A-5: each
+                    // completed workout (Apple dso 4 or Garmin) with duration · distance · avg HR.
                     ForEach(Array(activities.enumerated()), id: \.element.activityId) { idx, activity in
-                        JIRow(title: activity.name ?? activity.type, systemImage: "figure.run", tint: theme.color(.info)) {
-                            if let duration = activity.durationSec {
-                                Text("\(Int(duration / 60)) min").accessibilityLabel("\(Int(duration / 60)) minutes")
-                            }
-                        }
-                        .accessibilityLabel(activity.name ?? activity.type)
+                        CompletedWorkoutRow(activity: activity).id("completed-workout-\(activity.activityId)")
                         if idx != activities.count - 1 { Divider().overlay(theme.color(.hairlineNested)) }
                     }
                     ForEach(groups) { group in

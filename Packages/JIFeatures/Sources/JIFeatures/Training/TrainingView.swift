@@ -31,6 +31,7 @@ public struct TrainingView: View {
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
+        ScrollViewReader { proxy in
         ScreenScroll {   // W-GUI F6: the shared scroll root (edge effect, sweep branch)
             VStack(alignment: .leading, spacing: 16) {
                 // B-45 (a): the screen's own date is the REAL device day (mirrors `TodayView`).
@@ -50,6 +51,18 @@ public struct TrainingView: View {
             }
             .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
+        }
+        #if DEBUG
+        // W-B81 dev affordance (same family as `-training-day`): `-training-scroll this-day` scrolls
+        // to the "This day" card once loaded, so a scripted run can screenshot the completed workouts.
+        .task(id: model.phase) {
+            guard model.phase == .loaded, let i = CommandLine.arguments.firstIndex(of: "-training-scroll"),
+                  i + 1 < CommandLine.arguments.count else { return }
+            let target = CommandLine.arguments[i + 1]   // "this-day" or a row id ("completed-workout-<activity id>")
+            try? await Task.sleep(for: .seconds(1))
+            proxy.scrollTo(target == "this-day" ? "training-this-day" : target, anchor: .top)
+        }
+        #endif
         }
         .jiPageGround()
         .jiTheme(.native)
@@ -200,7 +213,7 @@ public struct TrainingView: View {
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
             JISectionHeader("Readiness")
             GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
-            JISectionHeader("This day")
+            JISectionHeader("This day").id("training-this-day")
             TrainingDayDetailCard(
                 date: model.selectedDate,
                 detail: model.dayDetail,

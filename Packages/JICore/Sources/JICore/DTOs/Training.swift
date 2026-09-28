@@ -10,9 +10,48 @@ public struct DayActivity: Codable, Sendable, Equatable {
     public var name: String?
     public var durationSec: Double?
     public var distanceM: Double?
-    public init(activityId: Int, type: String, name: String?, durationSec: Double?, distanceM: Double?) {
+    /// W-B81 A-5: `"apple"` (core.activity dso_key 4) or `"garmin"` — HT `_coerce_activity`. Every
+    /// field below is optional: an older hub omits them and the row still decodes.
+    public var source: String?
+    public var avgHr: Int?
+    public var maxHr: Int?
+    /// Apple-only effort × minutes (HT migration 054); nil for Garmin.
+    public var sessionLoad: Double?
+    /// ISO-8601 UTC start ("2026-09-28T05:02:04+00:00").
+    public var startTimeUtc: String?
+    /// iOS 27 `HKWorkoutZoneGroup` time-in-zone, when the hub exposes it (payload `zone_time`).
+    public var zoneTime: [WorkoutZoneTime]?
+
+    public init(activityId: Int, type: String, name: String?, durationSec: Double?, distanceM: Double?,
+                source: String? = nil, avgHr: Int? = nil, maxHr: Int? = nil, sessionLoad: Double? = nil,
+                startTimeUtc: String? = nil, zoneTime: [WorkoutZoneTime]? = nil) {
         self.activityId = activityId; self.type = type; self.name = name
         self.durationSec = durationSec; self.distanceM = distanceM
+        self.source = source; self.avgHr = avgHr; self.maxHr = maxHr; self.sessionLoad = sessionLoad
+        self.startTimeUtc = startTimeUtc; self.zoneTime = zoneTime
+    }
+
+    /// W-B81: an Apple Health workout the phone uploaded (dso 4), read back from the hub.
+    public var isAppleHealth: Bool { source == "apple" }
+
+    /// `startTimeUtc` parsed; nil when absent or unparsable.
+    public var startDate: Date? {
+        guard let startTimeUtc else { return nil }
+        let f = ISO8601DateFormatter()
+        if let d = f.date(from: startTimeUtc) { return d }
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: startTimeUtc)
+    }
+}
+
+/// W-B81: one `HKWorkoutZoneGroup` zone — `upperBpm == nil` is the open top zone.
+public struct WorkoutZoneTime: Codable, Sendable, Equatable {
+    public var zone: Int
+    public var lowerBpm: Int?
+    public var upperBpm: Int?
+    public var seconds: Double
+    public init(zone: Int, lowerBpm: Int?, upperBpm: Int?, seconds: Double) {
+        self.zone = zone; self.lowerBpm = lowerBpm; self.upperBpm = upperBpm; self.seconds = seconds
     }
 }
 

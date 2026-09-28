@@ -96,6 +96,11 @@ public final class TodayViewModel {
     /// (not a `TrainingProviding`) or never answered; a failure keeps the last known rows.
     public private(set) var exercises: [Exercise] = []
 
+    /// W-B81 A-5: today's completed workouts from the hub (`/training/day/{today}` — Apple dso 4 and
+    /// Garmin), for Day's NEXT card. Same cache key as Training's day detail. Empty when the provider
+    /// has no training routes; a failure keeps the last known rows.
+    public private(set) var hubWorkouts: [DayActivity] = []
+
     /// Today's weekday in the plan's numbering (Mon = 0 … Sun = 6), for the NEXT card's fallback.
     public var todayWeekday: Int {
         (Calendar(identifier: .gregorian).component(.weekday, from: now()) + 5) % 7
@@ -346,10 +351,13 @@ public final class TodayViewModel {
             async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
             async let hR = Self.loadHubLastSync(provider: provider)
             async let eR = Self.loadExercises(provider: provider, cache: cache)
+            let today = todayDateString
+            async let wR = Self.loadHubWorkouts(provider: provider, cache: cache, date: today)
             let (m, g, r) = try await (mR, gR, rR)
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
             if let ev = await eR { exercises = ev }
+            if let wv = await wR { hubWorkouts = wv }
             lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
@@ -418,6 +426,11 @@ public final class TodayViewModel {
     nonisolated private static func loadExercises(provider: any HealthDataProvider, cache: OfflineCache) async -> [Exercise]? {
         guard let tp = provider as? any TrainingProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.exercises, cache: cache) { try await tp.exercises() })?.value
+    }
+
+    nonisolated private static func loadHubWorkouts(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> [DayActivity]? {
+        guard let tp = provider as? any TrainingProviding else { return nil }
+        return (try? await SectionLoader.load(key: "training.day.\(date)", cache: cache) { try await tp.trainingDay(date: date) })?.value?.activities
     }
 
     nonisolated private static func loadHubLastSync(provider: any HealthDataProvider) async -> Date? {
