@@ -70,6 +70,14 @@ struct RootTabView: View {
     /// W-FIX4 fixer PF-04: what every tab stack injects as `jiSyncedAt` — Today's one rule.
     @MainActor static func tabSyncedAt(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
 
+    /// W-FIX6 F6-11 (S1): the ONE source of the morning call (and of what it is made of — the
+    /// rationale, the override write, the gate's recovery inputs) is the hub, whichever data source
+    /// the tiles read. The debug on-device (T2) source has no verdict; reading the call from it left
+    /// Decide, the widget and the Live Activity on a four-day-old cached call (2026-09-28).
+    static func verdictSource(hub: (any HealthDataProvider)?, dataSource: any HealthDataProvider) -> any HealthDataProvider {
+        hub ?? dataSource
+    }
+
     /// W-FIX4 fixer PF-04: the shell loads Today's model at launch only when it has no live result
     /// and is not already loading (Today's own `.task` may have started it first).
     @MainActor static func shouldPrimeShellSync(_ today: TodayViewModel?) -> Bool {
@@ -267,7 +275,7 @@ struct RootTabView: View {
             case .onboarding?:
                 // W-FIX5 W4-2: the real night count (the cover also reads the live insight below).
                 if recoveryInsight == nil, let store = env.providerStore {
-                    recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+                    recoveryInsight = RecoveryInsightService(provider: Self.verdictSource(hub: env.hubProvider, dataSource: store.provider) as? any RecoveryInputsProviding, cache: env.cache)
                     env.recoveryInsight = recoveryInsight
                 }
                 onboardingModel = OnboardingViewModel(prefs: env.prefs, mirror: gateSettingsMirror(),
@@ -299,6 +307,10 @@ struct RootTabView: View {
         // W-FIX4 fixer PF-04: the hub's last sync is known whichever tab opens first (a launch
         // onto Recovery never mounts Day, which is what used to build and load Today's model).
         .task(id: providerRevision) { await primeShellSync() }
+        // W-FIX6 F6-11: a new override (Go / Adjust) reaches the widget and Live Activity at once.
+        .onChange(of: verdictOverrideModel?.current) { _, _ in env.republishSnapshot() }
+        // W-FIX6 F6-2: the glance normals follow the recovery insight whenever it (re)loads.
+        .onChange(of: recoveryInsight?.fetchedAt) { _, _ in env.republishSnapshot() }
         #if DEBUG
         .onAppear {
             if let tab = Self.launchArgumentTab() { selectedTab = tab }
@@ -578,13 +590,17 @@ struct RootTabView: View {
         guard let store = env.providerStore else { return }
         makeTodayModels(store: store)
         if let today = todayModel, Self.shouldPrimeShellSync(today) { await today.load() }
+        // W-FIX6 F6-2: a launch onto More never mounts Decide/Recovery, which is what loaded the
+        // insight — so the first glance went out with "no normal". Load it here and republish.
+        await env.refreshGlanceInsight()
     }
 
     /// Today's model + its siblings (rationale, override). Shared by the Today tab and More (the
     /// Goals row reads the latest weight from Today's gate rows).
     private func makeTodayModels(store: ProviderStore) {
+        let verdictSource = Self.verdictSource(hub: env.hubProvider, dataSource: store.provider)
         if recoveryInsight == nil {
-            recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding, cache: env.cache)
+            recoveryInsight = RecoveryInsightService(provider: verdictSource as? any RecoveryInputsProviding, cache: env.cache)
         }
         // B-57 W5: the glances read the HRV/RHR normals from the same insight (weak on env).
         env.recoveryInsight = recoveryInsight
@@ -593,14 +609,16 @@ struct RootTabView: View {
         }
         installGlancePlan()
         guard todayModel == nil else { return }
-        todayModel = TodayViewModel(provider: store.provider, cache: env.cache, prefs: env.prefs)
+        todayModel = TodayViewModel(provider: store.provider, verdictProvider: verdictSource, cache: env.cache, prefs: env.prefs)
         env.bind(today: todayModel, recovery: recoveryModel)
-        gateRationaleModel = GateRationaleViewModel(provider: store.provider)
+        gateRationaleModel = GateRationaleViewModel(provider: verdictSource)
         // Outbox on the same on-disk database the drainer reads (see makeGateRespondModel).
-        if let p = store.provider as? any VerdictOverrideProviding,
+        if let p = verdictSource as? any VerdictOverrideProviding,
            let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }() {
             verdictOverrideModel = VerdictOverrideViewModel(provider: p, outbox: Outbox(db: db))
         }
+        // W-FIX6 F6-11: the glances show the call as the user made it (Decide's headline).
+        env.currentOverride = { [weak model = verdictOverrideModel] in model?.current }
     }
 
     // W5b-L4 (P-gate-respond) close-out wiring: the gate answer card's model, built by `TodayView`

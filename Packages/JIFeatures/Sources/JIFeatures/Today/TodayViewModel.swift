@@ -66,6 +66,11 @@ public final class TodayViewModel {
     public private(set) var lastError: HubError?
 
     private let provider: any HealthDataProvider
+    /// W-FIX6 F6-11 (S1): the ONE source of the morning call — the hub's `/planning/morning`. The
+    /// tiles' data source (`provider`) may be the on-device T2 provider, which has no verdict
+    /// (`notCapable(.gate)`); asking it left Decide, the widget and the Live Activity on a four-day-old
+    /// cached call. The gate rows follow the same rule when the data source cannot serve them.
+    private let verdictProvider: any HealthDataProvider
     private let cache: OfflineCache
     /// Optional — nil at call sites that haven't wired tile-order persistence yet (e.g. pre-W2b
     /// `RootTabView`). `TodayGrid` degrades gracefully to an unpersisted default order when nil.
@@ -117,9 +122,13 @@ public final class TodayViewModel {
 
     /// - Parameter uploadRecord: the App-Group suite holding the uploader's last-success instant
     ///   (DEV-03); tests inject a scratch suite, `nil` = no record (the chip uses the hub alone).
-    public init(provider: any HealthDataProvider, cache: OfflineCache, prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
+    /// - Parameter verdictProvider: the hub (W-FIX6 F6-11) — `/planning/morning` is always read from
+    ///   it; nil = `provider` (the hub itself, previews, tests).
+    public init(provider: any HealthDataProvider, verdictProvider: (any HealthDataProvider)? = nil, cache: OfflineCache,
+                prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
                 uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) {
-        self.provider = provider; self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
+        self.provider = provider; self.verdictProvider = verdictProvider ?? provider
+        self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
     }
 
     /// W-FIX5 W5-4: the queue "Your week"'s weekday writes go through (B-52, the same on-disk
@@ -150,6 +159,12 @@ public final class TodayViewModel {
     private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
 
     public var verdict: VerdictParts { verdictParts(morning?.verdict) }
+
+    /// W-FIX6 F6-11: the ONE headline (word, session, tone) Decide, Day, the widgets and the Live
+    /// Activity show for the call in effect — `override` is the one for `verdictDate` (or nil).
+    public func headline(override: VerdictOverride?) -> VerdictHeadline {
+        verdictHeadline(parts: verdict, override: overrideForVerdictDate(override, verdictDate: verdictDate))
+    }
 
     /// B-46 device feedback 3: the newest non-null reading AND the day it came from, so a chip
     /// can say "as of Sep 21" rather than presenting an older number as today's.
@@ -300,8 +315,11 @@ public final class TodayViewModel {
             // need to capture `self` (MainActor-isolated) across the child-task boundary they create.
             let provider = self.provider
             let cache = self.cache
-            async let mR = SectionLoader.load(key: Self.keys.morning, cache: cache) { try await provider.morning() }
-            async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await provider.gate(windowDays: Self.trendWindowDays) }
+            // W-FIX6 F6-11: the call is the hub's; the gate rows too when the data source has none.
+            let verdictSource = self.verdictProvider
+            let gateSource = provider.capabilities.contains(.gate) ? provider : verdictSource
+            async let mR = SectionLoader.load(key: Self.keys.morning, cache: cache) { try await verdictSource.morning() }
+            async let gR = SectionLoader.load(key: Self.keys.gate, cache: cache) { try await gateSource.gate(windowDays: Self.trendWindowDays) }
             async let rR = SectionLoader.load(key: Self.keys.recovery, cache: cache) { try await provider.recovery(windowDays: Self.trendWindowDays) }
             // W-FIX2 L5: the sleep summary and the hub's sync time are extras — they never drive
             // `phase`/`hubReachable`, and a failure keeps the last known value.
@@ -452,6 +470,21 @@ public extension TodayViewModel {
         return model
     }
 }
+
+/// W-FIX6 F6-11: the prod hub's `GET /api/v1/planning/morning` on 2026-09-28 after morning_go
+/// 05:27 (saved read-only) — the call Decide, the widget and the Live Activity must all show.
+nonisolated public let fix6Morning20260928JSON = """
+{"today_activities":[],"verdict":"GO (auto-regulated) — Day 1 Full Upper + Z2 40min","verdict_date":"2026-09-28","experiment":null,"carbs_3d_avg":null,"carb_watch_floor":120,
+ "hrv_series":[{"date":"2026-09-22","hrv_weekly_avg":34,"rhr_bpm":79},{"date":"2026-09-23","hrv_weekly_avg":35,"rhr_bpm":67},{"date":"2026-09-24","hrv_weekly_avg":30,"rhr_bpm":82},{"date":"2026-09-25","hrv_weekly_avg":25,"rhr_bpm":80},{"date":"2026-09-26","hrv_weekly_avg":34,"rhr_bpm":73},{"date":"2026-09-27","hrv_weekly_avg":34,"rhr_bpm":70},{"date":"2026-09-28","hrv_weekly_avg":32,"rhr_bpm":71}],
+ "hrv_rmssd_series":[{"date":"2026-09-22","hrv_rmssd_ms":25.0},{"date":"2026-09-23","hrv_rmssd_ms":24.78},{"date":"2026-09-24","hrv_rmssd_ms":20.71},{"date":"2026-09-25","hrv_rmssd_ms":20.68},{"date":"2026-09-26","hrv_rmssd_ms":24.21},{"date":"2026-09-27","hrv_rmssd_ms":23.72},{"date":"2026-09-28","hrv_rmssd_ms":20.5}],
+ "is_stale":false,"session_for_today":null,
+ "gate_signals":[
+  {"key":"hrv","label":"HRV (7-day)","value":23,"unit":"ms","threshold":25,"direction":"min","scale_min":0,"scale_max":120,"status":"amber","note":"HRV 20 ms — 2 nights falling below 25 ms"},
+  {"key":"sleep_h","label":"Sleep time","value":8.2,"unit":"h","threshold":7.0,"direction":"min","scale_min":0,"scale_max":10,"status":"context","note":"8.2 h sleep — above your 7 h goal"},
+  {"key":"hrv_day","label":"Daytime HRV","value":14.08,"unit":"ms","threshold":21.0,"direction":"min","scale_min":0,"scale_max":120,"status":"context","note":"daytime HRV 14.08 ms vs 21 (undosed weekends) — context only"},
+  {"key":"recovery","label":"Recovery score","value":36,"unit":"","threshold":35,"direction":"min","scale_min":0,"scale_max":100,"status":"pass","note":"Recovery 36"}],
+ "verdict_override":null}
+"""
 
 let fixtureMorningJSON = """
 {"today_activities":[],"verdict":"MODIFIED (HRV low) — Easy Z2 30–40 min","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
