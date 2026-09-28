@@ -12,7 +12,7 @@ private let nights: [(date: String, value: Double?)] = (1...10).map { i in
     let rows = kpiDetailTableRows(history: nights, value: 30, unit: "ms", decimals: 0)
     #expect(rows.map(\.id) == ["last", "avg7", "normal", "counted"])
     #expect(rows[0].value == "30 ms")
-    #expect(rows[1].subtitle == "the number the gate uses")
+    #expect(rows[1].subtitle == "mean of the last 7 nights")   // W-FIX6 F6-3
     #expect(rows[2].value == "— Calibrating")          // the band is W3
     #expect(rows[3].value == "9 of 10")                // the missing night stays missing
     #expect(kpiDetailTableRows(history: [], value: nil, unit: "ms", decimals: 0)[0].value == "—")

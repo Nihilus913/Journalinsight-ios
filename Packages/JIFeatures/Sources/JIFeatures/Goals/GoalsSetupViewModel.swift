@@ -109,6 +109,15 @@ public final class GoalsSetupViewModel {
     /// W-FIX5 fixer (Goals-stale): the hub's goals after a successful PUT, so the shell's Goals card
     /// and More row stop showing the pre-save document.
     private let onGoalsSaved: (@MainActor (Goals) -> Void)?
+    /// W-FIX6 F6-4: how often, and how many times, a pending model re-reads the outbox after
+    /// `refreshHubPending` — the foreground drain lands a moment after the scene turns active.
+    private let hubPollInterval: Duration
+    private let hubPollLimit: Int
+    /// The watcher polling the outbox while "hub sync pending" shows (nil when idle).
+    private(set) var hubWatch: Task<Void, Never>?
+    /// W-FIX6 F6-4: the last weight/steps patch the hub refused while unreachable; re-sent once the
+    /// queued mirror is delivered (the hub is back), so "Couldn't save — try again." clears itself.
+    private var failedPatch: GoalsUpdate?
 
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
@@ -117,7 +126,9 @@ public final class GoalsSetupViewModel {
         burnSource: (@MainActor () async -> EnergyBurnWindow?)? = nil,
         onNutritionSaved: (@MainActor () -> Void)? = nil,
         hubPendingSource: (@MainActor () -> Bool)? = nil,
-        onGoalsSaved: (@MainActor (Goals) -> Void)? = nil
+        onGoalsSaved: (@MainActor (Goals) -> Void)? = nil,
+        hubPollInterval: Duration = .seconds(2),
+        hubPollLimit: Int = 60
     ) {
         self.provider = provider
         self.goalStore = goalStore
@@ -129,14 +140,61 @@ public final class GoalsSetupViewModel {
         self.onNutritionSaved = onNutritionSaved
         self.hubPendingSource = hubPendingSource
         self.onGoalsSaved = onGoalsSaved
+        self.hubPollInterval = hubPollInterval
+        self.hubPollLimit = hubPollLimit
     }
 
     /// W-FIX5 DEV-15: the retry scheduler / watchdog drain can deliver the queued PUT after the
     /// save returned `.queued`; the shell keeps this model, so re-read the outbox on every load.
+    /// W-FIX6 F6-4: the scene-active call runs before the foreground drain finishes, so a pending
+    /// model keeps watching the outbox; once the row is delivered the pending line and a stale
+    /// hub-offline "Couldn't save" clear live, without reopening Goals.
     public func refreshHubPending() {
         guard let hubPendingSource else { return }
         let pending = hubPendingSource()
-        if pending != hubPending { hubPending = pending }
+        if pending != hubPending {
+            hubPending = pending
+            if !pending { startHubWatch { model in await model.hubCameBack() }; return }
+        }
+        if pending, hubWatch == nil { watchHubPending() }
+    }
+
+    private func watchHubPending() {
+        guard hubPendingSource != nil else { return }
+        startHubWatch { [hubPollInterval, hubPollLimit] model in
+            for _ in 0..<hubPollLimit {
+                try? await Task.sleep(for: hubPollInterval)
+                if Task.isCancelled { return }
+                guard let source = model.hubPendingSource, !source() else { continue }
+                model.hubPending = false
+                await model.hubCameBack()
+                return
+            }
+        }
+    }
+
+    /// One watcher at a time; a finished watcher clears `hubWatch` only if it is still the current one.
+    private var hubWatchToken = 0
+    private func startHubWatch(_ body: @escaping @MainActor (GoalsSetupViewModel) async -> Void) {
+        hubWatch?.cancel()
+        hubWatchToken += 1
+        let token = hubWatchToken
+        hubWatch = Task { [weak self] in
+            guard let self else { return }
+            await body(self)
+            if self.hubWatchToken == token { self.hubWatch = nil }
+        }
+    }
+
+    /// The queued PUT reached the hub: re-send a weight/steps patch that failed meanwhile, else
+    /// drop a failed-save error the reachable hub no longer justifies (reloading its document).
+    private func hubCameBack() async {
+        if let failedPatch {
+            await save(failedPatch)
+        } else if case .error = phase, let fresh = try? await provider.goals() {
+            goals = fresh
+            phase = .loaded
+        }
     }
 
     /// True while a goals row is still queued in `outbox` (a read error counts as not pending).
@@ -198,10 +256,12 @@ public final class GoalsSetupViewModel {
             try? goalStore?.saveGoalTargetsMirror(result, now: now())
             savedAt = now()
             phase = .loaded
+            failedPatch = nil
             onGoalsSaved?(result)
             return true
         } catch {
             phase = .error(Self.describe(error))
+            if case .network = error as? HubError { failedPatch = patch } else { failedPatch = nil }
             return false
         }
     }
@@ -255,6 +315,7 @@ public final class GoalsSetupViewModel {
             if loadFailed, case .error = phase { phase = .loaded }
         case .queued:
             hubPending = true
+            if hubWatch == nil { watchHubPending() }   // W-FIX6 F6-4: clears live once drained
         case .nothingToSend:
             hubPending = false
         }

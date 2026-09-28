@@ -11,7 +11,9 @@ public nonisolated struct KpiDetailTableRow: Equatable, Sendable, Identifiable {
     public let id: String, title: String, subtitle: String, value: String
 }
 
-/// Last night · 7-day average (the number the gate uses) · 28-day normal (W3 → "—") · Nights counted.
+/// Last night · 7-day average · 28-day normal (W3 → "—") · Nights counted. W-FIX6 F6-3: the words
+/// say what the number is — the mean of the last 7, never "the number the gate uses" (the gate
+/// reads last night, and Load is not in the call), and the band is median ± spread, not a middle 50 %.
 public nonisolated func kpiDetailTableRows(history: [(date: String, value: Double?)], value: Double?, unit: String, decimals: Int,
                                            isNightly: Bool = true, normal: PersonalNormalResult? = nil) -> [KpiDetailTableRow] {
     let u = unit.isEmpty ? "" : " \(unit)"
@@ -20,10 +22,16 @@ public nonisolated func kpiDetailTableRows(history: [(date: String, value: Doubl
     let last28 = sorted.suffix(28)
     let counted = last28.filter { $0.value != nil }.count
     let avg7 = trendAverage(history, days: 7)
+    // Load's series is the rolling 7-day total (`kpiLoadHistory`): its words name weekly totals.
+    let isLoad = unit == recoveryLoadUnit
+    let lastSubtitle = isLoad ? "total of the 7 days to yesterday" : isNightly ? "the newest night" : "the newest reading"
+    let avgSubtitle = isLoad ? "mean of the last 7 weekly totals" : isNightly ? "mean of the last 7 nights" : "mean of the last 7 days"
+    let normalSubtitle = isLoad ? "median ± usual spread of weekly totals, 4 weeks before this week"
+                                : "median ± usual spread, 4 weeks before this week"
     return [
-        KpiDetailTableRow(id: "last", title: isNightly ? "Last night" : "Latest", subtitle: isNightly ? "the newest night" : "the newest reading", value: num(value)),
-        KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: "the number the gate uses", value: num(avg7)),
-        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: "middle 50 % of nights", value: normal.map { "\(jiNumber($0.low, decimals))–\(jiNumber($0.high, decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
+        KpiDetailTableRow(id: "last", title: isNightly ? "Last night" : "Latest", subtitle: lastSubtitle, value: num(value)),
+        KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: avgSubtitle, value: num(avg7)),
+        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: normalSubtitle, value: normal.map { "\(jiNumber($0.low, decimals))–\(jiNumber($0.high, decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
         KpiDetailTableRow(id: "counted", title: isNightly ? "Nights counted" : "Days counted", subtitle: "missing ones stay missing", value: "\(counted) of \(max(last28.count, 1))"),
     ]
 }
