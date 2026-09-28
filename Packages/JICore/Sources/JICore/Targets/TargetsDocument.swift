@@ -146,7 +146,7 @@ public nonisolated struct TargetGoals: Codable, Equatable, Sendable {
     public var carbsG: Double?
     public var fatG: Double?
     public var stepsDaily: Int?
-    /// D2 (Toby 2026-09-28): user-typed, nil until set. Never 7.0 by default.
+    /// D2 (Toby 2026-09-28): user-typed, nil until set; never a default.
     public var sleepH: Double?
     /// Display only (auto from sessions / the hub's strength goals).
     public var strength: [StrengthGoal]
