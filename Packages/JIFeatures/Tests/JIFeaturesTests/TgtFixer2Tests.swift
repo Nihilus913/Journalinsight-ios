@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JIDesign
 @testable import JIFeatures
 
 // W-TGT fixer round 2 (verifier rows R1–R3). Test values only.
@@ -98,4 +99,19 @@ private func kcalDraft(goal: String, deficit: String, weekly: Bool = false) -> T
 
 @Test func moreNutritionGroupsItsNumbers() {
     #expect(moreNutritionValue(consumedKcal: 1467.4, goalKcal: 1617).text == "1,467 / 1,617 kcal")
+}
+
+// W-TGT r3: More › Goals counts sleep like Settings › Targets; square values group like their goal line.
+@Test func otherGoalCountIncludesSleep() {
+    guard case .success(var doc) = kcalDraft(goal: "2117", deficit: "500").applied(to: .empty) else {
+        Issue.record("refused"); return
+    }
+    doc.goals.sleepH = 7.5
+    #expect(targetsOtherGoalCount(doc) == 2)
+}
+
+@Test func squareValuesAreGrouped() {
+    #expect(jiGroupedNumber(1850, 0) == "1,850")
+    #expect(jiGroupedNumber(2326, 0) == "2,326")
+    #expect(jiGroupedNumber(27.5, 1) == "27.5")
 }

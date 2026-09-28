@@ -216,6 +216,12 @@ public nonisolated func targetsGoalCaption(_ m: GoalMetric, _ v: Double) -> Stri
     }
 }
 
+/// The goals besides weight the user set in the document (kcal, macros, steps, sleep) — More ›
+/// Goals counts the same set as Settings › Targets (W-TGT r3: sleep was left out).
+public nonisolated func targetsOtherGoalCount(_ doc: TargetsDocument) -> Int {
+    GoalMetric.allCases.filter { $0 != .weight && doc.goal($0) != nil }.count
+}
+
 /// Settings › Targets row subtitle (mock 04): "7 goals · cap 175 · rules recommended".
 public nonisolated func targetsSettingsSummary(_ doc: TargetsDocument) -> String {
     let goals = GoalMetric.allCases.filter { doc.goal($0) != nil }.count
