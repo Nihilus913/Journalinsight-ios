@@ -24,3 +24,19 @@ public enum LiveActivityCapPolicy {
         return activeElapsed >= activeCap || staleElapsed >= staleCap
     }
 }
+
+/// W-FIX7 F7-4: what to do with the verdict activities already running when the app (re)starts —
+/// `Activity<…>.activities` survives an app relaunch, the controller's own reference does not.
+/// Adopt the first active one; end every other active one (duplicates from earlier launches).
+/// Ended / dismissed ones are never adopted — a finished day is not re-opened.
+public enum LiveActivityAdoption {
+    public struct Plan<ID: Hashable>: Equatable {
+        public var adopt: ID?
+        public var end: [ID]
+    }
+
+    public static func plan<ID: Hashable>(running: [(id: ID, isActive: Bool)]) -> Plan<ID> {
+        let active = running.filter(\.isActive).map(\.id)
+        return Plan(adopt: active.first, end: Array(active.dropFirst()))
+    }
+}

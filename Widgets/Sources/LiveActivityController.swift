@@ -97,6 +97,10 @@ public final class LiveActivityController {
     public func update(from snapshot: HubSnapshot) {
         let moment = now()
 
+        // W-FIX7 F7-4: a relaunch loses `activity` but not the activity itself — adopt the one
+        // already on the Lock Screen (and end any duplicate) instead of requesting a second card.
+        if activity == nil { adoptRunning(moment: moment) }
+
         if let startedAt, let lastUpdateAt,
            LiveActivityCapPolicy.shouldEnd(startedAt: startedAt, lastUpdateAt: lastUpdateAt, now: moment) {
             end()
@@ -136,6 +140,42 @@ public final class LiveActivityController {
                 // Live Activities unavailable (disabled, over budget, etc.) — no-op, never crash.
             }
         }
+    }
+
+    /// W-FIX7 F7-1: today's session is done — show it once more on the running activity (adopted
+    /// after a relaunch if need be) and end it, leaving the "done" card for the system's default
+    /// dismissal. Never STARTS an activity: a done day gets no new card.
+    public func finish(from snapshot: HubSnapshot) {
+        let moment = now()
+        if activity == nil { adoptRunning(moment: moment) }
+        guard let activity else { return }
+        let state = VerdictActivityAttributes.ContentState(
+            verdictWord: snapshot.verdictWord, verdictSession: snapshot.verdictSession, verdictTone: snapshot.verdictTone,
+            readiness: snapshot.readiness, lastUpdate: moment, reason: snapshot.reason, hrCap: snapshot.hrCap,
+            nextSession: snapshot.nextSession, signals: snapshot.signals
+        )
+        let box = UncheckedSendableBox(value: activity)
+        let content = ActivityContent(state: state, staleDate: nil)
+        Task.detached { await box.value.end(content, dismissalPolicy: .default) }
+        self.activity = nil
+        startedAt = nil
+        lastUpdateAt = nil
+    }
+
+    /// F7-4: adopt the first active verdict activity ActivityKit still lists; end the extras.
+    private func adoptRunning(moment: Date) {
+        let running = Activity<VerdictActivityAttributes>.activities
+        let plan = LiveActivityAdoption.plan(running: running.map { (id: $0.id, isActive: $0.activityState == .active || $0.activityState == .stale) })
+        for extra in running where plan.end.contains(extra.id) {
+            let box = UncheckedSendableBox(value: extra)
+            Task.detached { await box.value.end(nil, dismissalPolicy: .immediate) }
+        }
+        guard let id = plan.adopt, let adopted = running.first(where: { $0.id == id }) else { return }
+        activity = adopted
+        // Its true start is not kept across launches; its last content update is the best bound.
+        let last = adopted.content.state.lastUpdate
+        startedAt = min(last, moment)
+        lastUpdateAt = min(last, moment)
     }
 
     /// Ends the running activity immediately, if any. Safe to call when
