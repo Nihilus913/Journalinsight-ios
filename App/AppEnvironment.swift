@@ -91,6 +91,9 @@ final class AppEnvironment {
 
     /// The hub client of the connection `apply(_:)` last installed (nil before one exists).
     private var activeHubClient: HubClient?
+    /// W-FIX6 F6-11 (S1): this connection's hub provider — the ONE source of the morning call,
+    /// whichever data source (hub / on-device T2) the tiles read. nil = not connected.
+    private(set) var hubProvider: (any HealthDataProvider)?
 
     /// W2d (L1): three-state read-permission model over the real `HKHealthStore`. Hub-independent,
     /// so it lives from `init` — `ConnectionSheet`'s "Apple Watch (read)" section (L3) is driven
@@ -151,6 +154,7 @@ final class AppEnvironment {
         let hubClient = HubClient(config: config)
         activeHubClient = hubClient
         let provider = HubDataProvider(client: hubClient)
+        hubProvider = provider
         let store: ProviderStore
         if let existing = providerStore { existing.provider = provider; store = existing } else { store = ProviderStore(provider: provider); providerStore = store }
         // W7-L3 (P-healthkit-t2-provider): re-point the debug data-source switch at THIS
@@ -388,6 +392,17 @@ final class AppEnvironment {
     /// (B-52 cached plan sessions); nil = no week known, so the glances show no plan (never "0 of 4").
     @ObservationIgnored var glancePlan: (@MainActor () -> GlancePlan?)?
 
+    /// W-FIX6 F6-11: the override in effect on this device (Decide's `VerdictOverrideViewModel.current`),
+    /// set by RootTabView, so the glances show the call the user made — the same headline as Decide.
+    @ObservationIgnored var currentOverride: (@MainActor () -> VerdictOverride?)?
+
+    /// W-FIX6 F6-2: load the recovery insight (the glances' HRV/RHR normals) and republish, so a
+    /// launch onto a tab that never mounts Recovery/Decide still gets its normals on the widget.
+    func refreshGlanceInsight() async {
+        await recoveryInsight?.refreshIfStale()
+        republishSnapshot()
+    }
+
     /// W-FIX5 W5-5: the verdict Live Activity, started (then refreshed) from the app on each
     /// published snapshot that carries a call. Unit-test hosts get nil (no real activity per test).
     @ObservationIgnored var liveActivity: (@MainActor (HubSnapshot) -> Void)? = AppEnvironment.defaultLiveActivity
@@ -435,7 +450,8 @@ final class AppEnvironment {
     static func isoDay(_ date: Date) -> String { String(date.ISO8601Format().prefix(10)) }
 
     private func publishSnapshot(today: TodayViewModel?, recovery: RecoveryViewModel?) {
-        let verdict = today?.verdict
+        // W-FIX6 F6-11: Decide's own headline (word, session, tone) — never the hub's raw word.
+        let headline = today?.headline(override: currentOverride?() ?? today?.morning?.verdictOverride)
         let readiness = today?.readiness ?? recovery?.latestReadiness
         let kpis = (today?.chips ?? []).map { SnapshotKPI(label: $0.label, value: $0.value, unit: $0.unit) }
         let lastSync = Self.glanceLastSync(today: today)
@@ -446,9 +462,9 @@ final class AppEnvironment {
         let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now())))
         let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)
         let snapshot = HubSnapshot(
-            verdictWord: verdict?.word ?? "—",
-            verdictSession: verdict?.session ?? "No verdict yet",
-            verdictTone: Self.toneString(verdict?.tone),
+            verdictWord: headline?.word ?? "—",
+            verdictSession: headline?.session ?? "No verdict yet",
+            verdictTone: Self.toneString(headline?.tone),
             verdictDate: today?.morning?.verdictDate,
             readiness: readiness,
             kpis: kpis,

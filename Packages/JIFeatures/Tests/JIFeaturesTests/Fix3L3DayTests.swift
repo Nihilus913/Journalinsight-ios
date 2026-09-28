@@ -61,8 +61,10 @@ struct Fix3L3DayTests {
     @Test func fuelIsTodaysFoodRowWithItsMacros() {
         let daily = [row("2026-09-25", ["kcal_consumed": 640, "kcal_goal": 2100, "protein_g": 48, "carbs_g": 62, "fat_g": 14]),
                      row("2026-09-24", ["kcal_consumed": 1900, "protein_g": 150])]
-        let fuel = dayFuel(daily: daily, today: "2026-09-25")
+        // W-FIX6 F6-7: the goal is the user's own (`nutritionGoals.kcalGoal`), not the row's `kcal_goal`.
+        let fuel = dayFuel(daily: daily, today: "2026-09-25", kcalGoal: 2100)
         #expect(fuel.kcal == 640 && fuel.kcalGoal == 2100)
+        #expect(dayFuel(daily: daily, today: "2026-09-25").kcalGoal == nil)
         #expect(fuel.protein == 48 && fuel.carbs == 62 && fuel.fat == 14)
         #expect(fuel.asOf == nil)
     }

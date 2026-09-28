@@ -22,7 +22,8 @@ import JIDesign
 @Test func readinessRingReasonWhenTheScoreIsMissing() {
     #expect(decideReadinessCaption(score: nil, nights: 3) == "Readiness needs 7 overnight nights · 3 of 7 so far · Calibrating")
     #expect(decideReadinessCaption(score: nil, nights: nil) == "Readiness needs 7 overnight nights · 0 of 7 so far · Calibrating")
-    #expect(decideReadinessCaption(score: nil, nights: 12) == "Readiness needs 7 overnight nights · 7 of 7 so far · Calibrating")
+    // W-FIX6 F6-11: a met count is never "7 of 7 so far · Calibrating".
+    #expect(decideReadinessCaption(score: nil, nights: 12) == "Readiness · No data")
     #expect(decideReadinessCaption(score: 72, nights: 9) == "Readiness")
     #expect(decideHrvFootnote.contains("RMSSD") && decideHrvFootnote.contains("SDNN"))
 }

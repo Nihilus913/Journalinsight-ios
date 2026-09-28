@@ -24,7 +24,8 @@ import JIPersistence
     let stack = try #require(src.range(of: "private func tabStack<"))
     let tail = String(src[stack.lowerBound...].prefix(1_900))
     #expect(tail.contains(".environment(\\.recoveryInsight, recoveryInsight)"))
-    #expect(src.contains("recoveryInsight = RecoveryInsightService(provider: store.provider as? any RecoveryInputsProviding"))
+    // W-FIX6 F6-11: the insight reads the gate's inputs from the hub (the verdict source).
+    #expect(src.contains("recoveryInsight = RecoveryInsightService(provider: verdictSource as? any RecoveryInputsProviding"))
     let invalidate = try #require(src.range(of: "private func invalidateProviderScopedModels()"))
     #expect(String(src[invalidate.lowerBound...].prefix(1_200)).contains("recoveryInsight = nil"))
 }
