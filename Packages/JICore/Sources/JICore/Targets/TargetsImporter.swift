@@ -69,6 +69,8 @@ public nonisolated struct TargetsImportResult: Equatable, Sendable {
     public var document: TargetsDocument
     /// One line per value read and NOT imported (hidden overrides, preview-only rules, unknown rows).
     public var discarded: [String]
+
+    public init(document: TargetsDocument, discarded: [String]) { self.document = document; self.discarded = discarded }
 }
 
 public nonisolated enum TargetsImporter {
