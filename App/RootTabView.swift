@@ -61,17 +61,21 @@ struct RootTabView: View {
     /// B-57 W1 board: the My KPIs row's trailing value.
     static func moreKpiText(count: Int) -> String { "\(count) chosen" }
 
-    /// W-FIX2 BUG-47 (board 4/04): the App card is one Settings row reading "Hub synced 07:41 ›".
+    /// W-FIX2 BUG-47 (board 4/04): the App card is one Settings row reading the sync time ("Synced 07:41 ›" since W-FIX8).
     /// W-FIX4 PF-04: the time is the one sync-pill rule (`TodayViewModel.syncedAt` — the newer of
     /// the hub's last sync and the last HealthKit upload 2xx), never the moment Today fetched.
-    static func moreSettingsText(syncedAt: Date?, calendar: Calendar = .current) -> String {
-        guard let syncedAt else { return "Not synced yet" }
-        let c = calendar.dateComponents([.hour, .minute], from: syncedAt)
-        return String(format: "Hub synced %02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    /// W-FIX8 M-3: worded exactly as the sync pill ("Synced 14:55", "Synced 24 Sep 10:14") — one
+    /// sync label on every surface, not "Hub synced" beside the Apple Health row's upload time.
+    static func moreSettingsText(syncedAt: Date?, now: Date = Date(), calendar: Calendar = .current) -> String {
+        syncedPillText(syncedAt, label: .synced, now: now, calendar: calendar)
     }
 
     /// W-FIX4 PF-04: the instant More's Settings row names — Today's sync rule, not its fetch time.
-    @MainActor static func moreSettingsDate(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
+    /// W-FIX8 M-3: the pill's rule (`oneSyncPillDate`) with the upload record read NOW, as the
+    /// Apple Health row does — Today's copy of it is only as fresh as Today's last load.
+    @MainActor static func moreSettingsDate(_ today: TodayViewModel?, lastUpload: Date? = healthKitLastUploadDate()) -> Date? {
+        oneSyncPillDate(injected: today?.syncedAt, lastUpload: lastUpload)
+    }
 
     /// W-FIX4 fixer PF-04: what every tab stack injects as `jiSyncedAt` — Today's one rule.
     @MainActor static func tabSyncedAt(_ today: TodayViewModel?) -> Date? { today?.syncedAt }
@@ -400,8 +404,9 @@ struct RootTabView: View {
                 .navigationTitle("My KPIs")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        // W-GUI R4 (mockup 23): Done is a glass checkmark (BUG-21: it stays; squares push their detail).
-                        JIGlassButton("checkmark", label: "Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
+                        // W-GUI R4 (mockup 23): Done is a checkmark (BUG-21: it stays; squares push their detail).
+                        // W-FIX8 G-1: a toolbar button — the bar draws the one glass (a JIGlassButton here sat crammed under the sheet corner).
+                        JIToolbarButton("checkmark", label: "Done") { showKpiList = false }.accessibilityIdentifier("kpis.done")
                     }
                 }
                 .navigationDestination(for: RootRoute.self) { route in
@@ -492,7 +497,13 @@ struct RootTabView: View {
         let model = makeTargetsModel(outbox: outbox)
         targetsModel = model
         reloadGateSettings()
-        Task { await model.pushIfPending() }
+        // W-FIX8 T-1: a phone with no goals reads the hub's first (once per install, never a PUT —
+        // the 2026-09-28 14:51 empty first-launch body wiped them), THEN anything queued is sent.
+        let hub = hubScreens as? any TargetsProviding
+        Task {
+            await model.seedFromHub(hub, log: { print("[targets] \($0)") })
+            await model.pushIfPending()
+        }
     }
 
     /// The model over THIS connection's hub (rebuilt on a hub switch, like the tab models).
@@ -808,7 +819,7 @@ struct RootTabView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("more.appleHealth")
                     JIRowDivider()
-                    // W-FIX2 BUG-47 (board 4/04): one row, "Hub synced 07:41 ›" — text, not a pill.
+                    // W-FIX2 BUG-47 (board 4/04): one row, "Synced 07:41 ›" (W-FIX8 wording) — text, not a pill.
                     Button { showSettings = true } label: {
                         JIChevronRow {
                             MoreRowLabel("Settings", systemImage: "slider.horizontal.3",
@@ -845,7 +856,7 @@ struct RootTabView: View {
     // B-57 W1 r5 (h3): the More rows' trailing values read the same models the screens behind
     // them use (built here when More is opened first); missing data is "—" + a reason.
     private var moreNutritionRow: MoreRowValue {
-        let today = String(Date().ISO8601Format().prefix(10))
+        let today = energyTodayISO()   // W-FIX8: the local day the Nutrition screen names "Today"
         let day = nutritionModel?.day.flatMap { $0.date == today ? $0 : nil }
         // W-DATA fixer R1: no food today → the newest logged day of the week, named by its day.
         let latest = moreNutritionLatestIntake(today: today, todayKcal: day?.total.kcal, week: nutritionModel?.week ?? [])
@@ -860,7 +871,9 @@ struct RootTabView: View {
     }
 
     private var moreEnergyRow: MoreRowValue {
-        moreEnergyValue(avgDeficit7d: energyModel?.report?.avgDeficitCorrected7d, trackingDays: energyModel?.report?.trackingDays ?? 0)
+        // W-FIX8 M-3: the Energy hero's number — the Health band balance first (`energyBalanceDeficit`).
+        moreEnergyValue(avgDeficit7d: energyModel?.report?.avgDeficitCorrected7d, trackingDays: energyModel?.report?.trackingDays ?? 0,
+                        bandBalanceKcal: energyModel?.bandState.result?.balanceKcal)
     }
 
     /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →

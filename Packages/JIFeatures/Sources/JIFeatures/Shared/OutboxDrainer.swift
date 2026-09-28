@@ -214,8 +214,19 @@ public final class OutboxDrainer {
                 guard let targets else { continue }
                 guard row.id == newestTargetsId else { try? outbox.markSent(id: row.id); continue }   // superseded
                 guard let body = try? JSONDecoder().decode(TargetsDocument.self, from: row.payload) else { continue }
-                await attempt(row: row, describe: Self.describeTargets, into: &results) {
-                    .targets(try await targets.putTargets(body))
+                do {
+                    let server = try await targets.putTargets(body)
+                    try? outbox.markSent(id: row.id)
+                    results[row.id] = .success(.targets(server))
+                } catch let refused as TargetsWouldClearGoals {
+                    // W-FIX8 T-1: a goals-empty body met a hub that holds goals — nothing was sent.
+                    // Retired, never retried (it would only be refused again); the result carries
+                    // the hub's document so `TargetsMirror` adopts it (hub wins over empty local).
+                    try? outbox.markSent(id: row.id)
+                    results[row.id] = .failure(refused)
+                } catch {
+                    try? outbox.markFailed(id: row.id, error: Self.describeTargets(error))
+                    results[row.id] = .failure(error)
                 }
             default:
                 continue

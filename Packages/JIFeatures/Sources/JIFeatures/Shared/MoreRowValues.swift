@@ -45,10 +45,22 @@ public nonisolated func moreNutritionLatestIntake(today: String, todayKcal: Doub
         .first { ($0.kcalConsumed ?? 0) > 0 }.flatMap { r in r.kcalConsumed.map { ($0, r.date) } }
 }
 
-/// Energy: the 7-day average balance vs TDEE — the same numeral and the same tracking-day gate
-/// as the Energy hero (`energyHeroNumeral`, 4 days).
-public nonisolated func moreEnergyValue(avgDeficit7d: Double?, trackingDays: Int, minTrackingDays: Int = 4) -> MoreRowValue {
-    guard trackingDays >= minTrackingDays, let d = avgDeficit7d, d.isFinite else { return .missing() }
+/// W-FIX8 M-3: the Energy hero's 7-day balance as a hub-convention deficit (burned − eaten) — the
+/// phone's Health band balance (eaten − burned) when it has one, else the hub report's average,
+/// gated at `minTrackingDays`. The hero and More › Energy both read this, so they cannot differ.
+public nonisolated func energyBalanceDeficit(avgDeficit7d: Double?, trackingDays: Int, bandBalanceKcal: Int?,
+                                             minTrackingDays: Int = 4) -> Double? {
+    if let b = bandBalanceKcal { return Double(-b) }
+    guard trackingDays >= minTrackingDays, let d = avgDeficit7d, d.isFinite else { return nil }
+    return d
+}
+
+/// Energy: the 7-day average balance vs TDEE — the same numeral and the same source as the Energy
+/// hero (`energyBalanceDeficit`: the Health band balance first, else the hub's, 4-day gate).
+public nonisolated func moreEnergyValue(avgDeficit7d: Double?, trackingDays: Int, bandBalanceKcal: Int? = nil,
+                                        minTrackingDays: Int = 4) -> MoreRowValue {
+    guard let d = energyBalanceDeficit(avgDeficit7d: avgDeficit7d, trackingDays: trackingDays, bandBalanceKcal: bandBalanceKcal,
+                                       minTrackingDays: minTrackingDays) else { return .missing() }
     return MoreRowValue(lead: energyHeroNumeral(d), rest: "7-day avg vs TDEE", style: .kcal)
 }
 

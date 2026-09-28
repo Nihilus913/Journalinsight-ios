@@ -169,6 +169,21 @@ private final class CompletionBox: @unchecked Sendable {
         #expect(defaults.string(forKey: HealthKitArrival.key(for: stepsType)) == nil)
     }
 
+    /// W-FIX8 M-1 root cause: the launch request (the only automatic one) asked for the upload
+    /// specs alone, so the read-only dietary kinds (B-73, W-FIX7) were never requested on a phone
+    /// that granted Health before they existed — HealthKit then answers every dietary sum with
+    /// nothing, and Macros said "No data" while Health held protein 118 g.
+    @Test func requestAuthorizationAsksForEveryReadKindIncludingFood() async throws {
+        let store = FakeHealthStoreReader()
+        try await uploader(store: store).requestAuthorization()
+        for kind in [HKReadKind.dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat, .dietaryFiber, .dietarySugar, .basalEnergy] {
+            let type = try #require(kind.sampleType)
+            #expect(store.requestedReadTypes.contains(type), "\(kind) not requested")
+        }
+        #expect(store.requestedReadTypes.contains(stepsType))   // the upload specs stay in the request
+        #expect(HKReadKind.allReadTypes.isSubset(of: store.requestedReadTypes))
+    }
+
     @Test func requestAuthorizationThrowsWhenHealthDataUnavailable() async {
         let store = FakeHealthStoreReader()
         store.isHealthDataAvailable = false

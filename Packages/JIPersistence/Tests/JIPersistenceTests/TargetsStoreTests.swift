@@ -93,6 +93,55 @@ private func sources(_ db: AppDatabase) -> TargetsStore.Sources {
     let r = try #require(store.migrateIfNeeded(sources(db)))
     #expect(r.document == .empty)
     #expect(store.load() == .empty)
+    // W-FIX8 T-1: an import with no goals is never mirrored (that body wiped the hub's goals).
+    #expect(try Outbox(db: db).pending().isEmpty)
+}
+
+// MARK: - W-FIX8 T-1: empty local never overwrites the hub; hub wins over empty local
+
+@Test func goalsEmptyImportWithLimitsIsNotMirrored() throws {
+    let db = try AppDatabase.inMemory()
+    let prefs = PrefStore(db: db)
+    try prefs.set(TargetsStore.gateSettingsKey, try JSONDecoder().decode(JSONValue.self, from: Data(Fixture.gateSettings.utf8)))
+    let store = TargetsStore(prefs: prefs)
+    let r = try #require(store.migrateIfNeeded(sources(db)))
+    #expect(r.document.goals.isEmpty && r.document.limit(.hrCap) == 175)
+    #expect(try Outbox(db: db).pending().isEmpty)
+    #expect(store.needsHubSeed)
+}
+
+@Test func hubSeedIsNeededOnlyForAGoalsEmptyPhoneAndOnlyOnce() throws {
+    let db = try AppDatabase.inMemory()
+    let store = TargetsStore(prefs: PrefStore(db: db))
+    #expect(store.needsHubSeed)                        // nothing stored yet
+    var d = TargetsDocument.empty; d.goals.proteinG = 150
+    try store.save(d)
+    #expect(!store.needsHubSeed)                       // the phone holds a goal: it is the source
+    try store.save(.empty)
+    #expect(store.needsHubSeed)
+    store.markHubSeeded()
+    #expect(!store.needsHubSeed)                       // one-time repair
+}
+
+@Test func adoptHubFillsOnlyWhatThePhoneLacksAndQueuesNothing() throws {
+    let db = try AppDatabase.inMemory()
+    let store = TargetsStore(prefs: PrefStore(db: db))
+    var local = TargetsDocument.empty; local.limits.hrCapBpm = 170
+    try store.save(local)
+    var hub = TargetsDocument.empty
+    hub.goals.proteinG = 184.9; hub.goals.strength = [StrengthGoal(exercise: "bench", targetKg: 100)]
+    hub.limits.hrCapBpm = 175
+    let out = store.adoptHub(hub)
+    #expect(out.goals == hub.goals && out.limits.hrCapBpm == 170)
+    #expect(store.load() == out)
+    #expect(try Outbox(db: db).pending().isEmpty)
+}
+
+@Test func theClearIntentIsNeverStored() throws {
+    let store = TargetsStore(prefs: PrefStore(db: try AppDatabase.inMemory()))
+    var d = TargetsDocument.empty; d.clearAllGoals = true
+    try store.save(d)
+    #expect(store.load().clearAllGoals == false)
 }
 
 @Test func legacyKeysStayUntilDeliveredThenGo() throws {
