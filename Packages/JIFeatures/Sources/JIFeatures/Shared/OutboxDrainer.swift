@@ -16,6 +16,8 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case verdictOverrideCleared
     /// B-57 W2 (B-73): the hub stored the mirrored macro goals. TEMP bridge until B-50.
     case goals(Goals)
+    /// W-TGT: the hub stored the targets document (`PUT /planning/targets`). TEMP bridge until B-50.
+    case targets(TargetsDocument)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -37,6 +39,7 @@ public final class OutboxDrainer {
     private let planWeekday: (any PlanSessionWeekdayProviding)?
     private let verdictOverride: (any VerdictOverrideProviding)?
     private let goals: (any GoalsProviding)?   // TEMP bridge until B-50: hub weekly gate
+    private let targets: (any TargetsProviding)?   // W-TGT: the one mirror body
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -56,7 +59,8 @@ public final class OutboxDrainer {
         gateRespond: (any GateRespondProviding)?,
         planWeekday: (any PlanSessionWeekdayProviding)? = nil,
         verdictOverride: (any VerdictOverrideProviding)? = nil,
-        goals: (any GoalsProviding)? = nil
+        goals: (any GoalsProviding)? = nil,
+        targets: (any TargetsProviding)? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
@@ -64,6 +68,7 @@ public final class OutboxDrainer {
         self.planWeekday = planWeekday
         self.verdictOverride = verdictOverride
         self.goals = goals
+        self.targets = targets
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -75,7 +80,8 @@ public final class OutboxDrainer {
             gateRespond: provider as? any GateRespondProviding,
             planWeekday: provider as? any PlanSessionWeekdayProviding,
             verdictOverride: provider as? any VerdictOverrideProviding,
-            goals: provider as? any GoalsProviding
+            goals: provider as? any GoalsProviding,
+            targets: provider as? any TargetsProviding
         )
     }
 
@@ -87,7 +93,8 @@ public final class OutboxDrainer {
             gateRespond: hub as? any GateRespondProviding,
             planWeekday: hub as? any PlanSessionWeekdayProviding,
             verdictOverride: hub as? any VerdictOverrideProviding,
-            goals: hub as? any GoalsProviding
+            goals: hub as? any GoalsProviding,
+            targets: hub as? any TargetsProviding
         )
     }
 
@@ -106,9 +113,13 @@ public final class OutboxDrainer {
     /// B-57 W2 (B-73): `PUT /planning/goals` copy of the user's nutrition goals, queued only by
     /// `GoalsMirror` on a GoalsSetup save. Deleted with B-50.
     public nonisolated static let goalsKind = "goals_put"
+    /// W-TGT: the whole `TargetsDocument` (`PUT /planning/targets`), queued by `TargetsMirror` and
+    /// by the §5 import. Last-write-wins: only the newest pending row is sent; older ones are
+    /// retired unsent (they are superseded, never replayed over a newer document).
+    public nonisolated static let targetsKind = TargetsDocument.outboxKind
     public nonisolated static let knownKinds: Set<String> = [
         weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
-        goalsKind,
+        goalsKind, targetsKind,
     ]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
@@ -119,6 +130,7 @@ public final class OutboxDrainer {
         if planWeekday != nil { kinds.insert(Self.planWeekdayKind) }
         if verdictOverride != nil { kinds.insert(Self.verdictOverrideKind); kinds.insert(Self.verdictOverrideClearKind) }
         if goals != nil { kinds.insert(Self.goalsKind) }
+        if targets != nil { kinds.insert(Self.targetsKind) }
         return kinds
     }
 
@@ -157,6 +169,7 @@ public final class OutboxDrainer {
     private func drainPass() async -> [Int64: Result<OutboxDelivery, Error>] {
         var results: [Int64: Result<OutboxDelivery, Error>] = [:]
         guard let rows = try? outbox.pending() else { return results }
+        let newestTargetsId = rows.last(where: { $0.kind == Self.targetsKind })?.id
         for row in rows {
             // Plain `JSONDecoder()`, matching `Outbox.enqueue`'s plain `JSONEncoder()` — see its
             // doc comment (this is the outbox's own storage format, not a hub wire body).
@@ -196,6 +209,13 @@ public final class OutboxDrainer {
                 guard let goals, let body = try? JSONDecoder().decode(GoalsUpdate.self, from: row.payload) else { continue }
                 await attempt(row: row, describe: Self.describeGoals, into: &results) {
                     .goals(try await goals.updateGoals(body))
+                }
+            case Self.targetsKind:
+                guard let targets else { continue }
+                guard row.id == newestTargetsId else { try? outbox.markSent(id: row.id); continue }   // superseded
+                guard let body = try? JSONDecoder().decode(TargetsDocument.self, from: row.payload) else { continue }
+                await attempt(row: row, describe: Self.describeTargets, into: &results) {
+                    .targets(try await targets.putTargets(body))
                 }
             default:
                 continue
@@ -269,6 +289,16 @@ public extension OutboxDrainer {
         case .network(let message): message
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
         default: "Couldn't reach the hub — your goals are saved on this phone and stay queued."
+        }
+    }
+
+    /// W-TGT: the hub's own `detail` where it gave one, else: safe on the phone, still queued.
+    nonisolated static func describeTargets(_ error: Error) -> String {
+        switch error as? HubError {
+        case .http(_, let detail) where detail?.isEmpty == false: detail!
+        case .network(let message): message
+        case .unauthorized: "Hub rejected the token — check Settings › Connection."
+        default: "Couldn't reach the hub — your targets are saved on this phone and stay queued."
         }
     }
 
