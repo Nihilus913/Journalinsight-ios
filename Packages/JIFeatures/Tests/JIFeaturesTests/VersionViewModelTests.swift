@@ -92,3 +92,10 @@ private let rnChangelogDigest = "322cb458e0e15992e20ec7da5f37718ecedbbf50d2cb324
     #expect(info.build == "0")
     #expect(info.bundleId == "toby913.JournalInsight")
 }
+
+@Test func settingsVersionRowShowsTheBuildNumber() {
+    let info = VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "2609280826", bundleId: "toby913.JournalInsight")
+    #expect(settingsVersionTrailing(info) == "2.0.0 (2609280826)")
+    let dev = VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "1", bundleId: "toby913.JournalInsight")
+    #expect(settingsVersionTrailing(dev) == "2.0.0")
+}
