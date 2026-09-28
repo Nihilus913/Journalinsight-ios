@@ -1,0 +1,56 @@
+[
+  {
+    "template_id": 3, "name": "Norwegian 4×4", "activity": "running", "location": "outdoor",
+    "weekdays": [1, 5],
+    "steps": [
+      {"purpose": "warmup", "seconds": 600, "hr_lo": 100, "hr_hi": 140, "repeat": 1},
+      {"purpose": "work", "seconds": 240, "hr_lo": 160, "hr_hi": 175, "repeat": 4},
+      {"purpose": "recovery", "seconds": 180, "hr_lo": 100, "hr_hi": 140, "repeat": 4},
+      {"purpose": "cooldown", "seconds": 300, "hr_lo": 100, "hr_hi": 140, "repeat": 1}
+    ],
+    "segments": [
+      {"sport": "running", "steps": [
+        {"purpose": "warmup", "end": {"type": "time", "seconds": 600}, "target": {"type": "hr_range", "lo": 100, "hi": 140}, "repeat": 1},
+        {"purpose": "work", "end": {"type": "time", "seconds": 240}, "target": {"type": "hr_range", "lo": 160, "hi": 175}, "repeat": 4},
+        {"purpose": "recovery", "end": {"type": "time", "seconds": 180}, "target": {"type": "hr_range", "lo": 100, "hi": 140}, "repeat": 4},
+        {"purpose": "cooldown", "end": {"type": "time", "seconds": 300}, "target": {"type": "hr_range", "lo": 100, "hi": 140}, "repeat": 1}
+      ]}
+    ],
+    "description": null,
+    "garmin": {"workout_id": 1633309901, "current": true, "pushed_at": "2026-09-28T09:00:00Z"},
+    "updated_at": "2026-09-28T08:00:00Z"
+  },
+  {
+    "template_id": 7, "name": "Friday", "activity": "running", "location": "outdoor",
+    "weekdays": [4],
+    "steps": [],
+    "segments": [
+      {"sport": "strength", "steps": [
+        {"purpose": "warmup", "end": {"type": "time", "seconds": 300}, "target": {"type": "none"}, "repeat": 1, "description": "Rope jumping"},
+        {"exercise_key": "Barbell Bench Press", "garmin_category": "BENCH_PRESS", "garmin_exercise": "BARBELL_BENCH_PRESS", "sets": 3, "reps": 12, "weight_kg": 40.0, "rest_seconds": 120},
+        {"exercise_key": "Plank", "garmin_category": "PLANK", "sets": 3, "seconds": 45, "rest_seconds": 60}
+      ]},
+      {"sport": "running", "steps": [
+        {"purpose": "work", "end": {"type": "time", "seconds": 3600}, "target": {"type": "hr_zone", "zone": 2}, "repeat": 1}
+      ]}
+    ],
+    "description": "Strength then an easy run",
+    "garmin": {"workout_id": 1633309950, "current": false, "pushed_at": null},
+    "updated_at": "2026-09-28T08:00:00Z"
+  },
+  {
+    "template_id": 9, "name": "Drill Workout", "activity": "running", "location": "outdoor",
+    "weekdays": [],
+    "steps": [],
+    "segments": [
+      {"sport": "running", "steps": [
+        {"purpose": "warmup", "end": {"type": "lap"}, "target": {"type": "none"}, "repeat": 1},
+        {"purpose": "work", "end": {"type": "distance", "meters": 800}, "target": {"type": "hr_zone", "zone": 4}, "repeat": 1},
+        {"purpose": "cooldown", "end": {"type": "lap"}, "target": {"type": "none"}, "repeat": 1}
+      ]}
+    ],
+    "description": null,
+    "garmin": null,
+    "updated_at": "2026-09-28T08:00:00Z"
+  }
+]
