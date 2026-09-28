@@ -68,8 +68,8 @@ public final class WorkoutLibraryViewModel {
     }
 
     /// Fixture screens (previews, the sweep): rows given, no hub, no queue.
-    public init(seeded: [WorkoutTemplate], provider: any WorkoutLibraryProviding = MockDataProvider(), hubReachable: Bool = true) {
-        self.provider = provider; self.cache = nil; self.queue = nil; self.now = Date.init
+    public init(seeded: [WorkoutTemplate], provider: (any WorkoutLibraryProviding)? = nil, hubReachable: Bool = true) {
+        self.provider = provider ?? SeededWorkoutProvider(rows: seeded); self.cache = nil; self.queue = nil; self.now = Date.init
         self.base = seeded; self.templates = seeded; self.state = .loaded; self.hubReachable = hubReachable
     }
 
@@ -269,5 +269,18 @@ public final class WorkoutLibraryViewModel {
         }
         templates = rows
         pendingTemplateIds = pending
+    }
+}
+
+/// Fixture screens: serves the seeded rows on read, echoes writes, empty Garmin report.
+nonisolated struct SeededWorkoutProvider: WorkoutLibraryProviding {
+    let rows: [WorkoutTemplate]
+    func workoutTemplates() async throws -> [WorkoutTemplate] { rows }
+    func createWorkoutTemplate(_ d: WorkoutTemplateDraft) async throws -> WorkoutTemplate { d.previewTemplate(id: 1000, updatedAt: "") }
+    func updateWorkoutTemplate(id: Int, _ d: WorkoutTemplateDraft) async throws -> WorkoutTemplate { d.previewTemplate(id: id, updatedAt: "") }
+    func deleteWorkoutTemplate(id: Int) async throws {}
+    func pushWorkoutTemplateToGarmin(id: Int) async throws -> GarminPushResult { GarminPushResult(garminWorkoutId: nil) }
+    func importWorkoutsFromGarmin() async throws -> GarminImportReport {
+        GarminImportReport(linked: ImportBucket(count: 0), created: ImportBucket(count: 0), skipped: ImportBucket(count: 0))
     }
 }

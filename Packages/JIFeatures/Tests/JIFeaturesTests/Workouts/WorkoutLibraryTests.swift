@@ -378,3 +378,39 @@ nonisolated final class SegmentGuardedHub: WorkoutLibraryProviding, @unchecked S
         #expect(vm.draft.description == nil)
     }
 }
+
+@Suite struct WorkoutFormatTests {
+    @Test func cardioSummaryExpandsRepeatsAndSpansBpm() {
+        let t = WorkoutTemplate(templateId: 3, name: "Norwegian 4×4", activity: "running", location: .outdoor, weekdays: [0, 4],
+                                steps: [
+                                    WorkoutStep(purpose: .warmup, seconds: 600, hrLo: 100, hrHi: 140),
+                                    WorkoutStep(purpose: .work, seconds: 240, hrLo: 160, hrHi: 175, repeat: 4),
+                                    WorkoutStep(purpose: .recovery, seconds: 180, hrLo: 100, hrHi: 140, repeat: 4),
+                                    WorkoutStep(purpose: .cooldown, seconds: 300, hrLo: 100, hrHi: 140),
+                                ], updatedAt: "x")
+        #expect(WorkoutFormat.summary(t) == "43 min · 10 steps · 100–175 bpm")
+        #expect(WorkoutFormat.weekdays(t.weekdays) == ["Mon", "Fri"])
+    }
+
+    @Test func lapOnlyWorkoutNeverSaysZeroMinutes() {
+        let t = WorkoutTemplate(templateId: 1, name: "Drills", activity: "running", location: .outdoor, weekdays: [], steps: [], updatedAt: "x",
+                                segments: [WorkoutSegment(sport: .running, steps: [.cardio(CardioStep(purpose: .work, end: .lap, target: .hrZone(2)))])])
+        #expect(WorkoutFormat.summary(t) == "1 step · Zone 2")
+    }
+
+    @Test func strengthPlusRunSummary() {
+        let t = WorkoutTemplate(templateId: 2, name: "Friday", activity: "running", location: .outdoor, weekdays: [], steps: [], updatedAt: "x",
+                                segments: [
+                                    WorkoutSegment(sport: .strength, steps: [.strength(StrengthStep(exerciseKey: "Plank", garminCategory: "PLANK", sets: 3, seconds: 45))]),
+                                    WorkoutSegment(sport: .running, steps: [.cardio(CardioStep(purpose: .work, end: .time(seconds: 3600), target: .hrZone(2)))]),
+                                ])
+        #expect(WorkoutFormat.summary(t) == "Strength · 1 exercise + Run 60 min")
+        #expect(WorkoutFormat.strength(StrengthStep(exerciseKey: "Row", garminCategory: "ROW", sets: 3, reps: 12, weightKg: 50, restSeconds: 120)) == "3 × 12 · 50 kg · rest 2:00")
+    }
+
+    @Test func importBucketsSayNoneNotZero() {
+        #expect(WorkoutFormat.bucket(ImportBucket(count: 0)) == "None")
+        #expect(WorkoutFormat.bucket(ImportBucket(count: 2, names: ["A", "B"])) == "A, B")
+        #expect(WorkoutFormat.garminLabel(.outdated) == "Garmin outdated")
+    }
+}
