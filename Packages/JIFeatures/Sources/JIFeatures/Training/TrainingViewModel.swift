@@ -40,6 +40,11 @@ public final class TrainingViewModel {
     /// without a rollback, because the optimistic row is persisted either way.
     private let outbox: Outbox?
     private let drainer: OutboxDrainer?
+    /// W-B40 L3 (B-82): the B-40 workout library the day picker offers and the day preview reads
+    /// (a library workout's day is its `weekdays`). Built over the same provider, cache and outbox
+    /// when the provider serves the library routes (`HubDataProvider` does); nil otherwise — the
+    /// picker then offers the plan sessions only and says why.
+    public let library: WorkoutLibraryViewModel?
     /// B-57 W5: public so the App snapshot writer, `ProgressionService` and `cachedWeekSummary`
     /// read the same cached rows (B-52) this screen writes.
     public nonisolated static let cacheKeys = (
@@ -112,11 +117,15 @@ public final class TrainingViewModel {
         selectedDate: String? = nil,
         outbox: Outbox? = nil,
         drainer: OutboxDrainer? = nil,
+        library: WorkoutLibraryViewModel? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.provider = provider; self.healthProvider = healthProvider; self.cache = cache
         self.strengthStore = strengthStore; self.now = now
         self.outbox = outbox; self.drainer = drainer
+        self.library = library ?? (provider as? any WorkoutLibraryProviding).map {
+            WorkoutLibraryViewModel(provider: $0, cache: cache, outbox: outbox, now: now)
+        }
         self.selectedDate = selectedDate ?? String(now().ISO8601Format().prefix(10))
     }
 
@@ -176,12 +185,15 @@ public final class TrainingViewModel {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        // B-82: the library loads from its cache first, drains its queued day changes, re-reads.
+        await library?.load()
     }
 
     public func refresh() async {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        await library?.load()
     }
 
     /// Day-strip tap-through (E15-10 in the oracle): re-queries `dayDetail` for the tapped date
@@ -395,6 +407,70 @@ public final class TrainingViewModel {
             if Task.isCancelled { return }
             reconcilePendingSync()
         }
+    }
+
+    // MARK: - B-82 day-first
+
+    public enum DayChangeResult: Equatable, Sendable {
+        /// The hub has it.
+        case saved
+        /// On this phone, queued for the hub (shown at once, marked "Waiting to sync").
+        case queued
+        /// The hub refused it — said out loud, that row rolled back.
+        case refused(String)
+    }
+
+    /// The plan-session spine the day flow reads (cached ids first, including an offline pick).
+    var daySpine: [WeekSpineEntry] { weekSpine(planSessions: planSessions, exercises: exercises) }
+
+    /// What day `weekday` (Mon = 0) holds this week — strength sessions with their lifts, the
+    /// library workouts on it, or the morning-call schedule's fixed session; empty = rest.
+    public func dayPreview(weekday: Int) -> TrainingDayPreview {
+        let day = weekSummary.days.first { $0.weekday == weekday }
+            ?? TrainingWeekDay(weekday: weekday, date: "", kind: .rest, sessionName: nil, sessionId: nil, done: nil, isToday: false)
+        return trainingDayPreview(day: day, spine: daySpine, exercises: exercises, templates: library?.templates ?? [])
+    }
+
+    /// The picker for day `weekday`: the plan sessions and the whole workout library.
+    public func dayOptions(weekday: Int) -> TrainingDayOptions {
+        trainingDayOptions(weekday: weekday, spine: daySpine, templates: library?.templates ?? [])
+    }
+
+    /// true while this entry's day change is queued and not yet accepted by the hub.
+    public func isPending(_ entry: TrainingDayPreview.Entry) -> Bool {
+        switch entry {
+        case .strength(let id?, _, _): pendingSessionSync.contains(id)
+        case .template(let t): t.templateId < 0 || (library?.pendingTemplateIds.contains(t.templateId) ?? false)
+        case .strength(nil, _, _), .scheduled: false
+        }
+    }
+
+    /// B-82: put `adding` on day `weekday` and/or take `removing` off it. Every write is
+    /// offline-first — a plan session through `assignSession` (Outbox `plan_weekday`), a library
+    /// workout through the library's queued template write (Outbox `workout_template`) — so an
+    /// unreachable hub queues and the day shows the change at once. A refusal stops the rest.
+    public func changeDay(weekday: Int, adding: TrainingDayChoice?, removing: TrainingDayPreview.Entry?) async -> DayChangeResult {
+        let writes = trainingDayWrites(weekday: weekday, adding: adding, removing: removing,
+                                       spine: daySpine, templates: library?.templates ?? [])
+        var queued = false
+        for write in writes {
+            switch write {
+            case .sessionWeekday(let id, let name, let day):
+                await assignSession(sessionId: id, sessionName: name, weekday: day)
+                if sessionAssignFailed.contains(id) { return .refused("The hub refused moving \(name). It stays where it was.") }
+                if pendingSessionSync.contains(id) { queued = true }
+            case .templateWeekdays(let template, let days):
+                guard let library else { return .refused("The workout library isn't available here — nothing was changed.") }
+                var draft = WorkoutTemplateDraft(template)
+                draft.weekdays = days
+                switch await library.save(draft, editing: template) {
+                case .saved: break
+                case .queued: queued = true
+                case .refused(let why): return .refused(why)
+                }
+            }
+        }
+        return queued ? .queued : .saved
     }
 
     /// The hub refused THIS row (4xx other than 401, or an old hub with no such route) — as
