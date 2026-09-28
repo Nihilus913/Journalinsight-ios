@@ -4,7 +4,7 @@ import JICore
 /// W-TGT (spec §3, §5) — the phone's ONE targets document, PrefStore `targets.v1`. Goals and
 /// Limits are never seeded; Rules are nil until changed. `migrateIfNeeded` imports today's stores
 /// once (flag `targets.migrated.v1`), verbatim, and queues one mirror body (outbox kind
-/// `targets`). The old keys stay readable until that body is delivered, then go
+/// `targets`) — only when the import holds a goal (W-FIX8 T-1). The old keys stay readable until that body is delivered, then go
 /// (`finishMigrationIfDelivered`). Rollback = the old keys.
 public nonisolated struct TargetsStore: Sendable {
     public static let key = "targets.v1"
@@ -48,7 +48,40 @@ public nonisolated struct TargetsStore: Sendable {
     /// The document; `.empty` (no numbers) before the import.
     public func load() -> TargetsDocument { loadIfPresent() ?? .empty }
 
-    public func save(_ document: TargetsDocument) throws { try prefs.set(Self.key, document) }
+    /// The one-shot `clearAllGoals` intent belongs to a queued mirror body, never to `targets.v1`.
+    public func save(_ document: TargetsDocument) throws {
+        var d = document
+        d.clearAllGoals = false
+        try prefs.set(Self.key, d)
+    }
+
+    // MARK: W-FIX8 T-1 — hub wins over an empty local document
+
+    /// One-time repair flag (W-FIX8 T-1): set once the launch has compared this phone's goals with
+    /// the hub's. The 2026-09-28 P0 left a phone whose document has no goals while the hub holds
+    /// them again (restored); the next launch reads the hub once and adopts them.
+    public static let hubSeedKey = "targets.hubSeeded.v1"
+
+    /// The launch should read the hub's document: never done on this install AND this phone has
+    /// no goal (a phone that holds goals is the source of truth and needs nothing).
+    public var needsHubSeed: Bool {
+        guard ((try? prefs.get(Self.hubSeedKey, as: Bool.self)) ?? nil) != true else { return false }
+        return loadIfPresent()?.goals.isEmpty ?? true
+    }
+
+    public func markHubSeeded() { try? prefs.set(Self.hubSeedKey, true) }
+
+    /// Takes the hub's sections this phone has nothing in (`TargetsDocument.adoptingHub`) and saves
+    /// locally — no mirror body (the hub already holds these numbers). Returns the stored document.
+    @discardableResult
+    public func adoptHub(_ server: TargetsDocument, log: (String) -> Void = { _ in }) -> TargetsDocument {
+        let local = load()
+        let next = local.adoptingHub(server)
+        guard next != local else { return local }
+        do { try save(next) } catch { log("targets: adopting the hub's document failed \(error)"); return local }
+        if local.goals.isEmpty && !next.goals.isEmpty { log("targets: adopted the hub's goals (this phone had none)") }
+        return next
+    }
 
     public var migrationState: MigrationState? {
         (try? prefs.get(Self.migrationKey, as: MigrationState.self)) ?? nil
@@ -64,7 +97,14 @@ public nonisolated struct TargetsStore: Sendable {
         let document = loadIfPresent() ?? result.document
         do { try save(document) } catch { log("targets import: save failed \(error)"); return nil }
         result.discarded.forEach { log("targets import discarded: \($0)") }
-        _ = try? sources.outbox?.enqueue(kind: TargetsDocument.outboxKind, payload: document)
+        // W-FIX8 T-1 (P0 2026-09-28 14:51): an import with NO goals (fresh install, empty caches)
+        // is never mirrored — that body wiped the hub's goals. The launch reads the hub instead
+        // (`needsHubSeed` / `adoptHub`); the next edit mirrors the whole document.
+        if document.goals.isEmpty {
+            log("targets import: no goals on this phone — not mirrored; the hub's are read at launch")
+        } else {
+            _ = try? sources.outbox?.enqueue(kind: TargetsDocument.outboxKind, payload: document)
+        }
         try? prefs.set(Self.migrationKey, MigrationState.imported)
         return TargetsImportResult(document: document, discarded: result.discarded)
     }
