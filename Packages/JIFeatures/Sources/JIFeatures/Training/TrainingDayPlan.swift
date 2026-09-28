@@ -108,7 +108,7 @@ nonisolated func trainingDayPreview(
         entries.append(.template(t))
     }
     if entries.isEmpty, day.kind == .interval || day.kind == .longRun {
-        entries.append(.scheduled(name: day.sessionName ?? day.kind.word.capitalized, kind: day.kind))
+        entries.append(.scheduled(name: day.sessionName ?? (day.kind.word.prefix(1).uppercased() + day.kind.word.dropFirst()), kind: day.kind))
     }
     return TrainingDayPreview(weekday: wd, date: day.date, isToday: day.isToday, entries: entries)
 }

@@ -11,6 +11,10 @@ public struct TrainingView: View {
     /// B-57 W5: "Edit week" pushes the TrainingWeek screen, where the weekday assignment
     /// (B-45 (c) / B-52 outbox) now lives.
     @State private var showWeek = false
+    /// W-B40 L3 (B-82): day-first — a tap on a day of the week strip opens that day's preview.
+    @State private var dayPreview: TrainingDayRef?
+    /// W-B40 L3: the B-40 workout library, pushed from the toolbar (nil model = no library routes).
+    @State private var showLibrary = false
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -74,6 +78,25 @@ public struct TrainingView: View {
         }
         #endif
         .navigationDestination(isPresented: $showWeek) { TrainingWeekView(model: model) }
+        .navigationDestination(isPresented: $showLibrary) {
+            if let library = model.library { WorkoutLibraryView(model: library) }
+        }
+        .sheet(item: $dayPreview) { ref in TrainingDaySheet(model: model, weekday: ref.weekday) }
+        .toolbar {
+            if model.library != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showLibrary = true } label: { Image(systemName: "list.bullet.rectangle") }
+                        .accessibilityLabel("Workout library")
+                        .accessibilityIdentifier("training-open-library")
+                }
+            }
+        }
+    }
+
+    /// B-82: a day tap selects it for "This day" AND opens its preview (day-first).
+    private func openDay(_ date: String) {
+        model.selectDate(date)
+        if let wd = model.weekSummary.days.first(where: { $0.date == date })?.weekday { dayPreview = TrainingDayRef(weekday: wd) }
     }
 
     private var watchLine: String? {
@@ -112,7 +135,7 @@ public struct TrainingView: View {
                     // B-57 W5 (board 3/01): the plan week (S / I / R / –, n of N done, Edit week)
                     // replaces the kcal day strip; a tap still selects the day for "This day".
                     TrainingThisWeekStrip(summary: model.weekSummary, selectedDate: model.selectedDate,
-                                          onSelect: model.selectDate) { showWeek = true }
+                                          onSelect: openDay) { showWeek = true }
                     if let summary = trainingPlanSummary(sessionNames: model.planSessions.map(\.name)) {
                         Text(summary).jiFont(.caption).foregroundStyle(theme.color(.muted))
                             .fixedSize(horizontal: false, vertical: true)

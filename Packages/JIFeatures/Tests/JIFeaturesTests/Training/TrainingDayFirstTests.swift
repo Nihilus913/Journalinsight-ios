@@ -289,3 +289,19 @@ nonisolated final class RefusingWeekdayHub: TrainingProviding, PlanSessionWeekda
         throw HubError.http(status: 404, detail: "Plan session not found")
     }
 }
+
+// MARK: - Sheet text
+
+@Test func sheetTextNeverShowsAZeroForSomethingMissing() {
+    #expect(trainingDaySheetTitle(weekday: 2, date: "2026-09-30") == "Wednesday · 30 Sep")
+    #expect(trainingDaySheetTitle(weekday: 2, date: "") == "Wednesday")
+    #expect(trainingLiftLine(lift(1, "A", weekday: nil, sessionId: nil)) == "3 × 8 · 50 kg")
+    let bare = Exercise(exerciseId: 2, sessionName: "A", exerciseName: "Plank", sets: nil, repsTarget: nil,
+                        currentWeightKg: 0, progressionStepKg: nil, weekday: nil, sessionId: nil)
+    #expect(trainingLiftLine(bare) == nil)
+    #expect(trainingDayEntrySubtitle(.strength(id: 1, name: "A", lifts: [])) == "Strength")
+    #expect(trainingDayEntrySubtitle(.scheduled(name: "Long Z2", kind: .longRun)) == "Long run · follows the morning-call schedule")
+    let o = trainingDayOptions(weekday: 2, spine: spine, templates: library)
+    #expect(trainingDayOptionSubtitle(o.library[0]) == "On Wed, Fri")
+    #expect(trainingDayOptionSubtitle(o.plan[2]) == "Not on a day")
+}
