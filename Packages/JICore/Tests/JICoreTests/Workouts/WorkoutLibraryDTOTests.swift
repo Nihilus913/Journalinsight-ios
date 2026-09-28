@@ -87,15 +87,43 @@ private func workoutsFixture(_ name: String) throws -> Data {
         let draft = WorkoutTemplateDraft(name: "Easy", activity: "running", location: .outdoor, description: nil,
                                          segments: [WorkoutSegment(sport: .running, steps: [.cardio(CardioStep(purpose: .work, end: .time(seconds: 1800), target: .hrZone(2)))])])
         guard case .object(let body) = try draft.wireBody() else { Issue.record("draft body is an object"); return }
-        #expect(Set(body.keys) == ["name", "activity", "location", "description", "segments"])
+        // HT `WorkoutTemplateIn` (extra="forbid"): no `activity` (derived hub-side), PUT = full replace.
+        #expect(Set(body.keys) == ["name", "location", "description", "segments", "weekdays", "gated_template_id"])
         #expect(body["description"] == .null, "a cleared description is sent as null so a PUT really clears it")
-        #expect(body["template_id"] == nil && body["weekdays"] == nil, "weekdays stay B-45's (spec §10.3)")
+        #expect(body["weekdays"] == .array([]) && body["gated_template_id"] == .null)
+        #expect(body["template_id"] == nil)
     }
 
-    @Test func draftFromTemplateKeepsEditableFieldsOnly() throws {
-        let rows = try JSON.decoder.decode([WorkoutTemplate].self, from: workoutsFixture("templates_spec_sample"))
+    /// PUT is a full replace on the hub: a draft built from a row carries its weekdays and gated
+    /// id, so editing the steps never clears the B-45 day or the B-49 gated variant.
+    @Test func draftFromTemplateCarriesWeekdaysAndGatedIdSoAPutClearsNothing() throws {
+        var rows = try JSON.decoder.decode([WorkoutTemplate].self, from: workoutsFixture("templates_spec_sample"))
+        rows[1].gatedTemplateId = 3
         let draft = WorkoutTemplateDraft(rows[1])
         #expect(draft.name == "Friday" && draft.segments == rows[1].segments && draft.description == rows[1].description)
+        guard case .object(let body) = try draft.wireBody() else { Issue.record("object"); return }
+        #expect(body["weekdays"] == .array([.int(4)]) && body["gated_template_id"] == .int(3))
+    }
+
+    /// W-B40 exit: the DTO decodes HT's golden (`tests/fixtures/garmin_workouts/templates_golden.json`,
+    /// lane L1, copied verbatim into Resources/workouts).
+    @Test func decodesTheHTGolden() throws {
+        let rows = try JSON.decoder.decode([WorkoutTemplate].self, from: workoutsFixture("templates_golden"))
+        #expect(rows.count == 5)
+        #expect(rows.allSatisfy { !$0.segments.isEmpty }, "every golden row carries segments")
+        let longRun = try #require(rows.first { $0.name == "Long Run Zone 2" })
+        #expect(longRun.garmin?.workoutId == 1633309938 && longRun.garminState == .current)
+        #expect(longRun.steps.count == 3 && longRun.segments[0].steps.count == 3, "compat steps kept beside segments")
+        let friday = try #require(rows.first { $0.name == "Friday" })
+        #expect(friday.segments.map(\.sport) == [.strength, .running])
+        #expect(friday.hasStrength && friday.steps.isEmpty && friday.garminState == .outdated)
+        #expect(friday.segments[0].steps.contains { $0.strength != nil })
+        #expect(rows.first { $0.name == "Norwegian 4×4" }?.gatedTemplateId == 2, "gated variant decodes (spec §10.2)")
+        // Round trip through the write body decodes back to the same segments.
+        for row in rows {
+            let wire = try JSONEncoder().encode(WorkoutTemplateDraft(row).wireBody())
+            #expect(try JSON.decoder.decode(WorkoutTemplateDraft.self, from: wire).segments == row.segments)
+        }
     }
 
     @Test func legacyDraftFromSegmentlessTemplateUsesEffectiveSegments() {
@@ -108,6 +136,8 @@ private func workoutsFixture(_ name: String) throws -> Data {
         let lists = try JSON.decoder.decode(GarminImportReport.self, from: Data(#"{"linked": ["Long Run Zone 2"], "created": ["Friday", "Drill"], "skipped": [{"name": "Zone 2", "reason": "edited in JI since import"}]}"#.utf8))
         #expect(lists.linked.count == 1 && lists.created.count == 2 && lists.skipped.count == 1)
         #expect(lists.skipped.names == ["Zone 2"])
+        let ht = try JSON.decoder.decode(GarminImportReport.self, from: Data(#"{"created": ["A"], "linked": [], "updated": ["B"], "unchanged": ["C", "D"], "skipped": [{"name": "E", "reason": "edited"}], "coach_rows": 10}"#.utf8))
+        #expect(ht.created.names == ["A"] && ht.updated.names == ["B"] && ht.unchanged.count == 2 && ht.skipped.names == ["E"])
         let counts = try JSON.decoder.decode(GarminImportReport.self, from: Data(#"{"linked": 1, "created": 9, "skipped": 0}"#.utf8))
         #expect(counts.linked.count == 1 && counts.created.count == 9 && counts.skipped.count == 0)
         #expect(counts.created.names.isEmpty)

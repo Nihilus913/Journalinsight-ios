@@ -58,6 +58,8 @@ public struct ImportFromGarminSheet: View {
                 Section("Result") {
                     reportRow("Linked", report.linked, symbol: "link")
                     reportRow("Added", report.created, symbol: "plus.circle")
+                    if report.updated.count > 0 { reportRow("Updated", report.updated, symbol: "arrow.triangle.2.circlepath") }
+                    if report.unchanged.count > 0 { reportRow("Unchanged", report.unchanged, symbol: "equal.circle") }
                     reportRow("Skipped", report.skipped, symbol: "pause.circle")
                 }
                 .accessibilityIdentifier("garmin-import-report")

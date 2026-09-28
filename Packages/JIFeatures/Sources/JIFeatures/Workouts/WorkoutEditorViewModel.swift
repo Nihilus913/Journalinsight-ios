@@ -124,7 +124,7 @@ public final class WorkoutEditorViewModel {
         case (nil, let t?) where t > 0: break
         default: return "set reps or a time per set."
         }
-        if let kg = s.weightKg, kg < 0 { return "weight can't be negative." }
+        if let kg = s.weightKg, kg <= 0 { return "leave the weight empty for bodyweight." }
         return nil
     }
 
@@ -214,12 +214,15 @@ public final class WorkoutEditorViewModel {
     public var draft: WorkoutTemplateDraft {
         let desc = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
         let cardioSport = segments.first(where: { $0.sport.isCardio })?.sport.rawValue
+        // Weekdays + gated id ride along unchanged: the hub's PUT is a full replace.
         return WorkoutTemplateDraft(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             activity: cardioSport ?? original?.activity ?? "running",
             location: location,
             description: desc.isEmpty ? nil : desc,
-            segments: segments.map { WorkoutSegment(sport: $0.sport, steps: $0.steps.map(\.step)) })
+            segments: segments.map { WorkoutSegment(sport: $0.sport, steps: $0.steps.map(\.step)) },
+            weekdays: original?.weekdays ?? [],
+            gatedTemplateId: original?.gatedTemplateId)
     }
 
     /// true = the sheet can close (saved, or queued on this phone).

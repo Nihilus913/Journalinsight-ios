@@ -24,18 +24,21 @@ public struct WorkoutTemplate: Codable, Sendable, Equatable, Identifiable {
     public var description: String?
     /// nil = never linked to a Garmin Connect workout.
     public var garmin: GarminLink?
+    /// Spec §10.2: the reduced session the gate prescribes when not cleared (B-49(b)); nil = none.
+    public var gatedTemplateId: Int?
     /// ISO-8601 timestamp, kept as a plain string (JICore convention, see `JSON.swift`).
     public var updatedAt: String
 
     public init(templateId: Int, name: String, activity: String, location: WorkoutLocation, weekdays: [Int], steps: [WorkoutStep], updatedAt: String,
-                segments: [WorkoutSegment] = [], description: String? = nil, garmin: GarminLink? = nil) {
+                segments: [WorkoutSegment] = [], description: String? = nil, garmin: GarminLink? = nil, gatedTemplateId: Int? = nil) {
         self.templateId = templateId; self.name = name; self.activity = activity; self.location = location
         self.weekdays = weekdays; self.steps = steps; self.updatedAt = updatedAt
         self.segments = segments; self.description = description; self.garmin = garmin
+        self.gatedTemplateId = gatedTemplateId
     }
 
     private enum CodingKeys: String, CodingKey {
-        case templateId, name, activity, location, weekdays, steps, segments, description, garmin, updatedAt
+        case templateId, name, activity, location, weekdays, steps, segments, description, garmin, gatedTemplateId, updatedAt
     }
 
     public init(from decoder: any Decoder) throws {
@@ -49,6 +52,7 @@ public struct WorkoutTemplate: Codable, Sendable, Equatable, Identifiable {
         segments = try c.decodeIfPresent([WorkoutSegment].self, forKey: .segments) ?? []
         description = try c.decodeIfPresent(String.self, forKey: .description)
         garmin = try c.decodeIfPresent(GarminLink.self, forKey: .garmin)
+        gatedTemplateId = try c.decodeIfPresent(Int.self, forKey: .gatedTemplateId)
         updatedAt = try c.decode(String.self, forKey: .updatedAt)
     }
 
