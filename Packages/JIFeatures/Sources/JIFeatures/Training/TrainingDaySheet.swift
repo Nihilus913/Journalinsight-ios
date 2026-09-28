@@ -85,17 +85,19 @@ public struct TrainingDaySheet: View {
     @State private var busy = false
     @State private var pendingRemove: TrainingDayPreview.Entry?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     private let theme = JITheme.native
 
-    enum Route: Hashable {
+    public enum Route: Hashable, Sendable {
         /// The picker; `replacing` = the entry id it swaps out (nil = add to the day).
         case pick(replacing: String?)
         case library
     }
 
-    public init(model: TrainingViewModel, weekday: Int) {
+    public init(model: TrainingViewModel, weekday: Int, initialRoute: Route? = nil) {
         self.model = model
         self.weekday = weekday
+        _path = State(initialValue: initialRoute.map { [$0] } ?? [])
     }
 
     private var preview: TrainingDayPreview { model.dayPreview(weekday: weekday) }
@@ -196,7 +198,9 @@ public struct TrainingDaySheet: View {
                 .disabled(busy)
                 .accessibilityIdentifier("training-day-change-\(entry.id)")
                 Button(role: .destructive) { pendingRemove = entry } label: {
-                    Label("Take off \(dayName)", systemImage: "minus.circle")
+                    Label { Text("Take off \(dayName)") } icon: {
+                        Image(systemName: "minus.circle").foregroundStyle(theme.color(.danger))
+                    }
                 }
                 .disabled(busy)
                 .accessibilityIdentifier("training-day-remove-\(entry.id)")
@@ -207,9 +211,12 @@ public struct TrainingDaySheet: View {
     private func entryRow(_ entry: TrainingDayPreview.Entry) -> some View {
         let pending = model.isPending(entry)
         return HStack(alignment: .top, spacing: JISpacing.s3) {
-            Image(systemName: trainingDayEntrySymbol(entry))
-                .font(.title3).foregroundStyle(theme.color(.muted))
-                .frame(width: 28).accessibilityHidden(true)
+            // AX sizes: the glyph would outgrow its well and clip at the leading edge — the title carries it.
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: trainingDayEntrySymbol(entry))
+                    .font(.title3).foregroundStyle(theme.color(.muted))
+                    .frame(width: 28).accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
                     .fixedSize(horizontal: false, vertical: true)
@@ -257,6 +264,7 @@ struct TrainingDayPicker: View {
     let onPicked: (TrainingViewModel.DayChangeResult) -> Void
     @State private var busy = false
     @State private var error: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
     private let theme = JITheme.native
 
     private var dayName: String { planWeekdayNames[weekday] }
@@ -345,9 +353,11 @@ struct TrainingDayPicker: View {
             }
         } label: {
             HStack(spacing: JISpacing.s3) {
-                Image(systemName: o.template.map { t in WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running)) } ?? "dumbbell.fill")
-                    .font(.title3).foregroundStyle(theme.color(.muted))
-                    .frame(width: 28).accessibilityHidden(true)
+                if !typeSize.isAccessibilitySize {
+                    Image(systemName: o.template.map { t in WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running)) } ?? "dumbbell.fill")
+                        .font(.title3).foregroundStyle(theme.color(.muted))
+                        .frame(width: 28).accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(o.title).jiFont(.body).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)

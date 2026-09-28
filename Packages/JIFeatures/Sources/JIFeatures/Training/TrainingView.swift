@@ -81,16 +81,58 @@ public struct TrainingView: View {
         .navigationDestination(isPresented: $showLibrary) {
             if let library = model.library { WorkoutLibraryView(model: library) }
         }
-        .sheet(item: $dayPreview) { ref in TrainingDaySheet(model: model, weekday: ref.weekday) }
+        .sheet(item: $dayPreview) { ref in
+            TrainingDaySheet(model: model, weekday: ref.weekday, initialRoute: Self.launchArgumentDayRoute())
+        }
+        #if DEBUG
+        // B-82 dev affordance (same family as `-start-tab`): `-training-day <0-6>` opens that day's
+        // sheet once the screen is up; `-training-day-route pick|library` also pushes the picker /
+        // library; `-training-day-autopick <option id>` makes that pick first — so a scripted simulator run can screenshot the flow without a tap.
+        .task {
+            guard let wd = Self.launchArgumentDay() else { return }
+            try? await Task.sleep(for: .seconds(3))
+            // `-training-day-autopick <option id>` ("s8" / "t3"): make that pick first, as a tap would.
+            if let i = CommandLine.arguments.firstIndex(of: "-training-day-autopick"), i + 1 < CommandLine.arguments.count {
+                let options = model.dayOptions(weekday: wd)
+                if let o = (options.plan + options.library).first(where: { $0.id == CommandLine.arguments[i + 1] }) {
+                    _ = await model.changeDay(weekday: wd, adding: o.choice, removing: nil)
+                }
+            }
+            dayPreview = TrainingDayRef(weekday: wd)
+        }
+        #endif
         .toolbar {
             if model.library != nil {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { showLibrary = true } label: { Image(systemName: "list.bullet.rectangle") }
+                    Button { showLibrary = true } label: { Image(systemName: "figure.run.square.stack") }
                         .accessibilityLabel("Workout library")
                         .accessibilityIdentifier("training-open-library")
                 }
             }
         }
+    }
+
+    static func launchArgumentDay(_ arguments: [String] = CommandLine.arguments) -> Int? {
+        #if DEBUG
+        guard let i = arguments.firstIndex(of: "-training-day"), arguments.index(after: i) < arguments.endIndex,
+              let wd = Int(arguments[arguments.index(after: i)]), (0...6).contains(wd) else { return nil }
+        return wd
+        #else
+        return nil
+        #endif
+    }
+
+    static func launchArgumentDayRoute(_ arguments: [String] = CommandLine.arguments) -> TrainingDaySheet.Route? {
+        #if DEBUG
+        guard let i = arguments.firstIndex(of: "-training-day-route"), arguments.index(after: i) < arguments.endIndex else { return nil }
+        switch arguments[arguments.index(after: i)] {
+        case "pick": return .pick(replacing: nil)
+        case "library": return .library
+        default: return nil
+        }
+        #else
+        return nil
+        #endif
     }
 
     /// B-82: a day tap selects it for "This day" AND opens its preview (day-first).
