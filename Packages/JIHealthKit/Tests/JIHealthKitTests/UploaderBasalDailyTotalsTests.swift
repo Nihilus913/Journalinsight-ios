@@ -87,6 +87,7 @@ final class FakeUploadStatistics: HealthStoreUploadStatistics, @unchecked Sendab
     }
 
     private func postedPoints(_ index: Int) throws -> [[String: Any]] {
+        try #require(BasalUploadCapturingURLProtocol.requestBodies.indices.contains(index))
         let obj = try #require(try JSONSerialization.jsonObject(with: BasalUploadCapturingURLProtocol.requestBodies[index]) as? [String: Any])
         let metrics = try #require((obj["data"] as? [String: Any])?["metrics"] as? [[String: Any]])
         #expect(metrics.count == 1)
@@ -169,25 +170,113 @@ final class FakeUploadStatistics: HealthStoreUploadStatistics, @unchecked Sendab
         #expect(BasalUploadCapturingURLProtocol.requestBodies.isEmpty)
     }
 
-    @Test func switchingFromRawSamplesStartsTomorrowSoNoDayIsCountedTwice() async throws {
+    // MARK: - F6-10 (device 2026-09-28): 09-27 stuck at 921.9, 09-28 never sent
+
+    /// Watch-like basal stream: one sample per hour, `kcal` each, for hours `[from, to)` of `day`.
+    private func hourly(_ day: Int, _ from: Int, _ to: Int, kcal: Double) -> [HKSample] {
+        (from..<to).map { basal(kcal, at(day, $0), minutes: 60) }
+    }
+
+    private func archived(_ value: Int) throws -> Data {
+        try NSKeyedArchiver.archivedData(withRootObject: HKQueryAnchor(fromValue: value), requiringSecureCoding: true)
+    }
+
+    @Test func replay0927TheRestOfTheDayFollowsThe1219Total() async throws {
         BasalUploadCapturingURLProtocol.reset()
         let store = FakeHealthStoreReader()
         let stats = FakeUploadStatistics()
         let defaults = try #require(UserDefaults(suiteName: "basal.\(UUID())"))
-        // The raw-sample path already ran: an anchor exists, the hub holds raw sums through today.
-        let old = try NSKeyedArchiver.archivedData(withRootObject: HKQueryAnchor(fromValue: 7), requiringSecureCoding: true)
-        defaults.set(old, forKey: spec.anchorKey)
-        store.enqueue(page([basal(30, at(26, 9)), basal(30, at(27, 9))], 8), for: basalType)
-        stats.totals = [midnight(26): 1800, midnight(27): 700]
-        let count = try await uploader(store, stats, defaults).sync(spec, now: now)
+        // 12:19 — the morning's samples; HealthKit's total so far is 921.9.
+        store.enqueue(page(hourly(27, 0, 12, kcal: 76.825), 1), for: basalType)
+        stats.totals = [midnight(27): 921.9]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(27, 12, 19))
+        #expect(try postedPoints(0).map { $0["qty"] as? Double } == [921.9])
+        // 09-28 05:30 — the afternoon/evening of the 27th and the night of the 28th arrive.
+        store.enqueue(page(hourly(27, 12, 24, kcal: 76.825) + hourly(28, 0, 5, kcal: 76.82), 2), for: basalType)
+        stats.totals = [midnight(27): 1843.8, midnight(28): 384.1]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 5, 30))
+        let points = try postedPoints(1)
+        #expect(points.map { $0["date"] as? String } == ["2026-09-27 00:00:00 +0200", "2026-09-28 00:00:00 +0200"])
+        #expect(points.map { $0["qty"] as? Double } == [921.9, 384.1])
+    }
+
+    @Test func aFinishedDaysFinalTotalIsSentEvenWhenNoNewSampleStartsThatDay() async throws {
+        BasalUploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        let stats = FakeUploadStatistics()
+        let defaults = try #require(UserDefaults(suiteName: "basal.\(UUID())"))
+        store.enqueue(page(hourly(27, 0, 23, kcal: 80), 1), for: basalType)
+        stats.totals = [midnight(27): 1840]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(27, 23, 10))
+        // After midnight only samples of the 28th are new, but HealthKit's final total for the
+        // 27th grew (a late-written sample merged by the statistics query): the 27th is topped up.
+        store.enqueue(page(hourly(28, 0, 2, kcal: 80), 2), for: basalType)
+        stats.totals = [midnight(27): 1920, midnight(28): 160]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 2, 30))
+        #expect(try postedPoints(1).map { $0["qty"] as? Double } == [80, 160])
+        #expect((defaults.dictionary(forKey: HealthKitUploader.dailyLedgerKey(spec)) as? [String: Double])?["2026-09-27"] == 1920)
+    }
+
+    @Test func firstRunAfterTheSwitchSendsYesterdaysRemainderAndTodaysTotal() async throws {
+        BasalUploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        let stats = FakeUploadStatistics()
+        let defaults = try #require(UserDefaults(suiteName: "basal.\(UUID())"))
+        // The raw-sample path sent the 27th's samples through 12:00 (921.9 on the hub) and holds
+        // anchor 7; everything after it is new to the hub.
+        defaults.set(try archived(7), forKey: spec.anchorKey)
+        store.enqueue(page(hourly(27, 12, 24, kcal: 76.825) + hourly(28, 0, 5, kcal: 76.82), 8), for: basalType)
+        // The switch reads the raw samples of the touched days (what the hub summed) once.
+        store.enqueue(page(hourly(27, 0, 24, kcal: 76.825) + hourly(28, 0, 5, kcal: 76.82), 99), for: basalType)
+        stats.totals = [midnight(26): 1900, midnight(27): 1843.8, midnight(28): 384.1]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 5, 30))
+        let points = try postedPoints(0)
+        #expect(points.map { $0["date"] as? String } == ["2026-09-27 00:00:00 +0200", "2026-09-28 00:00:00 +0200"])
+        #expect(points.map { $0["qty"] as? Double } == [921.9, 384.1])
+        // The persisted anchor is the change feed's (8), not the one-off raw read's.
+        let stored = try #require(defaults.data(forKey: spec.anchorKey))
+        #expect(try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: stored) == HKQueryAnchor(fromValue: 8))
+        // Afterwards: plain deltas.
+        store.enqueue(page(hourly(28, 5, 6, kcal: 76.9), 9), for: basalType)
+        stats.totals = [midnight(27): 1843.8, midnight(28): 461]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 6, 30))
+        #expect(try postedPoints(1).map { $0["qty"] as? Double } == [76.9])
+    }
+
+    @Test func switchWithNothingNewSendsNothingButTracksTodayFromThen() async throws {
+        BasalUploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        let stats = FakeUploadStatistics()
+        let defaults = try #require(UserDefaults(suiteName: "basal.\(UUID())"))
+        defaults.set(try archived(7), forKey: spec.anchorKey)
+        store.enqueue(page([], 7), for: basalType)                         // change feed: nothing new
+        store.enqueue(page(hourly(28, 0, 5, kcal: 80), 99), for: basalType) // raw read of today
+        stats.totals = [midnight(27): 1900, midnight(28): 400]
+        let count = try await uploader(store, stats, defaults).sync(spec, now: at(28, 5, 30))
         #expect(count == 0)
         #expect(BasalUploadCapturingURLProtocol.requestBodies.isEmpty)
-        // Next day: the 28th is on the new path.
-        let tomorrow = at(28, 10)
-        store.enqueue(page([basal(30, at(28, 9))], 9), for: basalType)
-        stats.totals = [midnight(27): 1900, midnight(28): 650]
-        _ = try await uploader(store, stats, defaults).sync(spec, now: tomorrow)
+        store.enqueue(page(hourly(28, 5, 6, kcal: 80), 8), for: basalType)
+        stats.totals = [midnight(27): 1900, midnight(28): 480]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 6, 30))
         #expect(try postedPoints(0).map { $0["date"] as? String } == ["2026-09-28 00:00:00 +0200"])
+        #expect(try postedPoints(0).map { $0["qty"] as? Double } == [80])
+    }
+
+    @Test func deviceStateFromSwiftFix5SendsTheSwitchDaysTotal() async throws {
+        BasalUploadCapturingURLProtocol.reset()
+        let store = FakeHealthStoreReader()
+        let stats = FakeUploadStatistics()
+        let defaults = try #require(UserDefaults(suiteName: "basal.\(UUID())"))
+        // swift-fix5's first run (09-28 05:25) found the raw anchor, stored "start 09-29" and moved
+        // the anchor past the 28th's samples without sending them. The fixed build must send the
+        // 28th's total (nothing raw was sent for it) and keep going with deltas.
+        defaults.set(try archived(20), forKey: spec.anchorKey)
+        defaults.set("2026-09-29", forKey: HealthKitUploader.dailyStartKey(spec))
+        store.enqueue(page(hourly(28, 7, 8, kcal: 80), 21), for: basalType)
+        stats.totals = [midnight(27): 1843.8, midnight(28): 700]
+        _ = try await uploader(store, stats, defaults).sync(spec, now: at(28, 8, 30))
+        #expect(try postedPoints(0).map { $0["date"] as? String } == ["2026-09-28 00:00:00 +0200"])
+        #expect(try postedPoints(0).map { $0["qty"] as? Double } == [700])
     }
 
     @Test func failedPostKeepsTheLedgerAndTheAnchor() async throws {
