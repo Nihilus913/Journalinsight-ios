@@ -302,6 +302,17 @@ public struct ReminderScheduler {
         return out
     }
 
+    /// W-FIX6 F6-16: how many reminders are on, read the way the Reminders screen reads them —
+    /// each daily kind with a pending request, each scheduled workout day, and the HR-cap re-check.
+    /// The Settings row count used saved prefs, which said "1 on" while the screen showed two.
+    public func activeCount() async -> Int {
+        var n = 0
+        for kind in ReminderKind.dailyCases where await scheduledTime(for: kind) != nil { n += 1 }
+        n += await allWorkouts().count
+        if await hrCapCheckDue() != nil { n += 1 }
+        return n
+    }
+
     // MARK: permission
 
     /// RN `requestPermission`: true if already granted, else prompts; false (never throws) on

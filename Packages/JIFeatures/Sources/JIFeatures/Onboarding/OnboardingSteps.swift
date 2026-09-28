@@ -79,7 +79,7 @@ struct OnboardingBaselineStep: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.nights")
             }
-            HowWeCalculateLink("How JI learns your normal", title: "Your normal", steps: OnboardingCopy.baselineSteps)
+            JIHowWeCalculateRow("How JI learns your normal", title: "Your normal", steps: OnboardingCopy.baselineSteps)
             Text(OnboardingCopy.baselineFooter).jiFont(.body).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
         }

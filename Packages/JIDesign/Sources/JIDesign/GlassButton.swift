@@ -54,7 +54,36 @@ private struct GlassOrControl: ViewModifier {
     }
 }
 
+/// W-FIX6 F6-14/F6-15 — a round glyph button in a TOOLBAR. The system already draws the toolbar
+/// item's glass (iOS 26+), so a `JIGlassButton` there was glass inside glass: a 44 pt disc that
+/// grew the bar and straddled the scroll-edge band ("Done" on Settings, "Back" on Reminders).
+/// Same glyph rule (`JIGlassButtonMetrics.isAllowed` + checkmark), same VoiceOver label; the bar
+/// sizes and frosts it.
+public struct JIToolbarButton: View {
+    private let systemImage: String, label: String, action: () -> Void
+    public init(_ systemImage: String, label: String, action: @escaping () -> Void) {
+        self.systemImage = systemImage; self.label = label; self.action = action
+    }
+    public var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage).font(.system(size: 17, weight: .semibold))
+        }
+        .accessibilityLabel(label)
+    }
+}
+
 public extension View {
+    /// W-FIX6 F6-14/F6-15 — the one scroll-edge treatment for a pushed / sheet screen's bar: the
+    /// soft top edge (content fades under the bar), never the hard band whose edge caught the
+    /// green Sync-now button. No-op where the platform has no scroll-edge effect.
+    @ViewBuilder func jiSoftTopEdge() -> some View {
+        #if os(iOS) || os(visionOS) || os(macOS)
+        self.scrollEdgeEffectStyle(.soft, for: .top)
+        #else
+        self
+        #endif
+    }
+
     /// W-GUI F5 — every pushed screen: hide the text back button, put a glass chevron in its
     /// place (report §7 rule 2: no text links, no text back). Wrap the screen's glass views in
     /// one `GlassEffectContainer` when there are several.
@@ -65,12 +94,13 @@ struct JIGlassBackButtonModifier: ViewModifier {
     @Environment(\.dismiss) private var dismiss
     func body(content: Content) -> some View {
         content
+            .jiSoftTopEdge()   // W-FIX6 F6-14: the pushed header frosts the content under it
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 #if os(macOS)
-                ToolbarItem(placement: .navigation) { JIGlassButton("chevron.left", label: "Back") { dismiss() } }
+                ToolbarItem(placement: .navigation) { JIToolbarButton("chevron.left", label: "Back") { dismiss() } }
                 #else
-                ToolbarItem(placement: .topBarLeading) { JIGlassButton("chevron.left", label: "Back") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) { JIToolbarButton("chevron.left", label: "Back") { dismiss() } }
                 #endif
             }
     }

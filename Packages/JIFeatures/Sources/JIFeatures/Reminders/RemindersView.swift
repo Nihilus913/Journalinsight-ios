@@ -19,6 +19,16 @@ public struct RemindersView: View {
 
     public var body: some View {
         List {
+            // W-FIX6 F6-14: the board's one-liner is the list's first line, not a centred nav
+            // subtitle (it ran under the glass back button in the status-bar zone).
+            Section {
+                Text(RemindersCopy.header)
+                    .jiFont(.subheadline, tint: .muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                    .accessibilityIdentifier("reminders.header")
+            }
             if model.permissionDenied {
                 Section {
                     Label(RemindersCopy.permissionDenied, systemImage: "bell.slash")
@@ -51,8 +61,8 @@ public struct RemindersView: View {
         .jiGlassBackButton()
         .readableColumn()
         .jiTheme(.native)
+        .jiSoftTopEdge()   // W-FIX6 F6-14: content frosts under the pushed header
         .navigationTitle("Reminders")
-        .navigationSubtitle(RemindersCopy.header)
         .task { if !model.loaded { await model.load() } }
     }
 }
