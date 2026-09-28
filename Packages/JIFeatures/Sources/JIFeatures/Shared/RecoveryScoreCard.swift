@@ -6,8 +6,14 @@ import JIDesign
 /// B-57 W3 S1 — the card's words, pure: the number only when there is a score, else "—" plus the
 /// honest reason ("Calibrating · n of 14 nights" / "No data"); never 0 and never 50 (rule 5).
 /// The score may wear verdict green (rule 6: 0–100 score); a low one is amber.
-public nonisolated func recoveryScoreCardText(result: RecoveryScoreResult?, reasonWord: String?)
+/// W-FIX7 F7-2: `hubRecovery` (the hub's `gate_signals` recovery, `decideHubRecovery`) wins — the
+/// row then says the same number as Decide's ring (36, not the phone's 37 on 2026-09-28).
+public nonisolated func recoveryScoreCardText(result: RecoveryScoreResult?, reasonWord: String?, hubRecovery: Double? = nil)
     -> (numeral: String, caption: String, role: JIColorRole) {
+    if let hubRecovery, hubRecovery.isFinite {
+        let low = hubRecovery < Double(RecoveryScore.lowScore)
+        return (jiNumber(hubRecovery, 0), low ? "Recovery low" : "In your normal range", low ? .reduced : .go)
+    }
     guard let result else { return ("—", reasonWord ?? JIMissingReason.noData.rawValue, .muted) }
     switch result.status {
     case .calibrating:
@@ -32,8 +38,11 @@ public struct RecoveryScoreCard: View {
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiOffscreenRender) private var offscreen
     private let compact: Bool
+    /// W-FIX7 F7-2: the hub's recovery for the call (`decideHubRecovery(gateSignals)`); nil = the
+    /// on-device score.
+    private let hubRecovery: Double?
 
-    public init(compact: Bool = false) { self.compact = compact }
+    public init(compact: Bool = false, hubRecovery: Double? = nil) { self.compact = compact; self.hubRecovery = hubRecovery }
 
     /// The gate's own `recovery` signal: the card shows it, so no second SignalRow / counted row.
     public nonisolated static func visibleSignals(_ signals: [GateSignal]) -> [GateSignal] {
@@ -46,7 +55,8 @@ public struct RecoveryScoreCard: View {
     }
 
     public var body: some View {
-        let text = recoveryScoreCardText(result: insight?.result, reasonWord: insight == nil ? nil : insight?.reasonWord)
+        let text = recoveryScoreCardText(result: insight?.result, reasonWord: insight == nil ? nil : insight?.reasonWord,
+                                         hubRecovery: hubRecovery)
         Group {
             if compact {
                 compactRow(text)

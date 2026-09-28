@@ -20,7 +20,7 @@ import JICore
     let tiles = healthComputedTiles(sleepScore: nil)
     #expect(tiles.map(\.title) == ["Readiness", "Sleep score", "Body Battery"])
     #expect(tiles[0].value == "—" && tiles[0].note == "Calibrating")
-    #expect(tiles[1].value == "—" && tiles[1].note == "hub, Apple night")     // never "Garmin only"
+    #expect(tiles[1].value == "—" && tiles[1].note == "No data")     // W-FIX7 F7-3: the reason; never "Garmin only"
     #expect(tiles[2].note == "Garmin only")
     #expect(healthComputedTiles(sleepScore: 89)[1].value == "89")
     #expect(healthArrivalCaption.contains("data arrived"))

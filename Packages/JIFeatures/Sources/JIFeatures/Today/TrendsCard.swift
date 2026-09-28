@@ -59,3 +59,37 @@ public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow
         trend("weight", "Weight", day("weight_kg"), unit: "kg", decimals: 1, role: .muted),
     ]
 }
+
+// MARK: - W-FIX7 F7-5: equal tiles with a dated caption
+
+/// true when any card of a Trends group carries an "as of 19 Sep" line (W-FIX6 F6-9): every card in
+/// that group then reserves the line, so the Weight tile is not taller than Steps (equal tiles rule).
+public nonisolated func trendsReservesAsOfLine(_ cards: [TrendsCardModel]) -> Bool {
+    cards.contains { $0.asOf != nil }
+}
+
+/// The card's caption line: its own date, a blank reserved line (hidden) when a sibling has one,
+/// else nil (no line).
+public nonisolated func trendsAsOfLineText(_ card: TrendsCardModel, reserve: Bool) -> String? {
+    card.asOf ?? (reserve ? " " : nil)
+}
+
+/// The Trends card's "as of" line (F6-9), reserved on the siblings of a dated card (F7-5).
+public struct TrendsAsOfLine: View {
+    @Environment(\.jiTheme) private var theme
+    let card: TrendsCardModel
+    let reserve: Bool
+
+    public init(card: TrendsCardModel, reserve: Bool) { self.card = card; self.reserve = reserve }
+
+    public var body: some View {
+        if let text = trendsAsOfLineText(card, reserve: reserve) {
+            if card.asOf != nil {
+                Text(text).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("trends.card.\(card.id).asOf")
+            } else {
+                Text(text).jiFont(.caption).hidden().accessibilityHidden(true)
+            }
+        }
+    }
+}

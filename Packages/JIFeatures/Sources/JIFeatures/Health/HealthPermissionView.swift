@@ -135,24 +135,46 @@ nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: H
     }
 }
 
-/// The "Computed from these" tiles (mockup 47): Readiness = JI's recovery score from Apple signals
-/// (the number Decide's ring shows; "— · Calibrating" / "— · No data" without one), Sleep score
-/// "— · hub, Apple night" (present only when the hub sent one), Body Battery "— · Garmin only"
+/// The "Computed from these" tiles (mockup 47): Readiness = the hub's recovery for today's call
+/// (W-FIX7 F7-3), else JI's recovery score from Apple signals ("— · Calibrating" / "— · No data"
+/// without one), Sleep score = the hub's Apple-night score ("— · No data" without one), Body
+/// Battery "— · Garmin only"
 /// (true: never for Readiness or Sleep score, report §7 rule 6).
 public nonisolated struct HealthComputedTile: Equatable, Sendable, Identifiable {
     public let id: String, title: String, value: String, note: String
 }
 public nonisolated func healthComputedTiles(sleepScore: Double?, readiness: RecoveryScoreResult? = nil) -> [HealthComputedTile] {
     let ready: (value: String, note: String) = switch readiness?.status {
-    case .ok: readiness?.score.map { ("\($0)", "JI, Apple signals") } ?? ("—", JIMissingReason.noData.rawValue)
+    case .ok:
+        readiness?.score.map { ("\($0)", healthIsHubReadiness(readiness) ? "hub, today's call" : "JI, Apple signals") }
+            ?? ("—", JIMissingReason.noData.rawValue)
     case .missing: ("—", JIMissingReason.noData.rawValue)
     case .calibrating, nil: ("—", JIMissingReason.calibrating.rawValue)
     }
+    // W-FIX7 F7-3: a missing Sleep score says why ("— · No data"), never only its source.
+    let sleep: (value: String, note: String) = sleepScore.flatMap { $0.isFinite ? (jiNumber($0, 0), "hub, Apple night") : nil }
+        ?? ("—", JIMissingReason.noData.rawValue)
     return [
         HealthComputedTile(id: "readiness", title: "Readiness", value: ready.value, note: ready.note),
-        HealthComputedTile(id: "sleep", title: "Sleep score", value: sleepScore.map { jiNumber($0, 0) } ?? "—", note: "hub, Apple night"),
+        HealthComputedTile(id: "sleep", title: "Sleep score", value: sleep.value, note: sleep.note),
         HealthComputedTile(id: "bodyBattery", title: "Body Battery", value: "—", note: "Garmin only"),
     ]
+}
+
+/// W-FIX7 F7-3: the Readiness tile shows the hub's recovery for today's call (`/planning/morning`
+/// `gate_signals` key `recovery`, the number Decide's ring shows — 36 on 2026-09-28) when the hub
+/// sent one. It travels as a `RecoveryScoreResult` with no components (an on-device score always
+/// carries its four) so `HealthPermissionViewModel.readiness` keeps its type. nil = no hub value;
+/// the loader then falls back to the on-device score.
+public nonisolated func healthHubReadiness(_ signals: [GateSignal]?) -> RecoveryScoreResult? {
+    guard let value = decideHubRecovery(signals), value.isFinite else { return nil }
+    return RecoveryScoreResult(status: .ok, score: Int(value.rounded()), raw: value, components: [], nights: 0, nightsNeeded: 0)
+}
+
+/// true = the readiness came from the hub (`healthHubReadiness`), not the phone's own score.
+public nonisolated func healthIsHubReadiness(_ readiness: RecoveryScoreResult?) -> Bool {
+    guard let readiness else { return false }
+    return readiness.status == .ok && readiness.components.isEmpty && readiness.nightsNeeded == 0
 }
 public nonisolated let healthArrivalCaption = "\u{201C}Connected\u{201D} means data arrived; iOS does not report read permissions. Apple\u{2019}s own Readiness score is not shared with apps: JI computes its own from the same signals. To change access: Settings \u{203A} Health \u{203A} Sharing \u{203A} Apps."
 
