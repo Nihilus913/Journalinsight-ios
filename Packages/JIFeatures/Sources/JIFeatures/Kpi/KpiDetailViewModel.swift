@@ -17,7 +17,14 @@ public final class KpiDetailViewModel {
     public private(set) var metric: KpiMetricId
     public private(set) var phase: Phase = .idle
     public private(set) var recovery: [RecoveryDay] = []
-    public private(set) var nutrition: [NutritionDailyRow] = []
+    /// W-FIX7 N-1: the macro rows Apple Health first — Health's day totals on every day Health has
+    /// food, the hub's YAZIO rows only for the days it lacks. `hubNutrition` = as fetched.
+    public private(set) var nutrition: [NutritionDailyRow] {
+        get { NutritionDailyRow.mergingHealth(hubNutrition, health: health.totals) }
+        set { hubNutrition = newValue }
+    }
+    private var hubNutrition: [NutritionDailyRow] = []
+    private var health: HealthTotalsSource
     public private(set) var dailyRows: [DailyKpiRow] = []
     public private(set) var gateAverages: GateAverages?
     /// The single gate rule this screen edits — when a metric's `targetMetricKeys` matches more
@@ -83,8 +90,10 @@ public final class KpiDetailViewModel {
         goalsProvider: (any EnergyProviding)? = nil,
         makeGoalsSetup: (@MainActor (any GoalsSetupProviding) -> GoalsSetupViewModel)? = nil,
         medicationStore: MedicationStore? = nil,
-        daytimeHrv: Double? = nil
+        daytimeHrv: Double? = nil,
+        healthFeed: HealthDailyTotalsFeed = .shared
     ) {
+        self.health = HealthTotalsSource(feed: healthFeed)
         self.medicationStore = medicationStore
         self.daytimeHrv = daytimeHrv
         self.makeGoalsSetup = makeGoalsSetup
@@ -187,6 +196,7 @@ public final class KpiDetailViewModel {
     public func refresh() async { await fetchLive() }
 
     private func restoreFromCache() {
+        health.restore(from: cache)
         let macro = isNutritionKpi(metric)
         if let hit = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = hit.value; if !macro { fetchedAt = hit.fetchedAt } }
         if let hit = try? cache.get(Self.keys.nutrition, as: [NutritionDailyRow].self) { nutrition = hit.value; if macro { fetchedAt = hit.fetchedAt } }

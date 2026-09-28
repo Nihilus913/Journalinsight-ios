@@ -37,7 +37,19 @@ public final class TodayViewModel {
 
     public private(set) var phase: Phase = .idle
     public private(set) var morning: MorningResponse?
-    public private(set) var gate: GateResponse?
+    /// W-FIX7 N-1 (Fuel): the hub's gate rows with Apple Health's food (kcal, protein, carbs,
+    /// fat) on every day Health has it — Fuel and the Protein / Calories squares read Health first,
+    /// YAZIO only for the days Health lacks. Every other key stays the hub's. `hubGate` = as fetched.
+    public private(set) var gate: GateResponse? {
+        get {
+            guard var g = hubGate else { return nil }
+            g.daily = DailyKpiRow.mergingHealth(g.daily, health: fuelHealth.totals)
+            return g
+        }
+        set { hubGate = newValue }
+    }
+    private var hubGate: GateResponse?
+    private var fuelHealth: HealthTotalsSource
     public private(set) var recovery: [RecoveryDay] = []
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
@@ -126,7 +138,9 @@ public final class TodayViewModel {
     ///   it; nil = `provider` (the hub itself, previews, tests).
     public init(provider: any HealthDataProvider, verdictProvider: (any HealthDataProvider)? = nil, cache: OfflineCache,
                 prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
-                uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) {
+                uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
+                healthFeed: HealthDailyTotalsFeed = .shared) {
+        self.fuelHealth = HealthTotalsSource(feed: healthFeed)
         self.provider = provider; self.verdictProvider = verdictProvider ?? provider
         self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
     }
@@ -298,6 +312,7 @@ public final class TodayViewModel {
             morning = m.value; fetchedAt = m.fetchedAt; morningFetchedAt = m.fetchedAt; everSynced = true
         }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; gateFetchedAt = g.fetchedAt }
+        fuelHealth.restore(from: cache)   // W-FIX7 N-1: last launch's Health food until this launch's read lands
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
