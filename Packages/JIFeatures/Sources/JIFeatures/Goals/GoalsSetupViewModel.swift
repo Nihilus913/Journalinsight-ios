@@ -197,9 +197,10 @@ public final class GoalsSetupViewModel {
         }
     }
 
-    /// True while a goals row is still queued in `outbox` (a read error counts as not pending).
+    /// True while a goals row (or, W-TGT, the targets document that carries the goals now) is
+    /// still queued in `outbox` (a read error counts as not pending).
     public static func goalsPending(in outbox: Outbox) -> Bool {
-        (try? outbox.pending())?.contains { $0.kind == OutboxDrainer.goalsKind } ?? false
+        (try? outbox.pending())?.contains { $0.kind == OutboxDrainer.goalsKind || $0.kind == TargetsDocument.outboxKind } ?? false
     }
 
     /// B-57 W1: read-only; updates itself after each logged session.

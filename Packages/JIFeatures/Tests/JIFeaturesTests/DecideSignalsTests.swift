@@ -34,7 +34,8 @@ struct DecideSignalsTests {
 
     /// W-FIX3 BUG-30 (board 01): sleep time reads as the goal it is gated on ("goal 7 h").
     @Test func sleepReadsAsItsGoal() {
-        let m = decideSignalRowModel(s("sleep_h", 7.4, thr: 7, unit: "h", status: .pass))
+        // W-TGT L3 (D2): "goal 7 h" once the user typed 7 in Targets.
+        let m = decideSignalRowModel(s("sleep_h", 7.4, thr: 7, unit: "h", status: .pass), sleepGoalH: 7)
         #expect(m.detail == "goal 7 h")
         #expect(m.decimals == 1)
         #expect(!(m.detail ?? "").contains("floor"))

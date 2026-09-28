@@ -93,7 +93,7 @@ struct GateSettingsTests {
     @Test @MainActor func preW4MarkersArePrefStoreKeys() {
         #expect(GateSettingsStore.preW4Keys.contains(RemindersPrefs.prefKey))
         #expect(GateSettingsStore.preW4Keys.contains(todayTileOrderKey))
-        #expect(GateSettingsStore.preW4Keys.contains(GateConfigViewModel.morningOverridesKey))
+        #expect(GateSettingsStore.preW4Keys.contains(TargetsStore.morningOverridesKey))
         #expect(GateSettingsStore.preW4Keys.contains(WeeklyPlanStore.prefKey))
         #expect(GateSettingsStore.preW4Keys.contains(GateLaunch.lastAnsweredKey))
         #expect(GateSettingsStore.preW4Keys.contains(KpiSelection.prefKey))

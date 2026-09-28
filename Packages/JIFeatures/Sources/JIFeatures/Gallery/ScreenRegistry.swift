@@ -97,5 +97,8 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today first week") { ScreenStateFaces.firstWeek() },
         ScreenEntry(name: "Today error") { ScreenStateFaces.error() },
         ScreenEntry(name: "Today no source") { ScreenStateFaces.noSource() },
+        // MARK: W-TGT L3 — Settings › Targets (mock 01) + the one editor sheet (mock 02)
+        ScreenEntry(name: "Targets") { TargetsFixtures.targets() },
+        ScreenEntry(name: "Target editor") { TargetsFixtures.editor() },
     ]
 }

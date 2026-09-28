@@ -19,13 +19,14 @@ private func guardSource(_ relative: String) throws -> String {
     return try String(contentsOf: pkg.appending(path: relative), encoding: .utf8)
 }
 
-// MARK: - BUG-31: GateConfig "Use recommended" is the accent (green by default), not a metric colour
+// MARK: - BUG-31: the rules reset (W-TGT: Targets "Reset rules to recommended", was GateConfig's
+// "Use recommended") is a JI button style, never a metric colour
 
 @Test func bug31_useRecommendedIsTheAccentPrimaryButton() throws {
-    let body = try guardSource("Sources/JIFeatures/GateConfig/GateConfigView.swift")
-    let button = try #require(body.range(of: "Text(\"Use recommended\")"))
+    let body = try guardSource("Sources/JIFeatures/Targets/TargetsView.swift")
+    let button = try #require(body.range(of: "Button(TargetsRows.resetRules)"))
     let tail = body[button.upperBound...].prefix(300)
-    #expect(tail.contains(".buttonStyle(.jiPrimary)"))
+    #expect(tail.contains(".buttonStyle(.jiSecondary)") || tail.contains(".buttonStyle(.jiPrimary)"))
     // No hard-coded metric / system colour on the CTA.
     #expect(!tail.contains(".tint(.blue)") && !tail.contains("Color.blue") && !tail.contains(".hrv"))
 }
@@ -68,7 +69,7 @@ private func guardSource(_ relative: String) throws -> String {
 /// Every one of these actions is a chevron row or a JI button style — never a tinted text link.
 @Test(arguments: [
     ("Sources/JIFeatures/GateConfig/GateConfigView.swift", "\"Walk me through it again\""),
-    ("Sources/JIFeatures/GateConfig/GateConfigView.swift", "is still right\")"),
+    ("Sources/JIFeatures/Targets/TargetsView.swift", "is still right\")"),
     ("Sources/JIFeatures/Kpi/DaytimeHrvSection.swift", "\"Change answer\""),
 ])
 func dev07_w4ActionsAreRowsOrButtonsNotTextLinks(file: String, literal: String) throws {

@@ -12,7 +12,9 @@ public nonisolated struct RecoveryCardModel: Equatable, Sendable {
 
     public static let note = "One score from overnight HRV, resting HR and sleep (length, deep, REM), each against your normal. It shows a number once all three have \(PersonalNormal.minN) nights."
 
-    public static func make(result: RecoveryScoreResult?, reasonWord: String?, sleepGoalH: Double) -> RecoveryCardModel {
+    /// W-TGT L3 (D2): `sleepGoalH` is the user's goal (Targets), nil until typed — then the sleep
+    /// row reads against the normal like the others, never against a built-in 7 h.
+    public static func make(result: RecoveryScoreResult?, reasonWord: String?, sleepGoalH: Double?) -> RecoveryCardModel {
         let order: [(RecoveryComponentKey, String)] = [(.hrv, "HRV"), (.sleep, "Sleep"), (.rhr, "Resting HR"), (.load, "Load")]
         let drivers = order.map { key, label in
             driver(key, label, result?.component(key), sleepGoalH: sleepGoalH)
@@ -38,7 +40,7 @@ public nonisolated struct RecoveryCardModel: Equatable, Sendable {
     /// Words: HRV/RHR/Load follow the raw value (z is sign-flipped so higher = better; z ≤ −1 on RHR
     /// means the raw RHR is high). Sleep reads against the user's goal. Amber tint follows z ≤ −1
     /// (the bad direction); the sleep row otherwise wears the sleep metric colour. Never `.go`.
-    private static func driver(_ key: RecoveryComponentKey, _ label: String, _ c: RecoveryComponent?, sleepGoalH: Double) -> DriverBar {
+    private static func driver(_ key: RecoveryComponentKey, _ label: String, _ c: RecoveryComponent?, sleepGoalH: Double?) -> DriverBar {
         guard let c else { return DriverBar(id: key.rawValue, label: label, value: nil, word: "No data") }
         let fill = c.z.map { ($0 + RecoveryScore.zCap) / (2 * RecoveryScore.zCap) }
         switch c.status {
@@ -47,17 +49,18 @@ public nonisolated struct RecoveryCardModel: Equatable, Sendable {
         case .noReading: return DriverBar(id: key.rawValue, label: label, value: nil, word: JIMissingReason.noData.rawValue)
         case .flat, .ok:
             let z = c.z ?? 0
-            if key == .sleep {
+            if key == .sleep, let sleepGoalH {
                 guard let v = c.value else { return DriverBar(id: key.rawValue, label: label, value: fill, word: "In your normal") }
                 return DriverBar(id: key.rawValue, label: label, value: fill, word: v >= sleepGoalH ? "Above goal" : "Below goal",
                                  tint: z <= -1 ? .reduced : .sleep)
             }
-            let higherIsWorse = key != .hrv
+            // Sleep without a goal (W-TGT D2) reads like HRV: more is better.
+            let higherIsWorse = key != .hrv && key != .sleep
             let word: String
             if z <= -1 { word = higherIsWorse ? "High" : "Low" }
             else if z >= 1 { word = higherIsWorse ? "Low" : "High" }
             else { word = "In your normal" }
-            return DriverBar(id: key.rawValue, label: label, value: fill, word: word, tint: z <= -1 ? .reduced : nil)
+            return DriverBar(id: key.rawValue, label: label, value: fill, word: word, tint: z <= -1 ? .reduced : (key == .sleep ? .sleep : nil))
         }
     }
 }

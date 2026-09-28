@@ -1,27 +1,20 @@
 import Testing
-import JIDesign
 @testable import JIFeatures
 
+// W-TGT L3: Gate thresholds merged into Settings › Targets (spec §4). What stays of GateConfig is
+// "How the morning call works" (+ the walk-through); the Garmin knob is a Targets rule, not a goal.
 struct GateConfigGroupsTests {
-    @Test func fieldsLandInTheBoardGroups() {
-        #expect(MorningGateOverridableField.minSleepH.group == .recoverySignals)   // B-57 W3: Garmin knob, not the goal
-        #expect(MorningGateOverridableField.respDeltaAmber.group == .recoverySignals)
-        #expect(MorningGateOverridableField.carb3dWatch.group == .fuel)
-        for f in [MorningGateOverridableField.kcalTarget, .proteinTarget, .carbTarget, .fatTarget, .stepTarget, .targetWeight, .targetBf] {
-            #expect(f.group == nil)   // "Calorie, protein and weight targets live in Goals."
-        }
-    }
-
-    @Test func everyShownFieldHasAOneLineExplanation() {
-        for f in MorningGateOverridableField.allCases where f.group != nil { #expect(!f.explanation.isEmpty) }
-    }
-
-    @Test func garminSleepKnobIsNotTheSleepGoal() {
-        #expect(MorningGateOverridableField.minSleepH.label == "Garmin nights: min sleep for intervals")   // B-57 W3
-        #expect(!MorningGateOverridableField.minSleepH.explanation.lowercased().contains("goal"))
+    @Test func garminSleepKnobIsARuleNotTheSleepGoal() {
+        #expect(targetsRuleTitle(.intervalMinSleep) == "Garmin nights · interval floor")
+        #expect(!targetsRuleExplanation(.intervalMinSleep).lowercased().contains("goal"))
     }
 
     @Test func morningCallCardIsFullModifiedRest() {
         #expect(gateConfigMorningCallRows.map(\.word) == ["Full", "Modified", "Rest"])
+    }
+
+    @Test func theScreenPointsToTargetsForTheNumbers() {
+        #expect(gateConfigTitle == "How the morning call works")
+        #expect(gateConfigFooter.contains("Settings › Targets"))
     }
 }

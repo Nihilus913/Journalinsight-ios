@@ -5,9 +5,9 @@ import JICompute
 import JIDesign
 
 /// KPI detail screen (W3b-L2, P-kpi) — reachable from a Today tile tap or a `ji://kpi-detail`
-/// deep link (`RootTabView`). Live headline + Swift Charts history (`KpiMetrics.history`) plus,
-/// when this metric has a matching gate rule, an inline threshold editor that round-trips through
-/// `KpiTargetsProviding.updateKpiTarget` (PUT).
+/// deep link (`RootTabView`). Live headline + Swift Charts history (`KpiMetrics.history`) plus the
+/// W-TGT Targets card (Goal · Rule · Your normal, Edit → the Settings › Targets editor sheet),
+/// which replaced the inline threshold editor (spec §4).
 public struct KpiDetailView: View {
     /// BUG-09 (W-FIX2): the screen OWNS its model. The shell's `navigationDestination` closure
     /// re-runs on every shell re-render (a deep link focuses the tab, then clears the pending
@@ -16,8 +16,6 @@ public struct KpiDetailView: View {
     /// animation re-laid the scroll view mid-push into the safe-area inset loop (the hang).
     /// `@State` keeps the first model for the screen's lifetime; later ones are discarded.
     @State private var model: KpiDetailViewModel
-    /// The alert stepper's working value (the rule's threshold until the reader steps it).
-    @State private var threshold: Double = 0
     /// B-57 W1 board: 7 D / 30 D / 90 D above the trend.
     @State private var range: KpiDetailRange = .month
     /// B-33: `.jiTheme(.native)` installs the theme for descendants, not for the applying view.
@@ -55,18 +53,11 @@ public struct KpiDetailView: View {
         .refreshable { await model.refresh() }
         .task {
             if !model.hasLiveResult { await model.load() }
-            syncThreshold()
         }
-        .onChange(of: model.target?.threshold) { _, _ in syncThreshold() }
-        .onChange(of: model.metric) { _, _ in syncThreshold() }
         // BUG-09: no implicit animation on `phase`. Animating the skeleton → content swap resized
         // the scroll view's content while the push was still in flight (a deep link pushes and
         // loads at once), and UIKit re-entered its safe-area inset update every frame — the main
         // thread spun at 100 % CPU with the screen frozen mid-push.
-    }
-
-    private func syncThreshold() {
-        if let t = model.target?.threshold { threshold = t }
     }
 
     /// §5: the screen's name is the navigation title. B-57 W1 board: the value card carries its
@@ -123,9 +114,12 @@ public struct KpiDetailView: View {
                                                                         deepRem: kpiDetailDeepRem) {
             blockSection(block)
         }
-        if model.target != nil { editor }
+        // W-TGT: Goal · Rule · Your normal, one Edit (the same sheet as Settings › Targets).
+        KpiDetailTargetsCard(metric: model.metric, normal: kpiNormal.normal, sevenDay: kpiNormal.sevenDay,
+                             decimals: model.def.decimals, unit: model.def.unit)
         if isNutritionKpi(model.metric) {
-            KpiNutritionLinks(metricLabel: model.def.label, goalsSetupModel: model.goalsSetupModel)
+            // W-TGT: "Edit macro goals" is the Targets card's Edit now — no second path.
+            KpiNutritionLinks(metricLabel: model.def.label, goalsSetupModel: nil)
         }
     }
 
@@ -244,19 +238,5 @@ public struct KpiDetailView: View {
                 .accessibilityIdentifier("kpi-detail-caption")
         }
         .accessibilityIdentifier("kpi-detail-block")
-    }
-
-    @ViewBuilder
-    private var editor: some View {
-        // B-46 device feedback 4: never the raw `plan.kpi_target` key — the rule in the metric's
-        // own words. B-57 W1 board: a − / + stepper and a full-width "Save alert".
-        if let target = model.target {
-            KpiAlertEditor(
-                sentence: kpiThresholdSentence(metricLabel: model.def.label, operator: target.operator),
-                value: $threshold, unit: model.def.unit, decimals: model.def.decimals,
-                saving: model.saving, dirty: threshold != target.threshold, error: model.saveError,
-                onSave: { Task { await model.saveThreshold(threshold) } }
-            )
-        }
     }
 }

@@ -19,8 +19,8 @@ import JIPersistence
 // registered section stays reachable from it.
 
 // B-57 W1 r4 (fixer g3, board 5/01 decided from the PNG): CONNECTION = Hub · Apple Health ·
-// Sync now (the real sync action) · PREFERENCES = Goals · My KPIs · Appearance · Reminders ·
-// Home & widgets · Haptics (a toggle, not a push) · DATA = the four rows + footer · ADVANCED =
+// Sync now (the real sync action) · PREFERENCES = Home & widgets · Targets · Appearance ·
+// Reminders · Haptics (a toggle, not a push) (W-TGT L3: Goals, My KPIs, Gate thresholds → Targets) · DATA = the four rows + footer · ADVANCED =
 // About & version, plus the two destinations the board has no row for, so they stay reachable:
 // Gate config and Haptic strength (the intensity slider + "Feel it").
 
@@ -50,15 +50,17 @@ public nonisolated enum SettingsRoot {
             .init(id: "health", group: .connection, kind: .push(title: "Apple Health", systemImage: "heart", placeholder: nil),
                   sectionIds: ["l0.health"]),
             .init(id: "syncNow", group: .connection, kind: .syncNow, sectionIds: []),
-            .init(id: "preferences", group: .preferences, kind: .inline,
-                  sectionIds: ["l0.preferences", "l1.appearance", "l2.reminders"]),
+            // W-TGT L3 (mock 04): Home & widgets (card order, the On Today squares, widgets), then
+            // Targets — one row for Goals, My KPIs' captions and Gate thresholds (spec §4, D3).
             .init(id: "home", group: .preferences,
                   kind: .push(title: "Home & widgets", systemImage: "square.grid.2x2",
                               placeholder: SettingsGroupId.widgets.placeholder),
-                  sectionIds: ["l3.editToday", "l5.weeklyPlan"]),
+                  sectionIds: ["l3.editToday", OnTodaySection.sectionId, "l5.weeklyPlan"]),
+            .init(id: "preferences", group: .preferences, kind: .inline, sectionIds: ["l0.preferences"]),
+            .init(id: "phone", group: .preferences, kind: .inline, sectionIds: ["l1.appearance", "l2.reminders"]),
             .init(id: "haptics", group: .preferences, kind: .hapticsToggle, sectionIds: []),
             .init(id: "data", group: .data, kind: .inline, sectionIds: settingsDataSectionIds),
-            .init(id: "about", group: .advanced, kind: .inline, sectionIds: ["l4.version", "w5b.gateConfig"]),
+            .init(id: "about", group: .advanced, kind: .inline, sectionIds: ["l4.version"]),
             .init(id: "hapticStrength", group: .advanced,
                   kind: .push(title: "Haptic strength", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
                   sectionIds: ["w8.haptics"]),
@@ -431,13 +433,14 @@ struct SettingsLinkLabel: View {
     }
 }
 
-/// RN "Preferences": Goals → `GoalsSetupView` (W4-L3), My KPIs → `KpiListView` (W3b-L2).
-/// Edit Today (L3) and Appearance (L1) register their own sections in this band.
+/// W-TGT L3 (mock 04): the Preferences band's first row is Settings › Targets — Goals, Limits and
+/// Rules on ONE screen over the phone's own document (no hub needed, so never "Connect to your
+/// hub" while connected — F6-12). The square picker (My KPIs) moved to Home & widgets › On Today.
 struct PreferencesLinksSection: SettingsSection {
     static let sectionId = "l0.preferences"
     let id = Self.sectionId
-    let title = SettingsGroup.preferences.title
-    let systemImage = "slider.horizontal.3"
+    let title = "Targets"
+    let systemImage = "target"
     let sortKey = SettingsSortKey.preferences
     let group = SettingsGroupId.kpis
     var body: some View { PreferencesLinksRows() }
@@ -445,43 +448,18 @@ struct PreferencesLinksSection: SettingsSection {
 
 private struct PreferencesLinksRows: View {
     @Environment(SettingsViewModel.self) private var model
+    /// The shell's model (edits mirror to the hub); without one, a local model over this Settings'
+    /// prefs (previews, the sweep) — the numbers are the same stored document either way.
+    @Environment(\.targetsModel) private var injected
+
     var body: some View {
+        let targets = injected ?? TargetsModel(prefs: model.prefs)
         SettingsRowGroup(header: SettingsGroup.preferences.title) {
-            if let goals = model.goalsSetupModel {
-                NavigationLink { GoalsSetupView(model: goals) } label: {
-                    SettingsLinkLabel(title: "Goals", systemImage: "target", trailing: settingsGoalsTrailing(goals.goals))
-                }
-                .task { if goals.goals == nil { await goals.load() } }
-                .accessibilityLabel("Goals")
-                .accessibilityIdentifier("settings.row.goals")
-            } else {
-                SettingsLinkLabel(title: "Goals", subtitle: settingsHubOnlySubtitle(action: "edit goals", hubConfigured: model.connection.host != nil,
-                                                                                    dataSource: ProviderSwitch.shared.kind), systemImage: "target")
-                    .accessibilityIdentifier("settings.row.goals.unavailable")
+            NavigationLink { TargetsView(model: targets) } label: {
+                SettingsLinkLabel(title: "Targets", subtitle: targetsSettingsSummary(targets.document), systemImage: "target")
             }
-            if let kpis = model.kpiListModel {
-                NavigationLink {
-                    // W-FIX3 fixer C-e: a square opens its KPI detail (as the shell's My KPIs sheet).
-                    KpiListView(model: kpis, onSelectKpi: model.kpiSelectAction)
-                        .navigationDestination(item: Binding(get: { model.kpiDetailMetric },
-                                                             set: { model.kpiDetailMetric = $0 })) { metric in
-                            if let detail = model.kpiDetailModel, detail.metric == metric {
-                                KpiDetailView(model: detail)
-                            } else {
-                                ContentUnavailableView("KPI unavailable", systemImage: "chart.line.uptrend.xyaxis")
-                            }
-                        }
-                } label: {
-                    SettingsLinkLabel(title: "My KPIs", systemImage: "chart.bar",
-                                      trailing: settingsKpisTrailing(model.kpiSelectedCount))
-                }
-                .accessibilityLabel("My KPIs")
-                .accessibilityIdentifier("settings.row.kpis")
-            } else {
-                SettingsLinkLabel(title: "My KPIs", subtitle: settingsHubOnlySubtitle(action: "choose KPIs", hubConfigured: model.connection.host != nil,
-                                                                                      dataSource: ProviderSwitch.shared.kind), systemImage: "chart.bar")
-                    .accessibilityIdentifier("settings.row.kpis.unavailable")
-            }
+            .accessibilityLabel("Targets")
+            .accessibilityIdentifier("settings.row.targets")
         }
     }
 }

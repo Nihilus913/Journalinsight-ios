@@ -12,6 +12,8 @@ public struct KpiListView: View {
     private let theme = JITheme.native
     /// B-57 W2 (B-73): the user's goals for the nutrition squares' captions.
     @Environment(\.nutritionGoals) private var nutritionGoals
+    /// W-TGT L3 (mock 05): steps / sleep / weight captions read the targets document ("goal 7,000").
+    @Environment(\.targets) private var targets
     /// W-FIX5 WD-2: the 7-day Load the Today square shows (nil = the square says why).
     @Environment(\.recoveryInsight) private var recoveryInsight
 
@@ -85,7 +87,7 @@ public struct KpiListView: View {
                 .padding(.horizontal, JISpacing.s4)
             ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
                 let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
-                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { nutritionGoals.caption(for: $0, value: $1) },
+                                              today: String(Date().ISO8601Format().prefix(10)), goalCaption: { kpiListGoalCaption($0, value: $1, targets: targets) ?? nutritionGoals.caption(for: $0, value: $1) },
                                               load: recoveryInsight?.loadReading)
                 if !items.isEmpty {
                     HStack(alignment: .firstTextBaseline) {
@@ -107,6 +109,23 @@ public nonisolated func kpiListDetailMetric(_ squareId: String) -> String? {
     KpiMetricId(rawValue: squareId)?.rawValue
 }
 
+
+/// W-TGT L3 (mock 05): the caption of a square whose goal lives in the targets document only
+/// (steps, sleep, weight) — "goal 7,000" / "goal 7 h" / "goal 75.0", "no goal" without one; the
+/// load square shows its band rule. nil = the nutrition captions decide (`NutritionGoalsSnapshot`).
+public nonisolated func kpiListGoalCaption(_ id: KpiMetricId, value: Double?, targets: TargetsDocument?) -> String? {
+    let doc = targets ?? .empty
+    let metric: GoalMetric
+    switch id {
+    case .steps: metric = .steps
+    case .sleep: metric = .sleep
+    case .weight: metric = .weight
+    case .acwr: return "band \(targetsNumber(doc.rule(.loadBandLow), 2))–\(targetsNumber(doc.rule(.loadBandHigh), 2))"
+    default: return nil
+    }
+    // Sleep's square is the score (0–100); its goal is hours, so it is named, not compared.
+    return doc.goal(metric).map { targetsGoalCaption(metric, $0) } ?? "no goal"
+}
 
 // MARK: - W-GUI R4 (mockup 23) copy, pure
 

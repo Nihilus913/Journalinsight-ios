@@ -86,18 +86,23 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
     let connection = SettingsRoot.rows.filter { $0.group == .connection }.map(\.id)
     #expect(connection == ["hub", "health", "syncNow"])
     let prefs = SettingsRoot.rows.filter { $0.group == .preferences }
-    #expect(prefs.map(\.id) == ["preferences", "home", "haptics"])
+    // W-TGT L3 (mock 04): Home & widgets, then Targets, then the phone rows.
+    #expect(prefs.map(\.id) == ["home", "preferences", "phone", "haptics"])
     #expect(prefs.first { $0.id == "haptics" }?.kind == .hapticsToggle)
-    #expect(prefs.first { $0.id == "preferences" }?.sectionIds == ["l0.preferences", "l1.appearance", "l2.reminders"])
+    #expect(prefs.first { $0.id == "preferences" }?.sectionIds == ["l0.preferences"])
+    #expect(prefs.first { $0.id == "phone" }?.sectionIds == ["l1.appearance", "l2.reminders"])
+    #expect(prefs.first { $0.id == "home" }?.sectionIds.contains(OnTodaySection.sectionId) == true)
 }
 
-@Test @MainActor func gateConfigAndHapticStrengthMoveUnderAdvanced() {
+/// W-TGT L3: Gate thresholds is gone from Settings (merged into Targets, spec §4); haptic
+/// strength stays under Advanced.
+@Test @MainActor func gateThresholdsRowIsGoneAndHapticStrengthStaysUnderAdvanced() {
     let advanced = SettingsRoot.rows.filter { $0.group == .advanced }
     let ids = advanced.flatMap(\.sectionIds)
-    #expect(ids.contains(GateConfigSection.sectionId))
     #expect(ids.contains(HapticsSection.sectionId))
     #expect(ids.first == VersionSection.sectionId)
-    #expect(SettingsRoot.rows.filter { $0.group == .preferences }.flatMap(\.sectionIds).contains(GateConfigSection.sectionId) == false)
+    #expect(!SettingsRoot.rows.flatMap(\.sectionIds).contains("w5b.gateConfig"))
+    #expect(!SettingsRegistry.sections.map(\.id).contains("w5b.gateConfig"))
 }
 
 @MainActor

@@ -35,13 +35,15 @@ struct Fix3L3DecideTests {
 
     // MARK: BUG-30 reference line: "your normal a–b" / "goal 7 h", never "threshold" / "floor"
 
+    /// W-TGT L3 (D2): the goal is the user's typed one; without one, no goal word.
     @Test func sleepTimeReadsAsAGoal() {
-        let m = decideSignalRowModel(s("sleep_h", "Sleep time", 7.4, thr: 7, unit: "h", status: .pass))
+        let m = decideSignalRowModel(s("sleep_h", "Sleep time", 7.4, thr: 7, unit: "h", status: .pass), sleepGoalH: 7)
         #expect(m.detail == "goal 7 h")
         #expect(m.status == .aboveGoal)
-        let short = decideSignalRowModel(s("sleep_h", "Sleep time", 6.2, thr: 7, unit: "h", status: .amber))
+        let short = decideSignalRowModel(s("sleep_h", "Sleep time", 6.2, thr: 7, unit: "h", status: .amber), sleepGoalH: 7)
         #expect(short.status == .belowGoal)
-        #expect(decideSignalRowModel(s("sleep_h", "Sleep time", 6.2, thr: 6.5, unit: "h", status: .amber)).detail == "goal 6.5 h")
+        #expect(decideSignalRowModel(s("sleep_h", "Sleep time", 6.2, thr: 7, unit: "h", status: .amber), sleepGoalH: 6.5).detail == "goal 6.5 h")
+        #expect(decideSignalRowModel(s("sleep_h", "Sleep time", 7.4, thr: 7, unit: "h", status: .pass)).detail == nil)
     }
 
     @Test func aPersonalNormalReplacesTheThreshold() {

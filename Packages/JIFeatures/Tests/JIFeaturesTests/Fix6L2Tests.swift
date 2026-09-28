@@ -28,12 +28,15 @@ private func fix6Source(_ relative: String) throws -> String {
     #expect(!settingsHubOnlySubtitle(action: "edit goals", hubConfigured: true, dataSource: .hub).contains("Connect"))
 }
 
+/// W-TGT L3: Goals is Targets now — the phone's own document, never hub-only (no "Connect"
+/// subtitle at all); the square picker (Home & widgets › On Today) keeps the truthful subtitle.
 @Test func f612UnavailableRowsUseTheTruthfulSubtitle() throws {
-    let body = try fix6Source("Sources/JIFeatures/Settings/SettingsView.swift")
-    #expect(!body.contains("subtitle: \"Connect to your hub to edit goals\""))
-    #expect(!body.contains("subtitle: \"Connect to your hub to choose KPIs\""))
-    #expect(body.contains("settingsHubOnlySubtitle(action: \"edit goals\""))
-    #expect(body.contains("settingsHubOnlySubtitle(action: \"choose KPIs\""))
+    let settings = try fix6Source("Sources/JIFeatures/Settings/SettingsView.swift")
+    #expect(!settings.contains("subtitle: \"Connect to your hub to edit goals\""))
+    #expect(!settings.contains("settingsHubOnlySubtitle(action: \"edit goals\""))
+    let onToday = try fix6Source("Sources/JIFeatures/HomeWidgets/OnTodaySection.swift")
+    #expect(!onToday.contains("subtitle: \"Connect to your hub to choose KPIs\""))
+    #expect(onToday.contains("settingsHubOnlySubtitle(action: \"choose KPIs\""))
 }
 
 // MARK: - F6-13: Hub row = host only; the last-sync time lives once, under Sync now, inset

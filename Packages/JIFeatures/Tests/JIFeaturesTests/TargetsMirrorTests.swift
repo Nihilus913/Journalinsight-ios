@@ -144,8 +144,9 @@ private func legacyInstall(_ prefs: PrefStore) throws {
 /// The import reads the stores by their owners' keys; spelled in JIPersistence, pinned here.
 @Test @MainActor func legacyKeysArePinnedToTheirOwners() {
     #expect(TargetsStore.gateSettingsKey == GateSettingsStore.key)
-    #expect(TargetsStore.morningOverridesKey == GateConfigViewModel.morningOverridesKey)
-    #expect(TargetsStore.kpiRuleOverridesKey == GateConfigViewModel.kpiOverridesKey)
+    // W-TGT L3: the override editors are deleted; their RN-era keys are read by the import only.
+    #expect(TargetsStore.morningOverridesKey == "config_overrides.morning_gate")
+    #expect(TargetsStore.kpiRuleOverridesKey == "config_overrides.kpi_rules")
     #expect(TargetsStore.kpiTargetsCacheKey == localMirrorsKpiTargetsCacheKey)
     #expect(OutboxDrainer.knownKinds.contains(TargetsDocument.outboxKind))
 }

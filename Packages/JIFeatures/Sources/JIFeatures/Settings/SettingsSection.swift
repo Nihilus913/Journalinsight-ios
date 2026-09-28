@@ -149,11 +149,11 @@ public enum SettingsRegistry {
         EditTodaySection(),
         VersionSection(),
         DataQualitySection(),
-        GateConfigSection(),
         LocalMirrorsSection(),
         WeeklyPlanSection(),
         ExportSection(),
         HapticsSection(),
+        OnTodaySection(),   // W-TGT L3: the My KPIs square picker, under Home & widgets (spec §4)
         ]
         // W-B41: the data-source switch is a developer tool — it is not compiled into a Release
         // build at all, which is what keeps the `developer` group off Toby's phone.

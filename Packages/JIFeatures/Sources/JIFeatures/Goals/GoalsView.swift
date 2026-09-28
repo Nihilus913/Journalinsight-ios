@@ -127,6 +127,21 @@ public nonisolated enum GoalsBoard {
 /// last successful save when there is one (the hub returned it), else the loaded document.
 public nonisolated func goalsShown(hub: Goals?, saved: Goals?) -> Goals? { saved ?? hub }
 
+/// W-TGT L3: the goals the Goals overview shows once the targets document exists — the phone's
+/// own weight / steps / nutrition goals (one number per metric; the document is the truth, so a
+/// cleared goal stays cleared), the hub document only for the strength targets the phone derives
+/// from sessions. No document (nil) = the hub's, as before. No weight goal = a non-finite target,
+/// which every reader shows as "no goal" (the hero, More's row). Never a number of its own.
+public nonisolated func goalsFromTargets(_ doc: TargetsDocument?, hub: Goals?) -> Goals? {
+    guard let doc else { return hub }
+    let w = doc.goals.weight
+    let weight = WeightGoal(baseKg: w?.baseKg, targetKg: w?.targetKg ?? .nan, targetDate: w?.targetDate)
+    let strength = doc.goals.strength.isEmpty ? (hub?.strength ?? []) : doc.goals.strength
+    let m = doc.macroGoals
+    return Goals(weight: weight, strength: strength, stepsDaily: doc.goals.stepsDaily,
+                 nutrition: NutritionGoal(kcalGoal: m.targetKcal, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG))
+}
+
 /// W-FIX2 BUG-41: what More → Goals shows, gathered by the shell from the models it already loads.
 public nonisolated struct GoalsBoardInput: Sendable, Equatable {
     public var goals: Goals?
@@ -143,7 +158,8 @@ public nonisolated struct GoalsBoardInput: Sendable, Equatable {
     }
 }
 
-/// Board 3/05 Goals: hero + supporting targets + "Edit targets" → GoalsSetup. The local-only
+/// Board 3/05 Goals: hero + supporting targets + "Edit targets" → the Targets editor sheet
+/// (W-TGT L3: the weight goal; each supporting row opens its own goal's sheet). The local-only
 /// ad-hoc goals (W4-L3, `GoalStore`) are listed underneath only when some exist; the legacy
 /// "New goal" form is gone from this screen.
 public struct GoalsView: View {
@@ -152,6 +168,9 @@ public struct GoalsView: View {
     @Environment(\.nutritionGoals) private var nutritionGoals
     /// B-57 W5: this week's plan (injected by the app shell; nil = unknown → "— No data").
     @Environment(\.trainingWeekSummary) private var week
+    /// W-TGT L3: Edit and the supporting rows open the Targets editor sheet (nil = read-only).
+    @Environment(\.targetsModel) private var targetsModel
+    @State private var editing: TargetSubject?
     @Bindable var model: GoalsViewModel
     let now: () -> Date
     let board: GoalsBoardInput?
@@ -172,7 +191,6 @@ public struct GoalsView: View {
                         trackingDays: board?.trackingDays ?? 0, today: todayString)
     }
 
-    @State private var showSetup = false
 
     public var body: some View {
         // W-GUI M4 (mockup 39): the List became cards on the ground — the ONE tinted hero
@@ -202,7 +220,20 @@ public struct GoalsView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             if index > 0 { JIRowDivider().padding(.leading, 0) }
-                            targetRow(row).padding(.vertical, JISpacing.s3)
+                            if let subject = goalsRowSubject(row.title), let targetsModel {
+                                Button { editing = subject } label: {
+                                    HStack(spacing: JISpacing.s2) {
+                                        targetRow(row)
+                                        Image(systemName: JIChevronRowMetrics.chevron).font(.footnote.weight(.semibold))
+                                            .foregroundStyle(theme.color(.mutedNested)).accessibilityHidden(true)
+                                    }
+                                    .padding(.vertical, JISpacing.s3).contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Opens the goal editor")
+                            } else {
+                                targetRow(row).padding(.vertical, JISpacing.s3)
+                            }
                         }
                     }
                     .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
@@ -234,15 +265,19 @@ public struct GoalsView: View {
         .jiTheme(.native)
         .navigationTitle("Goals")
         .toolbar {
-            if setupModel != nil {
+            // W-TGT L3: Edit opens the Targets editor (the weight goal); Goals setup is not an entry
+            // any more (it wrote the hub's read-only /planning/goals).
+            if targetsModel != nil {
                 ToolbarItem(placement: .primaryAction) {
-                    JIGlassButton("pencil", label: "Edit targets") { showSetup = true }
-                        .accessibilityIdentifier("goals-edit-targets")
+                    JIGlassButton("pencil", label: "Edit targets") { editing = .goal(.weight) }
+                    .accessibilityIdentifier("goals-edit-targets")
                 }
             }
         }
-        .navigationDestination(isPresented: $showSetup) {
-            if let setupModel { GoalsSetupView(model: setupModel) }
+        .sheet(item: $editing) { subject in
+            if let targetsModel {
+                TargetEditorSheet(subject: subject, document: targetsModel.document) { next in await targetsModel.save(next) }
+            }
         }
         .task { model.load() }
     }
@@ -307,6 +342,16 @@ public struct GoalsView: View {
     }
 }
 
+
+/// W-TGT L3: the goal a supporting row edits (nil = not a typed goal: training plan, strength).
+public nonisolated func goalsRowSubject(_ title: String) -> TargetSubject? {
+    switch title {
+    case "Calories": .goal(.kcal)
+    case "Protein": .goal(.protein)
+    case "Daily steps": .goal(.steps)
+    default: nil
+    }
+}
 
 // MARK: - W-GUI M4 (mockup 39) pure helpers
 

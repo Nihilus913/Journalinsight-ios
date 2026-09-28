@@ -141,6 +141,10 @@ struct RootTabView: View {
     @State private var gateOpen = false
     @State private var gateForceConsumed = false
     @State private var goalsSetupModel: GoalsSetupViewModel?
+    /// W-TGT L3: the ONE targets document (Goals · Limits · Rules) — imported once at launch
+    /// (spec §5), injected outermost as `\.targets` + `\.targetsModel`, edited in Settings › Targets,
+    /// KPI detail and Goals, mirrored as one body (`PUT /planning/targets`).
+    @State private var targetsModel: TargetsModel?
     /// W-FIX5 fixer (Goals-stale): the goals a GoalsSetup save returned this session (More, Settings or
     /// KpiDetail), shown until the energy model reloads the same document.
     @State private var savedGoals: Goals?
@@ -292,10 +296,14 @@ struct RootTabView: View {
             invalidateProviderScopedModels()
         }
         .onAppear {
-            // B-57 W4 (Toby 2026-09-24): Toby's pre-W4 install keeps cap 175 + Avoid Zone 5 + his
+            // B-57 W4 (Toby 2026-09-24): Toby's pre-W4 install keeps its cap, Avoid Zone 5 and
             // zones; a fresh install gets nothing. Runs once, BEFORE onboarding reads the store.
             let store = GateSettingsStore(prefs: env.prefs)
             let migrated = store.migratePreW4InstallIfNeeded()
+            // W-TGT L3 (spec §5, L1 hand-off): the one-shot targets import, BEFORE anything reads
+            // targets — verbatim, missing = nil, the sleep goal never seeded — then its first
+            // mirror (queued by the import) is sent. The pre-W4 push above still goes first.
+            startTargets()
             gateSettings = store.load()
             if migrated {
                 // The hub's missing-file default is the same values, so a failed push changes nothing.
@@ -328,6 +336,7 @@ struct RootTabView: View {
             guard !shown else { return }
             onboardingModel = nil
             reloadGateSettings()
+            targetsModel?.reload()   // W-TGT: onboarding wrote its cap / zones / preset into the document
             if env.needsConnection { showConnection = true }
         }
         .onChange(of: gateSettings) { _, _ in
@@ -364,6 +373,7 @@ struct RootTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 evaluateGate()
+                if let targetsModel { Task { await targetsModel.pushIfPending() } }   // W-TGT: queued body
                 goalsSetupModel?.refreshHubPending()   // W-FIX5 DEV-15
             }
         }
@@ -431,6 +441,9 @@ struct RootTabView: View {
         // fixer2 C3-KPI-GOALS: OUTERMOST, after every `.sheet` — a sheet reads the environment
         // where its modifier sits, so the My KPIs / Settings sheets missed it when it came first.
         .environment(\.nutritionGoals, env.energyBand?.snapshot ?? .unknown)
+        // W-TGT L3: the targets document and its editor, outermost for the same reason.
+        .environment(\.targets, targetsModel?.document)
+        .environment(\.targetsModel, targetsModel)
         // B-57 W4: the user's gate settings, outermost too (Training → SessionCoach reads them).
         .environment(\.gateSettings, gateSettings)
         // B-57 W5 (A7): progression + this week for Day, Decide, Goals and GoalsSetup — outermost,
@@ -460,10 +473,50 @@ struct RootTabView: View {
         GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any GateSettingsProviding)
     }
 
-    /// Re-reads the stored settings (after onboarding, or a change in Gate thresholds).
+    /// Re-reads the stored settings (after onboarding, or a change in Targets › Limits).
     private func reloadGateSettings() {
         let latest = GateSettingsStore(prefs: env.prefs).load()
         if latest != gateSettings { gateSettings = latest }
+    }
+
+    // MARK: - W-TGT L3: the targets document
+
+    /// Launch (spec §5): import once over the app's own caches (`kpi.targets` lives in `env.cache`,
+    /// so a rule changed on the hub is carried over, never reset), build the model, send the
+    /// queued first body.
+    private func startTargets() {
+        let outbox = try? Outbox(db: .onDisk())
+        TargetsModel.migrateAtLaunch(prefs: env.prefs, cache: env.cache,
+                                     goals: (try? AppDatabase.onDisk()).map { GoalStore(db: $0) }, outbox: outbox,
+                                     log: { print("[targets] \($0)") })
+        let model = makeTargetsModel(outbox: outbox)
+        targetsModel = model
+        reloadGateSettings()
+        Task { await model.pushIfPending() }
+    }
+
+    /// The model over THIS connection's hub (rebuilt on a hub switch, like the tab models).
+    private func makeTargetsModel(outbox: Outbox?) -> TargetsModel {
+        let mirror = outbox.map { outbox in
+            TargetsMirror(prefs: env.prefs, outbox: outbox, drainer: hubScreens.map { OutboxDrainer(outbox: outbox, hub: $0) })
+        }
+        return TargetsModel(prefs: env.prefs, mirror: mirror, makeLimitsModel: { makeLimitsModel() }) { _ in
+            // A goal / limit / rule changed: Today Fuel, KPI captions, Goals (the band reads the same
+            // document), the Watch limits and the glances follow at once.
+            reloadGateSettings()
+            Task { await env.refreshEnergyBand() }
+            env.republishSnapshot()
+        }
+    }
+
+    /// The Limits engine (cap + 8-week re-check, zones, Avoid Zone 5) — Targets and Decide's
+    /// "How the morning call works" share it.
+    private func makeLimitsModel() -> GateConfigViewModel {
+        if let gateConfigModel { return gateConfigModel }
+        let model = GateConfigViewModel(prefStore: env.prefs, mirror: gateSettingsMirror(),
+                                        reminderCenter: UNUserNotificationCenter.current())
+        gateConfigModel = model
+        return model
     }
 
     /// The Watch builder takes the user's own limits (no cap and no Zone 5 avoidance ⇒ `.none`,
@@ -489,6 +542,9 @@ struct RootTabView: View {
     /// NOT drop `settingsModel`: the data-source toggle lives inside that sheet, so rebuilding it
     /// mid-flip would tear down the row the user just tapped.
     private func invalidateProviderScopedModels() {
+        // W-TGT: the mirror sends through THIS connection's hub.
+        if targetsModel != nil { targetsModel = makeTargetsModel(outbox: try? Outbox(db: .onDisk())) }
+        gateConfigModel = nil
         // Settings owns the HealthBackloadViewModel whose backloader was built on the PREVIOUS
         // HubClient — without this reset a backload after a hub-URL change still hits the old host
         // (device 2026-09-20: "network error" against a working hub).
@@ -808,7 +864,7 @@ struct RootTabView: View {
     /// W-FIX2 BUG-42 (board: "80.2 → 75.0 kg" on More AND Settings): the goal's start weight →
     /// target, from the same hub goals document Settings' row reads (`settingsGoalsTrailing`).
     private var moreGoalsRow: MoreRowValue {
-        Self.moreGoalsRowValue(goalsShown(hub: energyModel?.goals, saved: savedGoals))
+        Self.moreGoalsRowValue(goalsFromTargets(targetsModel?.storedDocument, hub: goalsShown(hub: energyModel?.goals, saved: savedGoals)))
     }
 
     static func moreGoalsRowValue(_ goals: Goals?) -> MoreRowValue {
@@ -817,14 +873,14 @@ struct RootTabView: View {
 
     /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.
     private var moreGoalsBoard: GoalsBoardInput? {
-        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult || savedGoals != nil else { return nil }
+        guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult || savedGoals != nil || targetsModel != nil else { return nil }
         let gate = todayModel?.gate
         let yesterday = String(Calendar.current.date(byAdding: .day, value: -1, to: Date())!.ISO8601Format().prefix(10))
         let nutrition = nutritionModel?.week.first { $0.date == yesterday }
         let energyDay = energyModel.report?.days.first { $0.date == yesterday }
         let stepsRow = gate?.daily.first { $0.date == yesterday }
         return GoalsBoardInput(
-            goals: goalsShown(hub: energyModel.goals, saved: savedGoals),
+            goals: goalsFromTargets(targetsModel?.storedDocument, hub: goalsShown(hub: energyModel.goals, saved: savedGoals)),
             latestKg: KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value,
             avgDeficit7d: energyModel.report?.avgDeficitCorrected7d,
             trackingDays: energyModel.report?.trackingDays ?? 0,
@@ -1068,9 +1124,11 @@ struct RootTabView: View {
     }
 
     // TEMP bridge until B-50: hub weekly gate
+    /// W-TGT L3 (L1 hand-off): the goals copy is the ONE targets document (`/planning/goals` is
+    /// read-only on the hub now).
     private func makeGoalsMirror() -> GoalsMirror? {
         guard let hub = hubScreens, let outbox = try? Outbox(db: .onDisk()) else { return nil }
-        return GoalsMirror(outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: hub))
+        return GoalsMirror(prefs: env.prefs, outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: hub))
     }
 
     private func screenUnavailable(title: String, systemImage: String) -> some View {
@@ -1209,8 +1267,7 @@ struct RootTabView: View {
                         if gateConfigModel == nil {
                             // W-FIX5 W4-1: with the mirror, so a change here reaches the hub and
                             // "Not on the hub yet" clears after the foreground push.
-                            gateConfigModel = GateConfigViewModel(targetsProvider: hubScreens as? (any KpiTargetsProviding), prefStore: env.prefs,
-                                                                  mirror: gateSettingsMirror(), reminderCenter: UNUserNotificationCenter.current())
+                            _ = makeLimitsModel()
                         }
                     }
             } else {
