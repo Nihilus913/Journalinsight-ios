@@ -7,15 +7,20 @@ import JIDesign
 public struct NutritionWeekStrip: View {
     let days: [NutritionDailyRow]
     let selectedDate: String
+    /// W-FIX8 M-2: the device's today. Set → the strip is always the seven days ending today (an
+    /// unlogged day is a plain chip, not a missing one); nil → the payload's days, as before.
+    let today: String?
     let onSelect: (String) -> Void
 
     @Environment(\.jiTheme) private var theme
 
-    public init(days: [NutritionDailyRow], selectedDate: String, onSelect: @escaping (String) -> Void) {
-        self.days = days; self.selectedDate = selectedDate; self.onSelect = onSelect
+    public init(days: [NutritionDailyRow], selectedDate: String, today: String? = nil, onSelect: @escaping (String) -> Void) {
+        self.days = days; self.selectedDate = selectedDate; self.today = today; self.onSelect = onSelect
     }
 
-    private var sorted: [NutritionDailyRow] { days.sorted { $0.date < $1.date } }
+    private var sorted: [NutritionDailyRow] {
+        today.map { nutritionStripRows(week: days, today: $0) } ?? days.sorted { $0.date < $1.date }
+    }
 
     /// §2b.4: the Fitness calendar strip. A day with logged calories is "marked" (the accent
     /// ring); an unlogged day stays plain — never a zero standing in for "not tracked" (rule 5).
@@ -48,6 +53,10 @@ public struct NutritionWeekStrip: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("nutrition-week-day-\(day.date)")
                 }
+                // W-FIX8 M-2: the chips' two marks, said once (W-GUI: logged = ring, selected = fill).
+                Text(nutritionStripLegend).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("nutrition-week-legend")
             }
         }
     }
@@ -67,4 +76,19 @@ public struct NutritionWeekStrip: View {
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
+}
+
+/// W-FIX8 M-2: the week strip's legend.
+public nonisolated let nutritionStripLegend = "Ring = food logged · filled = selected day"
+
+/// W-FIX8 M-2: the seven local days ending `today`, oldest first — each the week's row for that
+/// day, or an empty row (no kcal → no ring, never a zero) when nothing was logged.
+public nonisolated func nutritionStripRows(week: [NutritionDailyRow], today: String) -> [NutritionDailyRow] {
+    guard let end = trainingStripDate(today) else { return week.sorted { $0.date < $1.date } }
+    return (0..<7).reversed().compactMap { back in
+        trainingStripCalendar.date(byAdding: .day, value: -back, to: end).map { d in
+            let iso = trainingStripISO(d)
+            return week.first { $0.date == iso } ?? NutritionDailyRow(date: iso)
+        }
+    }
 }

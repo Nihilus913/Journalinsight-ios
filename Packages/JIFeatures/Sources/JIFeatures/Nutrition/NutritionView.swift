@@ -80,11 +80,11 @@ public struct NutritionView: View {
 
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 16) {
-            NutritionWeekStrip(days: model.week, selectedDate: model.selectedDate) { date in
+            NutritionWeekStrip(days: model.week, selectedDate: model.selectedDate, today: today) { date in
                 Task { await model.selectDate(date) }
             }
             JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
-            MacroSummaryCard(day: model.day, today: today)
+            MacroSummaryCard(day: model.day, today: today, source: model.daySource)
             JISectionHeader("Meals today")
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
             // W-GUI M2 (mockup 05): the week as bars from zero against the ±5 % goal band.

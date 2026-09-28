@@ -257,9 +257,13 @@ public final class HealthKitUploader: Sendable {
         self.calendar = calendar ?? Self.deviceCalendar()
     }
 
+    /// The launch request — the only one the app makes without a tap. W-FIX8 M-1: it asks for the
+    /// whole read set (`HKReadKind.allReadTypes`), not just the uploaded specs, so a read-only kind
+    /// added later (dietary energy/macros B-73, fibre/sugar W-FIX7) is asked for on the next launch
+    /// of a phone that granted Health before it existed. Already-answered types never re-prompt.
     public func requestAuthorization() async throws {
         guard store.isHealthDataAvailable else { throw HealthKitUploaderError.healthDataUnavailable }
-        try await store.requestAuthorization(toRead: Set(specs.map { $0.sampleType as HKObjectType }))
+        try await store.requestAuthorization(toRead: Set(specs.map { $0.sampleType as HKObjectType }).union(HKReadKind.allReadTypes))
     }
 
     /// Enables background delivery for every configured metric and registers an observer that
