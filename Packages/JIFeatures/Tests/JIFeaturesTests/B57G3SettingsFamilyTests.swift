@@ -197,10 +197,10 @@ private func q(_ source: String, _ dso: Int, _ metric: String, _ composite: Doub
 
 @Test func healthReadListNamesWhatJIReadsAndNeverClaimsWorkouts() {
     let granted = healthReadRows(permission: .granted, capabilities: [.hrvSDNN, .hrvRMSSD])
-    #expect(granted.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts"])
+    #expect(granted.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts", "Food"])
     #expect(granted[0].subtitle == "RMSSD, the gate signal")
     #expect(granted[0].status == BoardStatus(word: "Read", systemImage: "checkmark", role: .go))
-    #expect(granted[3].status.word == "Not read yet")
+    #expect(granted[3].status.word == "Read" && granted[4].status.word == "Read")
     let sdnnOnly = healthReadRows(permission: .granted, capabilities: [.hrvSDNN])
     #expect(sdnnOnly[0].subtitle == "SDNN until RMSSD is in Health")
     let asked = healthReadRows(permission: .notDetermined, capabilities: [.hrvSDNN])

@@ -595,6 +595,8 @@ public final class TodayWorkoutsModel {
     /// first read landed. The Live Activity waits for it: a launch that drove the activity before
     /// Health answered requested a fresh card, then ended it as "done" — one more card per relaunch.
     public var isSettled: Bool { source == nil || hasRead }
+    /// W-FIX7: a Health workouts read succeeded this launch (Settings › Apple Health "Workouts" row).
+    public var hasReadHealth: Bool { hasRead }
 
     /// Re-reads Health. A failed read keeps the last rows (never flips a done session back).
     public func refresh() async {

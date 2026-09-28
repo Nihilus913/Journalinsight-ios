@@ -743,7 +743,8 @@ struct RootTabView: View {
                     Button { showSettings = true } label: {
                         JIChevronRow {
                             MoreRowLabel("Apple Health", systemImage: "heart.text.square",
-                                         value: MoreRowValue(lead: moreAppleHealthText(lastUpload: healthKitLastUploadDate()), rest: "", style: .muted))
+                                         value: MoreRowValue(lead: moreAppleHealthText(lastUpload: healthKitLastUploadDate(),
+                                                                                      readLocally: TodayWorkoutsModel.shared.hasReadHealth || !HealthDailyTotalsFeed.shared.latest.isEmpty), rest: "", style: .muted))
                         }
                     }
                         .buttonStyle(.plain)

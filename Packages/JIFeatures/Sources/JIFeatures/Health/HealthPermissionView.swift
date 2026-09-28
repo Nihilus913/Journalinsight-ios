@@ -73,8 +73,8 @@ nonisolated struct HealthReadRow: Sendable, Equatable, Identifiable {
 }
 
 /// What JI reads from Apple Health and whether it can. HealthKit never confirms a read grant, so
-/// "Read" means access was answered (JI then sees data after the first sync). Workouts are on the
-/// board but no read path ships yet, so that row says so instead of claiming it.
+/// "Read" means access was answered (JI then sees data after the first sync). W-FIX7: Workouts
+/// (session done) and Food (macros, fibre, sugar) are read on this iPhone, never uploaded.
 nonisolated func healthReadRows(permission: HKPermission, capabilities: DataCapability) -> [HealthReadRow] {
     let status: BoardStatus = switch permission {
     case .granted: BoardStatus(word: "Read", systemImage: "checkmark", role: .go)
@@ -86,8 +86,8 @@ nonisolated func healthReadRows(permission: HKPermission, capabilities: DataCapa
         HealthReadRow(title: "Overnight HRV", subtitle: hrvSubtitle, systemImage: "waveform.path", tint: .reduced, status: status),
         HealthReadRow(title: "Sleep", subtitle: "Duration and stages", systemImage: "moon", tint: .info, status: status),
         HealthReadRow(title: "Resting HR", subtitle: "Overnight only", systemImage: "heart", tint: .danger, status: status),
-        HealthReadRow(title: "Workouts", subtitle: "Feeds training load", systemImage: "dumbbell", tint: .muted,
-                      status: BoardStatus(word: "Not read yet", systemImage: "minus", role: .muted)),
+        HealthReadRow(title: "Workouts", subtitle: "Marks today's session done", systemImage: "dumbbell", tint: .muted, status: status),
+        HealthReadRow(title: "Food", subtitle: "Calories, macros, fibre, sugar", systemImage: "fork.knife", tint: .info, status: status),
     ]
 }
 
@@ -118,17 +118,36 @@ nonisolated func healthReadArrivals(_ record: UserDefaults? = UserDefaults(suite
                        restingHR: HealthKitArrival.lastUpload(for: [.restingHeartRate], in: record))
 }
 
-/// The "JI reads" rows with the arrival-based status on the read types; Workouts keep their
-/// honest "Not read yet" (no read path ships yet).
-nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, now: Date = Date()) -> [HealthReadRow] {
+/// W-FIX7: what this iPhone read from Health this launch (Workouts, Food are never uploaded, so
+/// their row keys off the local read, not an upload time).
+nonisolated struct HealthLocalReads: Sendable, Equatable {
+    var workouts = false, food = false
+    static let none = HealthLocalReads()
+}
+
+nonisolated func healthLocalReadStatus(_ read: Bool) -> BoardStatus {
+    read ? BoardStatus(word: "Read on iPhone", systemImage: "checkmark", role: .go)
+         : BoardStatus(word: "No data yet", systemImage: "minus", role: .muted)
+}
+
+/// The "JI reads" rows with the arrival-based status on the uploaded types and the local read on
+/// Workouts / Food.
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, lastUpload: Date?, local: HealthLocalReads = .none,
+                                       now: Date = Date()) -> [HealthReadRow] {
     healthReadRowsArrival(capabilities: capabilities,
-                          arrivals: HealthReadArrivals(hrv: lastUpload, sleep: lastUpload, restingHR: lastUpload), now: now)
+                          arrivals: HealthReadArrivals(hrv: lastUpload, sleep: lastUpload, restingHR: lastUpload), local: local, now: now)
 }
 
 /// DEV-12: each row's status keys off ITS type's last upload — never a permission lookup.
-nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: HealthReadArrivals, now: Date = Date()) -> [HealthReadRow] {
+nonisolated func healthReadRowsArrival(capabilities: DataCapability, arrivals: HealthReadArrivals, local: HealthLocalReads = .none,
+                                       now: Date = Date()) -> [HealthReadRow] {
     let byTitle = ["Overnight HRV": arrivals.hrv, "Sleep": arrivals.sleep, "Resting HR": arrivals.restingHR]
+    let localByTitle = ["Workouts": local.workouts, "Food": local.food]
     return healthReadRows(permission: .notDetermined, capabilities: capabilities).map { row in
+        if let read = localByTitle[row.title] {
+            return HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint,
+                                 status: healthLocalReadStatus(read))
+        }
         guard let arrival = byTitle[row.title] else { return row }
         return HealthReadRow(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage, tint: row.tint,
                              status: healthArrivalStatus(lastUpload: arrival, now: now))
@@ -231,7 +250,9 @@ public struct HealthPermissionBoardSections: View {
             }
         }
         Section("JI reads") {
-            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, arrivals: healthReadArrivals())) { row in
+            ForEach(healthReadRowsArrival(capabilities: model.appleWatchCapabilities, arrivals: healthReadArrivals(),
+                                           local: HealthLocalReads(workouts: TodayWorkoutsModel.shared.hasReadHealth,
+                                                                   food: !HealthDailyTotalsFeed.shared.latest.isEmpty))) { row in
                 SettingsLinkLabel(title: row.title, subtitle: row.subtitle, systemImage: row.systemImage,
                                   badge: row.status, tint: theme.color(row.tint))
                 .accessibilityElement(children: .combine)

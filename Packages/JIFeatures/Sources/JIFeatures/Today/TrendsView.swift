@@ -183,8 +183,10 @@ public struct TrendsView: View {
                         .foregroundStyle(theme.color(c.status.role))
                     NormalBar(value: c.value, normal: c.normal?.range, median: c.normal?.median, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // W-FIX7 F7-5: fill the grid row so tiles in a row are equal height (W-GUI equal tiles).
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxHeight: .infinity)
             .opacity(editing && hidden ? 0.45 : 1)
             .overlay(alignment: .topTrailing) {
                 if editing {

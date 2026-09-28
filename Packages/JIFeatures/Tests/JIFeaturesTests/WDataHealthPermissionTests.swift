@@ -47,11 +47,11 @@ import JIHealthKit
     let sleep = Date(timeIntervalSince1970: 1_790_208_000 + 6 * 3600)
     let rows = healthReadRowsArrival(capabilities: [.hrvRMSSD],
                                      arrivals: HealthReadArrivals(hrv: nil, sleep: sleep, restingHR: nil), now: now)
-    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts"])
+    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts", "Food"])
     #expect(rows[0].status.word == "No data yet")
     #expect(rows[1].status.word.hasPrefix("Connected"))
     #expect(rows[2].status.word == "No data yet")
-    #expect(rows[3].status.word == "Not read yet")
+    #expect(rows[3].status.word == "No data yet" && rows[4].status.word == "No data yet")
     #expect(!rows.contains { $0.status.word == "Declined" })
 }
 

@@ -118,8 +118,10 @@ public struct MoreRowLabel: View {
 /// W-GUI M1 (mockup 08, report §7 rule 6): the More screen's Apple Health row — "Connected" means
 /// data ARRIVED (a 2xx upload time), never that iOS reported a permission; no upload yet →
 /// "No data yet". Same instant the PF-04 pill uses.
-public nonisolated func moreAppleHealthText(lastUpload: Date?, now: Date = Date(), calendar: Calendar = .autoupdatingCurrent) -> String {
-    guard let lastUpload else { return "No data yet" }
+/// W-FIX7: with no upload yet but a Health read on this iPhone (workouts, food) → "Read on iPhone".
+public nonisolated func moreAppleHealthText(lastUpload: Date?, readLocally: Bool = false, now: Date = Date(),
+                                            calendar: Calendar = .autoupdatingCurrent) -> String {
+    guard let lastUpload else { return readLocally ? "Read on iPhone" : "No data yet" }
     let c = calendar.dateComponents([.day, .month, .hour, .minute], from: lastUpload)
     let time = String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     if calendar.isDate(lastUpload, inSameDayAs: now) { return "Connected · last upload \(time)" }

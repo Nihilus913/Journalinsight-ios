@@ -11,8 +11,8 @@ import JICore
     #expect(healthArrivalStatus(lastUpload: today, now: now, calendar: utc).word == "Connected · 07:41")
     #expect(healthArrivalStatus(lastUpload: nil, now: now, calendar: utc).word == "No data yet")
     let rows = healthReadRowsArrival(capabilities: [.hrvRMSSD], lastUpload: today, now: now)
-    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts"])
-    #expect(rows[0].status.word.hasPrefix("Connected") && rows[3].status.word == "Not read yet")
+    #expect(rows.map(\.title) == ["Overnight HRV", "Sleep", "Resting HR", "Workouts", "Food"])
+    #expect(rows[0].status.word.hasPrefix("Connected") && rows[3].status.word == "No data yet")
     #expect(!rows.contains { $0.status.word == "Declined" })
 }
 
