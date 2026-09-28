@@ -282,6 +282,34 @@ public struct DecideView: View {
     private var wasCaption: String? { override == nil ? nil : effectiveVerdict(parts: verdict, override: override).wasCaption }
     private var submitting: Bool { overrideModel?.phase == .submitting }
 
+    /// The session row's label (W-FIX5 W5-3 stacking; W-FIX7 F7-1 the Apple Health status line).
+    @ViewBuilder
+    private func sessionRowLabel(_ row: (title: String, detail: String), lift: (kg: String, caption: String?)?,
+                                 completion: SessionCompletion) -> some View {
+        if decideSessionRowStacked(typeSize) {
+            VStack(alignment: .leading, spacing: JISpacing.s1) {
+                JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
+                Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let lift { sessionLiftText(lift, alignment: .leading) }
+                SessionCompletionLine(completion: completion)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if completion.statusText != nil {
+            VStack(alignment: .leading, spacing: JISpacing.s1) {
+                HStack(spacing: JISpacing.s2) {
+                    JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+                    if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
+                }
+                SessionCompletionLine(completion: completion)
+                    .padding(.leading, JIChevronRowMetrics.iconWell + JISpacing.s3)
+            }
+        } else {
+            JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
+            if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
+        }
+    }
+
     /// B-57 W5 C4: the first lift's next weight, "↑ Bench up" under it when due.
     private func sessionLiftText(_ lift: (kg: String, caption: String?), alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 2) {
@@ -452,30 +480,7 @@ public struct DecideView: View {
                     let lift = completion.isDone ? nil : decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
                                                       lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
-                        JIChevronRow {
-                            if decideSessionRowStacked(typeSize) {
-                                VStack(alignment: .leading, spacing: JISpacing.s1) {
-                                    JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
-                                    Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    if let lift { sessionLiftText(lift, alignment: .leading) }
-                                    SessionCompletionLine(completion: completion)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            } else if completion.statusText != nil {
-                                VStack(alignment: .leading, spacing: JISpacing.s1) {
-                                    HStack(spacing: JISpacing.s2) {
-                                        JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
-                                        if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
-                                    }
-                                    SessionCompletionLine(completion: completion)
-                                        .padding(.leading, JIChevronRowMetrics.iconWell + JISpacing.s3)
-                                }
-                            } else {
-                                JIChevronRowLabel(title: row.title, value: row.detail, systemImage: "dumbbell")
-                                if let lift { sessionLiftText(lift, alignment: .trailing).fixedSize() }
-                            }
-                        }
+                        JIChevronRow { sessionRowLabel(row, lift: lift, completion: completion) }
                         .padding(.horizontal, JISpacing.s4)
                     }
                     .task { if !offscreen { await progression?.refreshIfNeeded() } }
