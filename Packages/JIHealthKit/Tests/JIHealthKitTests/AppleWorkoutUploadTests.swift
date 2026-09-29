@@ -420,6 +420,35 @@ enum WorkoutFixture {
         #expect(!AppleWorkoutFilter.isHubBackload(fromThisApp: false, syncIdentifier: nil))
     }
 
+    /// W-B81 fixer (F-2): a workout's HR series drops this app's own HR (the Garmin backload's
+    /// dense HR would leak into an Apple workout) EXCEPT samples carrying the debug-seed marker —
+    /// the sim has no Watch, so the seeder writes HR as this app and marks it.
+    @Test func workoutHeartRateKeepsForeignAndDebugSeededSamplesOnly() throws {
+        #expect(AppleWorkoutFilter.debugSeedMetadataKey == "JIDebugSeed")
+        let own = NSPredicate(format: "sourceRevision.source.bundleIdentifier == %@", "ji.own")
+        let p = try #require(AppleWorkoutFilter.workoutHeartRateSourcePredicate(ownSource: own) as? NSCompoundPredicate)
+        #expect(p.compoundPredicateType == .or)
+        #expect(p.subpredicates.count == 2)
+        let notOurs = try #require(p.subpredicates.first as? NSCompoundPredicate)
+        #expect(notOurs.compoundPredicateType == .not)
+        #expect((notOurs.subpredicates.first as? NSPredicate) === own)
+        #expect(String(describing: p.subpredicates.last!).contains("JIDebugSeed"))
+    }
+
+    /// W-B81 fixer (F-2): the Watch's last HR reading sits exactly on the workout's end instant;
+    /// the overlap window `predicateForSamples(start, end, [])` dropped it (the workout's own max HR
+    /// counts it). The window is closed at both ends on the sample's start.
+    @Test func workoutHeartRateWindowIsClosedAtBothEnds() {
+        let start = Date(timeIntervalSince1970: 1_000), end = Date(timeIntervalSince1970: 3_100)
+        let p = AppleWorkoutFilter.workoutHeartRateWindowPredicate(start: start, end: end)
+        let atStart = NSDictionary(dictionary: ["startDate": start])
+        let atEnd = NSDictionary(dictionary: ["startDate": end])
+        let before = NSDictionary(dictionary: ["startDate": start.addingTimeInterval(-1)])
+        let after = NSDictionary(dictionary: ["startDate": end.addingTimeInterval(1)])
+        #expect(p.evaluate(with: atStart) && p.evaluate(with: atEnd))
+        #expect(!p.evaluate(with: before) && !p.evaluate(with: after))
+    }
+
     @Test func zoneDurationsAreNumberedFromOneInIndexOrder() {
         let zones = AppleWorkoutMapper.zoneTimes([
             (index: 2, lower: 140, upper: 155, seconds: 910.4), (index: 0, lower: nil, upper: 125, seconds: 240),

@@ -150,11 +150,12 @@ extension RealHealthStoreReader: HealthStoreWorkoutUploadReading {
     }
 
     /// Every HR reading inside the workout (series samples expanded), excluding this app's own
-    /// writes (the Garmin backload's dense HR would otherwise leak into an Apple workout).
+    /// writes (the Garmin backload's dense HR would otherwise leak into an Apple workout) unless
+    /// they carry the debug-seed marker (`AppleWorkoutFilter.workoutHeartRateSourcePredicate`).
     private func heartRateSeries(for w: HKWorkout, unit: HKUnit) async throws -> [AppleWorkoutRecord.HRSample] {
-        let window = HKQuery.predicateForSamples(withStart: w.startDate, end: w.endDate, options: [])
-        let notOurs = NSCompoundPredicate(notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: HKSource.default()))
-        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [window, notOurs])
+        let window = AppleWorkoutFilter.workoutHeartRateWindowPredicate(start: w.startDate, end: w.endDate)
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [window, AppleWorkoutFilter.workoutHeartRateSourcePredicate(
+            ownSource: HKQuery.predicateForObjects(from: HKSource.default()))])
         let box = Accumulator<AppleWorkoutRecord.HRSample>()
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
             let q = HKQuantitySeriesSampleQuery(quantityType: HKWorkoutUploadTypes.heartRate, predicate: predicate) { _, quantity, interval, _, done, error in
