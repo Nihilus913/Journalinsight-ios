@@ -1,17 +1,12 @@
 import Foundation
 
-/// W4-L3 — the goals-setup screen's own write slice (reads reuse the frozen
-/// `EnergyProviding.goals()`, same `GET /api/v1/planning/goals` route the Energy tab already
-/// calls — see `CONTEXT-IOS-FOUNDATION.md`'s pattern of one protocol per screen's hub routes).
-public protocol GoalsProviding: Sendable {
-    /// `PUT /api/v1/planning/goals`
-    func updateGoals(_ patch: GoalsUpdate) async throws -> Goals
-}
-
-/// `GoalsSetupView`/`GoalsSetupViewModel` need both the read (`EnergyProviding.goals()`) and the
-/// write (`GoalsProviding.updateGoals`) — a single composed existential lets call sites pass one
-/// provider instance (e.g. `HubDataProvider`, which conforms to both) instead of threading two.
-public typealias GoalsSetupProviding = EnergyProviding & GoalsProviding
+/// W-FIX10 F10-1 (audit 03-F1): the goals screen reads the hub's goals document
+/// (`EnergyProviding.goals()`, `GET /api/v1/planning/goals`) and writes nothing to the hub
+/// directly — weight / strength / steps go into the phone's `TargetsStore` and reach the hub as
+/// the ONE targets body (outbox kind `targets`, `PUT /planning/targets`). The old write slice
+/// `GoalsProviding.updateGoals` (`PUT /planning/goals`, removed hub-side → a 405 on every save,
+/// replayed forever from the outbox) is gone.
+public typealias GoalsSetupProviding = EnergyProviding
 
 /// Port of `mobile/src/data/useGoals.ts::mergeGoals` — applies a `GoalsUpdate` patch the same way
 /// the server does (`app.planning.service.update_goals`): an omitted or explicit-nil field at any

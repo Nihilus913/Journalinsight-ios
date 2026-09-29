@@ -475,7 +475,7 @@ struct RootTabView: View {
 
     /// B-57 W4: the hub mirror for gate settings over the current provider (nil = local only).
     private func gateSettingsMirror() -> GateSettingsMirror {
-        GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any GateSettingsProviding)
+        GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any TargetsProviding)
     }
 
     /// Re-reads the stored settings (after onboarding, or a change in Targets › Limits).

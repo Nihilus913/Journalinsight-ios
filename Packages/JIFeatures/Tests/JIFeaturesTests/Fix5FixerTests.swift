@@ -94,14 +94,18 @@ private func fix5Source(_ relative: String) throws -> String {
 /// read the energy model's goals, which nothing refreshed. A save reports its result.
 @Test @MainActor func goalsSaveReportsTheSavedGoals() async throws {
     var reported: Goals?
-    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(), onGoalsSaved: { reported = $0 })
+    let db = try AppDatabase.inMemory()
+    let outbox = Outbox(db: db)
+    let targets = TargetsMirror(prefs: PrefStore(db: db), outbox: outbox, drainer: OutboxDrainer(outbox: outbox, hub: TargetsHubFake()))
+    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(), mirror: GoalsMirror(targets: targets), onGoalsSaved: { reported = $0 })
     await vm.load()
     #expect(await vm.save(GoalsUpdate(stepsDaily: 12000)))
     #expect(reported?.stepsDaily == 12000)
     #expect(goalsShown(hub: nil, saved: reported)?.stepsDaily == 12000)
 
     var failed: Goals?
-    let bad = GoalsSetupViewModel(provider: GoalsFakeProvider(updateFails: .network("down")), onGoalsSaved: { failed = $0 })
+    // W-FIX10 F10-1: only a phone that could not store the save (no targets store) fails.
+    let bad = GoalsSetupViewModel(provider: GoalsFakeProvider(), onGoalsSaved: { failed = $0 })
     #expect(!(await bad.save(GoalsUpdate(stepsDaily: 9000))))
     #expect(failed == nil)
 }

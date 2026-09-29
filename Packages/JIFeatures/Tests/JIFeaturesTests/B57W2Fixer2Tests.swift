@@ -44,7 +44,6 @@ private nonisolated struct LoadFailsProvider: GoalsSetupProviding {
     let inner = MockDataProvider()
     func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
     func goals() async throws -> Goals { throw HubError.network("timed out") }
-    func updateGoals(_ patch: GoalsUpdate) async throws -> Goals { try await inner.updateGoals(patch) }
 }
 
 @Test @MainActor func fixer2_deliveredSaveClearsTheHubOfflineAndPendingStatus() async throws {

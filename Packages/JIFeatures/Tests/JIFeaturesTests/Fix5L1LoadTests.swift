@@ -26,9 +26,6 @@ private nonisolated struct Fix5LoadProvider: HealthDataProvider, NutritionProvid
     func nutritionDay(date: String) async throws -> NutritionDayDetail? { try await inner.nutritionDay(date: date) }
     func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { try await inner.nutritionWeek(windowDays: windowDays) }
     func kpiTargets() async throws -> [KpiTarget] { try await inner.kpiTargets() }
-    func updateKpiTarget(id: Int, threshold: Double, thresholdHi: Double?, description: String?) async throws -> KpiTarget {
-        try await inner.updateKpiTarget(id: id, threshold: threshold, thresholdHi: thresholdHi, description: description)
-    }
     func recoveryInputs(date: String, windowDays: Int) async throws -> [RecoveryInputDay] {
         MockDataProvider.recoveryInputDays(date: date, windowDays: windowDays)
     }

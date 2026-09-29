@@ -9,7 +9,7 @@ import JIPersistence
 // the user's; a fresh install has none and nothing is pre-filled.
 @MainActor struct OnboardingTests {
     private func make(prefs: PrefStore? = nil) throws -> (OnboardingViewModel, PrefStore, FakeNotificationCenter, GateSettingsHubFake) {
-        let p = try prefs ?? PrefStore(db: AppDatabase.inMemory())
+        let p = try prefs ?? postImportPrefs()
         let hub = GateSettingsHubFake(); let center = FakeNotificationCenter()
         let vm = OnboardingViewModel(prefs: p, mirror: GateSettingsMirror(prefs: p, provider: hub),
                                      reminderCenter: center, nightsSoFar: nil, today: { "2026-09-24" })

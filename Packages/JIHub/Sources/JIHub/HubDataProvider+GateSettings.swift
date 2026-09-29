@@ -5,8 +5,4 @@ extension HubDataProvider: GateSettingsProviding {
     public func gateSettings() async throws -> GateSettingsDTO {
         try await client.get("/api/v1/planning/gate-settings")
     }
-
-    public func putGateSettings(_ body: GateSettingsBody) async throws -> GateSettingsDTO {
-        try await client.send("PUT", "/api/v1/planning/gate-settings", body: body)
-    }
 }

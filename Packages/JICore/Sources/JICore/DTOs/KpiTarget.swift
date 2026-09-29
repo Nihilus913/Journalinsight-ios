@@ -23,23 +23,3 @@ public struct KpiTargetsResponse: Codable, Sendable, Equatable {
     public var targets: [KpiTarget]
     public init(targets: [KpiTarget]) { self.targets = targets }
 }
-
-/// `PUT /api/v1/planning/kpi-targets/{id}` body (`KpiTargetUpdate`, `extra="forbid"` server-side —
-/// send exactly these three fields, nothing else). `HubClient.send` encodes with a plain
-/// `JSONEncoder()` (no `.convertToSnakeCase`, see its doc comment), so this type snake-cases its
-/// own wire keys explicitly, same convention as `ExerciseUpdate` (W3a).
-public struct KpiTargetUpdateBody: Encodable, Sendable {
-    public var threshold: Double
-    public var thresholdHi: Double?
-    public var description: String?
-
-    public init(threshold: Double, thresholdHi: Double? = nil, description: String? = nil) {
-        self.threshold = threshold; self.thresholdHi = thresholdHi; self.description = description
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case threshold
-        case thresholdHi = "threshold_hi"
-        case description
-    }
-}

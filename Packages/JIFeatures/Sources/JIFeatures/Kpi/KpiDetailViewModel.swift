@@ -5,9 +5,9 @@ import JIDesign
 import JIPersistence
 
 /// KPI detail view model (W3b-L2, P-kpi). One metric's history (Swift Charts) + its matching gate
-/// rule(s), with an inline threshold editor that round-trips through
-/// `KpiTargetsProviding.updateKpiTarget` (PUT). Same section-loading/error-precedence discipline as
-/// `KpiListViewModel`/`EnergyViewModel`.
+/// rule(s). Same section-loading/error-precedence discipline as `KpiListViewModel`/`EnergyViewModel`.
+/// W-FIX10 F10-1: the threshold write (`saveThreshold` → `PUT /kpi-targets/{id}`, removed hub-side,
+/// no call site) is gone; a rule threshold is edited in Targets › Rules.
 @Observable @MainActor
 public final class KpiDetailViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, error(String) }
@@ -63,8 +63,6 @@ public final class KpiDetailViewModel {
         case .error(let message): .error(message)
         }
     }
-    public private(set) var saving = false
-    public private(set) var saveError: String?
 
     private let healthProvider: any HealthDataProvider
     private let nutritionProvider: any NutritionProviding
@@ -299,29 +297,6 @@ public final class KpiDetailViewModel {
         loadDays = days
         loadToday = today
         loadReading = recoveryLoadReading(days: days, today: today)
-    }
-
-    /// `PUT /api/v1/planning/kpi-targets/{id}` round trip — the inline editor's only write path.
-    /// A failure leaves `target` untouched and surfaces the hub's own `detail` verbatim via
-    /// `saveError` (never a silently-swallowed failure, CLAUDE.md rule 4).
-    public func saveThreshold(_ newThreshold: Double) async {
-        guard let target else { return }
-        saving = true
-        saveError = nil
-        do {
-            let updated = try await targetsProvider.updateKpiTarget(
-                id: target.targetId, threshold: newThreshold, thresholdHi: target.thresholdHi, description: target.description
-            )
-            if let i = targets.firstIndex(where: { $0.targetId == updated.targetId }) { targets[i] = updated } else { targets.append(updated) }
-            // Re-fetch the full list rather than caching a synthetic one-row array under the key
-            // `KpiListViewModel` also reads — a partial overwrite here would corrupt its cache.
-            if let full = try? await targetsProvider.kpiTargets() {
-                try? cache.put(Self.keys.targets, full)
-            }
-        } catch {
-            saveError = Self.describe(error)
-        }
-        saving = false
     }
 
     private static func describe(_ error: Error) -> String {

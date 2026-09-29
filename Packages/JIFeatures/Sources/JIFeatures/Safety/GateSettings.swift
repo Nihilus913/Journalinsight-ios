@@ -61,11 +61,6 @@ public nonisolated struct GateSettings: Codable, Equatable, Sendable {
     /// The Zone 5 floor to stay under, only when the user chose to avoid Zone 5 and has zones.
     public var zone5FloorBpm: Int? { avoidZone5 ? zones?.zone5FloorBpm : nil }
     public var workoutLimits: WorkoutHrLimits { WorkoutHrLimits(capBpm: hrCapBpm, zone5FloorBpm: zone5FloorBpm) }
-    /// The hub mirror body (`PUT /planning/gate-settings`).
-    public var body: GateSettingsBody {
-        GateSettingsBody(preset: preset.rawValue, hrCapBpm: hrCapBpm, avoidZone5: avoidZone5, zoneFloorsBpm: zones?.floorsBpm)
-    }
-
     public init(preset: GatePreset = .balanced, hrCapBpm: Int? = nil, avoidZone5: Bool = false,
                 zones: HrZones? = nil, hrCapConfirmedOn: String? = nil) {
         self.preset = preset; self.hrCapBpm = hrCapBpm; self.avoidZone5 = avoidZone5

@@ -11,12 +11,11 @@ import JIPersistence
 /// A hub that behaves like the real one after W-FIX8 (HT `save_targets` + JIHub
 /// `HubDataProvider.putTargets`): a goals-empty body without `clearAllGoals` over stored goals is
 /// refused with `TargetsWouldClearGoals` and nothing is written. Counts every write it takes.
-final class GuardedTargetsHub: TargetsProviding, GateSettingsProviding, @unchecked Sendable {
+final class GuardedTargetsHub: TargetsProviding, @unchecked Sendable {
     var stored: TargetsDocument
     var puts: [TargetsDocument] = []
     var refusals = 0
     var reads = 0
-    var gatePuts = 0
     var down = false
 
     init(_ stored: TargetsDocument) { self.stored = stored }
@@ -34,10 +33,6 @@ final class GuardedTargetsHub: TargetsProviding, GateSettingsProviding, @uncheck
         puts.append(document)
         var s = document; s.clearAllGoals = false; stored = s
         return s
-    }
-    func gateSettings() async throws -> GateSettingsDTO { throw HubError.http(status: 404, detail: nil) }
-    func putGateSettings(_ body: GateSettingsBody) async throws -> GateSettingsDTO {
-        gatePuts += 1; throw HubError.http(status: 405, detail: nil)
     }
 }
 
@@ -180,7 +175,7 @@ private let hubGoals: TargetsDocument = {
     let mirror = GateSettingsMirror(prefs: prefs, provider: hub)
     try prefs.set(GateSettingsMirror.pendingKey, true)
     #expect(await mirror.pushIfPending() == false)     // refused, stays pending; hub untouched
-    #expect(hub.puts.isEmpty && hub.stored == hubGoals && hub.gatePuts == 0)
+    #expect(hub.puts.isEmpty && hub.stored == hubGoals)
     // After the launch seed the phone carries the hub's goals, and the retry goes through.
     await TargetsMirror.seedFromHubIfNeeded(store: TargetsStore(prefs: prefs), hub: hub)
     #expect(await mirror.pushIfPending())

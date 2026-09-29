@@ -17,7 +17,6 @@ struct GateSettingsTests {
         #expect(s.hrCapBpm == nil && !s.hasCap && !s.hrCapChosen)
         #expect(s.zones == nil && s.avoidZone5 == false && s.zone5FloorBpm == nil)
         #expect(s.workoutLimits == .none)
-        #expect(s.body == GateSettingsBody(preset: "balanced", hrCapBpm: nil, avoidZone5: false, zoneFloorsBpm: nil))
     }
 
     @Test func legacyPreW4IsTobysInstall() {
@@ -25,7 +24,6 @@ struct GateSettingsTests {
         #expect(s.preset == .balanced && s.hrCapBpm == 175 && s.avoidZone5 && s.zones == .legacyPreW4)
         #expect(s.hrCapConfirmedOn == nil)
         #expect(s.workoutLimits == WorkoutHrLimits(capBpm: 175, zone5FloorBpm: 176))
-        #expect(s.body == GateSettingsBody(preset: "balanced", hrCapBpm: 175, avoidZone5: true, zoneFloorsBpm: [97, 117, 139, 160, 176]))
     }
 
     @Test func avoidZone5NeedsZones() {

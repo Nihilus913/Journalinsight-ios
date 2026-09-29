@@ -57,40 +57,37 @@ nonisolated struct Fix6L3RecoveryWindowProvider: HealthDataProvider {
 
 // MARK: - F6-4 Goals "pending" / "Couldn't save" clear live after the foreground drain
 
-@MainActor final class Fix6L3GoalsHub: GoalsSetupProviding, @unchecked Sendable { // test-only, MainActor-confined
+/// Goals read that fails until `up` (lock-guarded: `goals()` is nonisolated).
+final class Fix6L3GoalsHub: GoalsSetupProviding, @unchecked Sendable { // test-only
     let inner = MockDataProvider()
-    var fail: HubError? = .network("down")
-    var patches: [GoalsUpdate] = []
-    nonisolated func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
-    nonisolated func goals() async throws -> Goals { try await inner.goals() }
-    nonisolated func updateGoals(_ patch: GoalsUpdate) async throws -> Goals {
-        let fail = await MainActor.run { self.fail }
-        if let fail { throw fail }
-        await MainActor.run { patches.append(patch) }
-        return try await inner.updateGoals(patch)
+    private let lock = NSLock()
+    private var _up = false
+    var up: Bool { get { lock.withLock { _up } } set { lock.withLock { _up = newValue } } }
+    func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
+    func goals() async throws -> Goals {
+        guard up else { throw HubError.network("down") }
+        return try await inner.goals()
     }
 }
 
 @MainActor final class Fix6L3PendingBox { var pending = false }
 
-@Test @MainActor func f6_4PendingAndSaveErrorClearOnceTheDrainDelivered() async throws {
+/// W-FIX10 F10-1: a save is local now (no failed weight/steps patch to re-send); what clears live
+/// once the drain delivered is the pending line and a load-time hub error.
+@Test @MainActor func f6_4PendingAndLoadErrorClearOnceTheDrainDelivered() async throws {
     let hub = Fix6L3GoalsHub()
     let box = Fix6L3PendingBox()
     let vm = GoalsSetupViewModel(provider: hub, hubPendingSource: { box.pending }, hubPollInterval: .milliseconds(5))
-    hub.fail = nil
     await vm.load()
-    hub.fail = .network("down")
-    let patch = GoalsUpdate(stepsDaily: 12000)
-    #expect(await vm.save(patch) == false)
-    box.pending = true                 // the nutrition mirror is queued
+    guard case .error = vm.phase else { Issue.record("expected the load error"); return }
+    box.pending = true                 // a targets body is queued
     vm.refreshHubPending()             // scene .active: runs BEFORE the drain finished
     #expect(vm.hubPending)
-    hub.fail = nil; box.pending = false  // the foreground drain delivered
+    hub.up = true; box.pending = false // the foreground drain delivered
     await vm.hubWatch?.value
     #expect(!vm.hubPending)
-    #expect(vm.phase == .loaded)       // no "Couldn't save — try again." left over
-    #expect(hub.patches.count == 1)    // the failed weight/steps patch went out once the hub was back
-    #expect(vm.savedAt != nil)
+    #expect(vm.phase == .loaded)       // no stale "Hub offline" left over
+    #expect(vm.goals != nil)
 }
 
 @Test @MainActor func f6_4WatcherStopsWhileStillPendingAfterItsBudget() async throws {
