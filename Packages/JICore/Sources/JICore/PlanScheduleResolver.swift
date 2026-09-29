@@ -54,6 +54,10 @@ public nonisolated struct PlanScheduleResolver: Sendable, Equatable {
         return week[weekday]
     }
 
+    /// The served `/planning/week` answer for `iso`; nil when no week was served or it does not
+    /// cover that date.
+    public func servedSession(on iso: String) -> ScheduledSession? { byDate[iso] }
+
     /// The served week as Mon…Sun sessions; nil unless every weekday 0…6 is present exactly once.
     static func served(_ w: PlanWeekOut?, fixedWeek: [ScheduledSession])
         -> (week: [ScheduledSession], byDate: [String: ScheduledSession])? {

@@ -89,18 +89,22 @@ public final class TodayViewModel {
     private let prefs: PrefStore?
     private let now: () -> Date
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
-                               exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason")
+                               exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason",
+                               planWeek: "today.planWeek")
 
     /// W-FIX10 R-01: the active plan's sessions (`GET /planning/plan-sessions`) — the one schedule
     /// resolver (`scheduledSession`) reads today's session from their weekdays. Empty = no plan read
     /// (not a `TrainingProviding`, an older hub, or never answered); a failure keeps the last rows.
     public private(set) var planSessions: [PlanSessionOut] = []
+    /// W-SSOT-1 SS-7: the hub's served week (`GET /planning/week?start=`) — preferred over the rows
+    /// above; nil when the hub does not serve it (older hub) or it was never read.
+    public private(set) var planWeek: PlanWeekOut?
 
     /// W-FIX10 R-01: today's session from the plan's weekdays (what the day sheet moves — the rule
     /// the hub's morning call follows). nil when no plan was read: the hub's labels stand.
     public var scheduledSessionToday: String? {
-        guard !planSessions.isEmpty else { return nil }
-        return scheduledSession(on: todayDateString, planSessions: planSessions)?.name
+        guard !planSessions.isEmpty || planWeek != nil else { return nil }
+        return scheduledSession(on: todayDateString, planSessions: planSessions, week: planWeek)?.name
     }
 
     /// W-FIX10 R-05: the persisted reason of the verdict date's call (`/planning/morning-verdict`).
@@ -345,6 +349,9 @@ public final class TodayViewModel {
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
         if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
+        if let w = try? cache.get(Self.keys.planWeek, as: PlanWeekOut.self), w.value.start == planWeekStart(todayDateString) {
+            planWeek = w.value
+        }
         if let v = try? cache.get(Self.keys.verdictReason, as: MorningVerdict.self), v.value.date == morning?.verdictDate {
             verdictReason = v.value.reason
         }
@@ -381,8 +388,10 @@ public final class TodayViewModel {
             let today = todayDateString
             async let wR = Self.loadHubWorkouts(provider: provider, cache: cache, date: today)
             async let pR = Self.loadPlanSessions(provider: provider, cache: cache)
+            async let pwR = Self.loadPlanWeek(provider: provider, cache: cache, date: today)
             let (m, g, r) = try await (mR, gR, rR)
             if let pv = await pR { planSessions = pv }
+            planWeek = await pwR   // nil when not served: never keep another week's answer
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
             if let ev = await eR { exercises = ev }
@@ -464,6 +473,13 @@ public final class TodayViewModel {
     nonisolated private static func loadPlanSessions(provider: any HealthDataProvider, cache: OfflineCache) async -> [PlanSessionOut]? {
         guard let tp = provider as? any TrainingProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.planSessions, cache: cache) { try await tp.planSessions() })?.value
+    }
+
+    /// W-SSOT-1 SS-7: `date`'s week from the hub; nil when the route is not served (the rows answer).
+    nonisolated private static func loadPlanWeek(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> PlanWeekOut? {
+        guard let tp = provider as? any TrainingProviding, let start = planWeekStart(date) else { return nil }
+        let week = (try? await SectionLoader.load(key: keys.planWeek, cache: cache) { try await tp.planWeek(start: start) })?.value
+        return week?.start == start ? week : nil   // a cached fallback from another week is no answer
     }
 
     /// The reason of `date`'s call; nil when the hub has none for that date (never another day's).
