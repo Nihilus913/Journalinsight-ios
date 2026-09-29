@@ -273,4 +273,34 @@ public enum AppleWorkoutFilter {
     public static func isHubBackload(fromThisApp: Bool, syncIdentifier: String?) -> Bool {
         fromThisApp && (syncIdentifier?.hasPrefix("workout:") ?? false)
     }
+
+    /// Metadata key this app's DEBUG/test seeders put on what they write into Health (the sim has
+    /// no Watch). Only seeders write it — never the backloader.
+    public static let debugSeedMetadataKey = "JIDebugSeed"
 }
+
+#if canImport(HealthKit)
+import HealthKit
+
+extension AppleWorkoutFilter {
+    /// Which HR samples join a workout's `hr_samples`: every source but this app (the Garmin
+    /// backload's dense HR, written as this app, would leak into an Apple workout) — plus this
+    /// app's samples marked `debugSeedMetadataKey`, so a seeded sim workout keeps its HR.
+    /// `ownSource` = `HKQuery.predicateForObjects(from: HKSource.default())` (a parameter: the
+    /// default source needs a bundle id, which a package test host has not).
+    public static func workoutHeartRateSourcePredicate(ownSource: NSPredicate) -> NSPredicate {
+        NSCompoundPredicate(orPredicateWithSubpredicates: [
+            NSCompoundPredicate(notPredicateWithSubpredicate: ownSource),
+            HKQuery.predicateForObjects(withMetadataKey: debugSeedMetadataKey),
+        ])
+    }
+
+    /// HR samples that START inside [start, end], both ends included: the Watch's last reading
+    /// lands exactly on the workout's end instant (and counts in its max HR), which the half-open
+    /// overlap window `predicateForSamples(withStart:end:options: [])` dropped.
+    public static func workoutHeartRateWindowPredicate(start: Date, end: Date) -> NSPredicate {
+        NSPredicate(format: "%K >= %@ AND %K <= %@",
+                    HKPredicateKeyPathStartDate, start as NSDate, HKPredicateKeyPathStartDate, end as NSDate)
+    }
+}
+#endif

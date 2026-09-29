@@ -65,7 +65,9 @@ struct AppleWorkoutUploadSimTests {
         let bpm = HKUnit.count().unitDivided(by: .minute())
         var samples: [HKSample] = (f["hr_samples"] as! [[String: Any]]).map {
             let ts = Self.date($0["ts"] as! String)
-            return HKQuantitySample(type: HKQuantityType(.heartRate), quantity: HKQuantity(unit: bpm, doubleValue: ($0["bpm"] as! NSNumber).doubleValue), start: ts, end: ts)
+            // Marked as a debug seed: the reader drops this app's own HR (Garmin backload) otherwise.
+            return HKQuantitySample(type: HKQuantityType(.heartRate), quantity: HKQuantity(unit: bpm, doubleValue: ($0["bpm"] as! NSNumber).doubleValue), start: ts, end: ts,
+                                    metadata: [AppleWorkoutFilter.debugSeedMetadataKey: true])
         }
         if let kcal = (f["kcal"] as? NSNumber)?.doubleValue {
             samples.append(HKQuantitySample(type: HKQuantityType(.activeEnergyBurned), quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal), start: start, end: end))
@@ -90,7 +92,7 @@ struct AppleWorkoutUploadSimTests {
             try? await builder.setCustomZoneConfiguration(try HKWorkoutZoneConfiguration(quantityType: HKQuantityType(.heartRate), zoneBoundaries: bounds),
                                                           for: HKQuantityType(.heartRate))
         }
-        try await builder.addMetadata([HKMetadataKeyIndoorWorkout: indoor, "JIDebugSeed": true])
+        try await builder.addMetadata([HKMetadataKeyIndoorWorkout: indoor, AppleWorkoutFilter.debugSeedMetadataKey: true])
         try await builder.endCollection(at: end)
         let workout = try #require(try await builder.finishWorkout())
 
