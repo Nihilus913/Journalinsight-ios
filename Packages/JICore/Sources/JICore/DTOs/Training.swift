@@ -83,10 +83,44 @@ public struct TrainingDayDetail: Codable, Sendable, Equatable {
     /// Optional per the Contract: an older hub simply omits it and the day card falls back to
     /// "logged only" rather than failing to decode the whole response.
     public var plannedSession: PlannedSession?
-    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet], plannedSession: PlannedSession? = nil) {
+    /// W-SSOT-1 SS-2: the hub's ONE completion rule for this date (HT `app/training/completion.py`).
+    /// Optional: an older hub omits it and the app's own rule answers alone.
+    public var completion: HubCompletion?
+    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet], plannedSession: PlannedSession? = nil,
+                completion: HubCompletion? = nil) {
         self.date = date; self.activities = activities; self.exerciseSets = exerciseSets
-        self.plannedSession = plannedSession
+        self.plannedSession = plannedSession; self.completion = completion
     }
+}
+
+/// W-SSOT-1 SS-2: `GET /training/day/{date}` `completion` — the hub's answer to "was the planned
+/// session done?" (the same rule morning_go's exercise KPI counts). Parts: `strength` / `cardio`;
+/// an interval day's cardio part is filled only by a run or a ride (a walk never completes it).
+/// `status` stays a string (done / partial / open) so a future value never fails the decode.
+public struct HubCompletion: Codable, Sendable, Equatable {
+    public struct Part: Codable, Sendable, Equatable {
+        public var part: String
+        public var done: Bool
+        public var activityIds: [Int]
+        public init(part: String, done: Bool, activityIds: [Int] = []) {
+            self.part = part; self.done = done; self.activityIds = activityIds
+        }
+    }
+    /// strength | interval | z2 | optional | rest
+    public var sessionType: String
+    /// false = nothing owed (rest, an optional day).
+    public var owed: Bool
+    public var parts: [Part]
+    public var status: String
+    /// The lead part is done — what the exercise KPI / streak counts.
+    public var credited: Bool
+
+    public init(sessionType: String, owed: Bool, parts: [Part], status: String, credited: Bool) {
+        self.sessionType = sessionType; self.owed = owed; self.parts = parts; self.status = status; self.credited = credited
+    }
+
+    public var isDone: Bool { status == "done" }
+    public var isPartial: Bool { status == "partial" }
 }
 
 /// `GET /api/v1/planning/exercises` row (oracle: `Exercise` in `types.ts`). `repsTarget` is a

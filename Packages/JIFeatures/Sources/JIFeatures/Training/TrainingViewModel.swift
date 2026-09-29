@@ -169,6 +169,8 @@ public final class TrainingViewModel {
     /// W-FIX9 fixer (verify r1 FIX9V-2): today's `/training/day/{today}` activities (Garmin + Apple
     /// dso 4), kept whichever day is selected — the second source Today already reads (G1).
     public private(set) var todayHubActivities: [DayActivity] = []
+    /// W-SSOT-1 SS-2: the hub's completion for today (`/training/day` `completion`), preferred when present.
+    public private(set) var todayHubCompletion: HubCompletion?
 
     /// Today's workouts from BOTH sources — Apple Health on the phone and the hub's rows — by the
     /// same `TodayWorkout.merging` Today uses, so Training and Today never disagree on "done".
@@ -183,7 +185,7 @@ public final class TrainingViewModel {
     public var selectedDayCompletion: SessionCompletion {
         guard selectedDate == todayDateString,
               let day = weekSummary.days.first(where: { $0.isToday }) else { return .none }
-        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todaysWorkouts)
+        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todaysWorkouts, hub: todayHubCompletion)
     }
 
     /// W-FIX7 fixer: today's Apple Health workouts for the "This day" card — none for any other day.
@@ -241,12 +243,12 @@ public final class TrainingViewModel {
         Task { [weak self] in
             guard let self else { return }
             let result = try? await SectionLoader.load(key: "training.day.\(today)", cache: self.cache) { try await self.provider.trainingDay(date: today) }
-            if let value = result?.value, self.todayDateString == today { self.todayHubActivities = value.activities }
+            if let value = result?.value, self.todayDateString == today { self.todayHubActivities = value.activities; self.todayHubCompletion = value.completion }
         }
     }
 
     private func restoreFromCache() {
-        if let d = try? cache.get("training.day.\(todayDateString)", as: TrainingDayDetail.self) { todayHubActivities = d.value.activities }
+        if let d = try? cache.get("training.day.\(todayDateString)", as: TrainingDayDetail.self) { todayHubActivities = d.value.activities; todayHubCompletion = d.value.completion }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; fetchedAt = g.fetchedAt; everSynced = true }
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) { morning = m.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
@@ -342,7 +344,7 @@ public final class TrainingViewModel {
             guard !Task.isCancelled else { return }
             if let value = result?.value {
                 self.dayDetail = value
-                if date == self.todayDateString { self.todayHubActivities = value.activities }
+                if date == self.todayDateString { self.todayHubActivities = value.activities; self.todayHubCompletion = value.completion }
             }
             if let result, result.error == nil, !result.stale { self.plannedSessionEditedLocally = false }
             self.dayDetailLoading = false
