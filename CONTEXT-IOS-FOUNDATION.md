@@ -360,3 +360,7 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 - `JIDesign.DurationFormat` (`hoursMinutes`, `hoursPaddedMinutes`, `clock`, `minutes`) replaces the inline duration strings.
 - `GateSignal` gains optional `bandLo`/`bandHi`/`bandMethod` (+ `hubBand`); `decideHubBand(note)` (regex) is deleted.
 - `TrainingProviding.planWeek(start:)` (defaulted, throws `PlanWeekUnavailable`) + `PlanWeekOut`; `PlanScheduleResolver(planWeek:planSessions:fixedWeek:)` prefers a complete served week.
+
+## 15. W-B49B additions (2026-09-29)
+
+- `HKMetricSpec.init` gains defaulted `rereadSince: Date?` (+ `previousAnchorKey`): after an anchor bump, a phone that holds the previous version's anchor re-reads from `rereadSince` instead of `firstSyncDays`; fresh installs keep the full window. RMSSD spec = `anchorVersion: 3`, re-read from 2026-09-13 local (DH-6).
