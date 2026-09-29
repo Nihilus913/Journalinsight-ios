@@ -10,13 +10,13 @@ import JIPersistence
 
 /// The hub's week after a move the rows do not show yet: Wednesday holds intervals.
 private let servedWeek = PlanWeekOut(start: "2026-09-28", days: [
-    PlanWeekDayOut(date: "2026-09-28", weekday: 0, session: "Day 1 Full Upper + Z2 40min", sessionType: "strength"),
-    PlanWeekDayOut(date: "2026-09-29", weekday: 1, session: "Long Zone 2 75-90min", sessionType: "z2"),
-    PlanWeekDayOut(date: "2026-09-30", weekday: 2, session: "Norwegian 4x4 intervals", sessionType: "interval"),
-    PlanWeekDayOut(date: "2026-10-01", weekday: 3, session: "Day 2 Full Upper + Z2 60min", sessionType: "strength"),
-    PlanWeekDayOut(date: "2026-10-02", weekday: 4, session: "Day 3 Full Upper + Z2 60min", sessionType: "strength"),
-    PlanWeekDayOut(date: "2026-10-03", weekday: 5, session: "Norwegian 4x4 intervals", sessionType: "interval"),
-    PlanWeekDayOut(date: "2026-10-04", weekday: 6, session: "Rest", sessionType: "rest"),
+    PlanWeekDayOut(date: "2026-09-28", weekday: 0, prescription: "Day 1 Full Upper + Z2 40min", type: "strength"),
+    PlanWeekDayOut(date: "2026-09-29", weekday: 1, prescription: "Long Zone 2 75-90min", type: "z2"),
+    PlanWeekDayOut(date: "2026-09-30", weekday: 2, prescription: "Norwegian 4x4 intervals", type: "interval"),
+    PlanWeekDayOut(date: "2026-10-01", weekday: 3, prescription: "Day 2 Full Upper + Z2 60min", type: "strength"),
+    PlanWeekDayOut(date: "2026-10-02", weekday: 4, prescription: "Day 3 Full Upper + Z2 60min", type: "strength"),
+    PlanWeekDayOut(date: "2026-10-03", weekday: 5, prescription: "Norwegian 4x4 intervals", type: "interval"),
+    PlanWeekDayOut(date: "2026-10-04", weekday: 6, prescription: "Rest", type: "rest"),
 ])
 
 private nonisolated struct WeekServingProvider: HealthDataProvider, TrainingProviding {

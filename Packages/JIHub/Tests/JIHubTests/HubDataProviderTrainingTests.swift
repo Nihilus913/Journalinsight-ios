@@ -66,11 +66,12 @@ extension HubClientTests {
     @Test func planWeekGetsTheServedWeekFromStart() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.responses["/api/v1/planning/week"] = (200, Data("""
-        {"start":"2026-09-28","days":[{"date":"2026-09-30","weekday":2,"session":"Long Zone 2 75-90min","session_type":"z2"}]}
+        {"start":"2026-09-28","days":[{"date":"2026-09-30","weekday":2,"session_id":4,"name":"Long Zone 2","session_type":"cardio","prescription":"Long Zone 2 75-90min","type":"z2","source":"plan"}]}
         """.utf8))
         let w = try await configuredProvider().planWeek(start: "2026-09-28")
         #expect(w.start == "2026-09-28")
-        #expect(w.days.first?.session == "Long Zone 2 75-90min")
+        #expect(w.days.first?.prescription == "Long Zone 2 75-90min")
+        #expect(w.days.first?.type == "z2")
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/week")
         #expect(StubURLProtocol.lastRequest?.url?.query == "start=2026-09-28")
     }

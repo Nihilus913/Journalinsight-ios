@@ -72,15 +72,21 @@ public nonisolated struct PlanScheduleResolver: Sendable, Equatable {
         return (week, byDate)
     }
 
-    /// One served day: the hub's name and type as sent; no session (or a rest type) is rest.
+    /// One served day: the hub's `prescription` (table vocabulary) and gate `type` as sent. A day
+    /// without them is mapped like a plan-session row (`name` + `session_type`), and no session at
+    /// all is rest.
     static func session(for d: PlanWeekDayOut, fixedWeek: [ScheduledSession]) -> ScheduledSession {
-        guard let name = d.session, !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+        if let rx = d.prescription, !rx.trimmingCharacters(in: .whitespaces).isEmpty {
+            let kind = d.type.flatMap(ScheduledSessionKind.init(rawValue:))
+                ?? fixedWeek.first { $0.name == rx }?.kind
+                ?? (rx.lowercased().contains("interval") ? .interval : .z2)
+            return ScheduledSession(name: rx, kind: kind)
+        }
+        guard let name = d.name, !name.trimmingCharacters(in: .whitespaces).isEmpty else {
             return canonical(.rest, fixedWeek: fixedWeek)
         }
-        let kind = d.sessionType.flatMap(ScheduledSessionKind.init(rawValue:))
-            ?? fixedWeek.first { $0.name == name }?.kind
-            ?? (name.lowercased().contains("interval") ? .interval : name.lowercased() == "rest" ? .rest : .z2)
-        return ScheduledSession(name: name, kind: kind)
+        return session(for: PlanSessionOut(id: d.sessionId ?? -1, name: name, weekday: d.weekday, sessionType: d.sessionType),
+                       fixedWeek: fixedWeek)
     }
 
     /// A session's kind by its name (the plan's week first, then the fixed table); nil = unknown.

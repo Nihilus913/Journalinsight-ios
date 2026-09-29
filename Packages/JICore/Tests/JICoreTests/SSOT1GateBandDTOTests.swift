@@ -34,3 +34,13 @@ import Testing
     s.bandLo = 52; s.bandHi = 41
     #expect(s.hubBand == nil)
 }
+
+@Test func gateSignalBandGoldenDecodes() throws {
+    // HT `tests/fixtures/ssot1/gate_signals_band.json` (L1, 4f8bd19): extra keys (nights, …) are ignored.
+    let url = try #require(Bundle.module.url(forResource: "gate_signals_band", withExtension: "json", subdirectory: "Resources/ssot1"))
+    let s = try JSON.decoder.decode([GateSignal].self, from: Data(contentsOf: url))
+    #expect(s.map(\.key) == ["hrv", "sleep_h", "hrv_day"])
+    #expect(s[0].hubBand == 41...52 && s[0].bandMethod == "ln_rmssd_28n_mean_0.5sd")
+    #expect(s[1].hubBand == nil && s[1].bandMethod == nil)
+    #expect(s[2].hubBand == nil)
+}

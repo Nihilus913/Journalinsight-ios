@@ -1,12 +1,75 @@
 {
-  "start": "2026-09-28",
+  "start": "2026-10-05",
   "days": [
-    {"date": "2026-09-28", "weekday": 0, "session": "Day 1 Full Upper + Z2 40min", "session_type": "strength"},
-    {"date": "2026-09-29", "weekday": 1, "session": "Norwegian 4x4 intervals", "session_type": "interval"},
-    {"date": "2026-09-30", "weekday": 2, "session": "Long Zone 2 75-90min", "session_type": "z2"},
-    {"date": "2026-10-01", "weekday": 3, "session": "Day 2 Full Upper + Z2 60min", "session_type": "strength"},
-    {"date": "2026-10-02", "weekday": 4, "session": "Day 3 Full Upper + Z2 60min", "session_type": "strength"},
-    {"date": "2026-10-03", "weekday": 5, "session": "Norwegian 4x4 intervals", "session_type": "interval"},
-    {"date": "2026-10-04", "weekday": 6, "session": "Rest", "session_type": "rest"}
+    {
+      "date": "2026-10-05",
+      "weekday": 0,
+      "session_id": 990001,
+      "name": "Day 1 Full Upper",
+      "session_type": "strength",
+      "prescription": "Day 1 Full Upper + Z2 40min",
+      "type": "strength",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-06",
+      "weekday": 1,
+      "session_id": 990002,
+      "name": "Interval Run",
+      "session_type": "cardio",
+      "prescription": "Norwegian 4x4 intervals",
+      "type": "interval",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-07",
+      "weekday": 2,
+      "session_id": 990003,
+      "name": "Day 2 Push + Triceps",
+      "session_type": "strength",
+      "prescription": "Day 2 Push + Triceps",
+      "type": "strength",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-08",
+      "weekday": 3,
+      "session_id": null,
+      "name": "Rest",
+      "session_type": "rest",
+      "prescription": "Rest",
+      "type": "rest",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-09",
+      "weekday": 4,
+      "session_id": 990005,
+      "name": "Day 3 Pull + Core",
+      "session_type": "strength",
+      "prescription": "Day 3 Pull + Core",
+      "type": "strength",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-10",
+      "weekday": 5,
+      "session_id": 990006,
+      "name": "Day 4 Chest + Arms",
+      "session_type": "strength",
+      "prescription": "Day 4 Chest + Arms",
+      "type": "strength",
+      "source": "plan"
+    },
+    {
+      "date": "2026-10-11",
+      "weekday": 6,
+      "session_id": 990007,
+      "name": "Rest",
+      "session_type": "rest",
+      "prescription": "Rest",
+      "type": "rest",
+      "source": "plan"
+    }
   ]
 }

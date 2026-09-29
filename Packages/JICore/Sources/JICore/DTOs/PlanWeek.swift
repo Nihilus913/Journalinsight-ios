@@ -11,37 +11,29 @@ public struct PlanWeekOut: Codable, Sendable, Equatable {
     public init(start: String, days: [PlanWeekDayOut]) { self.start = start; self.days = days }
 }
 
+/// One day of the served week (HT golden `tests/fixtures/ssot1/planning_week.json`).
 public struct PlanWeekDayOut: Codable, Sendable, Equatable {
     public var date: String
     /// Mon = 0 … Sun = 6.
     public var weekday: Int
-    /// The session's name in the table vocabulary ("Long Zone 2 75-90min"); nil = the hub has none.
-    public var session: String?
-    /// "strength" | "interval" | "z2" | "rest" | "optional"; nil when the hub sends none.
+    /// `plan.plan_session.session_id`; nil for a day without a plan session (rest / table fallback).
+    public var sessionId: Int?
+    /// The plan session's own name ("Interval Run") — the rows' vocabulary.
+    public var name: String?
+    /// `plan.plan_session.session_type` — "strength" | "cardio" | "rest".
     public var sessionType: String?
+    /// The gate's session in the table vocabulary ("Norwegian 4x4 intervals") — what morning_go
+    /// calls the day; the name the app shows and matches on.
+    public var prescription: String?
+    /// The gate type — "strength" | "interval" | "z2" | "rest" | "optional".
+    public var type: String?
+    /// Where the answer came from ("plan", or the table fallback).
+    public var source: String?
 
-    public init(date: String, weekday: Int, session: String?, sessionType: String?) {
-        self.date = date; self.weekday = weekday; self.session = session; self.sessionType = sessionType
-    }
-
-    private enum CodingKeys: String, CodingKey { case date, weekday, session, sessionType, name, type }
-
-    /// `session`/`session_type` are the contract; `name`/`type` are accepted too so a hub that
-    /// spells the day like the plan-session rows still decodes (card fixed the route, not the keys).
-    public init(from decoder: any Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        date = try c.decode(String.self, forKey: .date)
-        weekday = try c.decode(Int.self, forKey: .weekday)
-        session = try c.decodeIfPresent(String.self, forKey: .session) ?? c.decodeIfPresent(String.self, forKey: .name)
-        sessionType = try c.decodeIfPresent(String.self, forKey: .sessionType) ?? c.decodeIfPresent(String.self, forKey: .type)
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(date, forKey: .date)
-        try c.encode(weekday, forKey: .weekday)
-        try c.encodeIfPresent(session, forKey: .session)
-        try c.encodeIfPresent(sessionType, forKey: .sessionType)
+    public init(date: String, weekday: Int, sessionId: Int? = nil, name: String? = nil, sessionType: String? = nil,
+                prescription: String?, type: String?, source: String? = "plan") {
+        self.date = date; self.weekday = weekday; self.sessionId = sessionId; self.name = name
+        self.sessionType = sessionType; self.prescription = prescription; self.type = type; self.source = source
     }
 }
 
