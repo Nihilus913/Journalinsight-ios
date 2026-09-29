@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import JICore
+import JIDesign
 
 /// Live Session Coach view model (W3b-L1, P-session-coach). Oracle: `mobile/src/data/useLiveSession.ts`
 /// + `mobile/src/lib/hrSafety.ts`. Polls `LiveSessionProviding.liveSession()` on a fixed interval
@@ -103,7 +104,7 @@ public final class SessionCoachViewModel {
 
     public var elapsedText: String {
         guard let s = sample?.elapsedS else { return "—" }
-        return "\(s / 60):\(String(format: "%02d", s % 60))"
+        return DurationFormat.clock(seconds: s)
     }
 
     public var loadProgress: Double {

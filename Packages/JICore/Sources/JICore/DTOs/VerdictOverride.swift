@@ -22,18 +22,31 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     public var scaleMax: Double
     public var status: GateSignalStatus
     public var note: String?
+    /// W-SSOT-1 SS-4: the hub's own band for this signal (`band_lo`/`band_hi`) and how it was
+    /// derived (`band_method`). Absent/null from an older hub or when the hub has no band.
+    public var bandLo: Double?
+    public var bandHi: Double?
+    public var bandMethod: String?
 
     public var id: String { key }
+
+    /// The hub's band as a range; nil unless both ends are served and ordered.
+    public var hubBand: ClosedRange<Double>? {
+        guard let lo = bandLo, let hi = bandHi, lo <= hi else { return nil }
+        return lo...hi
+    }
 
     public init(
         key: String, label: String, value: Double?, unit: String, threshold: Double?,
         direction: GateSignalDirection, scaleMin: Double, scaleMax: Double,
-        status: GateSignalStatus, note: String? = nil
+        status: GateSignalStatus, note: String? = nil,
+        bandLo: Double? = nil, bandHi: Double? = nil, bandMethod: String? = nil
     ) {
         self.key = key; self.label = label; self.value = value; self.unit = unit
         self.threshold = threshold; self.direction = direction
         self.scaleMin = scaleMin; self.scaleMax = scaleMax
         self.status = status; self.note = note
+        self.bandLo = bandLo; self.bandHi = bandHi; self.bandMethod = bandMethod
     }
 }
 

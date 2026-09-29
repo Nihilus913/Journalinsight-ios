@@ -1,0 +1,50 @@
+[
+  {
+    "key": "hrv",
+    "label": "HRV (7-day)",
+    "value": 47,
+    "unit": "ms",
+    "threshold": 41,
+    "direction": "min",
+    "scale_min": 0,
+    "scale_max": 120,
+    "status": "pass",
+    "note": "HRV 7-day 47 ms — inside/above band 41–52 ms",
+    "band_lo": 41,
+    "band_hi": 52,
+    "band_method": "ln_rmssd_28n_mean_0.5sd",
+    "nights": 28,
+    "calibrating": false,
+    "nights_needed": 28
+  },
+  {
+    "key": "sleep_h",
+    "label": "Sleep time",
+    "value": 7.5,
+    "unit": "h",
+    "threshold": 7.0,
+    "direction": "min",
+    "scale_min": 0,
+    "scale_max": 10,
+    "status": "pass",
+    "note": "7.5 h sleep — 7 h+ passes",
+    "band_lo": null,
+    "band_hi": null,
+    "band_method": null
+  },
+  {
+    "key": "hrv_day",
+    "label": "Daytime HRV",
+    "value": 30.0,
+    "unit": "ms",
+    "threshold": 36.0,
+    "direction": "min",
+    "scale_min": 0,
+    "scale_max": 120,
+    "status": "context",
+    "note": "daytime HRV 30 ms vs 36 (dosed weekdays) — context only",
+    "band_lo": null,
+    "band_hi": null,
+    "band_method": null
+  }
+]

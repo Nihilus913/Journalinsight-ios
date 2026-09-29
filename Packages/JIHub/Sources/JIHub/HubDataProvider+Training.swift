@@ -28,6 +28,11 @@ extension HubDataProvider: TrainingProviding {
     public func planSessions() async throws -> [PlanSessionOut] {
         try await client.get("/api/v1/planning/plan-sessions")
     }
+
+    /// W-SSOT-1 SS-7: the hub's seven-day `session_for` schedule from `start` (a Monday).
+    public func planWeek(start: String) async throws -> PlanWeekOut {
+        try await client.get("/api/v1/planning/week", query: ["start": start])
+    }
 }
 
 /// B-52: the same write, seen through the narrow protocol `OutboxDrainer` replays `"plan_weekday"`

@@ -24,6 +24,11 @@ public protocol TrainingProviding: Sendable {
     /// Defaulted: a provider without the route reports it unavailable and the app falls back to
     /// the morning-call schedule for the cardio days.
     func planSessions() async throws -> [PlanSessionOut]
+
+    /// `GET /api/v1/planning/week?start=` (W-SSOT-1 SS-7) — the hub's seven-day schedule, one
+    /// `session_for` answer per date. Defaulted: an older hub (no route) throws
+    /// `PlanWeekUnavailable` and the resolver falls back to `planSessions()`.
+    func planWeek(start: String) async throws -> PlanWeekOut
 }
 
 public extension TrainingProviding {
@@ -33,6 +38,10 @@ public extension TrainingProviding {
 
     func planSessions() async throws -> [PlanSessionOut] {
         throw PlanSessionListUnavailable()
+    }
+
+    func planWeek(start: String) async throws -> PlanWeekOut {
+        throw PlanWeekUnavailable()
     }
 }
 

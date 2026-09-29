@@ -1,6 +1,7 @@
 #if canImport(HealthKit)
 import Foundation
 import HealthKit
+import JICore
 
 /// Read-authorization state for one `HKReadKind`.
 ///
@@ -80,8 +81,8 @@ public final class HealthKitPermissions: Sendable {
 /// "Connected" signal (iOS never reports a read grant). The uploader records the 2xx instant
 /// under `globalKey` (B-65) and, per type, under `key(for:)` (ISO-8601, App-Group suite).
 public enum HealthKitArrival {
-    /// Same literal as `HealthKitUploader.lastSuccessKey`.
-    public static let globalKey = "hk.upload.lastSuccess"
+    /// `PrefKeys.hkLastUploadSuccess` (JICore) — the same record `HealthKitUploader` writes.
+    public static let globalKey = PrefKeys.hkLastUploadSuccess
 
     /// `hk.upload.lastSuccess.<HK type identifier>`.
     public static func key(for sampleType: HKSampleType) -> String {

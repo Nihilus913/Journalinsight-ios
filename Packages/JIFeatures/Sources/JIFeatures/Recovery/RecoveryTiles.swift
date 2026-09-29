@@ -100,8 +100,7 @@ public nonisolated func recoveryNormalText(_ normal: ClosedRange<Double>?, decim
 /// A sleep fact tile's value: "7 h 24" from seconds; "— not read" when the field is absent.
 public nonisolated func recoverySleepDuration(seconds: Double?) -> String {
     guard let seconds, seconds > 0 else { return "— not read" }
-    let m = Int((seconds / 60).rounded())
-    return "\(m / 60) h \(String(format: "%02d", m % 60))"
+    return DurationFormat.hoursPaddedMinutes(seconds: seconds)
 }
 
 public nonisolated func recoverySubtitle(nights: Int) -> String {

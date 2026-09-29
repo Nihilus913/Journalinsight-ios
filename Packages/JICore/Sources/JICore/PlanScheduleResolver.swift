@@ -25,17 +25,68 @@ public nonisolated struct PlanScheduleResolver: Sendable, Equatable {
     /// Mon = 0 … Sun = 6 from the plan rows; nil = no plan to follow (the fallback answers).
     public let week: [ScheduledSession]?
     private let fixedWeek: [ScheduledSession]
+    /// W-SSOT-1 SS-7: the served `/planning/week` answers by date (empty when not served).
+    private let byDate: [String: ScheduledSession]
 
     public init(planSessions: [PlanSessionOut]?, fixedWeek: [ScheduledSession]) {
-        self.fixedWeek = fixedWeek
-        self.week = Self.weekdays(from: planSessions ?? [], fixedWeek: fixedWeek)
+        self.init(planWeek: nil, planSessions: planSessions, fixedWeek: fixedWeek)
     }
 
-    /// `session_for(day, plan)`: the plan's session from the changeover date on, else `fallback`
-    /// (the caller's `JICompute.sessionFor(iso)`, which keeps the Saturday changeover).
+    /// W-SSOT-1 SS-7: a served, complete `/planning/week` (seven days, Mon…Sun) wins — it IS the
+    /// hub's `session_for`; otherwise the week is re-derived from the plan-session rows as before.
+    public init(planWeek: PlanWeekOut?, planSessions: [PlanSessionOut]?, fixedWeek: [ScheduledSession]) {
+        self.fixedWeek = fixedWeek
+        if let served = Self.served(planWeek, fixedWeek: fixedWeek) {
+            self.week = served.week
+            self.byDate = served.byDate
+        } else {
+            self.week = Self.weekdays(from: planSessions ?? [], fixedWeek: fixedWeek)
+            self.byDate = [:]
+        }
+    }
+
+    /// `session_for(day, plan)`: the served week's answer for that date; else the plan's session
+    /// from the changeover date on, else `fallback` (the caller's `JICompute.sessionFor(iso)`,
+    /// which keeps the Saturday changeover).
     public func session(on iso: String, weekday: Int, fallback: ScheduledSession) -> ScheduledSession {
+        if let hub = byDate[iso] { return hub }
         guard let week, iso >= Self.effectiveDate, week.indices.contains(weekday) else { return fallback }
         return week[weekday]
+    }
+
+    /// The served `/planning/week` answer for `iso`; nil when no week was served or it does not
+    /// cover that date.
+    public func servedSession(on iso: String) -> ScheduledSession? { byDate[iso] }
+
+    /// The served week as Mon…Sun sessions; nil unless every weekday 0…6 is present exactly once.
+    static func served(_ w: PlanWeekOut?, fixedWeek: [ScheduledSession])
+        -> (week: [ScheduledSession], byDate: [String: ScheduledSession])? {
+        guard let days = w?.days, days.count == 7, Set(days.map(\.weekday)) == Set(0...6) else { return nil }
+        var week = [ScheduledSession](repeating: canonical(.rest, fixedWeek: fixedWeek), count: 7)
+        var byDate: [String: ScheduledSession] = [:]
+        for d in days {
+            let s = session(for: d, fixedWeek: fixedWeek)
+            week[d.weekday] = s
+            byDate[d.date] = s
+        }
+        return (week, byDate)
+    }
+
+    /// One served day: the hub's `prescription` (table vocabulary) and gate `type` as sent. A day
+    /// without them is mapped like a plan-session row (`name` + `session_type`), and no session at
+    /// all is rest.
+    static func session(for d: PlanWeekDayOut, fixedWeek: [ScheduledSession]) -> ScheduledSession {
+        if let rx = d.prescription, !rx.trimmingCharacters(in: .whitespaces).isEmpty {
+            let kind = d.type.flatMap(ScheduledSessionKind.init(rawValue:))
+                ?? fixedWeek.first { $0.name == rx }?.kind
+                ?? (rx.lowercased().contains("interval") ? .interval : .z2)
+            return ScheduledSession(name: rx, kind: kind)
+        }
+        guard let name = d.name, !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            return canonical(.rest, fixedWeek: fixedWeek)
+        }
+        return session(for: PlanSessionOut(id: d.sessionId ?? -1, name: name, weekday: d.weekday, sessionType: d.sessionType),
+                       fixedWeek: fixedWeek)
     }
 
     /// A session's kind by its name (the plan's week first, then the fixed table); nil = unknown.

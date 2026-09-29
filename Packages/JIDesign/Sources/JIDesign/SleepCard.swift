@@ -59,8 +59,7 @@ public struct SleepCard: View {
 
     private var durationText: String {
         guard !sourceMissing, let durationSec else { return sourceMissing ? "Not from the current source" : "—" }
-        let hrs = Int(durationSec) / 3600, mins = (Int(durationSec) % 3600) / 60
-        return "\(hrs)h \(mins)m"
+        return DurationFormat.hoursMinutes(seconds: durationSec)
     }
     private var scoreText: String {
         guard !sourceMissing, let score else { return sourceMissing ? "Not from the current source" : "—" }

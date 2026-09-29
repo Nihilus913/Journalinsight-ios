@@ -352,3 +352,11 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 - Running the app test bundle prints XCTest's "Executed 0 tests" next to the real Swift Testing summary — cosmetic noise from the two frameworks coexisting.
 - Commit `2f83d64` has its `Co-Authored-By` trailer on the subject line instead of the body (verified via `git show --stat 2f83d64`).
 
+
+## 14. W-SSOT-1 renames / new shared symbols (2026-09-29)
+
+- `JICompute.PlannedSession` → `JICompute.GateSession` (same `(name, type)` shape); JICore's Codable `PlannedSession(id, name, weekday)` keeps its name.
+- `JICore.PrefKeys.hkLastUploadSuccess` is the one `"hk.upload.lastSuccess"` literal (`HealthKitUploader.lastSuccessKey` / `HealthKitArrival.globalKey` alias it).
+- `JIDesign.DurationFormat` (`hoursMinutes`, `hoursPaddedMinutes`, `clock`, `minutes`) replaces the inline duration strings.
+- `GateSignal` gains optional `bandLo`/`bandHi`/`bandMethod` (+ `hubBand`); `decideHubBand(note)` (regex) is deleted.
+- `TrainingProviding.planWeek(start:)` (defaulted, throws `PlanWeekUnavailable`) + `PlanWeekOut`; `PlanScheduleResolver(planWeek:planSessions:fixedWeek:)` prefers a complete served week.

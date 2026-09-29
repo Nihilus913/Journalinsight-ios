@@ -1,5 +1,6 @@
 import Foundation
 import JICore
+import JIDesign
 
 /// W-B40 L2 — the library's and editor's text, kept out of the views so it is testable. Never a
 /// zero for something that is not there: a lap-only workout has no minutes, so it says "lap"
@@ -8,12 +9,11 @@ public nonisolated enum WorkoutFormat {
     public static let shortWeekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     public static func duration(seconds: Int) -> String {
-        if seconds % 60 == 0 { return "\(seconds / 60) min" }
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+        seconds % 60 == 0 ? DurationFormat.minutes(seconds: seconds) : DurationFormat.clock(seconds: seconds)
     }
 
     /// "10:00", "4:00", "0:45".
-    public static func clock(seconds: Int) -> String { String(format: "%d:%02d", seconds / 60, seconds % 60) }
+    public static func clock(seconds: Int) -> String { DurationFormat.clock(seconds: seconds) }
 
     public static func distance(meters: Double) -> String {
         meters >= 1000 ? String(format: "%.1f km", meters / 1000).replacingOccurrences(of: ".0 km", with: " km") : "\(Int(meters.rounded())) m"

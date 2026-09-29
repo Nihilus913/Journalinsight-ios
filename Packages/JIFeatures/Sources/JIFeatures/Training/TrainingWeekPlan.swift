@@ -173,17 +173,31 @@ public nonisolated let fixedScheduleWeek: [ScheduledSession] = sessionByWeekday.
 }
 
 /// The resolver for a plan-session list (`GET /planning/plan-sessions`); empty / nil = no plan.
-public nonisolated func planSchedule(_ planSessions: [PlanSessionOut]?) -> PlanScheduleResolver {
-    PlanScheduleResolver(planSessions: planSessions, fixedWeek: fixedScheduleWeek)
+public nonisolated func planSchedule(_ planSessions: [PlanSessionOut]?, week: PlanWeekOut? = nil) -> PlanScheduleResolver {
+    PlanScheduleResolver(planWeek: week, planSessions: planSessions, fixedWeek: fixedScheduleWeek)
 }
 
 /// The plan's week as the gate's `PlannedSession`s (Mon = 0 … Sun = 6); nil = no plan to follow.
-public nonisolated func plannedWeek(_ resolver: PlanScheduleResolver) -> [JICompute.PlannedSession]? {
-    resolver.week?.map { JICompute.PlannedSession(name: $0.name, type: SessionType(rawValue: $0.kind.rawValue)) }
+public nonisolated func plannedWeek(_ resolver: PlanScheduleResolver) -> [GateSession]? {
+    resolver.week?.map { GateSession(name: $0.name, type: SessionType(rawValue: $0.kind.rawValue)) }
 }
 
 /// The session planned for an ISO date: the plan's weekday from the changeover date on (what the
 /// hub's morning call follows), else the fixed table (`JICompute.sessionFor`). nil = bad date.
-public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSessionOut]?) -> JICompute.PlannedSession? {
-    try? JICompute.sessionFor(iso, plan: plannedWeek(planSchedule(planSessions)))
+/// W-SSOT-1 SS-7: a served `/planning/week` covering `iso` answers first (the hub's `session_for`).
+public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSessionOut]?, week: PlanWeekOut? = nil) -> GateSession? {
+    let resolver = planSchedule(planSessions, week: week)
+    if let hub = resolver.servedSession(on: iso) { return GateSession(name: hub.name, type: SessionType(rawValue: hub.kind.rawValue)) }
+    return try? JICompute.sessionFor(iso, plan: plannedWeek(resolver))
+}
+
+/// W-SSOT-1 SS-7: the Monday (ISO date) of `iso`'s week — the `start` `/planning/week` takes.
+/// Pure date arithmetic in UTC (no `Calendar.current`); nil for a malformed date.
+public nonisolated func planWeekStart(_ iso: String) -> String? {
+    let f = DateFormatter()
+    f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
+    f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
+    guard let d = f.date(from: iso), let cal = f.calendar else { return nil }
+    let back = planWeekday(fromCalendarWeekday: cal.component(.weekday, from: d))
+    return cal.date(byAdding: .day, value: -back, to: d).map { f.string(from: $0) }
 }
