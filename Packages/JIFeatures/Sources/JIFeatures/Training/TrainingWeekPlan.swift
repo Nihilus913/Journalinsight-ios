@@ -109,9 +109,11 @@ nonisolated func weekSpine(planSessions: [PlanSessionOut], exercises: [Exercise]
 /// cardio sessions, I / R follow THEIR weekdays (what the day sheet changes); without it (an older
 /// hub, nothing cached yet) they follow the morning-call schedule as before. `templates`: the
 /// B-40 library, whose workouts on a day are that day's `extras`.
+/// W-FIX10 R-01: `schedule` is the plan the fallback days are resolved from (`scheduledSession`);
+/// nil = `otherSessions`.
 public nonisolated func trainingWeekSummary(
     planSessions: [PlanSessionOut], exercises: [Exercise], daily: [DailyKpiRow], today: String,
-    otherSessions: [PlanSessionOut] = [], templates: [WorkoutTemplate] = []
+    otherSessions: [PlanSessionOut] = [], templates: [WorkoutTemplate] = [], schedule: [PlanSessionOut]? = nil
 ) -> TrainingWeekSummary {
     let spine = weekSpine(planSessions: planSessions, exercises: exercises)
     let others = trainingDaySpine(strength: [], sessions: otherSessions)
@@ -134,7 +136,7 @@ public nonisolated func trainingWeekSummary(
             if let c = others.first(where: { $0.weekday == wd && ($0.kind == .interval || $0.kind == .longRun) }) {
                 kind = c.kind; name = c.name
             }
-        } else if let planned = try? JICompute.sessionFor(date) {
+        } else if let planned = scheduledSession(on: date, planSessions: schedule ?? otherSessions) {
             if planned.type == .interval { kind = .interval; name = planned.name }
             else if planned.type == .z2 { kind = .longRun; name = planned.name }
         }
@@ -160,4 +162,28 @@ public nonisolated func trainingWeekSummary(
 public extension EnvironmentValues {
     /// B-57 W5: this week's plan for Day, Goals and Decide (set by the App; nil = unknown → "—").
     @Entry var trainingWeekSummary: TrainingWeekSummary?
+}
+
+// MARK: - W-FIX10 R-01: the one day → session answer
+
+/// The fixed weekday table (`JICompute.sessionByWeekday`) in the resolver's vocabulary — the
+/// fallback only.
+public nonisolated let fixedScheduleWeek: [ScheduledSession] = sessionByWeekday.map {
+    ScheduledSession(name: $0.name, kind: ScheduledSessionKind(rawValue: $0.type.rawValue) ?? .optional)
+}
+
+/// The resolver for a plan-session list (`GET /planning/plan-sessions`); empty / nil = no plan.
+public nonisolated func planSchedule(_ planSessions: [PlanSessionOut]?) -> PlanScheduleResolver {
+    PlanScheduleResolver(planSessions: planSessions, fixedWeek: fixedScheduleWeek)
+}
+
+/// The plan's week as the gate's `PlannedSession`s (Mon = 0 … Sun = 6); nil = no plan to follow.
+public nonisolated func plannedWeek(_ resolver: PlanScheduleResolver) -> [JICompute.PlannedSession]? {
+    resolver.week?.map { JICompute.PlannedSession(name: $0.name, type: SessionType(rawValue: $0.kind.rawValue)) }
+}
+
+/// The session planned for an ISO date: the plan's weekday from the changeover date on (what the
+/// hub's morning call follows), else the fixed table (`JICompute.sessionFor`). nil = bad date.
+public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSessionOut]?) -> JICompute.PlannedSession? {
+    try? JICompute.sessionFor(iso, plan: plannedWeek(planSchedule(planSessions)))
 }

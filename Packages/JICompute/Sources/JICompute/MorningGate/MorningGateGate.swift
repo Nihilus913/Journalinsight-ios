@@ -329,9 +329,11 @@ public nonisolated func evaluate(
     db: MorningGateDb,
     state: MorningGatePrevState,
     dosedDates: [String] = [],
-    config: MorningGateConfig = .default
+    config: MorningGateConfig = .default,
+    plan: [PlannedSession]? = nil
 ) throws -> EvaluateResult {
-    let session = try sessionFor(today)
+    // W-FIX10 R-01: the plan's weekday decides the session (morning_go.py `session_for(today, plan)`).
+    let session = try sessionFor(today, plan: plan)
     let sessionName = session.name
     let sessionType = session.type
     var conditions: [String] = []

@@ -1,5 +1,6 @@
 import Foundation
 import JICompute
+import JICore
 import JIDesign
 
 // W5b-L5 (P-weekly-plan). Port of `mobile/src/lib/weeklyPlan.ts` — weekly calorie banking
@@ -110,27 +111,40 @@ public nonisolated func computeWeeklyPlan(_ opts: WeeklyPlanInput) -> WeeklyPlan
 // MARK: - Periodized macros (E12-8, the ji-periodized-macros idea)
 //
 // Train-vs-rest day targets instead of a manually-toggled highDays set: "high" days are derived
-// from the ACTUAL weekly session schedule (`JICompute.sessionByWeekday`) rather than chosen by
+// from the ACTUAL weekly session schedule (the plan's weekdays — W-FIX10 R-01 — with
+// `JICompute.sessionByWeekday` as the fallback) rather than chosen by
 // hand, so the periodized plan always matches what's actually programmed. Reuses
 // `computeWeeklyPlan`'s exact banking math — a framing layer on top of it, not a second
 // implementation.
 
 /// `sessionByWeekday` is keyed Mon=0…Sun=6 (Python `date.weekday()` convention) — the same order
 /// as `WeekDay.allCases`, so the two line up index for index.
-public nonisolated func sessionTypeForWeekDay(_ day: WeekDay) -> SessionType {
-    sessionByWeekday[weekDays.firstIndex(of: day) ?? 0].type
+/// W-FIX10 R-01: `planSessions` (the hub's plan, `GET /planning/plan-sessions`) decides the day when
+/// it holds any rows; the fixed table is the fallback.
+public nonisolated func sessionTypeForWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil) -> SessionType {
+    let i = weekDays.firstIndex(of: day) ?? 0
+    return plannedWeek(planSchedule(planSessions))?[i].type ?? sessionByWeekday[i].type
 }
 
 /// "optional" (the parked Day 4 Full Upper slot) counts as rest for planning purposes — it isn't
 /// guaranteed to happen, so periodizing as if it will would risk a systematic underfeed on the
 /// days it doesn't.
-public nonisolated func isTrainingWeekDay(_ day: WeekDay) -> Bool {
-    let t = sessionTypeForWeekDay(day)
+public nonisolated func isTrainingWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil) -> Bool {
+    let t = sessionTypeForWeekDay(day, planSessions: planSessions)
     return t != .rest && t != .optional
 }
 
-public nonisolated let trainingWeekDays: [WeekDay] = weekDays.filter(isTrainingWeekDay)
+/// The fixed-table split (the fallback); `trainingWeekDays(planSessions:)` follows the plan.
+public nonisolated let trainingWeekDays: [WeekDay] = weekDays.filter { isTrainingWeekDay($0) }
 public nonisolated let restWeekDays: [WeekDay] = weekDays.filter { !isTrainingWeekDay($0) }
+
+public nonisolated func trainingWeekDays(planSessions: [PlanSessionOut]?) -> [WeekDay] {
+    weekDays.filter { isTrainingWeekDay($0, planSessions: planSessions) }
+}
+
+public nonisolated func restWeekDays(planSessions: [PlanSessionOut]?) -> [WeekDay] {
+    weekDays.filter { !isTrainingWeekDay($0, planSessions: planSessions) }
+}
 
 public nonisolated struct PeriodizedPlanInput: Sendable, Equatable {
     /// The weekly average to preserve.
@@ -197,17 +211,22 @@ public nonisolated struct PeriodizedPlan: Sendable, Equatable {
     }
 }
 
-public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput) -> PeriodizedPlan {
+/// W-FIX10 R-01: `planSessions` = the hub's plan (its weekdays pick the training days); nil / empty =
+/// the fixed table.
+public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput, planSessions: [PlanSessionOut]? = nil) -> PeriodizedPlan {
+    let trainDays = trainingWeekDays(planSessions: planSessions)
+    let restDays = restWeekDays(planSessions: planSessions)
     // B-57 W1 fixer (ROOT CAUSE of the "-600" rest day): with 6 training days and 1 rest day the
     // whole weekly surplus was banked off Sunday with no floor (1800 − 6 × 400 = −600). The
     // training-day target is now held at what the rest days can fund.
-    let maxTrain = weeklyPlanMaxTrainKcal(weeklyAvgKcal: opts.weeklyAvgKcal, proteinG: opts.proteinG, fatG: opts.fatG)
+    let maxTrain = weeklyPlanMaxTrainKcal(weeklyAvgKcal: opts.weeklyAvgKcal, proteinG: opts.proteinG, fatG: opts.fatG,
+                                          trainDays: trainDays)
     let capped = maxTrain.map { opts.trainKcal > $0 } ?? false
     let trainKcal = capped ? maxTrain! : opts.trainKcal
     let plan = computeWeeklyPlan(
         WeeklyPlanInput(
             dailyTargetKcal: opts.weeklyAvgKcal,
-            highDays: trainingWeekDays,
+            highDays: trainDays,
             boostKcal: trainKcal - opts.weeklyAvgKcal,
             proteinG: opts.proteinG,
             fatG: opts.fatG
@@ -217,8 +236,8 @@ public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput) -> Pe
     let restDay = plan.days.first { !$0.high }
     return PeriodizedPlan(
         plan: plan,
-        trainDays: trainingWeekDays,
-        restDays: restWeekDays,
+        trainDays: trainDays,
+        restDays: restDays,
         trainKcal: trainDay?.kcal ?? Int(jsRound(trainKcal)),
         restKcal: restDay?.kcal ?? Int(jsRound(opts.weeklyAvgKcal)),
         trainCapped: capped,

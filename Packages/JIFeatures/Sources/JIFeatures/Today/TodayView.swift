@@ -112,13 +112,15 @@ public struct TodayView: View {
                        syncing: model.morning?.verdict == nil,
                        gateSignals: model.morning?.gateSignals,
                        verdictDate: model.verdictDate,
-                       sessionForToday: model.morning?.sessionForToday,
+                       sessionForToday: dayNextSessionForToday(hub: model.morning?.sessionForToday,
+                                                               scheduled: model.scheduledSessionToday),
                        override: currentOverride,
                        overrideModel: verdictOverrideModel,
                        syncedAt: model.syncedAt,
                        normals: decideSignalNormals(recovery: model.recovery),
                        banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
-                       isStale: model.morning?.isStale) { model.morningEvent(.gateResponded) }
+                       isStale: model.morning?.isStale,
+                       heldReason: model.heldReason) { model.morningEvent(.gateResponded) }
         } else {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {
@@ -165,7 +167,9 @@ public struct TodayView: View {
                              progress: progress, session: session)
         Surface(level: 1, padding: JISpacing.s3, tint: theme.color(verdictColorRole(title.tone))) {
             MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
-                               caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
+                               caption: daySummaryCaption(
+                                   overrideCaption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
+                                   heldReason: model.heldReason),
                                override: currentOverride, progress: progress, session: session) {
                 showMorningReview = true
             }
@@ -264,7 +268,9 @@ public struct TodayView: View {
 
     /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
     private var nextCardModel: DayNextCard {
-        dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
+        dayNextCard(verdict: model.verdict,
+                    sessionForToday: dayNextSessionForToday(hub: model.morning?.sessionForToday, scheduled: model.scheduledSessionToday),
+                    override: currentOverride,
                     plan: model.exercises, weekday: model.todayWeekday,
                     zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
     }
@@ -522,6 +528,19 @@ public nonisolated struct DayNextCard: Equatable, Sendable {
     public var isRest = false
 }
 
+/// W-FIX10 R-01: the session Today names — the hub's `session_for_today` (already read from
+/// `plan.plan_session.weekday`), else the one schedule resolver's answer for today
+/// (`TodayViewModel.scheduledSessionToday`); nil = neither (the verdict's session then).
+public nonisolated func dayNextSessionForToday(hub: String?, scheduled: String?) -> String? {
+    [hub, scheduled].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+}
+
+/// W-FIX10 R-05: the summary line's caption — the user's "was …" line, else the hub's held
+/// "Waiting for the watch…" reason (the push is held; the verdict under it is not final yet).
+public nonisolated func daySummaryCaption(overrideCaption: String?, heldReason: String?) -> String? {
+    overrideCaption ?? heldReason
+}
+
 /// W-FIX4 PF-02: today's session in the plan — by name first (the hub's `session_for_today` or the
 /// verdict's session, which may carry extras: "Day 3 Full Upper + Z2 60min"), else the session
 /// assigned to today's weekday (Mon = 0), as Training picks it.
@@ -582,11 +601,21 @@ public nonisolated func dayNextDoneLine(_ progress: SessionProgress, hubWorkouts
     return progress.statusText
 }
 
+/// W-FIX10 R-02: in the order they happened (`startTimeUtc`; rows without a start last, then by id) —
+/// the hub's `activity_id` order is not time order.
 public nonisolated func dayNextHubWorkouts(_ activities: [DayActivity], done: SessionCompletion) -> [DayActivity] {
-    guard case .done(let w) = done, let id = w.hubActivityId, let i = activities.firstIndex(where: { $0.activityId == id }) else {
-        return activities
+    let byStart = activities.sorted { a, b in
+        switch (a.startDate, b.startDate) {
+        case let (x?, y?) where x != y: return x < y
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: return a.activityId < b.activityId
+        }
     }
-    var out = activities
+    guard case .done(let w) = done, let id = w.hubActivityId, let i = byStart.firstIndex(where: { $0.activityId == id }) else {
+        return byStart
+    }
+    var out = byStart
     out.insert(out.remove(at: i), at: 0)
     return out
 }

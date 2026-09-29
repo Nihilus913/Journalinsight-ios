@@ -34,7 +34,8 @@ public nonisolated struct TrainingDayPreview: Sendable, Equatable {
         /// A cardio / rest plan session the hub lists (W-B40 fixer, B40-V1): changeable like a
         /// strength session, through its `plan_session` weekday.
         case session(id: Int, name: String, kind: TrainingWeekDayKind)
-        /// The fixed gate schedule (`JICompute.sessionFor`) — not assignable, never removed here.
+        /// The schedule's session for the day (`scheduledSession`: the plan's weekdays, the fixed
+        /// gate table only as fallback — W-FIX10 R-01) — not assignable, never removed here.
         case scheduled(name: String, kind: TrainingWeekDayKind)
 
         public var id: String {
