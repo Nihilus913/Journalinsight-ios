@@ -12,8 +12,24 @@ import JICore
             .sleepAnalysis, .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex, .workouts,
             .basalEnergy, .dietaryEnergy, .dietaryProtein, .dietaryCarbs, .dietaryFat,
             .dietaryFiber, .dietarySugar,
+            .respiratoryRate, .oxygenSaturation, .sleepingWristTemperature, .vo2Max,
         ]
         #expect(Set(HKReadKind.allCases) == expected)
+    }
+
+    /// W-FIX10 DH-8 (audit 04-a1): respiration, SpO2, sleeping wrist temperature and VO2max are
+    /// uploaded (App `healthKitUploadSpecs`) but were missing from the read vocabulary, so the
+    /// permission verdict never reported them. Same HealthKit types as the upload list.
+    @Test func dh8RespSpO2WristTempAndVO2maxAreReadKinds() {
+        let expected: [(HKReadKind, HKQuantityTypeIdentifier)] = [
+            (.respiratoryRate, .respiratoryRate), (.oxygenSaturation, .oxygenSaturation),
+            (.sleepingWristTemperature, .appleSleepingWristTemperature), (.vo2Max, .vo2Max),
+        ]
+        for (kind, id) in expected {
+            #expect((kind.sampleType as? HKQuantityType)?.identifier == id.rawValue, "\(kind)")
+            #expect(HKReadKind.allReadTypes.contains(kind.sampleType!), "\(kind)")
+            #expect(HKReadKind.availableCases.contains(kind), "\(kind)")
+        }
     }
 
     /// B-57 W2 (B-73): resting energy + the food-app day totals are read as quantity types, so

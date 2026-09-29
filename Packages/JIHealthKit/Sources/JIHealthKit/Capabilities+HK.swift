@@ -13,9 +13,14 @@ extension DataCapability {
     /// (`HKReadKind.hrvRMSSDTypeAvailable`), and `.bodyBattery`/`.trainingReadiness`/
     /// `.garminSleepScore` are NEVER set here — those are Garmin/Firstbeat-derived signals
     /// HealthKit cannot supply (memory `project_source_agnostic_gate`: Apple/Garmin don't align).
+    ///
+    /// W-FIX10 F10-4 (audit 03-F12): `.gate` / `.morning` / `.morningVerdict` are NOT claimed —
+    /// `HealthKitProvider` always throws `notCapable(.gate)` for them until the on-device gate
+    /// exists (proposal §4), so a consumer reading this bitmap (Today's gate source) goes to the
+    /// hub instead of a provider that can only refuse.
     public static var appleWatchCapabilities: DataCapability {
         var caps: DataCapability = [
-            .gate, .morning, .morningVerdict, .recovery, .sleepSummary, .exercises, .energy,
+            .recovery, .sleepSummary, .exercises, .energy,
             .goals, .kpiTargets, .sync, .dataQuality, .hrvSDNN,
         ]
         #if canImport(HealthKit)
