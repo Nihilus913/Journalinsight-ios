@@ -238,8 +238,9 @@ final class AppEnvironment {
                     onDevice: {
                         guard let rp = provider as? any RecoveryInputsProviding else { return nil }
                         let day = RecoveryInsightService.localDayKey(Date())
-                        guard let days = try? await rp.recoveryInputs(date: day, windowDays: window) else { return nil }
-                        return RecoveryInsightService.score(days: days, today: day)
+                        // W-FIX10 R-04: the hub's calibration verdict rides along — "Calibrating", never a score.
+                        guard let report = try? await rp.recoveryInputsReport(date: day, windowDays: window) else { return nil }
+                        return RecoveryInsightService.score(days: report.days, today: day, calibration: report.calibration)
                     })
             }
         )

@@ -19,9 +19,54 @@ public struct RecoveryInputDay: Codable, Sendable, Equatable {
     }
 }
 
+/// W-FIX10 R-04 (HT DH-4) — the hub's own verdict on the recovery baseline, from the default window
+/// the 05:10 gate uses: `calibrating` until `nights_needed` real Apple nights exist (after the
+/// 2026-09-29 Garmin-copy purge). `components` is keyed `hrv` / `rhr` / `sleep` / `load`; `nights`
+/// there is that component's own count of real values in the normal window.
+public struct RecoveryCalibrationComponent: Codable, Sendable, Equatable {
+    public var status: String
+    public var nights: Int?
+    public init(status: String, nights: Int?) { self.status = status; self.nights = nights }
+    public var isCalibrating: Bool { status == "calibrating" }
+}
+
+public struct RecoveryCalibration: Codable, Sendable, Equatable {
+    /// "ok" | "calibrating" | "missing".
+    public var status: String
+    public var calibrating: Bool
+    public var nights: Int
+    public var nightsNeeded: Int
+    public var components: [String: RecoveryCalibrationComponent]
+
+    public init(status: String, calibrating: Bool, nights: Int, nightsNeeded: Int,
+                components: [String: RecoveryCalibrationComponent] = [:]) {
+        self.status = status; self.calibrating = calibrating; self.nights = nights
+        self.nightsNeeded = nightsNeeded; self.components = components
+    }
+
+    /// Tolerant: a missing `components` is empty, never a decode failure of the whole route.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        status = try c.decode(String.self, forKey: .status)
+        calibrating = try c.decodeIfPresent(Bool.self, forKey: .calibrating) ?? (status == "calibrating")
+        nights = try c.decodeIfPresent(Int.self, forKey: .nights) ?? 0
+        nightsNeeded = try c.decodeIfPresent(Int.self, forKey: .nightsNeeded) ?? 14
+        components = try c.decodeIfPresent([String: RecoveryCalibrationComponent].self, forKey: .components) ?? [:]
+    }
+
+    public func component(_ key: String) -> RecoveryCalibrationComponent? { components[key] }
+
+    /// True when the hub says this component's normal is still calibrating.
+    public func isCalibrating(_ key: String) -> Bool { components[key]?.isCalibrating ?? false }
+}
+
 /// The route's envelope: `date` = the day the hub loaded for (hub-local today when not passed).
+/// `calibration` = W-FIX10 R-04; nil from a hub before DH-4.
 public struct RecoveryInputsReport: Codable, Sendable, Equatable {
     public var date: String
     public var days: [RecoveryInputDay]
-    public init(date: String, days: [RecoveryInputDay]) { self.date = date; self.days = days }
+    public var calibration: RecoveryCalibration?
+    public init(date: String, days: [RecoveryInputDay], calibration: RecoveryCalibration? = nil) {
+        self.date = date; self.days = days; self.calibration = calibration
+    }
 }

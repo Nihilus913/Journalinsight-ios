@@ -29,7 +29,7 @@ public nonisolated func completedWorkoutRowText(_ a: DayActivity) -> CompletedWo
     if let seconds = a.durationSec, seconds.isFinite, seconds >= 60 {
         let minutes = wholeMinutes(seconds)   // FIX9V-3: rounds, as TodayWorkout.durationMinutes does
         metrics.append(minutes >= 60 ? "\(minutes / 60) h \(String(format: "%02d", minutes % 60)) min" : "\(minutes) min")
-        spoken.append(minutes >= 60 ? "\(minutes / 60) hours \(minutes % 60) minutes" : "\(minutes) minutes")
+        spoken.append(spokenWorkoutDuration(minutes: minutes))   // W-FIX10 R-03
     }
     if let metres = a.distanceM, metres.isFinite, metres > 0 {
         let km = jiNumber(metres / 1000, 2)
@@ -45,6 +45,13 @@ public nonisolated func completedWorkoutRowText(_ a: DayActivity) -> CompletedWo
     if !zones.isEmpty { spoken.append("time in zone " + zones.joined(separator: ", ")) }
     return CompletedWorkoutText(title: title, sourceLabel: source, systemImage: workoutTypeSymbol(a.type),
                                 metrics: metrics, zones: zones, accessibilityLabel: spoken.joined(separator: ", "))
+}
+
+/// W-FIX10 R-03: the spoken duration through Foundation's duration formatter — "1 hour",
+/// "1 hour, 5 minutes", "40 minutes" — never "1 hours 0 minutes". English, like the rest of the copy.
+nonisolated func spokenWorkoutDuration(minutes: Int) -> String {
+    Duration.seconds(max(0, minutes) * 60)
+        .formatted(.units(allowed: [.hours, .minutes], width: .wide).locale(Locale(identifier: "en_US")))
 }
 
 /// W-FIX9 fixer (FIX9V-3): whole minutes, rounded — ONE rule with `TodayWorkout.durationMinutes`,

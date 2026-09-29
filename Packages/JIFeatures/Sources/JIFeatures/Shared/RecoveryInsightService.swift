@@ -15,7 +15,9 @@ public nonisolated enum RecoveryMetric: Sendable, Hashable { case hrv, rhr, slee
 /// — never a score of 0 or 50. A night without Apple HRV is `result.status == .missing` (no score).
 @Observable @MainActor
 public final class RecoveryInsightService {
-    public static let cacheKey = "recovery.inputs"
+    /// W-FIX10 R-04: the whole envelope (days + the hub's calibration block) is cached — a new key,
+    /// so an older `[RecoveryInputDay]` entry is simply a miss, never a decode failure.
+    public static let cacheKey = "recovery.inputs.report"
     public static let windowDays = 42
     public static let staleAfter: TimeInterval = 15 * 60
 
@@ -24,6 +26,9 @@ public final class RecoveryInsightService {
     public private(set) var result: RecoveryScoreResult?
     public private(set) var fetchedAt: Date?
     public private(set) var reasonWord: String?
+    /// W-FIX10 R-04: the hub's own baseline verdict (HT DH-4); nil from an older hub or a provider
+    /// without one. When it says calibrating, the phone never shows a score or band of its own.
+    public private(set) var calibration: RecoveryCalibration?
 
     private let provider: (any RecoveryInputsProviding)?
     private let cache: OfflineCache
@@ -45,19 +50,20 @@ public final class RecoveryInsightService {
     public func refresh() async {
         let day = dayKey(now())
         guard let provider else {
-            today = day; days = []; fetchedAt = nil; result = nil; reasonWord = "No data"; return
+            today = day; days = []; calibration = nil; fetchedAt = nil; result = nil; reasonWord = "No data"; return
         }
-        let loaded: SectionResult<[RecoveryInputDay]>
+        let loaded: SectionResult<RecoveryInputsReport>
         do {
             loaded = try await SectionLoader.load(key: Self.cacheKey, cache: cache, now: now) {
-                try await provider.recoveryInputs(date: day, windowDays: Self.windowDays)
+                try await provider.recoveryInputsReport(date: day, windowDays: Self.windowDays)
             }
         } catch {
             // Cancellation only (SectionLoader rethrows nothing else): keep what is shown.
             return
         }
         today = day
-        days = loaded.value ?? []
+        days = loaded.value?.days ?? []
+        calibration = loaded.value?.calibration
         fetchedAt = loaded.fetchedAt ?? fetchedAt
         recompute()
     }
@@ -70,17 +76,42 @@ public final class RecoveryInsightService {
     }
 
     func recompute() {
-        result = Self.score(days: days, today: today)
+        result = Self.score(days: days, today: today, calibration: calibration)
         reasonWord = result == nil ? "No data" : nil
     }
 
     /// The recovery score over `/vitals/recovery-inputs` days (nil = no days / no answer). W-DATA
     /// fixer R3: the one computation Decide's ring and the Health screen's Readiness tile share.
-    public nonisolated static func score(days: [RecoveryInputDay], today: String) -> RecoveryScoreResult? {
+    /// W-FIX10 R-04: a hub `calibration` that says calibrating wins — the result is `.calibrating`
+    /// with the hub's own night counts (no score), and each component the hub still calibrates
+    /// loses its z. The phone never builds a number on nights the hub does not count.
+    public nonisolated static func score(days: [RecoveryInputDay], today: String,
+                                         calibration: RecoveryCalibration? = nil) -> RecoveryScoreResult? {
         let series = days.map { RecoverySeriesDay(date: $0.date, hrvMs: $0.hrvMs, rhrBpm: $0.rhrBpm, sleepH: $0.sleepH,
                                                   deepH: $0.deepH, remH: $0.remH, loadMin: $0.loadMin) }
-        guard !series.isEmpty else { return nil }
-        return try? RecoveryScore.compute(days: series, today: today)
+        guard !series.isEmpty, let local = try? RecoveryScore.compute(days: series, today: today) else { return nil }
+        guard let calibration, calibration.calibrating else { return local }
+        let comps = local.components.map { c -> RecoveryComponent in
+            guard calibration.isCalibrating(c.key.rawValue) else { return c }
+            return RecoveryComponent(key: c.key, status: .calibrating, value: c.value, z: nil,
+                                     normalN: calibration.component(c.key.rawValue)?.nights ?? c.normalN)
+        }
+        return RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: comps,
+                                   nights: calibration.nights, nightsNeeded: calibration.nightsNeeded)
+    }
+
+    /// The hub component a metric's normal belongs to.
+    nonisolated static func calibrationKey(_ metric: RecoveryMetric) -> String {
+        switch metric {
+        case .hrv: "hrv"
+        case .rhr: "rhr"
+        case .sleepH, .deepH, .remH: "sleep"
+        }
+    }
+
+    /// W-FIX10 R-04: "Calibrating · 4 of 14 nights" while the hub calibrates this metric's normal.
+    public func calibrationCaption(for metric: RecoveryMetric) -> String? {
+        recoveryCalibrationCaption(calibration, key: Self.calibrationKey(metric))
     }
 
     private func series(_ metric: RecoveryMetric) -> [String: Double] {
@@ -99,8 +130,9 @@ public final class RecoveryInsightService {
     }
 
     /// The 28-day personal normal (days `today−34 … today−7`); nil while fewer than 14 values.
+    /// W-FIX10 R-04: nil while the hub says this metric's normal is calibrating.
     public func normal(for metric: RecoveryMetric) -> PersonalNormalResult? {
-        guard !today.isEmpty else { return nil }
+        guard !today.isEmpty, !(calibration?.isCalibrating(Self.calibrationKey(metric)) ?? false) else { return nil }
         return try? PersonalNormal.normal(series(metric), today: today)
     }
 
@@ -133,6 +165,7 @@ extension RecoveryInsightService {
                                        now: { fixed }, dayKey: { _ in galleryFixtureDay })
         s.today = galleryFixtureDay
         s.days = MockDataProvider.recoveryInputDays(date: galleryFixtureDay, windowDays: windowDays)
+        s.calibration = MockDataProvider.recoveryCalibration(nights: 28)
         s.fetchedAt = fixed
         s.recompute()
         return s

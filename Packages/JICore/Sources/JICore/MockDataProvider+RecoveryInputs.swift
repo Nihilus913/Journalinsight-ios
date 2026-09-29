@@ -7,6 +7,24 @@ extension MockDataProvider: RecoveryInputsProviding {
         Self.recoveryInputDays(date: date, windowDays: windowDays)
     }
 
+    /// W-FIX10 R-04: the mock's baseline is settled (its 42 days fill every normal), so the block
+    /// says "ok" — the fixtures keep their real score and bands.
+    public func recoveryInputsReport(date: String, windowDays: Int) async throws -> RecoveryInputsReport {
+        let days = Self.recoveryInputDays(date: date, windowDays: windowDays)
+        return RecoveryInputsReport(date: date, days: days, calibration: Self.recoveryCalibration(nights: min(days.count, 28)))
+    }
+
+    /// An "ok" (≥ 14 nights) or "calibrating" block for `nights` real nights, every component alike.
+    public static func recoveryCalibration(nights: Int, nightsNeeded: Int = 14) -> RecoveryCalibration {
+        let calibrating = nights < nightsNeeded
+        let status = calibrating ? "calibrating" : "ok"
+        let comps = Dictionary(uniqueKeysWithValues: ["hrv", "rhr", "sleep"].map {
+            ($0, RecoveryCalibrationComponent(status: status, nights: nights))
+        })
+        return RecoveryCalibration(status: status, calibrating: calibrating, nights: nights,
+                                   nightsNeeded: nightsNeeded, components: comps)
+    }
+
     /// The same days, synchronously (the Gallery's seeded `RecoveryInsightService`).
     public static func recoveryInputDays(date: String, windowDays: Int) -> [RecoveryInputDay] {
         let fmt = DateFormatter()

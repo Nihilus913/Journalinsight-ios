@@ -5,4 +5,14 @@ public protocol RecoveryInputsProviding: Sendable {
     /// `GET /api/v1/vitals/recovery-inputs?date=&window_days=` — ascending days ending at `date`;
     /// a day with no reading at all is absent, a missing field is nil.
     func recoveryInputs(date: String, windowDays: Int) async throws -> [RecoveryInputDay]
+
+    /// W-FIX10 R-04: the whole envelope, with the hub's `calibration` block (nil when the provider
+    /// has none — the default below).
+    func recoveryInputsReport(date: String, windowDays: Int) async throws -> RecoveryInputsReport
+}
+
+public extension RecoveryInputsProviding {
+    func recoveryInputsReport(date: String, windowDays: Int) async throws -> RecoveryInputsReport {
+        RecoveryInputsReport(date: date, days: try await recoveryInputs(date: date, windowDays: windowDays))
+    }
 }
