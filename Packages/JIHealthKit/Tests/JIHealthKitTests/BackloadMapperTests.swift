@@ -181,6 +181,23 @@ import JIHub
         #expect(q.value == 42.0)
     }
 
+    /// Toby 2026-09-29: Bevel and other apps read only the classic SDNN "Heart Rate Variability"
+    /// type, so the Garmin RMSSD also goes there when the setting is on — under an `hrvsdnn:`
+    /// sync id, which the v4 `hrv:*` SDNN cleanup never matches.
+    @Test func hrvAlsoWritesAClassicSDNNCopyForOtherApps() {
+        let entry = BackloadHrvEntryDTO(syncId: "hrv:2026-06-01", date: "2026-06-01", nightlyRmssdMs: 40,
+                                        readings: [.init(ts: "2026-06-01T23:00:00+02:00", rmssdMs: 38)])
+        let specs = BackloadMapper.mapHrv(entry, alsoSDNN: true)
+        #expect(specs.count == 2)
+        let kinds = specs.compactMap { spec -> BackloadQuantityKind? in if case .quantity(let q) = spec { q.kind } else { nil } }
+        #expect(kinds == [.hrvRMSSD, .hrvSDNNCompat])
+        #expect(specs.map(\.syncId) == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00", "hrvsdnn:2026-06-01:2026-06-01T23:00:00+02:00"])
+        #expect(!specs[1].syncId.hasPrefix("hrv:"))
+        let nightly = BackloadMapper.mapHrv(BackloadHrvEntryDTO(syncId: "hrv:2026-06-01", date: "2026-06-01", nightlyRmssdMs: 40, readings: []), alsoSDNN: true)
+        #expect(nightly.map(\.syncId) == ["hrv:2026-06-01", "hrvsdnn:2026-06-01"])
+        #expect(BackloadMapper.mapHrv(entry).count == 1) // off → RMSSD only
+    }
+
     @Test func hrvWithNeitherReadingsNorNightlyAvgMapsToNothing() {
         let entry = BackloadHrvEntryDTO(syncId: "hrv:2026-06-01", date: "2026-06-01", nightlyRmssdMs: nil, readings: [])
         #expect(BackloadMapper.mapHrv(entry).isEmpty)

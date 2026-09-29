@@ -19,6 +19,11 @@ public enum BackloadQuantityKind: Sendable, Equatable {
                             // went into `heartRateVariabilitySDNN` behind a Settings toggle;
                             // RMSSD and SDNN are different statistics, and Apple's own Vitals
                             // daytime HRV is RMSSD, so the two series finally line up.
+    case hrvSDNNCompat      // ms — the same Garmin RMSSD, ALSO written under the classic
+                            // `heartRateVariabilitySDNN` type when `HrvForOtherApps` is on
+                            // (Toby 2026-09-29: Bevel reads only SDNN). Sync id `hrvsdnn:*`, so
+                            // the v4 `hrv:*` SDNN cleanup never removes it; JI never reads it
+                            // back (own-source filter, DH-3) and the hub drops it (DH-1).
     // W9 (B-30 P5) daily kinds from `import.garmin_api_daily`:
     case flightsClimbed         // count — Garmin `floors_ascended`
     case distanceWalkingRunning // m — daily distance NET of workout distance (hub-side; never re-subtracted)

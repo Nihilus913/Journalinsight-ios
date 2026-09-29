@@ -29,6 +29,25 @@ private struct HealthSectionRows: View {
             HealthBackloadSection(model: backloadModel)
         }
         WorkoutBackfillSection()
+        HrvForOtherAppsSection()
+    }
+}
+
+/// Toby 2026-09-29: Bevel (and most apps) read only classic "Heart Rate Variability" (SDNN);
+/// JI's Garmin HRV lives under iOS 27's "Recovery HRV" (RMSSD). On = the backload writes both.
+struct HrvForOtherAppsSection: View {
+    private let defaults = UserDefaults(suiteName: HealthKitUploader.appGroupSuite)
+    @State private var isOn = true
+
+    var body: some View {
+        Section {
+            Toggle("Also write HRV for other apps", isOn: $isOn)
+                .accessibilityIdentifier("settings-hrv-other-apps")
+                .onChange(of: isOn) { _, new in HrvForOtherApps.set(new, defaults: defaults) }
+        } footer: {
+            Text("Garmin HRV also goes into Apple Health's classic Heart Rate Variability, which apps like Bevel read. Run the backload once after turning it on. JournalInsight never reads these copies back.")
+        }
+        .onAppear { isOn = HrvForOtherApps.isOn(defaults) }
     }
 }
 
