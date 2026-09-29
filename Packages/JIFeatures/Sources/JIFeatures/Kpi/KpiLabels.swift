@@ -1,6 +1,7 @@
 import Foundation
 import JICore
 import JICompute
+import JIDesign
 
 // W-B34 L1: the KPI registry moved to `JICore/Kpi/KpiMetrics.swift`; these two screen-copy helpers
 // stay in JIFeatures (`kpiAsOfLabel` uses JIFeatures' `trainingStripDate`).
@@ -94,4 +95,24 @@ public nonisolated func kpiLoadHistory(days: [RecoveryInputDay], today: String) 
         d = next
     }
     return out
+}
+
+// MARK: - W-FIX10 R-04: the hub's calibration block (HT DH-4)
+
+/// The hub's calibration component a KPI's normal is built on; nil for any other metric.
+public nonisolated func kpiCalibrationKey(_ metric: KpiMetricId) -> String? {
+    switch metric {
+    case .hrv: "hrv"
+    case .rhr: "rhr"
+    default: nil
+    }
+}
+
+/// "Calibrating · 4 of 14 nights" when the hub says `key`'s normal is still calibrating, else nil
+/// (then the phone's own band stands). Never a band built on too few real nights (rule 5).
+public nonisolated func recoveryCalibrationCaption(_ calibration: RecoveryCalibration?, key: String) -> String? {
+    guard let calibration, calibration.isCalibrating(key) else { return nil }
+    let need = key == "load" ? RecoveryScore.loadMinNormalN : calibration.nightsNeeded
+    let n = max(0, min(calibration.component(key)?.nights ?? calibration.nights, need))
+    return "\(JIMissingReason.calibrating.rawValue) · \(n) of \(need) nights"
 }

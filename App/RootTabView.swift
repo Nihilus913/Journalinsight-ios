@@ -1281,7 +1281,9 @@ struct RootTabView: View {
                            syncedAt: model.syncedAt,
                            normals: decideSignalNormals(recovery: model.recovery),
                            banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
-                           calibrationNights: model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
+                           // W-FIX10 R-04: the hub's own count of real Apple HRV nights (DH-4) when it sent one.
+                           calibrationNights: recoveryInsight?.calibration.map { $0.component("hrv")?.nights ?? $0.nights }
+                               ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
                     .onAppear {
                         if gateConfigModel == nil {

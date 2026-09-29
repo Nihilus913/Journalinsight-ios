@@ -41,6 +41,28 @@ import JIPersistence
         #expect(t.metrics == ["1 h 05 min", "30.40 km", "avg 132 bpm"])
     }
 
+    /// W-FIX10 R-03: VoiceOver says "1 hour", not "1 hours 0 minutes".
+    @Test func spokenDurationUsesTheDurationFormatter() {
+        let hour = DayActivity(activityId: 6, type: "running", name: "Run", durationSec: 3600, distanceM: nil, source: "apple")
+        #expect(completedWorkoutRowText(hour).accessibilityLabel == "Run, Apple Health, 1 hour")
+        let ride = DayActivity(activityId: 5, type: "cycling", name: "Ride", durationSec: 3900, distanceM: nil, source: "garmin")
+        #expect(completedWorkoutRowText(ride).accessibilityLabel == "Ride, Garmin, 1 hour, 5 minutes")
+        #expect(spokenWorkoutDuration(minutes: 1) == "1 minute")
+        #expect(spokenWorkoutDuration(minutes: 125) == "2 hours, 5 minutes")
+        #expect(!completedWorkoutRowText(hour).accessibilityLabel.contains("0 minutes"))
+    }
+
+    /// W-FIX10 R-02: rows in start order, not activity_id order; no start → last.
+    @Test func trainingDayListsWorkoutsByStartTime() throws {
+        let late = DayActivity(activityId: 1, type: "walking", name: "Walk", durationSec: nil, distanceM: nil, startTimeUtc: "2026-09-28T17:00:00+00:00")
+        let early = DayActivity(activityId: 9, type: "running", name: "Run", durationSec: nil, distanceM: nil, startTimeUtc: "2026-09-28T05:02:04+00:00")
+        let unknown = DayActivity(activityId: 2, type: "yoga", name: "Yoga", durationSec: nil, distanceM: nil, startTimeUtc: nil)
+        let mid = DayActivity(activityId: 3, type: "cycling", name: "Ride", durationSec: nil, distanceM: nil, startTimeUtc: "2026-09-28T09:30:00.500+00:00")
+        #expect(completedWorkoutsInStartOrder([late, unknown, early, mid]).map(\.activityId) == [9, 3, 1, 2])
+        let src = try String(contentsOf: packageRoot().appendingPathComponent("Sources/JIFeatures/Training/TrainingDayDetailCard.swift"), encoding: .utf8)
+        #expect(src.contains("completedWorkoutsInStartOrder(detail?.activities"))
+    }
+
     @Test func timeInZoneListsOnlyZonesWithTime() {
         var run = outdoorRun
         run.zoneTime = [WorkoutZoneTime(zone: 1, lowerBpm: 0, upperBpm: 125, seconds: 240),

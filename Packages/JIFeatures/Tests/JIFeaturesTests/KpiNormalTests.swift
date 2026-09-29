@@ -112,7 +112,8 @@ private func rhrNights(_ n: Int, today: String, value: (Int) -> Double) throws -
 
 @Test func kpiDetailDrawsTheBandAndPillsTheOneRule() throws {
     let view = try s2Source("Sources/JIFeatures/Kpi/KpiDetailView.swift")
-    #expect(view.contains("KpiNormal.make("))
+    // W-FIX10 R-04: through `kpiDetailNormal` (KpiNormal.make, no band while the hub calibrates).
+    #expect(view.contains("kpiDetailNormal("))
     #expect(view.contains("NormalBar("))
     // PF-04: the source line's pill is the one rule, never the screen's fetch time.
     #expect(view.contains("oneSyncPillDate("))
