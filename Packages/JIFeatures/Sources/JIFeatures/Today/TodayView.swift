@@ -262,14 +262,6 @@ public struct TodayView: View {
         JIChevronRow(title: row.title, value: row == .weekReview ? dayWeekReviewValue(week) : row.value, systemImage: row.systemImage)
     }
 
-    private func dayCardHeader(_ title: String, trailing: String? = nil) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text)).accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            if let trailing { Text(trailing).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
-        }
-    }
-
     /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
     private var nextCardModel: DayNextCard {
         dayNextCard(verdict: model.verdict,

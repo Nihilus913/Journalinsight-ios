@@ -88,39 +88,6 @@ public enum HKSampleMapping {
         }
     }
 
-    /// One HAE point per LOCAL DAY: the arithmetic mean of that day's quantity samples, converted
-    /// to `unit` and dated at the day's local midnight. Was the native-RMSSD mapping until B-65
-    /// (RMSSD now goes per reading, see `hrvRMSSDPerReading`); kept as a generic builder, no app
-    /// caller today. Ordered by date so the envelope is deterministic. Non-quantity samples are
-    /// skipped.
-    public static func dayAverage(unit: HKUnit, timeZone: @escaping @Sendable () -> TimeZone = { .current }) -> @Sendable ([HKSample]) -> [HAEDataPoint] {
-        { samples in
-            let zone = timeZone()
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = zone
-            var byDay: [Date: (sum: Double, count: Int, source: String?)] = [:]
-            for case let q as HKQuantitySample in samples {
-                let day = cal.startOfDay(for: q.startDate)
-                let value = q.quantity.doubleValue(for: unit)
-                let existing = byDay[day]
-                byDay[day] = (
-                    sum: (existing?.sum ?? 0) + value,
-                    count: (existing?.count ?? 0) + 1,
-                    source: existing?.source ?? q.sourceRevision.source.name
-                )
-            }
-            return byDay
-                .sorted { $0.key < $1.key }
-                .map { day, acc in
-                    HAEDataPoint(
-                        date: HAEDate.format(day, timeZone: zone),
-                        qty: acc.sum / Double(acc.count),
-                        source: acc.source
-                    )
-                }
-        }
-    }
-
     /// `sleep_analysis`: one point per night. Groups `inBed`/asleep-stage category samples by the
     /// wake day of their END time, 18:00 cutoff (a night ending the morning of day D belongs to D, matching
     /// how the contract's per-night `sleepEnd` is read), sums each stage's duration in hours, and

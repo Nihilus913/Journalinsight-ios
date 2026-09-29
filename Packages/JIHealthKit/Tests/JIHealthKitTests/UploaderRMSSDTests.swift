@@ -118,36 +118,6 @@ final class RMSSDUploadCapturingURLProtocol: URLProtocol, @unchecked Sendable {
         #expect(specs.map(\.metricName) == [HAEMetricName.stepCount, HAEMetricName.heartRateVariabilityRMSSD])
     }
 
-    // MARK: - Day-average mapping
-
-    @Test func dayAverageEmitsOnePointPerLocalDayWithTheMean() throws {
-        guard let type = HKReadKind.hrvRMSSD.sampleType as? HKQuantityType else { return }
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = zurich
-        let d1 = cal.date(from: DateComponents(year: 2026, month: 9, day: 18, hour: 3, minute: 10))!
-        let d1b = cal.date(from: DateComponents(year: 2026, month: 9, day: 18, hour: 23, minute: 50))!
-        let d2 = cal.date(from: DateComponents(year: 2026, month: 9, day: 19, hour: 0, minute: 5))! // 15 min later, next local day
-        let samples: [HKSample] = [
-            rmssdSample(type, ms: 40, at: d1), rmssdSample(type, ms: 60, at: d1b), rmssdSample(type, ms: 33, at: d2),
-        ]
-        let zone = zurich
-        let points = HKSampleMapping.dayAverage(unit: ms, timeZone: { zone })(samples)
-        let byDate = Dictionary(uniqueKeysWithValues: points.map { ($0.date, $0.qty) })
-        #expect(points.count == 2)
-        #expect(byDate["2026-09-18 00:00:00 +0200"] == 50)
-        #expect(byDate["2026-09-19 00:00:00 +0200"] == 33)
-        #expect(points.map(\.date) == points.map(\.date).sorted()) // deterministic order
-    }
-
-    @Test func dayAverageIgnoresNonQuantitySamplesAndEmptyPages() throws {
-        let zone = zurich
-        let mapper = HKSampleMapping.dayAverage(unit: ms, timeZone: { zone })
-        #expect(mapper([]).isEmpty)
-        let sleepType = try #require(HKReadKind.sleepAnalysis.sampleType as? HKCategoryType)
-        let sleep = HKCategorySample(type: sleepType, value: HKCategoryValueSleepAnalysis.asleepCore.rawValue, start: Date(timeIntervalSince1970: 1_758_000_000), end: Date(timeIntervalSince1970: 1_758_003_600))
-        #expect(mapper([sleep]).isEmpty)
-    }
-
     // MARK: - End-to-end through the uploader
 
     @Test func rmssdIsSentPerReadingWithItsTimestamp() async throws {

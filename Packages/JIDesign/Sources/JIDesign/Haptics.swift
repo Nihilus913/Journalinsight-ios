@@ -164,8 +164,6 @@ public extension JIHaptic {
     /// `hapticPressIn()` / `hapticSelection()` / … — fire a vocabulary cue through the shared
     /// dispatcher (prefs gate → marker → engine or fallback).
     static func fire(_ cue: JIHapticCue) { JIHapticDispatcher.shared.fire(cue) }
-    /// `hapticGateChange(tier)`.
-    static func fireGateChange(_ tier: JIGateChangeTier) { JIHapticDispatcher.shared.fire(.gateChange(tier)) }
 }
 
 /// Fires `cue` when `value` changes (never on first appearance) and `when(newValue)` holds — the

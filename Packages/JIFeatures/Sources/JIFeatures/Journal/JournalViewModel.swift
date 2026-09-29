@@ -128,8 +128,4 @@ public final class JournalViewModel {
             state = .error("Couldn't delete this entry.")
         }
     }
-
-    public func shiftCalendar(_ dir: Int) {
-        calendarAnchor = JournalCalendar.shiftAnchor(calendarScope, anchor: calendarAnchor, dir: dir)
-    }
 }

@@ -89,26 +89,6 @@ public nonisolated enum KpiMetrics {
         return nil
     }
 
-    /// Kept for the two callers that want the raw same-day read (fixtures/tests); the screens use
-    /// `latest(for:…)`.
-    static func sameDayValue(
-        for id: KpiMetricId,
-        recovery: [RecoveryDay],
-        nutrition: [NutritionDailyRow],
-        dailyRows: [DailyKpiRow],
-        gateAverages: GateAverages?
-    ) -> Double? {
-        switch id {
-        case .hrv, .rhr, .sleep, .bodyBattery, .readiness, .acwr: return latestRecovery(recovery).flatMap { recoveryField($0, id) }
-        case .weight: return latestDailyValue(dailyRows, key: "weight_kg") ?? gateAverages?.avgWeightKg
-        case .steps: return latestDailyValue(dailyRows, key: "steps")
-        case .kcal: return latestNutrition(nutrition)?.kcalConsumed
-        case .protein: return latestNutrition(nutrition)?.proteinG
-        case .carbs: return latestNutrition(nutrition)?.carbsG
-        case .fat: return latestNutrition(nutrition)?.fatG
-        }
-    }
-
     /// Oldest→newest series for the detail screen's Swift Charts trend — `nil` days pass through
     /// (never coerced to 0, rule 5) so the chart can skip them rather than dip to a false zero.
     public static func history(
