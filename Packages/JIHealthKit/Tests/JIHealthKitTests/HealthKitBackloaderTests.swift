@@ -191,9 +191,7 @@ import JIHub
     @Test func hrvForOtherAppsAlsoWritesTheClassicSDNNCopy() async throws {
         let store = FakeHealthStore()
         DynamicStubURLProtocol.customResponseJSON = hrvJSON
-        let d = testDefaults()
-        HrvForOtherApps.set(true, defaults: d)
-        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: d)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
         _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
         let saved = store.savedObjects.compactMap { $0 as? HKQuantitySample }
         let sdnn = saved.filter { $0.sampleType == HKQuantityType(.heartRateVariabilitySDNN) }

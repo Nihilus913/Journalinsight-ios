@@ -37,7 +37,7 @@ private struct HealthSectionRows: View {
 /// JI's Garmin HRV lives under iOS 27's "Recovery HRV" (RMSSD). On = the backload writes both.
 struct HrvForOtherAppsSection: View {
     private let defaults = UserDefaults(suiteName: HealthKitUploader.appGroupSuite)
-    @State private var isOn = false
+    @State private var isOn = true
 
     var body: some View {
         Section {
