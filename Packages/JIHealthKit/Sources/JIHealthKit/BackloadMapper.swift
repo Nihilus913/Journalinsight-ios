@@ -7,7 +7,7 @@ import JIHub
 /// for shape (pydantic-validated), so a bad date here would be a hub bug, not a caller error, and
 /// one bad row should not sink the whole month's write.
 public enum BackloadMapper {
-    public static func map(_ dto: BackloadResponseDTO, hrvForOtherApps: Bool = false) -> [BackloadWriteSpec] {
+    public static func map(_ dto: BackloadResponseDTO) -> [BackloadWriteSpec] {
         var specs: [BackloadWriteSpec] = []
         specs.append(contentsOf: dto.sleep.flatMap(mapSleep))
         specs.append(contentsOf: dto.rhr.compactMap(mapRHR))
@@ -27,7 +27,7 @@ public enum BackloadMapper {
         specs.append(contentsOf: dto.heartRate.compactMap(mapHeartRate))
         specs.append(contentsOf: dto.respiration.compactMap(mapRespiration))
         specs.append(contentsOf: dto.spo2.compactMap(mapSpo2))
-        specs.append(contentsOf: dto.hrv.flatMap { mapHrv($0, alsoSDNN: hrvForOtherApps) })
+        specs.append(contentsOf: dto.hrv.flatMap(mapHrv))
         specs.append(contentsOf: dto.stepBuckets.compactMap(mapStepBucket))
         specs.append(contentsOf: dto.floors.compactMap(mapFloors))
         specs.append(contentsOf: dto.distance.compactMap(mapDistance))
@@ -203,25 +203,16 @@ public enum BackloadMapper {
     /// when there's no matching sleep entry — an approximation, not a claimed sleep time).
     /// v4: written under Apple's native `heartRateVariabilityRMSSD` type (no toggle) — see
     /// `BackloadQuantityKind.hrvRMSSD`. No hub `version` (the HRV item is not a versioned daily row).
-    /// `alsoSDNN` (Settings › Apple Health › "HRV for other apps"): every sample is also written
-    /// as a classic SDNN copy under `hrvsdnn:<rest of the sync id>` — see `hrvSDNNCompat`.
-    static func mapHrv(_ e: BackloadHrvEntryDTO, alsoSDNN: Bool = false) -> [BackloadWriteSpec] {
-        func pair(_ syncId: String, _ at: Date, _ value: Double) -> [BackloadWriteSpec] {
-            var out: [BackloadWriteSpec] = [.quantity(BackloadQuantitySampleSpec(syncId: syncId, kind: .hrvRMSSD, start: at, end: at, value: value))]
-            if alsoSDNN {
-                let compatId = syncId.hasPrefix("hrv:") ? "hrvsdnn:" + syncId.dropFirst(4) : "hrvsdnn:" + syncId
-                out.append(.quantity(BackloadQuantitySampleSpec(syncId: compatId, kind: .hrvSDNNCompat, start: at, end: at, value: value)))
-            }
-            return out
-        }
+    static func mapHrv(_ e: BackloadHrvEntryDTO) -> [BackloadWriteSpec] {
         if !e.readings.isEmpty {
-            return e.readings.flatMap { reading -> [BackloadWriteSpec] in
-                guard let ts = BackloadDateParsing.timestamp(reading.ts) else { return [] }
-                return pair("\(e.syncId):\(reading.ts)", ts, reading.rmssdMs)
+            return e.readings.compactMap { reading in
+                guard let ts = BackloadDateParsing.timestamp(reading.ts) else { return nil }
+                return .quantity(BackloadQuantitySampleSpec(syncId: "\(e.syncId):\(reading.ts)", kind: .hrvRMSSD, start: ts, end: ts, value: reading.rmssdMs))
             }
         }
         guard let avg = e.nightlyRmssdMs, let (dayStart, _) = BackloadDateParsing.dayBounds(e.date) else { return [] }
-        return pair(e.syncId, dayStart.addingTimeInterval(12 * 3600), avg)
+        let at = dayStart.addingTimeInterval(12 * 3600)
+        return [.quantity(BackloadQuantitySampleSpec(syncId: e.syncId, kind: .hrvRMSSD, start: at, end: at, value: avg))]
     }
 
     // MARK: - Daily fallback (only when no dense samples exist for that date)

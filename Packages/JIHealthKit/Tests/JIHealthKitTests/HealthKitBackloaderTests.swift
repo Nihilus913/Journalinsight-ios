@@ -164,13 +164,10 @@ import JIHub
     /// v4 (B-30, audit D7): Garmin's readings ARE RMSSD, so they go under Apple's native iOS-27
     /// `heartRateVariabilityRMSSD` type unconditionally — no `hk.backload.writeHRV` toggle any
     /// more. On an OS without the RMSSD type the specs are dropped rather than mis-filed as SDNN.
-    /// With "HRV for other apps" OFF: RMSSD only (the pre-2026-09-29 behaviour).
     @Test func hrvIsAlwaysWrittenUnderTheRMSSDTypeWithNoToggle() async throws {
         let store = FakeHealthStore()
         DynamicStubURLProtocol.customResponseJSON = hrvJSON
-        let d = testDefaults()
-        HrvForOtherApps.set(false, defaults: d)
-        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: d)
+        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
         let summary = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
 
         guard let rmssd = HKReadKind.hrvRMSSDQuantityType else {
@@ -184,20 +181,6 @@ import JIHub
         #expect(!saved.contains { $0.sampleType == HKQuantityType(.heartRateVariabilitySDNN) })
         #expect(saved.compactMap { $0.metadata?[HKMetadataKeySyncIdentifier] as? String }
                 == ["hrv:2026-06-01:2026-06-01T23:00:00+02:00"])
-    }
-
-    /// Toby 2026-09-29: ON by default — the same reading also lands under classic SDNN (Bevel),
-    /// with an `hrvsdnn:` sync id the v4 `hrv:*` cleanup never touches.
-    @Test func hrvForOtherAppsAlsoWritesTheClassicSDNNCopy() async throws {
-        let store = FakeHealthStore()
-        DynamicStubURLProtocol.customResponseJSON = hrvJSON
-        let loader = HealthKitBackloader(hub: hubClient(), store: store, defaults: testDefaults())
-        _ = try await loader.run(BackloadRange(from: day(2026, 6, 1), to: day(2026, 6, 1))) { _ in }
-        let saved = store.savedObjects.compactMap { $0 as? HKQuantitySample }
-        let sdnn = saved.filter { $0.sampleType == HKQuantityType(.heartRateVariabilitySDNN) }
-        #expect(sdnn.count == 1)
-        #expect(sdnn.first?.metadata?[HKMetadataKeySyncIdentifier] as? String == "hrvsdnn:2026-06-01:2026-06-01T23:00:00+02:00")
-        #expect(sdnn.first?.quantity.doubleValue(for: .secondUnit(with: .milli)) == 40.0)
     }
 
     // MARK: - v4: version-keyed saves (audit D4)
