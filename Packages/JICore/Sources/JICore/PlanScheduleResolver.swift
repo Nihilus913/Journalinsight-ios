@@ -25,17 +25,58 @@ public nonisolated struct PlanScheduleResolver: Sendable, Equatable {
     /// Mon = 0 … Sun = 6 from the plan rows; nil = no plan to follow (the fallback answers).
     public let week: [ScheduledSession]?
     private let fixedWeek: [ScheduledSession]
+    /// W-SSOT-1 SS-7: the served `/planning/week` answers by date (empty when not served).
+    private let byDate: [String: ScheduledSession]
 
     public init(planSessions: [PlanSessionOut]?, fixedWeek: [ScheduledSession]) {
-        self.fixedWeek = fixedWeek
-        self.week = Self.weekdays(from: planSessions ?? [], fixedWeek: fixedWeek)
+        self.init(planWeek: nil, planSessions: planSessions, fixedWeek: fixedWeek)
     }
 
-    /// `session_for(day, plan)`: the plan's session from the changeover date on, else `fallback`
-    /// (the caller's `JICompute.sessionFor(iso)`, which keeps the Saturday changeover).
+    /// W-SSOT-1 SS-7: a served, complete `/planning/week` (seven days, Mon…Sun) wins — it IS the
+    /// hub's `session_for`; otherwise the week is re-derived from the plan-session rows as before.
+    public init(planWeek: PlanWeekOut?, planSessions: [PlanSessionOut]?, fixedWeek: [ScheduledSession]) {
+        self.fixedWeek = fixedWeek
+        if let served = Self.served(planWeek, fixedWeek: fixedWeek) {
+            self.week = served.week
+            self.byDate = served.byDate
+        } else {
+            self.week = Self.weekdays(from: planSessions ?? [], fixedWeek: fixedWeek)
+            self.byDate = [:]
+        }
+    }
+
+    /// `session_for(day, plan)`: the served week's answer for that date; else the plan's session
+    /// from the changeover date on, else `fallback` (the caller's `JICompute.sessionFor(iso)`,
+    /// which keeps the Saturday changeover).
     public func session(on iso: String, weekday: Int, fallback: ScheduledSession) -> ScheduledSession {
+        if let hub = byDate[iso] { return hub }
         guard let week, iso >= Self.effectiveDate, week.indices.contains(weekday) else { return fallback }
         return week[weekday]
+    }
+
+    /// The served week as Mon…Sun sessions; nil unless every weekday 0…6 is present exactly once.
+    static func served(_ w: PlanWeekOut?, fixedWeek: [ScheduledSession])
+        -> (week: [ScheduledSession], byDate: [String: ScheduledSession])? {
+        guard let days = w?.days, days.count == 7, Set(days.map(\.weekday)) == Set(0...6) else { return nil }
+        var week = [ScheduledSession](repeating: canonical(.rest, fixedWeek: fixedWeek), count: 7)
+        var byDate: [String: ScheduledSession] = [:]
+        for d in days {
+            let s = session(for: d, fixedWeek: fixedWeek)
+            week[d.weekday] = s
+            byDate[d.date] = s
+        }
+        return (week, byDate)
+    }
+
+    /// One served day: the hub's name and type as sent; no session (or a rest type) is rest.
+    static func session(for d: PlanWeekDayOut, fixedWeek: [ScheduledSession]) -> ScheduledSession {
+        guard let name = d.session, !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            return canonical(.rest, fixedWeek: fixedWeek)
+        }
+        let kind = d.sessionType.flatMap(ScheduledSessionKind.init(rawValue:))
+            ?? fixedWeek.first { $0.name == name }?.kind
+            ?? (name.lowercased().contains("interval") ? .interval : name.lowercased() == "rest" ? .rest : .z2)
+        return ScheduledSession(name: name, kind: kind)
     }
 
     /// A session's kind by its name (the plan's week first, then the fixed table); nil = unknown.

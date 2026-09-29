@@ -1,0 +1,12 @@
+{
+  "start": "2026-09-28",
+  "days": [
+    {"date": "2026-09-28", "weekday": 0, "session": "Day 1 Full Upper + Z2 40min", "session_type": "strength"},
+    {"date": "2026-09-29", "weekday": 1, "session": "Norwegian 4x4 intervals", "session_type": "interval"},
+    {"date": "2026-09-30", "weekday": 2, "session": "Long Zone 2 75-90min", "session_type": "z2"},
+    {"date": "2026-10-01", "weekday": 3, "session": "Day 2 Full Upper + Z2 60min", "session_type": "strength"},
+    {"date": "2026-10-02", "weekday": 4, "session": "Day 3 Full Upper + Z2 60min", "session_type": "strength"},
+    {"date": "2026-10-03", "weekday": 5, "session": "Norwegian 4x4 intervals", "session_type": "interval"},
+    {"date": "2026-10-04", "weekday": 6, "session": "Rest", "session_type": "rest"}
+  ]
+}
