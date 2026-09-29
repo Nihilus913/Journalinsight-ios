@@ -368,6 +368,7 @@ nonisolated final class SegmentGuardedHub: WorkoutLibraryProviding, @unchecked S
 
     @Test func refusalKeepsTheSheetOpenWithTheHubsWords() async {
         let vm = WorkoutEditorViewModel(template: run("Z", id: 1)) { _ in .refused("name already exists") }
+        vm.name = "Z2"   // W-FIX10 F10-3: an unchanged edit never reaches the hub
         #expect(await vm.save() == false)
         #expect(vm.errorText == "name already exists")
     }

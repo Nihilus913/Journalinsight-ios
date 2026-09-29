@@ -197,6 +197,7 @@ public struct WorkoutLibraryView: View {
         Section {
             Button { showingImport = true } label: {
                 Label("Import from Garmin Connect", systemImage: "square.and.arrow.down")
+                    .foregroundStyle(theme.color(workoutsImportRole(disabled: model.garminDisabledReason != nil)))
             }
             .disabled(model.garminDisabledReason != nil)
             .accessibilityIdentifier("workouts-import")
@@ -205,6 +206,10 @@ public struct WorkoutLibraryView: View {
         }
     }
 }
+
+/// W-FIX10 F10-3 (B40 obs 2): the Import row's colour — muted while it cannot run (offline, no
+/// Garmin), CTA blue when it can. The native tint kept the icon accent green while disabled.
+nonisolated func workoutsImportRole(disabled: Bool) -> JIColorRole { disabled ? .muted : .info }
 
 /// One library row: sport symbol, name + Garmin badge, summary line, weekday chips.
 struct WorkoutLibraryRow: View {

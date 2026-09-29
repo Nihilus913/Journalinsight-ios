@@ -40,6 +40,7 @@ public struct ImportFromGarminSheet: View {
                 } label: {
                     HStack {
                         Label("Import from Garmin Connect", systemImage: "square.and.arrow.down")
+                            .foregroundStyle(theme.color(workoutsImportRole(disabled: model.isImporting || model.garminDisabledReason != nil)))
                         Spacer()
                         if model.isImporting { ProgressView() }
                     }
