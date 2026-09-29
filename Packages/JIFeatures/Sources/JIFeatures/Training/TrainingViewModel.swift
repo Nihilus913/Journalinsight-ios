@@ -163,7 +163,17 @@ public final class TrainingViewModel {
     public var weekSummary: TrainingWeekSummary {
         trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString,
                             otherSessions: allPlanSessions, templates: library?.templates ?? [])
-            .applyingTodayWorkouts(todayWorkouts.workouts)
+            .applyingTodayWorkouts(todaysWorkouts)
+    }
+
+    /// W-FIX9 fixer (verify r1 FIX9V-2): today's `/training/day/{today}` activities (Garmin + Apple
+    /// dso 4), kept whichever day is selected — the second source Today already reads (G1).
+    public private(set) var todayHubActivities: [DayActivity] = []
+
+    /// Today's workouts from BOTH sources — Apple Health on the phone and the hub's rows — by the
+    /// same `TodayWorkout.merging` Today uses, so Training and Today never disagree on "done".
+    public var todaysWorkouts: [TodayWorkout] {
+        TodayWorkout.merging(local: todayWorkouts.workouts, hub: todayHubActivities)
     }
 
     /// W-FIX7 F7-1: the shared Apple Health workouts model (a seam for tests).
@@ -173,7 +183,7 @@ public final class TrainingViewModel {
     public var selectedDayCompletion: SessionCompletion {
         guard selectedDate == todayDateString,
               let day = weekSummary.days.first(where: { $0.isToday }) else { return .none }
-        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todayWorkouts.workouts)
+        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todaysWorkouts)
     }
 
     /// W-FIX7 fixer: today's Apple Health workouts for the "This day" card — none for any other day.
@@ -202,6 +212,7 @@ public final class TrainingViewModel {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        loadTodayHubIfOtherDaySelected()
         // B-82: the library loads from its cache first, drains its queued day changes, re-reads.
         await library?.load()
     }
@@ -210,6 +221,7 @@ public final class TrainingViewModel {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        loadTodayHubIfOtherDaySelected()
         await library?.load()
     }
 
@@ -222,7 +234,19 @@ public final class TrainingViewModel {
         loadDay(for: date)
     }
 
+    /// FIX9V-2: with another day selected, today's hub rows still load (same cache key as the day detail).
+    private func loadTodayHubIfOtherDaySelected() {
+        let today = todayDateString
+        guard selectedDate != today else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let result = try? await SectionLoader.load(key: "training.day.\(today)", cache: self.cache) { try await self.provider.trainingDay(date: today) }
+            if let value = result?.value, self.todayDateString == today { self.todayHubActivities = value.activities }
+        }
+    }
+
     private func restoreFromCache() {
+        if let d = try? cache.get("training.day.\(todayDateString)", as: TrainingDayDetail.self) { todayHubActivities = d.value.activities }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; fetchedAt = g.fetchedAt; everSynced = true }
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) { morning = m.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
@@ -316,7 +340,10 @@ public final class TrainingViewModel {
             guard let self else { return }
             let result = try? await SectionLoader.load(key: "training.day.\(date)", cache: self.cache) { try await self.provider.trainingDay(date: date) }
             guard !Task.isCancelled else { return }
-            if let value = result?.value { self.dayDetail = value }
+            if let value = result?.value {
+                self.dayDetail = value
+                if date == self.todayDateString { self.todayHubActivities = value.activities }
+            }
             if let result, result.error == nil, !result.stale { self.plannedSessionEditedLocally = false }
             self.dayDetailLoading = false
         }

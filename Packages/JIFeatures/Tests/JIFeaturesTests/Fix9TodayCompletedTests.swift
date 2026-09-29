@@ -132,6 +132,25 @@ import JICompute
         #expect(out[2].logged == "0 of 3 sets")
     }
 
+    /// Verify r1 FIX9V-1: the DB / KB / ab-roller rows read Garmin's names (prod `core.exercise_set`).
+    @Test func garminNamesOfAbbreviatedLiftsCountAgainstThePlan() {
+        let rows = trainingHeroRows(exercises: [Self.exercise(1, "DB Shoulder Press", sets: 3, reps: "10", kg: 12),
+                                                Self.exercise(2, "DB Biceps Curl", sets: 3, reps: "10", kg: 10),
+                                                Self.exercise(3, "KB Overhead Triceps Extension", sets: 3, reps: "10", kg: 12),
+                                                Self.exercise(4, "Ab Roller", sets: 3, reps: "10", kg: nil)],
+                                    session: Self.planned)
+        func sets(_ name: String?, _ cat: String, _ n: Int) -> [DayExerciseSet] {
+            (1...n).map { DayExerciseSet(exerciseName: name, exerciseCategory: cat, setNumber: $0, reps: 10, weightKg: 12) }
+        }
+        let logged = sets("DUMBBELL_SHOULDER_PRESS", "SHOULDER_PRESS", 3) + sets("DUMBBELL_BICEPS_CURL", "CURL", 3)
+            + sets("SEATED_DUMBBELL_OVERHEAD_TRICEPS_EXTENSION", "TRICEPS_EXTENSION", 2) + sets(nil, "TRICEPS_EXTENSION", 1)
+            + sets("TABLETOP_DIP", "TRICEPS_EXTENSION", 2) + sets("BARBELL_ROLLOUT", "CORE", 2)
+        let out = dayNextLiftRows(rows, lifts: [], loggedSets: logged)
+        #expect(out.map(\.logged) == [nil, nil, nil, "2 of 3 sets"])
+        #expect(out[0].right.hasSuffix(" ✓"))
+        #expect(out[2].right.hasSuffix(" ✓"))
+    }
+
     @Test func noLoggedSetsAtAllClaimsNothing() {
         let rows = trainingHeroRows(exercises: [Self.exercise(1, "Bench press", sets: 3, reps: "8", kg: 50)], session: Self.planned)
         let out = dayNextLiftRows(rows, lifts: [], loggedSets: [])

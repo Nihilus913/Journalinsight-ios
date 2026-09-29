@@ -36,8 +36,11 @@ public struct TodayView: View {
     /// B-57 W5 C4: the progression rule's lifts and this week's plan (nil in previews → not shown).
     @Environment(\.progression) private var progression
     @Environment(\.trainingWeekSummary) private var plannedWeek
-    /// W-FIX7 F7-1: the week with today's Apple Health workout applied (today's session done).
-    private var week: TrainingWeekSummary? { plannedWeek?.applyingTodayWorkouts(TodayWorkoutsModel.shared.workouts) }
+    /// W-FIX7 F7-1: the week with today's workouts applied (today's session done) — Apple Health and
+    /// the hub's rows (W-FIX9 fixer FIX9V-2: the same two sources as the summary line).
+    private var week: TrainingWeekSummary? {
+        plannedWeek?.applyingTodayWorkouts(TodayWorkout.merging(local: TodayWorkoutsModel.shared.workouts, hub: model.hubWorkouts))
+    }
     /// B-57 W5 DEV-10: the user's zones and cap for the cardio line (optional, never a default).
     @Environment(\.gateSettings) private var gateSettings
 
@@ -288,7 +291,8 @@ public struct TodayView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 // W-FIX7 F7-1: "Done · Traditional strength · 52 min · Bevel" from Apple Health.
-                SessionCompletionLine(progress: model.sessionProgress(sessionLabel: card.session))
+                // W-FIX9 fixer (FIX9V-4): just "Done" when the hub row below names the workout.
+                SessionCompletionLine(progress: model.sessionProgress(sessionLabel: card.session), hubWorkouts: model.hubWorkouts)
                 // W-B81 A-5: today's completed workouts as the hub holds them (Apple Watch run: distance · HR · time);
                 // W-FIX9 C-4: the one that completed the session first, with its time-in-zone bar.
                 ForEach(dayNextHubWorkouts(model.hubWorkouts, done: completion), id: \.activityId) { activity in
@@ -568,6 +572,16 @@ public nonisolated func dayNextDoneState(_ completion: SessionCompletion) -> Day
 }
 
 /// W-FIX9 C-2: the hub's workouts for NEXT, the one that completed the session first.
+/// W-FIX9 fixer (FIX9V-4): NEXT's tick line. When the workout that completed the session is a hub
+/// row — `dayNextHubWorkouts` puts it first, directly under this line — the line says "Done" and the
+/// row names the workout (once, not twice). Anything else keeps the full line.
+public nonisolated func dayNextDoneLine(_ progress: SessionProgress, hubWorkouts: [DayActivity]) -> String? {
+    if case .done(let w) = progress.completion, let id = w.hubActivityId, hubWorkouts.contains(where: { $0.activityId == id }) {
+        return "Done"
+    }
+    return progress.statusText
+}
+
 public nonisolated func dayNextHubWorkouts(_ activities: [DayActivity], done: SessionCompletion) -> [DayActivity] {
     guard case .done(let w) = done, let id = w.hubActivityId, let i = activities.firstIndex(where: { $0.activityId == id }) else {
         return activities

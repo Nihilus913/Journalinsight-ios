@@ -108,7 +108,12 @@ public nonisolated func dayNextLiftRows(_ rows: [TrainingHeroRow], lifts: [LiftP
         var right = row.prescription
         var logged: String?
         if !loggedSets.isEmpty, let planned = row.sets, planned > 0 {
-            let mine = loggedSets.filter { $0.exerciseName.map(Progression.normalizedName) == key }
+            // W-FIX9 fixer (FIX9V-1): the progression rule's own match — name, category, and the
+            // plan → Garmin aliases ("DB Shoulder Press" is logged as DUMBBELL_SHOULDER_PRESS).
+            let mine = loggedSets.filter {
+                Progression.matches(LoggedSet(exerciseName: $0.exerciseName, category: $0.exerciseCategory,
+                                              setNumber: $0.setNumber, reps: $0.reps, weightKg: $0.weightKg), liftName: row.name)
+            }
             let target = row.reps.flatMap { Int($0.trimmingCharacters(in: .whitespaces)) }
             let hit = target.map { t in mine.allSatisfy { ($0.reps ?? 0) >= t } } ?? true
             if mine.count >= planned && hit { right += " ✓" } else { logged = "\(min(mine.count, planned)) of \(planned) sets" }

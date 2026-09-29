@@ -718,6 +718,11 @@ public struct SessionCompletionLine: View {
     /// W-FIX9: NEXT's line from the session's parts — ticked once any part is done, and naming it.
     public init(progress: SessionProgress) { self.text = progress.statusText; self.isDone = progress.anyDone }
 
+    /// W-FIX9 fixer (FIX9V-4): NEXT's line with the hub rows under it (`dayNextDoneLine`).
+    public init(progress: SessionProgress, hubWorkouts: [DayActivity]) {
+        self.text = dayNextDoneLine(progress, hubWorkouts: hubWorkouts); self.isDone = progress.anyDone
+    }
+
     public var body: some View {
         if let text {
             Label {

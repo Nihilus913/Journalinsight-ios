@@ -27,7 +27,7 @@ public nonisolated func completedWorkoutRowText(_ a: DayActivity) -> CompletedWo
     var metrics: [String] = [], spoken: [String] = [title]
     if let source { spoken.append(source) }
     if let seconds = a.durationSec, seconds.isFinite, seconds >= 60 {
-        let minutes = Int(seconds / 60)
+        let minutes = wholeMinutes(seconds)   // FIX9V-3: rounds, as TodayWorkout.durationMinutes does
         metrics.append(minutes >= 60 ? "\(minutes / 60) h \(String(format: "%02d", minutes % 60)) min" : "\(minutes) min")
         spoken.append(minutes >= 60 ? "\(minutes / 60) hours \(minutes % 60) minutes" : "\(minutes) minutes")
     }
@@ -40,12 +40,16 @@ public nonisolated func completedWorkoutRowText(_ a: DayActivity) -> CompletedWo
     }
     let zones = (a.zoneTime ?? []).sorted { $0.zone < $1.zone }.compactMap { z -> String? in
         guard z.seconds.isFinite, z.seconds >= 60 else { return nil }
-        return "Z\(z.zone) \(Int(z.seconds / 60)) min"
+        return "Z\(z.zone) \(wholeMinutes(z.seconds)) min"
     }
     if !zones.isEmpty { spoken.append("time in zone " + zones.joined(separator: ", ")) }
     return CompletedWorkoutText(title: title, sourceLabel: source, systemImage: workoutTypeSymbol(a.type),
                                 metrics: metrics, zones: zones, accessibilityLabel: spoken.joined(separator: ", "))
 }
+
+/// W-FIX9 fixer (FIX9V-3): whole minutes, rounded — ONE rule with `TodayWorkout.durationMinutes`,
+/// so a 2790 s run reads "47 min" on the summary, the Done line and this row alike.
+nonisolated func wholeMinutes(_ seconds: Double) -> Int { max(0, Int((seconds / 60).rounded())) }
 
 /// "traditional_strength_training" → "Traditional strength training".
 nonisolated func workoutTypeTitle(_ type: String) -> String { TodayWorkout.title(ofHubType: type) }
@@ -96,7 +100,7 @@ public nonisolated func workoutZoneBar(_ zones: [WorkoutZoneTime]?) -> [WorkoutZ
         case let (nil, hi?): "<\(hi)"
         case (nil, nil): nil
         }
-        let minutes = z.seconds < 60 ? "<1 min" : "\(Int(z.seconds / 60)) min"
+        let minutes = z.seconds < 60 ? "<1 min" : "\(wholeMinutes(z.seconds)) min"
         let label = [["Z\(z.zone)", bounds].compactMap { $0 }.joined(separator: " "), minutes].joined(separator: " · ")
         return WorkoutZoneSegment(zone: z.zone, fraction: z.seconds / total, label: label)
     }

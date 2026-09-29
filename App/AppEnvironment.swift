@@ -521,7 +521,7 @@ final class AppEnvironment {
         let gateSignals = today?.morning?.gateSignals
         // W-B57-W5 fixer: the live Training week when RootTabView has one, else the cached B-52 plan.
         let plan = glancePlan?() ?? GlancePlan(TrainingViewModel.cachedWeekSummary(cache: cache, today: Self.isoDay(now()))?
-            .applyingTodayWorkouts(todayWorkouts.workouts))
+            .applyingTodayWorkouts(TodayWorkout.merging(local: todayWorkouts.workouts, hub: today?.hubWorkouts ?? [])))
         // W-FIX7 F7-1: today's session against today's Apple Health workouts.
         let completion = today.map { $0.sessionCompletion(workouts: todayWorkouts, sessionLabel: headline?.session) } ?? .none
         let allKpis = Self.allKpis(today: today, cache: cache, hrvNormal: hrvNormal, rhrNormal: rhrNormal)

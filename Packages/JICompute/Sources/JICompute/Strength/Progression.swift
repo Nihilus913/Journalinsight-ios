@@ -49,7 +49,9 @@ public nonisolated enum Progression {
     public static func matches(_ set: LoggedSet, liftName: String) -> Bool {
         let target = normalizedName(liftName)
         guard !target.isEmpty else { return false }
-        return [set.exerciseName, set.category].compactMap { $0 }.contains { normalizedName($0) == target }
+        if [set.exerciseName, set.category].compactMap({ $0 }).contains(where: { normalizedName($0) == target }) { return true }
+        // W-FIX9 fixer (FIX9V-1): "DB Shoulder Press" is logged as DUMBBELL_SHOULDER_PRESS.
+        return ExerciseAliases.matches(exerciseName: set.exerciseName, category: set.category, liftName: liftName)
     }
 
     public static func evaluate(target: LiftTarget, lastSession: [LoggedSet], autoSuggest: Bool) -> ProgressionState {
