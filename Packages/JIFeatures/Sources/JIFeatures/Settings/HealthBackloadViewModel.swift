@@ -46,7 +46,7 @@ public final class HealthBackloadViewModel {
     public private(set) var lastSyncedDay: String?
     private static let cursorKey = "hk.backload.cursor"          // mid-run resume point
     private static let lastCompletedKey = "hk.backload.lastCompletedDay" // set when a run finishes
-    private static let lastUploadKey = "hk.upload.lastSuccess"   // written by JIHealthKit's uploader
+    private static let lastUploadKey = PrefKeys.hkLastUploadSuccess   // written by JIHealthKit's uploader
     private let timeZone: TimeZone
     /// B-65: local `HH:mm` of the uploader's last successful POST, `nil` = never (row shows "never").
     public private(set) var lastAppleUpload: String?

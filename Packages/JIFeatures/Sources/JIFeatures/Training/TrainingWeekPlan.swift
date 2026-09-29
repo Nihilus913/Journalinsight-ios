@@ -178,12 +178,12 @@ public nonisolated func planSchedule(_ planSessions: [PlanSessionOut]?) -> PlanS
 }
 
 /// The plan's week as the gate's `PlannedSession`s (Mon = 0 … Sun = 6); nil = no plan to follow.
-public nonisolated func plannedWeek(_ resolver: PlanScheduleResolver) -> [JICompute.PlannedSession]? {
-    resolver.week?.map { JICompute.PlannedSession(name: $0.name, type: SessionType(rawValue: $0.kind.rawValue)) }
+public nonisolated func plannedWeek(_ resolver: PlanScheduleResolver) -> [GateSession]? {
+    resolver.week?.map { GateSession(name: $0.name, type: SessionType(rawValue: $0.kind.rawValue)) }
 }
 
 /// The session planned for an ISO date: the plan's weekday from the changeover date on (what the
 /// hub's morning call follows), else the fixed table (`JICompute.sessionFor`). nil = bad date.
-public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSessionOut]?) -> JICompute.PlannedSession? {
+public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSessionOut]?) -> GateSession? {
     try? JICompute.sessionFor(iso, plan: plannedWeek(planSchedule(planSessions)))
 }

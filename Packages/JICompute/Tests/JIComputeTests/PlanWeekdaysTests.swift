@@ -5,10 +5,10 @@ import Testing
 // W-FIX10 R-01: `session_for(day, plan)` — from PLAN_WEEKDAYS_EFFECTIVE on, the plan's weekdays
 // (plan.plan_session, what the day sheet moves) decide the day; the fixed table is the fallback.
 
-private let movedWeek: [PlannedSession] = [
+private let movedWeek: [GateSession] = [
     sessionByWeekday[0], sessionByWeekday[1],
-    PlannedSession(name: "Long Zone 2 75-90min", type: .z2),           // Wed ← Thu's long run
-    PlannedSession(name: "Day 2 Full Upper + Z2 60min", type: .strength), // Thu ← Wed's lifts
+    GateSession(name: "Long Zone 2 75-90min", type: .z2),           // Wed ← Thu's long run
+    GateSession(name: "Day 2 Full Upper + Z2 60min", type: .strength), // Thu ← Wed's lifts
     sessionByWeekday[4], sessionByWeekday[5], sessionByWeekday[6],
 ]
 

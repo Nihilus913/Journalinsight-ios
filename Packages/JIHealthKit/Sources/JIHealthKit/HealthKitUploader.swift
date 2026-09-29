@@ -1,6 +1,7 @@
 #if canImport(HealthKit)
 import Foundation
 import HealthKit
+import JICore
 import JIHub
 import Synchronization
 
@@ -339,8 +340,8 @@ public final class HealthKitUploader: Sendable {
     /// Page size for the anchored query; a full page means "there may be more" and loops.
     public nonisolated static let pageLimit = 2_000
     /// App-Group key holding the instant (ISO-8601, UTC) of the last 2xx upload POST (B-65).
-    /// Settings shows it as "Last Apple upload HH:mm"; JIFeatures duplicates the literal.
-    public nonisolated static let lastSuccessKey = "hk.upload.lastSuccess"
+    /// Settings shows it as "Last Apple upload HH:mm"; the key is `PrefKeys.hkLastUploadSuccess`.
+    public nonisolated static let lastSuccessKey = PrefKeys.hkLastUploadSuccess
 
     /// Fetches anchored pages for one metric, maps each, POSTs it and advances the anchor per
     /// page. `@concurrent`: runs off the caller's actor — under `NonisolatedNonsendingByDefault`

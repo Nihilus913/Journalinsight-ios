@@ -139,7 +139,7 @@ public final class TodayViewModel {
     /// (`hk.upload.lastSuccess`, written by JIHealthKit's `HealthKitUploader` in the App Group).
     public private(set) var lastUploadAt: Date?
     private let uploadRecord: UserDefaults?
-    private static let lastUploadKey = "hk.upload.lastSuccess"
+    private static let lastUploadKey = PrefKeys.hkLastUploadSuccess
 
     /// W-FIX2 L5 (DEV-03): what the sync chip shows — the newer of the hub's last sync and this
     /// app's last successful HealthKit upload. `nil` ("Not synced yet") when neither is known —
