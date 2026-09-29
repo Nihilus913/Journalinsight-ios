@@ -709,20 +709,24 @@ struct DecideReadinessRing: View {
 /// Bevel" (a check, status green — rule 6) or "Other activity · Walk · 30 min · Workout" (muted,
 /// the session stays open). Nothing at all when Health has no workout today.
 public struct SessionCompletionLine: View {
-    let completion: SessionCompletion
+    let text: String?
+    let isDone: Bool
     @Environment(\.jiTheme) private var theme
 
-    public init(completion: SessionCompletion) { self.completion = completion }
+    public init(completion: SessionCompletion) { self.text = completion.statusText; self.isDone = completion.isDone }
+
+    /// W-FIX9: NEXT's line from the session's parts — ticked once any part is done, and naming it.
+    public init(progress: SessionProgress) { self.text = progress.statusText; self.isDone = progress.anyDone }
 
     public var body: some View {
-        if let text = completion.statusText {
+        if let text {
             Label {
                 Text(text).jiFont(.caption, weight: .semibold).fixedSize(horizontal: false, vertical: true)
             } icon: {
-                Image(systemName: completion.isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
+                Image(systemName: isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
             }
-            .foregroundStyle(theme.color(completion.isDone ? .go : .muted))
-            .accessibilityIdentifier(completion.isDone ? "session.done" : "session.otherActivity")
+            .foregroundStyle(theme.color(isDone ? .go : .muted))
+            .accessibilityIdentifier(isDone ? "session.done" : "session.otherActivity")
         }
     }
 }

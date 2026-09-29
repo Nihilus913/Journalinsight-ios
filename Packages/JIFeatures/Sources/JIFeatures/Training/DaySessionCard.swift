@@ -88,6 +88,41 @@ public nonisolated func dayNextRowLoad(_ row: TrainingHeroRow, lifts: [LiftProgr
     return ("\(jiNumber(now, 1)) → \(jiNumber(next, 1)) kg\(sets)", true)
 }
 
+/// W-FIX9 C-3: one NEXT lift row — name left, the plan right ("3 × 8 @ 50 kg", "… ✓" once every
+/// planned set is logged), the logged count under it when short ("2 of 3 sets"), and the
+/// progression rule's hint when it says so ("next: +2.5 kg at 3 × 10").
+public nonisolated struct DayNextLiftRow: Equatable, Sendable, Identifiable {
+    public let id: Int
+    public let name: String
+    public let right: String
+    public let logged: String?
+    public let hint: String?
+}
+
+/// `loggedSets` are the day's sets from the hub (`/training/day/{today}` `exerciseSets`); with none
+/// at all the rows claim nothing about what was done (an Apple workout carries no sets).
+public nonisolated func dayNextLiftRows(_ rows: [TrainingHeroRow], lifts: [LiftProgression],
+                                        loggedSets: [DayExerciseSet]) -> [DayNextLiftRow] {
+    rows.map { row in
+        let key = Progression.normalizedName(row.name)
+        var right = row.prescription
+        var logged: String?
+        if !loggedSets.isEmpty, let planned = row.sets, planned > 0 {
+            let mine = loggedSets.filter { $0.exerciseName.map(Progression.normalizedName) == key }
+            let target = row.reps.flatMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+            let hit = target.map { t in mine.allSatisfy { ($0.reps ?? 0) >= t } } ?? true
+            if mine.count >= planned && hit { right += " ✓" } else { logged = "\(min(mine.count, planned)) of \(planned) sets" }
+        }
+        let lift = lifts.first(where: { $0.exerciseId == row.id }) ?? lifts.first(where: { Progression.normalizedName($0.name) == key })
+        var hint: String?
+        if let lift, lift.isDue, let now = lift.currentKg, let next = lift.nextKg, next > now {
+            hint = ["next: +\(decideCompactNumber(next - now)) kg", row.setsTimesReps.map { "at \($0)" }]
+                .compactMap { $0 }.joined(separator: " ")
+        }
+        return DayNextLiftRow(id: row.id, name: row.name, right: right, logged: logged, hint: hint)
+    }
+}
+
 /// Decide's session row, right side (board 1/01): the first lift's next weight + "↑ Bench up" when due.
 public nonisolated func decideSessionLift(_ lifts: [LiftProgression]) -> (kg: String, caption: String?)? {
     guard let first = lifts.first, let next = first.nextKg else { return nil }
@@ -105,8 +140,10 @@ public nonisolated func dayCardioParts(_ session: String) -> [(kind: DayCardioKi
     session.components(separatedBy: " + ").compactMap { raw in
         let part = raw.lowercased()
         let kind: DayCardioKind
-        if part.contains("4x4") || part.contains("interval") { kind = .intervals }
-        else if part.contains("z2") || part.contains("zone 2") || part.contains("zone2") { kind = .zone2 }
+        // W-FIX9: "swap intervals for easy Z2 30-40min" (the hub's MODIFIED swap) is the Z2 —
+        // the same precedence as JICore `PlannedSessionKind.classify`.
+        if part.contains("z2") || part.contains("zone 2") || part.contains("zone2") { kind = .zone2 }
+        else if part.contains("4x4") || part.contains("interval") { kind = .intervals }
         else { return nil }
         let minutes = part.range(of: #"\d+(\s*[-–]\s*\d+)?\s*min"#, options: .regularExpression).map { r in
             part[r].replacingOccurrences(of: "min", with: "").replacingOccurrences(of: " ", with: "")

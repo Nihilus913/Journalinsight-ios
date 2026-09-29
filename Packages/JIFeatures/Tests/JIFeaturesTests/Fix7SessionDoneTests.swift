@@ -32,7 +32,8 @@ private func week(today: String = "2026-09-28", mondayDone: Bool? = nil) -> Trai
     #expect(empty.workouts.isEmpty)
 
     var changes = 0
-    let model = TodayWorkoutsModel(source: StubWorkouts(rows: [lift]))
+    // W-FIX9: pinned to the fixture day — the real clock made this fail from 2026-09-29 on.
+    let model = TodayWorkoutsModel(source: StubWorkouts(rows: [lift]), now: { t0 })
     model.onChange = { changes += 1 }
     await model.refresh()
     #expect(model.workouts == [lift])

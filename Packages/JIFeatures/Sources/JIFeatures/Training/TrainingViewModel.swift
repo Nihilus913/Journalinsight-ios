@@ -622,7 +622,8 @@ public extension TrainingWeekDay {
     nonisolated var plannedSessionKind: PlannedSessionKind {
         switch kind {
         case .strength: .strength
-        case .interval, .longRun: .cardio
+        case .interval: .interval   // W-FIX9 (audit F3): a walk never completes an interval day
+        case .longRun: .cardio
         case .rest: .rest
         }
     }

@@ -99,7 +99,12 @@ public final class TodayViewModel {
     /// W-B81 A-5: today's completed workouts from the hub (`/training/day/{today}` — Apple dso 4 and
     /// Garmin), for Day's NEXT card. Same cache key as Training's day detail. Empty when the provider
     /// has no training routes; a failure keeps the last known rows.
-    public private(set) var hubWorkouts: [DayActivity] = []
+    public var hubWorkouts: [DayActivity] { hubDay?.activities ?? [] }
+    /// W-FIX9 G3: the whole `/training/day/{today}` answer — its logged sets feed NEXT's
+    /// logged-vs-planned lift rows (C-3). nil until the hub answered.
+    public private(set) var hubDay: TrainingDayDetail?
+    /// Today's logged sets from the hub (empty = none logged, or no hub answer yet).
+    public var hubExerciseSets: [DayExerciseSet] { hubDay?.exerciseSets ?? [] }
 
     /// Today's weekday in the plan's numbering (Mon = 0 … Sun = 6), for the NEXT card's fallback.
     public var todayWeekday: Int {
@@ -357,7 +362,7 @@ public final class TodayViewModel {
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
             if let ev = await eR { exercises = ev }
-            if let wv = await wR { hubWorkouts = wv }
+            if let wv = await wR { hubDay = wv }
             lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
@@ -428,9 +433,9 @@ public final class TodayViewModel {
         return (try? await SectionLoader.load(key: keys.exercises, cache: cache) { try await tp.exercises() })?.value
     }
 
-    nonisolated private static func loadHubWorkouts(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> [DayActivity]? {
+    nonisolated private static func loadHubWorkouts(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> TrainingDayDetail? {
         guard let tp = provider as? any TrainingProviding else { return nil }
-        return (try? await SectionLoader.load(key: "training.day.\(date)", cache: cache) { try await tp.trainingDay(date: date) })?.value?.activities
+        return (try? await SectionLoader.load(key: "training.day.\(date)", cache: cache) { try await tp.trainingDay(date: date) })?.value
     }
 
     nonisolated private static func loadHubLastSync(provider: any HealthDataProvider) async -> Date? {
@@ -622,9 +627,15 @@ public final class TodayWorkoutsModel {
         onChange?()
     }
 
-    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's workouts.
-    public func completion(sessionLabel: String?) -> SessionCompletion {
-        SessionCompletion.resolve(planned: PlannedSessionKind.classify(sessionLabel), workouts: workouts)
+    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's
+    /// workouts: Apple Health's, plus the hub's `core.activity` rows (`hub`, Garmin + Apple — W-FIX9 G1).
+    public func completion(sessionLabel: String?, hub: [DayActivity] = []) -> SessionCompletion {
+        progress(sessionLabel: sessionLabel, hub: hub).completion
+    }
+
+    /// W-FIX9 G5: every part of today's session (the same rule as `completion`).
+    public func progress(sessionLabel: String?, hub: [DayActivity] = []) -> SessionProgress {
+        SessionCompletion.progress(sessionLabel: sessionLabel, workouts: TodayWorkout.merging(local: workouts, hub: hub))
     }
 }
 
@@ -634,8 +645,14 @@ public extension TodayViewModel {
         [morning?.sessionForToday, verdict.session].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
-    /// F7-1: today's session against today's Apple Health workouts (`.none` = unchanged).
+    /// F7-1: today's session against today's workouts — Apple Health and the hub (W-FIX9 G1).
+    /// `.none` = unchanged.
     func sessionCompletion(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionCompletion {
-        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel)
+        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts)
+    }
+
+    /// W-FIX9 C-1: the parts of today's session, for the summary line (same rule, same inputs).
+    func sessionProgress(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionProgress {
+        workouts.progress(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts)
     }
 }
