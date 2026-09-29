@@ -34,6 +34,9 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     public var gateSignals: [GateSignal]?
     /// W-B57b (B-62) — the user's override of the verdict for `verdictDate`, nil when none.
     public var verdictOverride: VerdictOverride?
+    /// W-B49B G-3 — today's session-gate answer (automatic or manual); nil = unanswered or a hub
+    /// that predates the field.
+    public var gateAnswer: GateAnswer?
 
     // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
     // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
@@ -46,7 +49,7 @@ public struct MorningResponse: Codable, Sendable, Equatable {
         case todayActivities, verdict, verdictDate, experiment
         case carbs3dAvg = "carbs3DAvg"
         case carbWatchFloor, hrvSeries, isStale, sessionForToday
-        case gateSignals, verdictOverride
+        case gateSignals, verdictOverride, gateAnswer
     }
 }
 public struct MorningVerdict: Codable, Sendable, Equatable {

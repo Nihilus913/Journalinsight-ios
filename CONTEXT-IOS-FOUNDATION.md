@@ -364,3 +364,4 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 ## 15. W-B49B additions (2026-09-29)
 
 - `HKMetricSpec.init` gains defaulted `rereadSince: Date?` (+ `previousAnchorKey`): after an anchor bump, a phone that holds the previous version's anchor re-reads from `rereadSince` instead of `firstSyncDays`; fresh installs keep the full window. RMSSD spec = `anchorVersion: 3`, re-read from 2026-09-13 local (DH-6).
+- `JICore.GateAnswer` (+ `gateAnswerLine`) and `MorningResponse.gateAnswer` (`/planning/morning` `gate_answer`, optional); `GateRespondViewModel.seed(_:)`/`autoAnswer`/`answeredLine` — the hub's automatic answer shows as "Answered automatically · <FULL/GATED> from <workout>"; a tap on this device always wins (G-3).

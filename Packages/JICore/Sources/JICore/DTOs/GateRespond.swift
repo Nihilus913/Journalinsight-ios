@@ -76,3 +76,36 @@ public struct FeelResult: Codable, Sendable, Equatable {
     public var feelId: Int
     public init(feelId: Int) { self.feelId = feelId }
 }
+
+/// W-B49B G-3 — `GateAnswerOut` inside `GET /planning/morning` (`gate_answer`): the session-gate
+/// answer for the day — the hub's automatic one (`source` "auto", `classification` FULL/GATED,
+/// `workout` = the executed activity) or the user's manual one (manual always wins on the hub).
+/// String fields on purpose: an unknown value from a newer hub must never fail the whole
+/// morning decode — `gateChoice`/`isAutomatic` read them.
+public struct GateAnswer: Codable, Sendable, Equatable {
+    public var logId: Int
+    public var date: String
+    public var choice: String
+    public var source: String
+    public var classification: String?
+    public var workout: String?
+    public var loggedAt: String?
+
+    public init(logId: Int, date: String, choice: String, source: String,
+                classification: String? = nil, workout: String? = nil, loggedAt: String? = nil) {
+        self.logId = logId; self.date = date; self.choice = choice; self.source = source
+        self.classification = classification; self.workout = workout; self.loggedAt = loggedAt
+    }
+
+    public var gateChoice: GateChoice? { GateChoice(rawValue: choice) }
+    public var isAutomatic: Bool { source == "auto" }
+}
+
+/// G-3: the Today line for an automatic answer — "Answered automatically · GATED from Easy Run"
+/// (no workout → just the class). `nil` for a manual answer or none (the "Logged:" row stands).
+public func gateAnswerLine(_ answer: GateAnswer?) -> String? {
+    guard let answer, answer.isAutomatic else { return nil }
+    let cls = answer.classification.map { " · \($0)" } ?? ""
+    let from = answer.workout.flatMap { $0.isEmpty ? nil : " from \($0)" } ?? ""
+    return "Answered automatically\(cls)\(from)"
+}
