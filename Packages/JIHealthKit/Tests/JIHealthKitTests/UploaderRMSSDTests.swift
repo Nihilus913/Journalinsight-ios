@@ -83,7 +83,7 @@ final class RMSSDUploadCapturingURLProtocol: URLProtocol, @unchecked Sendable {
         #expect(spec.metricName == "heart_rate_variability_rmssd")
         #expect(spec.units == "ms")
         #expect(spec.sampleType == type)
-        #expect(spec.anchorVersion == 2) // B-65: fresh anchor → one 120-day re-send per reading
+        #expect(spec.anchorVersion == 3) // DH-6: v3 = one re-read from 09-13 (B-65 v2 was the 120-day re-send)
     }
 
     @Test func anchorVersionTwoUsesAFreshKey() {

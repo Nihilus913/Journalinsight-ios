@@ -37,6 +37,14 @@ public final class GateRespondViewModel {
     /// `GateRespondOut.pdf_requested` from the last confirmed answer.
     public private(set) var pdfRequested = false
 
+    /// W-B49B G-3: the hub's automatic answer this model shows (nil = none, or a manual one).
+    public private(set) var autoAnswer: GateAnswer?
+    /// The answer on screen came from the hub (`seed`), not from a tap on this device — only
+    /// then may a fresher `/morning` replace it.
+    private var hubSeeded = false
+    /// An automatic answer the user undid to override it; a refresh never brings it back.
+    private var dismissedAutoLogId: Int?
+
     public private(set) var feelPhase: Phase = .idle
     public private(set) var feelScore: Int?
 
@@ -71,10 +79,31 @@ public final class GateRespondViewModel {
     public var errorMessage: String? { if case .failed(let message) = phase { message } else { nil } }
     public var feelErrorMessage: String? { if case .failed(let message) = feelPhase { message } else { nil } }
 
+    /// G-3: "Answered automatically · GATED from Easy Run" while an automatic answer is shown.
+    public var answeredLine: String? { gateAnswerLine(autoAnswer) }
+
+    /// W-B49B G-3: shows the hub's answer for the day (`MorningResponse.gateAnswer`). Applies only
+    /// while nothing was answered on this device (or what is shown came from the hub): a manual
+    /// answer given here is never hidden by a stale automatic one. `nil` clears a hub-seeded answer.
+    public func seed(_ answer: GateAnswer?) {
+        guard phase == .idle || (hubSeeded && phase == .logged) else { return }
+        guard let answer, let seededChoice = answer.gateChoice,
+              !(answer.isAutomatic && answer.logId == dismissedAutoLogId) else {
+            if hubSeeded { choice = nil; autoAnswer = nil; hubSeeded = false; phase = .idle }
+            return
+        }
+        choice = seededChoice
+        autoAnswer = answer.isAutomatic ? answer : nil
+        hubSeeded = true
+        phase = .logged
+    }
+
     /// `POST /api/v1/planning/gate/respond` (HT `app/planning/router.py:325`).
     @discardableResult
     public func respond(choice: GateChoice, overrideReason: String = "") async -> Bool {
         phase = .submitting
+        autoAnswer = nil
+        hubSeeded = false
         self.choice = choice
         let body = GateRespondBody(choice: choice, overrideReason: overrideReason, windowDays: windowDays)
         let queuedId: Int64
@@ -140,6 +169,9 @@ public final class GateRespondViewModel {
     /// recommendation itself is untouched, and the `decision_log_mirror` row already written
     /// stays (it records what the user actually did).
     public func undo() {
+        if let autoAnswer { dismissedAutoLogId = autoAnswer.logId }
+        autoAnswer = nil
+        hubSeeded = false
         choice = nil
         pdfRequested = false
         phase = .idle
@@ -318,6 +350,11 @@ public struct GateRespondCard: View {
 
 }
 
+/// G-3: the answered row's text — the automatic line when the hub answered, else "Logged: …".
+public nonisolated func gateRespondedRowText(choice: GateChoice?, answeredLine: String?) -> String {
+    answeredLine ?? "Logged: \(GateRespondCopy.choiceLabels[choice ?? .yes] ?? "")"
+}
+
 /// B-42: the one-liner a answered recommendation collapses to — its own view so both the card and
 /// `VerdictHeroView`'s compact action row show the same row (and the same asymmetric
 /// confirm-on-reversal Undo) without either owning the other's state.
@@ -331,9 +368,9 @@ public struct GateRespondedRow: View {
 
     public var body: some View {
         HStack {
-            Text("Logged: \(GateRespondCopy.choiceLabels[model.choice ?? .yes] ?? "")")
+            Text(gateRespondedRowText(choice: model.choice, answeredLine: model.answeredLine))
                 .font(.footnote.bold()).foregroundStyle(theme.color(.info))
-                .accessibilityIdentifier("today.gateRespond.logged")
+                .accessibilityIdentifier(model.answeredLine == nil ? "today.gateRespond.logged" : "today.gateRespond.auto")
             if model.phase == .queued {
                 Text("PENDING SYNC").font(.caption2.bold()).foregroundStyle(theme.color(.reduced))
                     .accessibilityIdentifier("today.gateRespond.pending")

@@ -35,9 +35,23 @@ public struct HKMetricSpec: Sendable {
         anchorVersion <= 1 ? "hk.upload.anchor.\(sampleType.identifier)"
                            : "hk.upload.anchor.\(sampleType.identifier).v\(anchorVersion)"
     }
+    /// W-B49B DH-6: a bounded re-read after an anchor bump. When set AND the previous version's
+    /// anchor exists (the phone ran the old version), the first pass under the new key reads from
+    /// this instant instead of the `firstSyncDays` window. A fresh install (no previous anchor)
+    /// still gets the full window. `nil` = the plain `firstSyncDays` re-send.
+    public let rereadSince: Date?
+    /// The anchor key of `anchorVersion - 1`, or `nil` at version 1.
+    public var previousAnchorKey: String? {
+        switch anchorVersion {
+        case ...1: return nil
+        case 2: return "hk.upload.anchor.\(sampleType.identifier)"
+        default: return "hk.upload.anchor.\(sampleType.identifier).v\(anchorVersion - 1)"
+        }
+    }
 
-    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, anchorVersion: Int = 1, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
+    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, anchorVersion: Int = 1, rereadSince: Date? = nil, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
         self.sampleType = sampleType
+        self.rereadSince = rereadSince
         self.metricName = metricName
         self.units = units
         self.backgroundFrequency = backgroundFrequency
@@ -177,7 +191,9 @@ extension HKMetricSpec {
     /// unavailable on this OS. One point per reading in milliseconds, dated with the reading's
     /// own timestamp (B-65) — the hub classifies overnight vs daytime readings against the
     /// night's sleep segments. `anchorVersion: 2` = one 120-day re-send of the per-reading
-    /// history for the 28-night baseline. Wire name = frozen `HAEMetricName.heartRateVariabilityRMSSD`.
+    /// history for the 28-night baseline. `anchorVersion: 3` (W-B49B DH-6) = one re-read from
+    /// 2026-09-13 local midnight on a phone that ran v2 (the hub missed Recovery HRV 09-13…09-18;
+    /// the own-source filter, DH-3, is in the store query and unchanged). Wire name = frozen `HAEMetricName.heartRateVariabilityRMSSD`.
     public static func hrvRMSSDPerReading(
         sampleType: HKSampleType? = HKReadKind.hrvRMSSD.sampleType,
         backgroundFrequency: HKUpdateFrequency = .hourly,
@@ -189,9 +205,19 @@ extension HKMetricSpec {
             metricName: HAEMetricName.heartRateVariabilityRMSSD,
             units: "ms",
             backgroundFrequency: backgroundFrequency,
-            anchorVersion: 2,
+            anchorVersion: 3,
+            rereadSince: rmssdRereadStart(timeZone: timeZone()),
             mapSamples: HKSampleMapping.perSample(unit: .secondUnit(with: .milli), timeZone: timeZone)
         )
+    }
+}
+
+extension HKMetricSpec {
+    /// DH-6: 2026-09-13 00:00 in `timeZone` — first day the hub is missing Recovery HRV.
+    static func rmssdRereadStart(timeZone: TimeZone) -> Date? {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timeZone
+        return cal.date(from: DateComponents(year: 2026, month: 9, day: 13))
     }
 }
 
@@ -354,7 +380,7 @@ public final class HealthKitUploader: Sendable {
             return try await syncDailyTotals(spec, type: type, unit: unit, statistics: statistics, now: now)
         }
         var anchor = readAnchor(spec.anchorKey)
-        let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
+        let since: Date? = anchor == nil ? firstPassStart(spec, now: now) : nil
         var uploaded = 0
         while true {
             let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, since: since, limit: Self.pageLimit)
@@ -374,6 +400,16 @@ public final class HealthKitUploader: Sendable {
             anchor = page.newAnchor
             guard page.samples.count >= Self.pageLimit else { return uploaded }
         }
+    }
+
+    /// Start of a type's first pass (no anchor under its current key): the spec's `rereadSince`
+    /// when the previous version's anchor exists (DH-6 bounded re-read), else `firstSyncDays` back.
+    private func firstPassStart(_ spec: HKMetricSpec, now: Date) -> Date {
+        let window = now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400)
+        if let reread = spec.rereadSince, let previous = spec.previousAnchorKey, anchorDefaults?.data(forKey: previous) != nil {
+            return max(reread, window)
+        }
+        return window
     }
 
     // MARK: - Daily totals (WD-6)

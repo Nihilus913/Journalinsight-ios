@@ -71,7 +71,11 @@ public struct TodayView: View {
         // never per body evaluation (the model carries in-flight/pending state).
         .onChange(of: model.gate?.recommendation, initial: !offscreen) { _, recommendation in
             gateRespondModel = recommendation.flatMap(makeGateRespondModel)
+            gateRespondModel?.seed(model.morning?.gateAnswer)   // W-B49B G-3
         }
+        // W-B49B G-3: the hub's automatic (or manual) gate answer shows on the Today line; the
+        // manual controls stay as the override (the model ignores it after a tap on this device).
+        .onChange(of: model.morning?.gateAnswer) { _, fresh in gateRespondModel?.seed(fresh) }
         .animation(JIMotion.standard, value: model.phase)
         .animation(JIMotion.standard, value: model.morningState)
         // §9 Coach overlay: in the morning flow ✕ / swipe-down = `coachAcknowledged`; re-opened
