@@ -22,7 +22,7 @@ public struct InsightsCard: View {
                         Spacer()
                         stat("Avg", "\(JournalInsights.avgDurationMin(entries)) min")
                         Spacer()
-                        stat("Longest", "\(JournalInsights.longestSessionSec(entries) / 60) min")
+                        stat("Longest", DurationFormat.minutes(seconds: JournalInsights.longestSessionSec(entries)))
                     }
                     if let preferred = JournalInsights.preferredTimeOfDay(entries) {
                         Text("Usually written: \(preferred.rawValue)").jiFont(.label).foregroundStyle(theme.color(.mutedNested))

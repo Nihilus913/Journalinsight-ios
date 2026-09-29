@@ -69,7 +69,10 @@ struct Fix3L3DecideTests {
     }
 
     @Test func theHubsOwnBandIsTheNormalOnAppleNights() {
-        let sig = s("hrv", "HRV (7-day)", 46, thr: 41, unit: "ms", status: .pass, note: "band 41–52 ms")
+        // W-SSOT-1 SS-4: the band comes from `band_lo`/`band_hi`, not from the note's wording.
+        var sig = s("hrv", "HRV (7-day)", 46, thr: 41, unit: "ms", status: .pass, note: "band 41–52 ms")
+        #expect(decideSignalRowModel(sig).normal == nil)
+        sig.bandLo = 41; sig.bandHi = 52; sig.bandMethod = "apple_7d"
         #expect(decideSignalRowModel(sig).normal == 41...52)
     }
 
