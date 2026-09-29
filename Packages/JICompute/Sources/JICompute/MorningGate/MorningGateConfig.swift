@@ -196,7 +196,8 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
     )
 }
 
-/// `SESSION_BY_WEEKDAY` (`scripts/morning_go.py` L160-176). Monday = 0 …
+/// `SESSION_BY_WEEKDAY` (`scripts/morning_go.py` L160-176) — W-FIX10 R-01: the FALLBACK schedule
+/// only; the day's session comes from the plan's weekdays (`sessionFor(_:plan:)`). Monday = 0 …
 /// Sunday = 6 (Python `date.weekday()` convention — see `CalendarMath.isoWeekday`).
 public nonisolated let sessionByWeekday: [PlannedSession] = [
     PlannedSession(name: "Day 1 Full Upper + Z2 40min", type: .strength),
@@ -218,10 +219,16 @@ private let saturdayLegacy = PlannedSession(
     type: .optional
 )
 
-/// `session_for(day)` — the planned session for an ISO date, respecting
-/// schedule changeovers.
-public nonisolated func sessionFor(_ iso: String) throws -> PlannedSession {
+/// `PLAN_WEEKDAYS_EFFECTIVE` (`morning_go.py`): from this date the morning call follows
+/// `plan.plan_session.weekday` (what the app's day sheet moves). Earlier dates keep the fixed table.
+public nonisolated let planWeekdaysEffective = "2026-09-29"
+
+/// `session_for(day, plan)` — the planned session for an ISO date, respecting schedule changeovers.
+/// W-FIX10 R-01: `plan` is the plan's week (Mon = 0 … Sun = 6, `JICore.PlanScheduleResolver`); the
+/// fixed `sessionByWeekday` table is only the fallback (before the changeover, or no/malformed plan).
+public nonisolated func sessionFor(_ iso: String, plan: [PlannedSession]? = nil) throws -> PlannedSession {
     let weekday = try CalendarMath.isoWeekday(iso)
+    if let plan, plan.count == 7, iso >= planWeekdaysEffective { return plan[weekday] }
     // Python compares `date` objects; ISO strings of equal width compare the
     // same way lexicographically, which is what the TS oracle relies on too.
     if weekday == 5 && iso < saturdayIntervalEffective { return saturdayLegacy }

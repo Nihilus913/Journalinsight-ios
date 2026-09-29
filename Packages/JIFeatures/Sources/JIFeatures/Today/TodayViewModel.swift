@@ -89,7 +89,25 @@ public final class TodayViewModel {
     private let prefs: PrefStore?
     private let now: () -> Date
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
-                               exercises: "today.exercises")
+                               exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason")
+
+    /// W-FIX10 R-01: the active plan's sessions (`GET /planning/plan-sessions`) — the one schedule
+    /// resolver (`scheduledSession`) reads today's session from their weekdays. Empty = no plan read
+    /// (not a `TrainingProviding`, an older hub, or never answered); a failure keeps the last rows.
+    public private(set) var planSessions: [PlanSessionOut] = []
+
+    /// W-FIX10 R-01: today's session from the plan's weekdays (what the day sheet moves — the rule
+    /// the hub's morning call follows). nil when no plan was read: the hub's labels stand.
+    public var scheduledSessionToday: String? {
+        guard !planSessions.isEmpty else { return nil }
+        return scheduledSession(on: todayDateString, planSessions: planSessions)?.name
+    }
+
+    /// W-FIX10 R-05: the persisted reason of the verdict date's call (`/planning/morning-verdict`).
+    public private(set) var verdictReason: String?
+
+    /// W-FIX10 R-05: "Waiting for the watch…" while the hub holds the morning push (nil otherwise).
+    public var heldReason: String? { decideHeldReason(verdictReason) }
 
     /// W-FIX4 PF-02: the hub's plan (`/planning/exercises`, the rows Training lists) — Day's NEXT card
     /// names today's exercises and working weights from it. Empty when the provider has no plan
@@ -326,6 +344,10 @@ public final class TodayViewModel {
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
+        if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
+        if let v = try? cache.get(Self.keys.verdictReason, as: MorningVerdict.self), v.value.date == morning?.verdictDate {
+            verdictReason = v.value.reason
+        }
         lastUploadAt = readLastUpload()
         if morning != nil { phase = .loaded }
         syncMorningState()
@@ -358,7 +380,9 @@ public final class TodayViewModel {
             async let eR = Self.loadExercises(provider: provider, cache: cache)
             let today = todayDateString
             async let wR = Self.loadHubWorkouts(provider: provider, cache: cache, date: today)
+            async let pR = Self.loadPlanSessions(provider: provider, cache: cache)
             let (m, g, r) = try await (mR, gR, rR)
+            if let pv = await pR { planSessions = pv }
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
             if let ev = await eR { exercises = ev }
@@ -366,6 +390,10 @@ public final class TodayViewModel {
             lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
+            // W-FIX10 R-05: the call's persisted reason (the held "Waiting for the watch…" line).
+            if let date = morning?.verdictDate {
+                verdictReason = await Self.loadVerdictReason(provider: verdictSource, cache: cache, date: date)
+            }
             if let gv = g.value { gate = gv }
             // W-FIX1 BUG-12: the hub's invented `acwr` 0.0 is cleared here, so every Day reader of the
             // rows (the hero Load ring, the EditToday square, Trends) shows "—", never "0.00".
@@ -431,6 +459,18 @@ public final class TodayViewModel {
     nonisolated private static func loadExercises(provider: any HealthDataProvider, cache: OfflineCache) async -> [Exercise]? {
         guard let tp = provider as? any TrainingProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.exercises, cache: cache) { try await tp.exercises() })?.value
+    }
+
+    nonisolated private static func loadPlanSessions(provider: any HealthDataProvider, cache: OfflineCache) async -> [PlanSessionOut]? {
+        guard let tp = provider as? any TrainingProviding else { return nil }
+        return (try? await SectionLoader.load(key: keys.planSessions, cache: cache) { try await tp.planSessions() })?.value
+    }
+
+    /// The reason of `date`'s call; nil when the hub has none for that date (never another day's).
+    nonisolated private static func loadVerdictReason(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> String? {
+        let row = (try? await SectionLoader.load(key: keys.verdictReason, cache: cache) { try await provider.morningVerdict(date: date) })?.value
+        guard let row, row.date == date else { return nil }
+        return row.reason
     }
 
     nonisolated private static func loadHubWorkouts(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> TrainingDayDetail? {
@@ -640,9 +680,11 @@ public final class TodayWorkoutsModel {
 }
 
 public extension TodayViewModel {
-    /// F7-1: the label of today's planned session — the hub's session for today, else the call's session.
+    /// F7-1: the label of today's planned session — the hub's session for today, else (W-FIX10 R-01)
+    /// the plan's session for today's weekday, else the call's session.
     var plannedSessionLabel: String? {
-        [morning?.sessionForToday, verdict.session].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        [morning?.sessionForToday, scheduledSessionToday, verdict.session].compactMap { $0 }
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
     /// F7-1: today's session against today's workouts — Apple Health and the hub (W-FIX9 G1).
