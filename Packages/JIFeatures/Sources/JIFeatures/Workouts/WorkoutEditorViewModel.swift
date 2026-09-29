@@ -162,11 +162,6 @@ public final class WorkoutEditorViewModel {
 
     public func removeSegment(_ id: UUID) { segments.removeAll { $0.id == id } }
 
-    public func setSport(_ sport: WorkoutSport, of segmentId: UUID) {
-        guard let i = segments.firstIndex(where: { $0.id == segmentId }) else { return }
-        segments[i].sport = sport
-    }
-
     public func addCardioStep(to segmentId: UUID, purpose: WorkoutStepPurpose = .work) {
         guard let i = segments.firstIndex(where: { $0.id == segmentId }) else { return }
         segments[i].steps.append(EditableStep(step: .cardio(Self.newCardioStep(purpose))))
