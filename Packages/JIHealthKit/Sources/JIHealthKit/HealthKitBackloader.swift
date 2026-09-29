@@ -84,7 +84,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
                 throw BackloadError.hub("\(error)")
             }
 
-            let allSpecs = BackloadMapper.map(dto)
+            let allSpecs = BackloadMapper.map(dto, hrvForOtherApps: HrvForOtherApps.isOn(cursorDefaults))
             let chunkEnd = chunk.to.addingTimeInterval(86_399) // include the last day fully
             if needsV4Upgrade { await runV4Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
             if needsV5Upgrade { await runV5Upgrade(dto: dto, start: chunk.from, end: chunkEnd) }
@@ -502,6 +502,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         // `HKTypesTests.identifierIsolationSourceGrep` keeps it there); `nil` on a runtime
         // without the iOS-27 native type, which drops the HRV specs rather than mis-filing them.
         case .hrvRMSSD: return HKReadKind.hrvRMSSDQuantityType
+        case .hrvSDNNCompat: return HKQuantityType(.heartRateVariabilitySDNN)
         case .flightsClimbed: return HKQuantityType(.flightsClimbed)
         case .distanceWalkingRunning: return HKQuantityType(.distanceWalkingRunning)
         }
@@ -515,7 +516,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         case .activeEnergyBurned, .basalEnergyBurned: return .kilocalorie()
         case .vo2Max: return HKUnit(from: "ml/(kg*min)")
         case .oxygenSaturation: return .percent() // written as a 0–1 fraction, per HK convention
-        case .hrvRMSSD: return HKUnit.secondUnit(with: .milli)
+        case .hrvRMSSD, .hrvSDNNCompat: return HKUnit.secondUnit(with: .milli)
         }
     }
 
