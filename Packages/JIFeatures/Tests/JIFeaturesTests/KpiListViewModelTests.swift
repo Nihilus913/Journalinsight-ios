@@ -26,9 +26,6 @@ nonisolated struct KpiFakeProvider: HealthDataProvider, NutritionProviding, KpiT
     func nutritionWeek(windowDays: Int) async throws -> [NutritionDailyRow] { try guardFail(); return try await inner.nutritionWeek(windowDays: windowDays) }
 
     func kpiTargets() async throws -> [KpiTarget] { try guardFail(); return try await inner.kpiTargets() }
-    func updateKpiTarget(id: Int, threshold: Double, thresholdHi: Double?, description: String?) async throws -> KpiTarget {
-        try guardFail(); return try await inner.updateKpiTarget(id: id, threshold: threshold, thresholdHi: thresholdHi, description: description)
-    }
 }
 
 @MainActor

@@ -8,9 +8,8 @@ import JIPersistence
 // W-TGT L1 — the one mirror (outbox kind `targets`) and the accessor swap. Test values only.
 
 /// Test fake; state touched only from the test's MainActor.
-final class TargetsHubFake: TargetsProviding, GateSettingsProviding, @unchecked Sendable {
+final class TargetsHubFake: TargetsProviding, @unchecked Sendable {
     var puts: [TargetsDocument] = []
-    var gatePuts: [GateSettingsBody] = []
     var fail: HubError?
     var targetsRoute404 = false
 
@@ -19,13 +18,6 @@ final class TargetsHubFake: TargetsProviding, GateSettingsProviding, @unchecked 
         if targetsRoute404 { throw HubError.http(status: 404, detail: nil) }
         if let fail { throw fail }
         puts.append(document); return document
-    }
-    func gateSettings() async throws -> GateSettingsDTO { throw HubError.http(status: 404, detail: nil) }
-    func putGateSettings(_ body: GateSettingsBody) async throws -> GateSettingsDTO {
-        if let fail { throw fail }
-        gatePuts.append(body)
-        return GateSettingsDTO(preset: body.preset, hrCapBpm: body.hrCapBpm, avoidZone5: body.avoidZone5,
-                               zoneFloorsBpm: body.zoneFloorsBpm, hrvLowNights: 2, updatedAt: nil)
     }
 }
 
@@ -118,11 +110,11 @@ private func legacyInstall(_ prefs: PrefStore) throws {
     let mirror = GateSettingsMirror(prefs: prefs, provider: hub)
     #expect(await mirror.save(GateSettings(preset: .balanced, hrCapBpm: 180)))
     #expect(hub.puts.last?.limits.hrCapBpm == 180)
-    #expect(hub.gatePuts.isEmpty)
-    // An older hub without /planning/targets still gets the W4 body.
+    // W-FIX10 F10-1: a hub without /planning/targets gets nothing else (the W4
+    // `PUT /planning/gate-settings` fallback is gone) — the change stays pending.
     hub.targetsRoute404 = true
-    #expect(await mirror.save(GateSettings(preset: .balanced, hrCapBpm: 170)))
-    #expect(hub.gatePuts.last?.hrCapBpm == 170)
+    #expect(await mirror.save(GateSettings(preset: .balanced, hrCapBpm: 170)) == false)
+    #expect(mirror.hubPending)
 }
 
 @Test func presetMapsFromTheCautionRule() {

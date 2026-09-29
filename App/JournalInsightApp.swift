@@ -133,7 +133,7 @@ struct JournalInsightApp: App {
                         env.foregroundHealthUpload() // B-65: last night reaches the hub on open
                         // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
                         let mirror = GateSettingsMirror(prefs: env.prefs,
-                                                        provider: (env.hubProvider ?? env.providerStore?.provider) as? any GateSettingsProviding)
+                                                        provider: (env.hubProvider ?? env.providerStore?.provider) as? any TargetsProviding)
                         Task { @MainActor in await mirror.pushIfPending() }
                     } else {
                         watchdog?.stop()

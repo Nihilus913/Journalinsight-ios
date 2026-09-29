@@ -295,18 +295,17 @@ final class AppEnvironment {
             // balance), so it moves here from the identifier list below — same type, metric name
             // and v1 anchor. The dietary kinds are read-only for the phone and never uploaded.
             (.basalEnergy, "basal_energy_burned", "kcal", HKSampleMapping.perSample(unit: .kilocalorie())),
-        ]
-        // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`, `vo2max`,
-        // all 14/14 null) that `HKReadKind` has no case for yet, so
-        // they are named by identifier here. Health Auto Export metric names; SpO2 goes as
-        // HealthKit's 0–1 fraction (the hub side scales it, like body fat).
-        let extra: [(HKQuantityTypeIdentifier, String, String, @Sendable ([HKSample]) -> [HAEDataPoint])] = [
+            // W-FIX2 FM-10: types with a hub column (dso-4 `resp_*`, `spo2_sleep_avg`, `vo2max`).
+            // W-FIX10 DH-8: now `HKReadKind`s (the permission verdict reports them), so they ride
+            // the read vocabulary — same types, metric names and version-1 anchors as when they
+            // were named by identifier here (no re-send). SpO2 goes as HealthKit's 0–1 fraction
+            // (the hub side scales it, like body fat).
             (.respiratoryRate, "respiratory_rate", "count/min", HKSampleMapping.perSample(unit: HKUnit(from: "count/min"))),
             (.oxygenSaturation, "blood_oxygen_saturation", "%", HKSampleMapping.perSample(unit: .percent())),
             // W-DATA R4: the night's sleeping wrist temperature (°C, one sample per night, dated at
             // its start; the hub moves it to the wake date and serves only the deviation from the
             // user's own baseline — `hae_bridge` `apple_sleeping_wrist_temperature`, migration 051).
-            (.appleSleepingWristTemperature, "apple_sleeping_wrist_temperature", "degC", HKSampleMapping.perSample(unit: .degreeCelsius())),
+            (.sleepingWristTemperature, "apple_sleeping_wrist_temperature", "degC", HKSampleMapping.perSample(unit: .degreeCelsius())),
             (.vo2Max, "vo2_max", "ml/(kg·min)", HKSampleMapping.perSample(unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())))),
         ]
         // 2026-09-23 (end-to-end audit): native RMSSD (iOS/watchOS 27) was built and tested
@@ -317,8 +316,6 @@ final class AppEnvironment {
             // B-65: v2 = one 120-day re-send so the hub gets sleep segments for the whole baseline window.
             let anchorVersion = kind == .sleepAnalysis ? 2 : 1
             return HKMetricSpec(sampleType: sampleType, metricName: metricName, units: units, backgroundFrequency: .hourly, anchorVersion: anchorVersion, mapSamples: mapSamples)
-        } + extra.map { id, metricName, units, mapSamples in
-            HKMetricSpec(sampleType: HKQuantityType(id), metricName: metricName, units: units, backgroundFrequency: .hourly, mapSamples: mapSamples)
         }).appendingNativeRMSSD()
     }
 

@@ -20,9 +20,9 @@ public enum ProviderError: Error, Equatable, Sendable {
 /// two interchangeable: every tile reads `capabilities`, never the provider type.
 ///
 /// ## The gate is deliberately OFF
-/// `gate`, `morning` and `morningVerdict` always throw `ProviderError.notCapable(.gate)`, even
-/// though `DataCapability.appleWatchCapabilities` (frozen, `Capabilities+HK.swift`) lists those
-/// domains. The verdict is not a formula over today's numbers alone — it is a comparison against a
+/// `gate`, `morning` and `morningVerdict` always throw `ProviderError.notCapable(.gate)`, and
+/// (W-FIX10 F10-4) `DataCapability.appleWatchCapabilities` (`Capabilities+HK.swift`) no longer
+/// lists those domains. The verdict is not a formula over today's numbers alone — it is a comparison against a
 /// **per-source median + MAD baseline** (memory `project_source_agnostic_gate`: Apple and Garmin
 /// readings do not align, so a Garmin-fitted baseline applied to Apple numbers produces a
 /// confidently wrong verdict). That baseline store is not ported yet; the spec's risk table
@@ -147,6 +147,9 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     /// and so `syncStatus()` has a real timestamp.
     /// `since` bounds the read to the window (2026-09-23: an unbounded read of years of samples on
     /// the caller's MainActor froze the app once "read from watch" was switched on).
+    /// W-FIX10 DH-3: the store's anchored read never returns this app's own writes (the Garmin
+    /// backload) — `HKOwnWrites.anchoredPredicate` — so a backloaded Garmin night is never read
+    /// back here as an Apple one.
     @concurrent
     private func samples(for kind: HKReadKind, since: Date) async throws -> [HKSample] {
         guard let type = kind.sampleType else { return [] }

@@ -10,14 +10,8 @@ import JIDesign
 /// JIFeaturesTests support target).
 nonisolated struct GoalsFakeProvider: GoalsSetupProviding {
     let inner = MockDataProvider()
-    let updateFails: HubError?
-    init(updateFails: HubError? = nil) { self.updateFails = updateFails }
     func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
     func goals() async throws -> Goals { try await inner.goals() }
-    func updateGoals(_ patch: GoalsUpdate) async throws -> Goals {
-        if let updateFails { throw updateFails }
-        return try await inner.updateGoals(patch)
-    }
 }
 
 @Test @MainActor func goalsSetupLoadPopulatesGoals() async throws {
@@ -27,28 +21,92 @@ nonisolated struct GoalsFakeProvider: GoalsSetupProviding {
     #expect(vm.goals?.stepsDaily == 15000)
 }
 
-@Test @MainActor func goalsSetupSavePutsPatchAndReplacesGoalsWithServerResult() async throws {
-    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider())
+/// W-FIX10 F10-1: GoalsSetup over a `TargetsMirror` whose hub is `hub` (nil = no drainer).
+@MainActor func goalsSetupFixture(hub: TargetsHubFake? = TargetsHubFake(), goalStore: GoalStore? = nil,
+                                   hubPoll: Bool = false) throws -> (GoalsSetupViewModel, TargetsMirror, Outbox) {
+    let db = try AppDatabase.inMemory()
+    let outbox = Outbox(db: db)
+    var drainer: OutboxDrainer?
+    if let hub { drainer = OutboxDrainer(outbox: outbox, hub: hub) }
+    let targets = TargetsMirror(prefs: PrefStore(db: db), outbox: outbox, drainer: drainer)
+    var pending: (@MainActor () -> Bool)?
+    if hubPoll { pending = { GoalsSetupViewModel.goalsPending(in: outbox) } }
+    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(), goalStore: goalStore, mirror: GoalsMirror(targets: targets),
+                                 hubPendingSource: pending, hubPollInterval: .milliseconds(10))
+    return (vm, targets, outbox)
+}
+
+/// W-FIX10 F10-1 (audit 03-F1): weight / strength / steps go into the phone's targets document and
+/// reach the hub as the ONE targets body — never `PUT /planning/goals` (removed hub-side, a 405).
+@Test @MainActor func goalsSetupSaveWritesTheTargetsDocumentAndMirrorsIt() async throws {
+    let hub = TargetsHubFake()
+    let (vm, targets, outbox) = try goalsSetupFixture(hub: hub)
     await vm.load()
-    let ok = await vm.save(GoalsUpdate(stepsDaily: 12000))
+    let ok = await vm.save(GoalsUpdate(weight: .init(targetKg: 74, targetDate: "2026-12-31"),
+                                       strength: [.init(exercise: "bench", targetKg: 102.5), .init(exercise: "row", targetKg: 100)],
+                                       stepsDaily: 12000))
     #expect(ok)
     #expect(vm.phase == .loaded)
-    #expect(vm.goals?.stepsDaily == 12000)
     #expect(vm.savedAt != nil)
+    #expect(!vm.hubPending)
+    let doc = targets.store.load()
+    #expect(doc.goals.weight?.targetKg == 74 && doc.goals.weight?.targetDate == "2026-12-31")
+    #expect(doc.goals.stepsDaily == 12000)
+    #expect(doc.goals.strength == [StrengthGoal(exercise: "bench", targetKg: 102.5), StrengthGoal(exercise: "row", targetKg: 100)])
+    #expect(hub.puts.last?.goals.stepsDaily == 12000)
+    #expect(try outbox.pending().isEmpty)
+    #expect(try outbox.pending().allSatisfy { $0.kind != OutboxDrainer.legacyGoalsKind })
+    // The screen shows the edited document at once.
+    #expect(vm.goals?.stepsDaily == 12000 && vm.goals?.weight.targetKg == 74)
+}
+
+@Test @MainActor func goalsSetupSaveKeepsNutritionAndTheBaseWeight() async throws {
+    let (vm, targets, _) = try goalsSetupFixture()
+    await targets.update { d in
+        d.goals.proteinG = 160
+        d.goals.weight = WeightTarget(baseKg: 82, targetKg: 76, targetDate: "2026-11-30")
+    }
+    await vm.load()
+    _ = await vm.save(GoalsUpdate(weight: .init(targetKg: 75, targetDate: nil), stepsDaily: nil))
+    let g = targets.store.load().goals
+    #expect(g.proteinG == 160)                 // nutrition saves through saveNutrition, untouched here
+    #expect(g.weight?.baseKg == 82)
+    #expect(g.weight?.targetKg == 75)
+    #expect(g.weight?.targetDate == nil)       // the date switched off
+    #expect(g.stepsDaily == nil)               // no step goal
 }
 
 @Test @MainActor func goalsSetupSaveUpsertsGoalTargetsMirror() async throws {
     let store = GoalStore(db: try AppDatabase.inMemory())
     #expect(try store.loadGoalTargetsMirror() == nil)
-    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(), goalStore: store)
+    let (vm, _, _) = try goalsSetupFixture(goalStore: store)
     await vm.load()
     _ = await vm.save(GoalsUpdate(stepsDaily: 11000))
     let mirror = try #require(try store.loadGoalTargetsMirror())
     #expect(mirror.stepsDaily == 11000)
 }
 
-@Test @MainActor func goalsSetupSaveFailurePreservesPreviousGoalsAndReportsError() async throws {
-    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider(updateFails: .network("down")))
+/// Offline is not an error: the save lands on this phone, the body stays queued, and "hub sync
+/// pending" clears once it is delivered.
+@Test @MainActor func goalsSetupOfflineSaveIsLocalAndQueued() async throws {
+    let hub = TargetsHubFake(); hub.fail = .network("down")
+    let (vm, targets, outbox) = try goalsSetupFixture(hub: hub, hubPoll: true)
+    await vm.load()
+    let ok = await vm.save(GoalsUpdate(stepsDaily: 9999))
+    #expect(ok)
+    #expect(vm.phase == .loaded)
+    #expect(vm.hubPending)
+    #expect(targets.store.load().goals.stepsDaily == 9999)
+    #expect(try outbox.pending().map(\.kind) == [TargetsDocument.outboxKind])
+    hub.fail = nil
+    #expect(await targets.pushIfPending())
+    for _ in 0..<100 where vm.hubPending { try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!vm.hubPending)
+    #expect(hub.puts.last?.goals.stepsDaily == 9999)
+}
+
+@Test @MainActor func goalsSetupWithoutATargetsStoreSaysSoAndKeepsTheGoals() async throws {
+    let vm = GoalsSetupViewModel(provider: GoalsFakeProvider())
     await vm.load()
     let before = vm.goals
     let ok = await vm.save(GoalsUpdate(stepsDaily: 9999))

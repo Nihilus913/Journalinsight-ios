@@ -39,6 +39,8 @@ public final class WorkoutEditorViewModel {
     public private(set) var errorText: String?
 
     public let original: WorkoutTemplate?
+    /// W-FIX10 F10-3 (B40 obs 1): the draft as stored, to tell an edit from no change (nil = new).
+    private var storedDraft: WorkoutTemplateDraft?
     public let weekdays: [Int]
     public let exerciseOptions: [ExerciseOption]
     private let onSave: (WorkoutTemplateDraft) async -> WorkoutLibraryViewModel.SaveResult
@@ -58,6 +60,7 @@ public final class WorkoutEditorViewModel {
         }
         self.exerciseOptions = exerciseOptions
         self.onSave = onSave
+        storedDraft = template == nil ? nil : draft
     }
 
     public var isNew: Bool { original == nil }
@@ -98,7 +101,11 @@ public final class WorkoutEditorViewModel {
         return issues
     }
 
-    public var canSave: Bool { validationIssues.isEmpty && !isSaving }
+    /// W-FIX10 F10-3 (B40 obs 1): Save waits for a change on an existing workout (a new one is
+    /// always a change).
+    public var hasChanges: Bool { storedDraft.map { $0 != draft } ?? true }
+
+    public var canSave: Bool { hasChanges && validationIssues.isEmpty && !isSaving }
 
     nonisolated static func issue(_ c: CardioStep) -> String? {
         switch c.end {
@@ -227,6 +234,7 @@ public final class WorkoutEditorViewModel {
 
     /// true = the sheet can close (saved, or queued on this phone).
     public func save() async -> Bool {
+        guard hasChanges else { errorText = nil; return true }   // nothing to write: just close
         guard canSave else { errorText = validationIssues.first; return false }
         isSaving = true
         defer { isSaving = false }

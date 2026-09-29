@@ -105,13 +105,28 @@ public struct TrainingView: View {
             guard let wd = Self.launchArgumentDay() else { return }
             try? await Task.sleep(for: .seconds(3))
             // `-training-day-autopick <option id>` ("s8" / "t3"): make that pick first, as a tap would.
+            // W-FIX10 F10-2: the day is selected first, as a tap does (the hero follows it), so the
+            // B40-V5 proof shows the hero after the change.
+            if let date = model.weekSummary.days.first(where: { $0.weekday == wd })?.date { model.selectDate(date) }
             if let i = CommandLine.arguments.firstIndex(of: "-training-day-autopick"), i + 1 < CommandLine.arguments.count {
                 let options = model.dayOptions(weekday: wd)
                 if let o = (options.plan + options.library).first(where: { $0.id == CommandLine.arguments[i + 1] }) {
                     _ = await model.changeDay(weekday: wd, adding: o.choice, removing: nil)
                 }
             }
-            dayPreview = TrainingDayRef(weekday: wd)
+            // `-training-day-sheet off`: leave the sheet closed so the hero is on screen.
+            if trainingLaunchDaySheetOpens() { dayPreview = TrainingDayRef(weekday: wd) }
+        }
+        // W-FIX10 F10-2 (B40-V6 proof): `-send-to-watch-open [t<id>]` opens the Send to Watch sheet
+        // once the screen is up (that library workout picked), without a tap.
+        .task {
+            guard let route = trainingLaunchSendToWatch() else { return }
+            try? await Task.sleep(for: .seconds(4))
+            #if canImport(WorkoutKit)
+            guard let sendToWatch else { return }
+            if case .template(let id) = route { sendToWatch.pickOnly(id) }
+            showSendToWatch = true
+            #endif
         }
         #endif
         .toolbar {
@@ -276,4 +291,21 @@ public struct TrainingView: View {
         nil
         #endif
     }
+}
+
+/// W-FIX10 F10-2: DEBUG launch routes for the screenshot proofs (developer mode off, no taps).
+/// `-send-to-watch-open` alone = the sheet as the hero opens it; `-send-to-watch-open t<id>` =
+/// that library workout picked (the library row's action).
+nonisolated enum TrainingLaunchSendToWatch: Equatable, Sendable { case hero, template(Int) }
+
+nonisolated func trainingLaunchSendToWatch(_ arguments: [String] = CommandLine.arguments) -> TrainingLaunchSendToWatch? {
+    guard let i = arguments.firstIndex(of: "-send-to-watch-open") else { return nil }
+    if i + 1 < arguments.count, arguments[i + 1].hasPrefix("t"), let id = Int(arguments[i + 1].dropFirst()) { return .template(id) }
+    return .hero
+}
+
+/// `-training-day-sheet off` keeps the `-training-day` sheet closed (default: it opens).
+nonisolated func trainingLaunchDaySheetOpens(_ arguments: [String] = CommandLine.arguments) -> Bool {
+    guard let i = arguments.firstIndex(of: "-training-day-sheet"), i + 1 < arguments.count else { return true }
+    return arguments[i + 1] != "off"
 }

@@ -7,8 +7,6 @@ import Foundation
 public protocol KpiTargetsProviding: Sendable {
     /// `GET /api/v1/planning/kpi-targets`
     func kpiTargets() async throws -> [KpiTarget]
-
-    /// `PUT /api/v1/planning/kpi-targets/{id}` — updates threshold/thresholdHi/description on one
-    /// rule; `metric`/`operator` stay server-immutable. Returns the server's full updated row.
-    func updateKpiTarget(id: Int, threshold: Double, thresholdHi: Double?, description: String?) async throws -> KpiTarget
+    // W-FIX10 F10-1: `updateKpiTarget` (`PUT /kpi-targets/{id}`, removed hub-side by W-TGT, no
+    // caller) is gone — a rule threshold is a Rule in the targets document now.
 }

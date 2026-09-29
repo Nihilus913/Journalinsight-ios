@@ -40,6 +40,24 @@ public struct HKAnchoredPage: Sendable {
     }
 }
 
+/// W-FIX10 DH-3 (verdict 08 §1.1, audit 03-F13): the anchored read's predicate. The backloader
+/// writes Garmin RMSSD / RHR / sleep into Health AS THIS APP; an unfiltered read handed them back
+/// to the uploader (landing on the hub as "Apple" data — the gate input) and to the on-device
+/// provider. Every non-workout read is NOT-this-app, plus this app's `JIDebugSeed` samples (the
+/// sim RMSSD seeder, never a reading), the same rule as a workout's HR samples. Workouts keep
+/// their own filter (`AppleWorkoutFilter.isHubBackload`): the watch app records real workouts as
+/// this app. `ownSource` = `HKQuery.predicateForObjects(from: HKSource.default())` (a parameter:
+/// a package test host has no bundle id).
+public enum HKOwnWrites {
+    public static func anchoredPredicate(sampleType: HKSampleType, since: Date?, ownSource: NSPredicate) -> NSPredicate? {
+        let window = since.map { HKQuery.predicateForSamples(withStart: $0, end: nil, options: .strictStartDate) }
+        guard !(sampleType is HKWorkoutType) else { return window }
+        let notOurs = AppleWorkoutFilter.workoutHeartRateSourcePredicate(ownSource: ownSource)
+        guard let window else { return notOurs }
+        return NSCompoundPredicate(andPredicateWithSubpredicates: [window, notOurs])
+    }
+}
+
 public final class RealHealthStoreReader: HealthStoreReading, @unchecked Sendable {
     /// Internal (not private) so `HKDailyTotalsReader.swift`'s statistics extension can run its query.
     let store = HKHealthStore()
@@ -52,7 +70,9 @@ public final class RealHealthStoreReader: HealthStoreReading, @unchecked Sendabl
     }
 
     public func anchoredSamples(sampleType: HKSampleType, anchor: HKQueryAnchor?, since: Date? = nil, limit: Int = HKObjectQueryNoLimit) async throws -> HKAnchoredPage {
-        let predicate = since.map { HKQuery.predicateForSamples(withStart: $0, end: nil, options: .strictStartDate) }
+        // W-FIX10 DH-3: never this app's own writes (the Garmin backload) — see `HKOwnWrites`.
+        let predicate = HKOwnWrites.anchoredPredicate(sampleType: sampleType, since: since,
+                                                      ownSource: HKQuery.predicateForObjects(from: HKSource.default()))
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: limit) { _, samples, deleted, newAnchor, error in
                 if let error {

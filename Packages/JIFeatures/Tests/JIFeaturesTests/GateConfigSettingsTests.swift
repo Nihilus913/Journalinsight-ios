@@ -10,7 +10,7 @@ import JIPersistence
 // Avoid Zone 5 (Toby 2026-09-24: user input, optional, never an app default or limit).
 @MainActor struct GateConfigSettingsTests {
     private func make(hubFails: Bool = false, stored: GateSettings? = nil) throws -> (GateConfigViewModel, PrefStore, FakeNotificationCenter, GateSettingsHubFake) {
-        let prefs = PrefStore(db: try AppDatabase.inMemory())
+        let prefs = try postImportPrefs()
         if let stored { try GateSettingsStore(prefs: prefs).save(stored) }
         let hub = GateSettingsHubFake(); hub.fail = hubFails
         let center = FakeNotificationCenter()

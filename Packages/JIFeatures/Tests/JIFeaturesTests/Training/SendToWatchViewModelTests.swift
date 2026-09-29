@@ -159,9 +159,9 @@ private func makeVM(
 }
 // B-57 W4: the footer names only the limits the user set.
 @Test func alertNoteShowsOnlyTheLimitsTheUserSet() {
-    #expect(sendToWatchAlertNote(.none) == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm.")
+    #expect(sendToWatchAlertNote(.none) == "Cardio only — strength parts are logged in JournalInsight, not sent. Heart-rate alerts are absolute bpm.")
     #expect(sendToWatchAlertNote(WorkoutHrLimits(capBpm: 175, zone5FloorBpm: 176))
-            == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm, capped at your 175 bpm, below your Zone 5 (176).")
+            == "Cardio only — strength parts are logged in JournalInsight, not sent. Heart-rate alerts are absolute bpm, capped at your 175 bpm, below your Zone 5 (176).")
 }
 
 @Test @MainActor func zone5TargetErrorNamesTheUsersChoice() async throws {

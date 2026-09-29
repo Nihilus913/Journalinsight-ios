@@ -5,6 +5,6 @@ import Foundation
 public protocol GateSettingsProviding: Sendable {
     /// `GET /api/v1/planning/gate-settings`
     func gateSettings() async throws -> GateSettingsDTO
-    /// `PUT /api/v1/planning/gate-settings`
-    func putGateSettings(_ body: GateSettingsBody) async throws -> GateSettingsDTO
+    // W-FIX10 F10-1: `putGateSettings` (`PUT /planning/gate-settings`, removed hub-side by W-TGT)
+    // is gone — the settings reach the hub inside the targets document (`TargetsProviding`).
 }

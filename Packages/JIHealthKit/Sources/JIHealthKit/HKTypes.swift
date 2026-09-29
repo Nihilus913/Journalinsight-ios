@@ -10,7 +10,7 @@ import HealthKit
 /// instead. Read set per the W2d card plus B-57 W2 (B-73): steps, active energy, exercise time,
 /// resting HR, HRV (SDNN + RMSSD), sleep analysis, body mass/fat/lean/BMI, workouts; resting
 /// (basal) energy; dietary energy, protein, carbohydrates and fat (read-only; JI never logs food); W-FIX7 N-2:
-/// dietary fibre and sugar.
+/// dietary fibre and sugar; W-FIX10 DH-8: respiratory rate, SpO2, sleeping wrist temperature, VO2max.
 public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case stepCount
     case activeEnergy
@@ -37,6 +37,12 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     /// W-FIX7 N-2: fibre + sugar the food app (YAZIO) writes to Health — My KPIs Fibre / Sugar. Read-only.
     case dietaryFiber
     case dietarySugar
+    /// W-FIX10 DH-8 (audit 04-a1): uploaded since W-FIX2 FM-10 / W-DATA R4 but, until now, not
+    /// part of the read vocabulary — so the permission verdict never reported them. Read-only.
+    case respiratoryRate
+    case oxygenSaturation
+    case sleepingWristTemperature
+    case vo2Max
 
     /// `nil` only for `.hrvRMSSD` when the iOS 27 RMSSD type isn't available — every other kind
     /// always resolves to a concrete `HKSampleType`.
@@ -61,6 +67,10 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         case .dietaryFat: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFatTotal)
         case .dietaryFiber: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFiber)
         case .dietarySugar: return HKQuantityType(HKQuantityTypeIdentifier.dietarySugar)
+        case .respiratoryRate: return HKQuantityType(HKQuantityTypeIdentifier.respiratoryRate)
+        case .oxygenSaturation: return HKQuantityType(HKQuantityTypeIdentifier.oxygenSaturation)
+        case .sleepingWristTemperature: return HKQuantityType(HKQuantityTypeIdentifier.appleSleepingWristTemperature)
+        case .vo2Max: return HKQuantityType(HKQuantityTypeIdentifier.vo2Max)
         }
     }
 

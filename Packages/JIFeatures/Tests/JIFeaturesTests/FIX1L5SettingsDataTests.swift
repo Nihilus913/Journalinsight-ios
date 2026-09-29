@@ -103,7 +103,6 @@ private nonisolated struct GoalsAndTrainingProvider: GoalsSetupProviding, Traini
     let rows: [Exercise]
     func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
     func goals() async throws -> Goals { try await inner.goals() }
-    func updateGoals(_ patch: GoalsUpdate) async throws -> Goals { try await inner.updateGoals(patch) }
     func trainingDay(date: String) async throws -> TrainingDayDetail { try await inner.trainingDay(date: date) }
     func exercises() async throws -> [Exercise] { rows }
     func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult {

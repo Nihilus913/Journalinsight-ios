@@ -47,11 +47,12 @@ import JICore
     /// Capability-gated OFF: these three throw whatever the bitmap says, because the reason is a
     /// missing baseline store, not a missing HealthKit type. Flipping them on is a BACKLOG row
     /// behind the overnight-equivalence proof (spec risk table L276), not an edit here.
-    @Test func theGateTrioIsOffEvenThoughTheBitmapClaimsIt() async throws {
+    /// W-FIX10 F10-4 (audit 03-F12): the bitmap no longer claims what the provider always refuses.
+    @Test func theGateTrioIsOffAndTheBitmapNoLongerClaimsIt() async throws {
         let p = provider(.appleWatchCapabilities)
-        #expect(p.capabilities.contains(.gate))
-        #expect(p.capabilities.contains(.morning))
-        #expect(p.capabilities.contains(.morningVerdict))
+        #expect(!p.capabilities.contains(.gate))
+        #expect(!p.capabilities.contains(.morning))
+        #expect(!p.capabilities.contains(.morningVerdict))
         await #expect(throws: ProviderError.notCapable(.gate)) { _ = try await p.gate(windowDays: 7) }
         await #expect(throws: ProviderError.notCapable(.gate)) { _ = try await p.morning() }
         await #expect(throws: ProviderError.notCapable(.gate)) { _ = try await p.morningVerdict(date: "2026-09-18") }
