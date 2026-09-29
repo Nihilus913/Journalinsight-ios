@@ -12,7 +12,7 @@ import Testing
         #expect(PlannedSessionKind.classify("Day 1 Full Upper + Z2 40min") == .strength)
         #expect(PlannedSessionKind.classify("Strength") == .strength)
         #expect(PlannedSessionKind.classify("Long Z2") == .cardio)
-        #expect(PlannedSessionKind.classify("Intervals 4x4") == .cardio)
+        #expect(PlannedSessionKind.classify("Intervals 4x4") == .interval)   // W-FIX9 (audit F3)
         #expect(PlannedSessionKind.classify("Rest") == .rest)
         #expect(PlannedSessionKind.classify(nil) == .unknown)
         #expect(PlannedSessionKind.classify("   ") == .unknown)

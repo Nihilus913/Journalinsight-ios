@@ -154,10 +154,16 @@ public struct TodayView: View {
         // W-FIX2 DEV-03: the newer of the hub's last sync and this app's last 2xx HealthKit upload.
         HStack { Spacer(); SyncedPill(date: model.syncedAt) }.accessibilityIdentifier("today.day.synced")
         // W-GUI T3 (mockup 02): the summary line is the ONE tinted card of the Day.
-        Surface(level: 1, padding: JISpacing.s3, tint: theme.color(verdictColorRole(shownVerdict.tone))) {
+        // W-FIX9 C-1: once a registered workout matches today's session the line says Completed —
+        // the same session label and the same rule (`sessionProgress`) as NEXT's "Done ·" line.
+        let session = nextCardModel.session
+        let progress = model.sessionProgress(sessionLabel: session)
+        let title = dayTitle(verdict: shownVerdict, override: currentOverride, readiness: model.readiness,
+                             progress: progress, session: session)
+        Surface(level: 1, padding: JISpacing.s3, tint: theme.color(verdictColorRole(title.tone))) {
             MorningSummaryLine(verdict: shownVerdict, readiness: model.readiness,
                                caption: currentOverride.flatMap { effectiveVerdict(parts: model.verdict, override: $0).wasCaption },
-                               override: currentOverride) {
+                               override: currentOverride, progress: progress, session: session) {
                 showMorningReview = true
             }
         }
@@ -254,13 +260,22 @@ public struct TodayView: View {
     }
 
     /// Board 02 NEXT: the session, the amber trim when there is one, and what the phone does not have yet.
+    private var nextCardModel: DayNextCard {
+        dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
+                    plan: model.exercises, weekday: model.todayWeekday,
+                    zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
+    }
+
     private var nextCard: some View {
-        let card = dayNextCard(verdict: model.verdict, sessionForToday: model.morning?.sessionForToday, override: currentOverride,
-                               plan: model.exercises, weekday: model.todayWeekday,
-                               zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
+        let card = nextCardModel
         let template = dayNextTemplate(card: card)
         // B-57 W5 C4: the rule's lifts for the plan session the rows came from.
         let lifts = card.rows.isEmpty ? [] : (progression?.lifts(forSession: card.plannedSession ?? todaysStrengthSession(week)) ?? [])
+        // W-FIX9 C-2: the done state leads (tick + the workout, with its time in zone) and the
+        // coach text collapses to one line; the summary line above states the verdict — NEXT doesn't.
+        let completion = model.sessionCompletion(sessionLabel: card.session)
+        let done = dayNextDoneState(completion)
+        let liftRows = dayNextLiftRows(card.rows, lifts: lifts, loggedSets: model.hubExerciseSets)
         return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 6) {
                 // W-GUI T3 (DEV-10 GUI half, mockup 02): the card's title row names the session with
@@ -273,28 +288,42 @@ public struct TodayView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 // W-FIX7 F7-1: "Done · Traditional strength · 52 min · Bevel" from Apple Health.
-                SessionCompletionLine(completion: model.sessionCompletion(sessionLabel: card.session))
-                // W-B81 A-5: today's completed workouts as the hub holds them (Apple Watch run: distance · HR · time).
-                ForEach(model.hubWorkouts, id: \.activityId) { activity in
-                    CompletedWorkoutRow(activity: activity)
+                SessionCompletionLine(progress: model.sessionProgress(sessionLabel: card.session))
+                // W-B81 A-5: today's completed workouts as the hub holds them (Apple Watch run: distance · HR · time);
+                // W-FIX9 C-4: the one that completed the session first, with its time-in-zone bar.
+                ForEach(dayNextHubWorkouts(model.hubWorkouts, done: completion), id: \.activityId) { activity in
+                    CompletedWorkoutRow(activity: activity, userZones: gateSettings.zones)
                         .accessibilityIdentifier("today.day.completedWorkout.\(activity.activityId)")
                 }
                 // B-57 W5 (board 1/02): "Session 2 of 4 this week" while today's session is still to do.
-                if !card.rows.isEmpty, let ordinal = daySessionOrdinal(week) {
+                if done.showsOrdinal, !card.rows.isEmpty, let ordinal = daySessionOrdinal(week) {
                     Text("\(ordinal.prefix(1).uppercased())\(ordinal.dropFirst()) this week")
                         .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
                         .accessibilityIdentifier("today.day.next.ordinal")
                 }
                 if let prescription = card.prescription {
-                    Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(done.isDone ? .muted : .text))
+                        .lineLimit(done.prescriptionLineLimit)
+                        .fixedSize(horizontal: false, vertical: !done.isDone)
+                        .accessibilityIdentifier("today.day.next.prescription")
                 }
-                // W-FIX4 PF-02: the plan's exercises and weights, as Training lists them.
-                ForEach(card.rows) { row in
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .firstTextBaseline) { nextRowName(row); Spacer(minLength: 8); nextRowLoad(row, lifts: lifts) }
-                        VStack(alignment: .leading, spacing: 2) { nextRowName(row); nextRowLoad(row, lifts: lifts) }
+                // W-FIX9 C-3: one aligned row per lift — name left, "3 × 8 @ 50 kg" right (logged
+                // vs planned once there are sets, the rule's hint when due); stacks when it doesn't fit.
+                ForEach(liftRows) { row in
+                    VStack(alignment: .leading, spacing: 2) {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline) { nextRowName(row.name); Spacer(minLength: 8); nextRowRight(row.right) }
+                            VStack(alignment: .leading, spacing: 2) { nextRowName(row.name); nextRowRight(row.right, wraps: true) }
+                        }
+                        if let logged = row.logged {
+                            Text(logged).jiFont(.caption).foregroundStyle(theme.color(.muted)).monospacedDigit()
+                        }
+                        if let hint = row.hint {
+                            Text(hint).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.go)).monospacedDigit()
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .padding(.vertical, 2)
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("today.day.next.exercise.\(row.id)")
                 }
@@ -320,16 +349,18 @@ public struct TodayView: View {
         .task { if !offscreen { await progression?.refreshIfNeeded() } }
     }
 
-    private func nextRowName(_ row: TrainingHeroRow) -> some View {
-        Text(row.name).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
+    private func nextRowName(_ name: String) -> some View {
+        Text(name).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func nextRowLoad(_ row: TrainingHeroRow, lifts: [LiftProgression]) -> some View {
-        let load = dayNextRowLoad(row, lifts: lifts)
-        return Text(load.text).jiFont(.footnote, weight: load.due ? .semibold : .regular)
-            .foregroundStyle(theme.color(load.due ? .go : .muted)).monospacedDigit()
-            .fixedSize(horizontal: false, vertical: true)
+    /// Side by side the plan stays on one line (the HStack only fits when it does); stacked under
+    /// the name (AX sizes) it may wrap as a whole.
+    private func nextRowRight(_ text: String, wraps: Bool = false) -> some View {
+        Text(text).jiFont(.footnote, weight: .semibold)
+            .foregroundStyle(theme.color(text == "—" ? .muted : .text)).monospacedDigit()
+            .lineLimit(wraps ? nil : 1)
+            .fixedSize(horizontal: !wraps, vertical: wraps)
     }
 
     /// Board 02 Fuel today: today's food row (or the latest real one, named by its day), then the
@@ -512,12 +543,38 @@ public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: Stri
     let session = override != nil && !shown.session.isEmpty ? shown.session
         : decideSessionRowText(sessionForToday: sessionForToday, verdict: shown).detail
     let planned = dayPlannedSession(names: [sessionForToday, shown.session, verdict.session], plan: plan, weekday: weekday)
-    let rows = trainingHeroRows(exercises: plan, session: planned)
+    // W-FIX9 C-2 (DEV-10): a cardio-only session (a run, Long Z2, intervals) lists no lifts — not
+    // even the weekday fallback's; unknown labels keep the plan match.
+    let parts = SessionPart.parts(of: session)
+    let cardioOnly = !parts.isEmpty && !parts.contains(.strength)
+    let rows = cardioOnly ? [] : trainingHeroRows(exercises: plan, session: planned)
     let cardio = dayCardioLine(session: session, zones: zones, capBpm: capBpm)
     let saysNoData = rows.isEmpty && (cardio == nil || daySessionHasStrengthPart(session))
     return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override), rows: rows,
                        exercises: saysNoData ? "Exercises and weights — \(JIMissingReason.noData.rawValue)" : nil,
                        cardio: cardio, plannedSession: rows.isEmpty ? nil : planned?.name)
+}
+
+/// W-FIX9 C-2: how NEXT reads once the session is done — the coach text in one line, no
+/// "Session 2 of 4" ordinal (it is not still to do).
+public nonisolated struct DayNextDoneState: Equatable, Sendable {
+    public let isDone: Bool
+    public var prescriptionLineLimit: Int? { isDone ? 1 : nil }
+    public var showsOrdinal: Bool { !isDone }
+}
+
+public nonisolated func dayNextDoneState(_ completion: SessionCompletion) -> DayNextDoneState {
+    DayNextDoneState(isDone: completion.isDone)
+}
+
+/// W-FIX9 C-2: the hub's workouts for NEXT, the one that completed the session first.
+public nonisolated func dayNextHubWorkouts(_ activities: [DayActivity], done: SessionCompletion) -> [DayActivity] {
+    guard case .done(let w) = done, let id = w.hubActivityId, let i = activities.firstIndex(where: { $0.activityId == id }) else {
+        return activities
+    }
+    var out = activities
+    out.insert(out.remove(at: i), at: 0)
+    return out
 }
 
 public nonisolated struct DayFuel: Equatable, Sendable {
