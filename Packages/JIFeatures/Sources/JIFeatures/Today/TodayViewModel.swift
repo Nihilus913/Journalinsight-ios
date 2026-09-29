@@ -685,13 +685,15 @@ public final class TodayWorkoutsModel {
 
     /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's
     /// workouts: Apple Health's, plus the hub's `core.activity` rows (`hub`, Garmin + Apple — W-FIX9 G1).
-    public func completion(sessionLabel: String?, hub: [DayActivity] = []) -> SessionCompletion {
-        progress(sessionLabel: sessionLabel, hub: hub).completion
+    /// W-SSOT-1 SS-2: `hubCompletion` (the hub's `/training/day` `completion`) is preferred when present.
+    public func completion(sessionLabel: String?, hub: [DayActivity] = [], hubCompletion: HubCompletion? = nil) -> SessionCompletion {
+        progress(sessionLabel: sessionLabel, hub: hub, hubCompletion: hubCompletion).completion
     }
 
     /// W-FIX9 G5: every part of today's session (the same rule as `completion`).
-    public func progress(sessionLabel: String?, hub: [DayActivity] = []) -> SessionProgress {
-        SessionCompletion.progress(sessionLabel: sessionLabel, workouts: TodayWorkout.merging(local: workouts, hub: hub))
+    public func progress(sessionLabel: String?, hub: [DayActivity] = [], hubCompletion: HubCompletion? = nil) -> SessionProgress {
+        SessionCompletion.progress(sessionLabel: sessionLabel, workouts: TodayWorkout.merging(local: workouts, hub: hub),
+                                   hub: hubCompletion)
     }
 }
 
@@ -706,11 +708,13 @@ public extension TodayViewModel {
     /// F7-1: today's session against today's workouts — Apple Health and the hub (W-FIX9 G1).
     /// `.none` = unchanged.
     func sessionCompletion(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionCompletion {
-        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts)
+        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts,
+                            hubCompletion: sessionLabel == nil ? hubDay?.completion : nil)
     }
 
     /// W-FIX9 C-1: the parts of today's session, for the summary line (same rule, same inputs).
     func sessionProgress(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionProgress {
-        workouts.progress(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts)
+        workouts.progress(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts,
+                          hubCompletion: sessionLabel == nil ? hubDay?.completion : nil)
     }
 }

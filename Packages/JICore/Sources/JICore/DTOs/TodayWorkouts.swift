@@ -87,6 +87,12 @@ public nonisolated enum SessionCompletion: Sendable, Equatable {
         return progress(parts: parts, workouts: workouts).completion
     }
 
+    /// W-SSOT-1 SS-2: by planned kind, preferring the hub's `completion` when present.
+    public static func resolve(planned: PlannedSessionKind, workouts: [TodayWorkout], hub: HubCompletion?) -> SessionCompletion {
+        guard let hub else { return resolve(planned: planned, workouts: workouts) }
+        return progress(hub: hub, workouts: workouts).completion
+    }
+
     /// The rule by session label ("Day 1 Full Upper + Z2 40min") — the lead part decides.
     public static func resolve(sessionLabel: String?, workouts: [TodayWorkout]) -> SessionCompletion {
         progress(sessionLabel: sessionLabel, workouts: workouts).completion
@@ -95,6 +101,41 @@ public nonisolated enum SessionCompletion: Sendable, Equatable {
     /// W-FIX9 G5: every part of the planned session against today's workouts.
     public static func progress(sessionLabel: String?, workouts: [TodayWorkout]) -> SessionProgress {
         progress(parts: SessionPart.parts(of: sessionLabel), workouts: workouts)
+    }
+
+    /// W-SSOT-1 SS-2: the hub's `completion` when present (its plan + its rule decide the parts and
+    /// everything the hub holds), else the label rule. A phone-only workout (not on the hub yet —
+    /// `hubActivityId == nil`) can still fill a part the hub has open, by the app's own `accepts`.
+    public static func progress(sessionLabel: String?, workouts: [TodayWorkout], hub: HubCompletion?) -> SessionProgress {
+        guard let hub else { return progress(sessionLabel: sessionLabel, workouts: workouts) }
+        return progress(hub: hub, workouts: workouts)
+    }
+
+    static func progress(hub: HubCompletion, workouts: [TodayWorkout]) -> SessionProgress {
+        let sorted = workouts.sorted { $0.start < $1.start }
+        let hubParts: [(SessionPart, HubCompletion.Part)] = hub.parts.compactMap { p in
+            switch p.part {
+            case "strength": (.strength, p)
+            case "cardio": (hub.sessionType == "interval" ? .intervals : .steadyCardio, p)
+            default: nil
+            }
+        }
+        var used = Set<Int>()
+        var statuses = hubParts.map { SessionPartStatus(part: $0.0, workout: nil, hubDone: $0.1.done) }
+        // Hub-done parts first: the workout the hub names (by core.activity id).
+        for (i, (_, hp)) in hubParts.enumerated() where hp.done {
+            if let hit = sorted.indices.first(where: { !used.contains($0) && sorted[$0].hubActivityId.map(hp.activityIds.contains) == true }) {
+                used.insert(hit); statuses[i].workout = sorted[hit]
+            }
+        }
+        // Hub-open parts: only a phone-only workout may fill them (the hub already judged its own rows).
+        for (i, (part, hp)) in hubParts.enumerated() where !hp.done {
+            let hit = sorted.indices
+                .filter { !used.contains($0) && sorted[$0].hubActivityId == nil && part.accepts(sorted[$0]) }
+                .max { sorted[$0].durationMinutes < sorted[$1].durationMinutes }
+            if let hit { used.insert(hit); statuses[i].workout = sorted[hit] }
+        }
+        return SessionProgress(parts: statuses, latestWorkout: sorted.last)
     }
 
     /// THE match: each part takes the longest unused workout it accepts (a warm-up walk never
@@ -176,9 +217,12 @@ public nonisolated enum SessionPart: Sendable, Equatable, Hashable {
 
 public nonisolated struct SessionPartStatus: Sendable, Equatable {
     public var part: SessionPart
-    /// The workout that fills it; nil = still open.
+    /// The workout that fills it; nil = still open (unless the hub says done — `hubDone`).
     public var workout: TodayWorkout?
-    public var isDone: Bool { workout != nil }
+    /// W-SSOT-1 SS-2: the hub's completion marked this part done (e.g. a Z2 day's step goal, or a
+    /// hub row the phone cannot show as a workout).
+    public var hubDone: Bool = false
+    public var isDone: Bool { workout != nil || hubDone }
 }
 
 /// W-FIX9: the planned session's parts against today's workouts. `completion` is the lead part's
