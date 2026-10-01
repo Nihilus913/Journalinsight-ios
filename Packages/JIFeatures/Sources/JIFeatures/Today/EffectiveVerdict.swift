@@ -142,15 +142,17 @@ public nonisolated func displayVerdictParts(_ parts: VerdictParts) -> VerdictPar
 /// type, looked up by name in the schedule (`planSchedule` — the plan, then the table): strength →
 /// "lift … 1-2 reps shy of failure; trim Z2 to ~25min or walk", long Z2 → "cap the long run at
 /// ~45min easy, or walk it". A session name the table does not know gets nil — never guessed.
+/// W-SSOT-2 S2-3: a served `/planning/week` (`week`) names the kind first, before the rows.
 public nonisolated func autoRegulatedPrescription(_ parts: VerdictParts, reason: String? = nil,
-                                                  planSessions: [PlanSessionOut]? = nil) -> String? {
+                                                  planSessions: [PlanSessionOut]? = nil,
+                                                  week: PlanWeekOut? = nil) -> String? {
     guard isAutoRegulated(parts) else { return nil }
     if let reason, let range = reason.range(of: "): ") {
         let tail = reason[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         if !tail.isEmpty { return capitalizedFirst(tail) }
     }
     // W-FIX10 R-01: the kind comes from the one schedule resolver (the plan's sessions, then the table).
-    switch planSchedule(planSessions).kind(named: parts.session) {
+    switch planSchedule(planSessions, week: week).kind(named: parts.session) {
     case .strength?: return AutoRegulatedCopy.strength
     case .z2?: return AutoRegulatedCopy.longZ2
     default: return nil

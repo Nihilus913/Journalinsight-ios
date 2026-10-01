@@ -121,16 +121,20 @@ public nonisolated func computeWeeklyPlan(_ opts: WeeklyPlanInput) -> WeeklyPlan
 /// as `WeekDay.allCases`, so the two line up index for index.
 /// W-FIX10 R-01: `planSessions` (the hub's plan, `GET /planning/plan-sessions`) decides the day when
 /// it holds any rows; the fixed table is the fallback.
-public nonisolated func sessionTypeForWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil) -> SessionType {
+/// W-SSOT-2 S2-3: a served, complete `/planning/week` (`week`, `TodayViewModel.planWeek`) wins over
+/// the rows — the same answer the gate, Today and Training read.
+public nonisolated func sessionTypeForWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil,
+                                             week: PlanWeekOut? = nil) -> SessionType {
     let i = weekDays.firstIndex(of: day) ?? 0
-    return plannedWeek(planSchedule(planSessions))?[i].type ?? sessionByWeekday[i].type
+    return plannedWeek(planSchedule(planSessions, week: week))?[i].type ?? sessionByWeekday[i].type
 }
 
 /// "optional" (the parked Day 4 Full Upper slot) counts as rest for planning purposes — it isn't
 /// guaranteed to happen, so periodizing as if it will would risk a systematic underfeed on the
 /// days it doesn't.
-public nonisolated func isTrainingWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil) -> Bool {
-    let t = sessionTypeForWeekDay(day, planSessions: planSessions)
+public nonisolated func isTrainingWeekDay(_ day: WeekDay, planSessions: [PlanSessionOut]? = nil,
+                                         week: PlanWeekOut? = nil) -> Bool {
+    let t = sessionTypeForWeekDay(day, planSessions: planSessions, week: week)
     return t != .rest && t != .optional
 }
 
@@ -138,12 +142,12 @@ public nonisolated func isTrainingWeekDay(_ day: WeekDay, planSessions: [PlanSes
 public nonisolated let trainingWeekDays: [WeekDay] = weekDays.filter { isTrainingWeekDay($0) }
 public nonisolated let restWeekDays: [WeekDay] = weekDays.filter { !isTrainingWeekDay($0) }
 
-public nonisolated func trainingWeekDays(planSessions: [PlanSessionOut]?) -> [WeekDay] {
-    weekDays.filter { isTrainingWeekDay($0, planSessions: planSessions) }
+public nonisolated func trainingWeekDays(planSessions: [PlanSessionOut]?, week: PlanWeekOut? = nil) -> [WeekDay] {
+    weekDays.filter { isTrainingWeekDay($0, planSessions: planSessions, week: week) }
 }
 
-public nonisolated func restWeekDays(planSessions: [PlanSessionOut]?) -> [WeekDay] {
-    weekDays.filter { !isTrainingWeekDay($0, planSessions: planSessions) }
+public nonisolated func restWeekDays(planSessions: [PlanSessionOut]?, week: PlanWeekOut? = nil) -> [WeekDay] {
+    weekDays.filter { !isTrainingWeekDay($0, planSessions: planSessions, week: week) }
 }
 
 public nonisolated struct PeriodizedPlanInput: Sendable, Equatable {
@@ -212,10 +216,11 @@ public nonisolated struct PeriodizedPlan: Sendable, Equatable {
 }
 
 /// W-FIX10 R-01: `planSessions` = the hub's plan (its weekdays pick the training days); nil / empty =
-/// the fixed table.
-public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput, planSessions: [PlanSessionOut]? = nil) -> PeriodizedPlan {
-    let trainDays = trainingWeekDays(planSessions: planSessions)
-    let restDays = restWeekDays(planSessions: planSessions)
+/// the fixed table. W-SSOT-2 S2-3: a served `week` wins over the rows.
+public nonisolated func computePeriodizedPlan(_ opts: PeriodizedPlanInput, planSessions: [PlanSessionOut]? = nil,
+                                             week: PlanWeekOut? = nil) -> PeriodizedPlan {
+    let trainDays = trainingWeekDays(planSessions: planSessions, week: week)
+    let restDays = restWeekDays(planSessions: planSessions, week: week)
     // B-57 W1 fixer (ROOT CAUSE of the "-600" rest day): with 6 training days and 1 rest day the
     // whole weekly surplus was banked off Sunday with no floor (1800 − 6 × 400 = −600). The
     // training-day target is now held at what the rest days can fund.

@@ -61,9 +61,9 @@ public nonisolated enum DecideWhyLine: Equatable, Sendable {
 }
 
 public nonisolated func decideWhyLine(verdict: VerdictParts, override: VerdictOverride?, hasGateSignals: Bool,
-                                      heldReason: String?) -> DecideWhyLine? {
+                                      heldReason: String?, week: PlanWeekOut? = nil) -> DecideWhyLine? {
     if override == nil, let held = decideHeldReason(heldReason) { return .held(held) }
-    if let prescription = decidePrescriptionLine(verdict: verdict, override: override) { return .prescription(prescription) }
+    if let prescription = decidePrescriptionLine(verdict: verdict, override: override, week: week) { return .prescription(prescription) }
     if !hasGateSignals, let reason = verdictReasonLine(verdict) { return .reason(reason) }
     return nil
 }
@@ -138,9 +138,12 @@ public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, t
 /// W-FIX1 BUG-03: the line under Decide's session on an amber (auto-regulated) day — the hub's
 /// reduced prescription, so "Modified" says what changed. nil on every other verdict and once the
 /// user made another call (full / modified / rest).
-public nonisolated func decidePrescriptionLine(verdict: VerdictParts, override: VerdictOverride?) -> String? {
+/// W-SSOT-2 S2-3: `week` = the served `/planning/week` (`TodayViewModel.planWeek`) — it names the
+/// session's kind first, so the hero verdict trims the same session the week shows.
+public nonisolated func decidePrescriptionLine(verdict: VerdictParts, override: VerdictOverride?,
+                                               week: PlanWeekOut? = nil) -> String? {
     if let override, override.choice != .accept { return nil }
-    return autoRegulatedPrescription(verdict)
+    return autoRegulatedPrescription(verdict, week: week)
 }
 
 /// W-FIX1 BUG-17: Decide's "Today's session" row links to Day (spec §2 L2) — live whenever the
@@ -283,6 +286,8 @@ public struct DecideView: View {
     let isStale: Bool?
     /// W-FIX10 R-05: the hub's "Waiting for the watch…" reason while the push is held (nil = not held).
     let heldReason: String?
+    /// W-SSOT-2 S2-3: the served `/planning/week` (`TodayViewModel.planWeek`); nil = not served.
+    let planWeek: PlanWeekOut?
     @State private var showAdjust = false
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
@@ -299,12 +304,13 @@ public struct DecideView: View {
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
                 banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, isStale: Bool? = nil,
-                heldReason: String? = nil, onAdvance: @escaping () -> Void) {
+                heldReason: String? = nil, planWeek: PlanWeekOut? = nil, onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
         self.calibrationNights = calibrationNights; self.isStale = isStale; self.heldReason = heldReason
+        self.planWeek = planWeek
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -476,7 +482,7 @@ public struct DecideView: View {
                     // watch…" reason (even with gate signals), else the hub's reduced prescription on
                     // an amber day, else the verdict's own reason line (a pre-048 verdict).
                     switch decideWhyLine(verdict: verdict, override: override, hasGateSignals: gateSignals != nil,
-                                         heldReason: heldReason) {
+                                         heldReason: heldReason, week: planWeek) {
                     case .held(let held)?:
                         Label(held, systemImage: "applewatch").jiFont(.footnote, weight: .semibold)
                             .foregroundStyle(theme.color(.text))
