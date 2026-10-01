@@ -15,6 +15,11 @@ public nonisolated func readinessDateText(_ iso: String?, locale: Locale = .auto
     return date.formatted(style)
 }
 
+/// W-FIX11 H1-05: the Readiness card's verdict — the user's call when there is one.
+public nonisolated func gateDetailShownParts(verdict: String?, override: VerdictOverride?) -> VerdictParts {
+    effectiveVerdictParts(parts: verdictParts(verdict), override: override)
+}
+
 /// W-FIX4 PF-13: "Readiness · Fri 25 Sep", or "Readiness from Thu 24 Sep" for a stale verdict.
 public nonisolated func gateDetailDateLine(verdictDate: String?, isStale: Bool,
                                            locale: Locale = .autoupdatingCurrent) -> String {
@@ -31,14 +36,16 @@ public struct GateDetailCard: View {
     /// B-45 (d): the hub's verdict is whatever day `scripts/morning_go.py` last wrote. When that
     /// is not today, the card says so instead of letting the date read as "now".
     let isStale: Bool
+    /// W-FIX11 H1-05: the user's call for the verdict date (nil = none).
+    let override: VerdictOverride?
     @Environment(\.jiTheme) private var theme
-    public init(morning: MorningResponse?, gate: GateResponse?, isStale: Bool = false) {
-        self.morning = morning; self.gate = gate; self.isStale = isStale
+    public init(morning: MorningResponse?, gate: GateResponse?, isStale: Bool = false, override: VerdictOverride? = nil) {
+        self.morning = morning; self.gate = gate; self.isStale = isStale; self.override = override
     }
 
     /// W-FIX1 BUG-27 (W1 carryover): the user word (Full / Modified / Rest), tinted amber on the
-    /// hub's auto-regulated day, never the raw "GO (auto-regulated)".
-    private var shown: VerdictParts { displayVerdictParts(verdictParts(morning?.verdict)) }
+    /// hub's auto-regulated day, never the raw "GO (auto-regulated)". W-FIX11 H1-05: the user's call.
+    private var shown: VerdictParts { gateDetailShownParts(verdict: morning?.verdict, override: override) }
 
     public var body: some View {
         let v = shown
@@ -55,7 +62,7 @@ public struct GateDetailCard: View {
                         .font(.caption).foregroundStyle(theme.color(.reduced)).padding(.top, 2)
                         .accessibilityIdentifier("gate-detail-stale")
                 }
-                if let prescription = autoRegulatedPrescription(v) {
+                if override == nil || override?.choice == .accept, let prescription = autoRegulatedPrescription(v) {
                     Text(prescription).font(.footnote).foregroundStyle(theme.color(.text)).padding(.top, 2)
                         .accessibilityIdentifier("gate-detail-prescription")
                 }

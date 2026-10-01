@@ -113,3 +113,25 @@ private func fix11Morning(_ verdict: String) -> MorningResponse {
     #expect(c.signals == ["Sleep 80 vs 87 avg"])
     #expect(c.why == nil)
 }
+
+// MARK: - H1-05 (S2): Training follows the user's call
+
+@Test func h1_05_trainingSubtitleSaysTheUsersRest() {
+    let rest = VerdictOverride(date: "2026-10-01", choice: .rest, reason: nil, session: "Rest — walks only", createdAt: nil)
+    let date = Date(timeIntervalSince1970: 1_790_000_000)
+    let s = trainingSubtitle(verdict: "GO (auto-regulated) — Long Zone 2 75-90min", isStale: false, date: date,
+                             override: rest, locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "UTC")!)
+    #expect(s.word == "Rest")
+    #expect(s.tone == .muted)
+    let none = trainingSubtitle(verdict: "GO (auto-regulated) — Long Zone 2 75-90min", isStale: false, date: date,
+                                locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "UTC")!)
+    #expect(none.word == "Modified")
+}
+
+@Test func h1_05_readinessCardAndHeroFollowTheCall() {
+    let rest = VerdictOverride(date: "2026-10-01", choice: .rest, reason: nil, session: "Rest — walks only", createdAt: nil)
+    let shown = gateDetailShownParts(verdict: "GO (auto-regulated) — Long Zone 2 75-90min", override: rest)
+    #expect(verdictUserWord(shown) == "Rest")
+    #expect(trainingHeroOffersStart(override: rest) == false)
+    #expect(trainingHeroOffersStart(override: nil) == true)
+}

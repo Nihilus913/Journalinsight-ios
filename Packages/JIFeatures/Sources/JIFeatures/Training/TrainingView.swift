@@ -28,7 +28,15 @@ public struct TrainingView: View {
     /// B-57 W4: the user's optional cap / zones, injected by the app shell (W-FIX5 TR-zones: also the
     /// Zones card, so it is declared outside the WorkoutKit block).
     @Environment(\.gateSettings) private var gateSettings
+    /// W-FIX11 H1-05: the user's call (Decide's Adjust) — header, hero and Readiness follow it.
+    @Environment(\.verdictOverrideModel) private var verdictOverrideModel
     public init(model: TrainingViewModel) { self.model = model }
+
+    private var currentOverride: VerdictOverride? {
+        guard !model.verdictIsStale else { return nil }
+        return overrideForVerdictDate(verdictOverrideModel?.current ?? model.morning?.verdictOverride,
+                                      verdictDate: model.morning?.verdictDate)
+    }
 
     public var body: some View {
         ScrollViewReader { proxy in
@@ -38,7 +46,7 @@ public struct TrainingView: View {
                 // W-FIX3 fixer BUG-44 (board 3/01): "Full · Wed 23 Sep" + the synced pill on one row;
                 // the verdict word leads only when the hub's verdict is today's.
                 TrainingSessionHeader(
-                    subtitle: trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate),
+                    subtitle: trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate, override: currentOverride),
                     fetchedAt: model.fetchedAt, watchLine: watchLine)
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
@@ -196,7 +204,7 @@ public struct TrainingView: View {
     }
 
     private var loaded: some View {
-        let subtitle = trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate)
+        let subtitle = trainingSubtitle(verdict: model.morning?.verdict, isStale: model.verdictIsStale, date: model.todayDate, override: currentOverride)
         return VStack(alignment: .leading, spacing: 0) {
             // W-GUI TR1 (mockup 04): the week strip in a card with its legend and the plan line,
             // then "Today" = the one tinted hero (verdict colour), one primary button.
@@ -222,12 +230,13 @@ public struct TrainingView: View {
                 rows: trainingHeroRows(exercises: model.exercises, session: model.plannedSessionForSelectedDay),
                 onSendToWatch: sendToWatchAction,
                 onStart: { showSessionCoach = true },
+                showsStart: model.selectedDate != model.todayDateString || trainingHeroOffersStart(override: currentOverride),
                 tint: subtitle.word == nil ? nil : trainingToneColor(subtitle.tone, theme))
             // W-FIX7 F7-1: today's session done (or another activity) from Apple Health.
             SessionCompletionLine(completion: model.selectedDayCompletion)
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
             JISectionHeader("Readiness")
-            GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
+            GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale, override: currentOverride)
             JISectionHeader("This day").id("training-this-day")
             TrainingDayDetailCard(
                 date: model.selectedDate,

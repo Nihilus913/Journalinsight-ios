@@ -1074,6 +1074,7 @@ struct RootTabView: View {
                 if let trainingModel {
                     TrainingView(model: trainingModel)
                         .environment(\.sendToWatchModel, sendToWatchModel)
+                        .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
                 } else {
                     ProgressView()
                         .task {
