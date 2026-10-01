@@ -399,6 +399,15 @@ nonisolated final class SegmentGuardedHub: WorkoutLibraryProviding, @unchecked S
         #expect(WorkoutFormat.summary(t) == "1 step · Zone 2")
     }
 
+    /// W-UITEST UT-2 (B40-V6 proof): the Send to Watch row speaks its summary — VoiceOver (and the
+    /// committed XCUITest) read "name, 40 min · 2 steps · …", never the name alone.
+    @Test func sendToWatchRowLabelCarriesTheSummary() {
+        let t = WorkoutTemplate(templateId: 9, name: "UITest Segments Tempo", activity: "running", location: .outdoor, weekdays: [], steps: [], updatedAt: "x",
+                                segments: [WorkoutSegment(sport: .running, steps: [.cardio(CardioStep(purpose: .warmup, end: .time(seconds: 600), target: .hrRange(lo: 100, hi: 140)))]),
+                                           WorkoutSegment(sport: .running, steps: [.cardio(CardioStep(purpose: .work, end: .time(seconds: 1800), target: .hrRange(lo: 130, hi: 150)))])])
+        #expect(WorkoutFormat.accessibilityLabel(t) == "UITest Segments Tempo, 40 min · 2 steps · 100–150 bpm")
+    }
+
     #if canImport(WorkoutKit)
     /// B40-V6: Send to Watch read the compat `steps`, so every segments-only workout (all made in
     /// the app, all Garmin imports) said "0 min · 0 steps".
