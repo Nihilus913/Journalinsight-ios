@@ -79,7 +79,7 @@ public final class KpiDetailViewModel {
     public private(set) var medication: MedicationEntry?
     public let daytimeHrv: Double?
     private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals", load: "kpidetail.load",
-                               calibration: "kpidetail.calibration")
+                               calibration: "kpidetail.calibration", sourceDays: "kpidetail.sourceDays")
 
     /// W-FIX10 R-04: the hub's baseline verdict (`/vitals/recovery-inputs` `calibration`, HT DH-4)
     /// for HRV / RHR. nil = not loaded / older hub / other metric — the phone's own band stands.
@@ -142,8 +142,12 @@ public final class KpiDetailViewModel {
     private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
     public var history: [(date: String, value: Double?)] {
         if showsLoadMinutes { return kpiLoadHistory(days: loadDays, today: loadToday) }
-        return KpiMetrics.history(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows)
+        // W-FIX11 H2-04: "Apple Watch" metrics count Apple nights only.
+        return kpiSourceFilteredHistory(KpiMetrics.history(for: metric, recovery: recovery, nutrition: nutrition, dailyRows: dailyRows),
+                                        metric: metric, sourceDays: sourceDays)
     }
+    /// W-FIX11 H2-04: the hub's Apple-only recovery-input days (HRV / RHR / Sleep); [] = not loaded.
+    public private(set) var sourceDays: [RecoveryInputDay] = []
 
     /// BUG-22: the nutrition segment. Only switches between nutrition macros (they share one data
     /// source, so nothing refetches); any other metric is ignored.
@@ -236,6 +240,9 @@ public final class KpiDetailViewModel {
         if kpiCalibrationKey(metric) != nil, let hit = try? cache.get(Self.keys.calibration, as: RecoveryCalibration.self) {
             calibration = hit.value
         }
+        if kpiSourceField(metric) != nil, let hit = try? cache.get(Self.keys.sourceDays, as: [RecoveryInputDay].self) {
+            sourceDays = hit.value
+        }
         if metric == .acwr, let hit = try? cache.get(Self.keys.load, as: [RecoveryInputDay].self) {
             adoptLoad(hit.value, today: RecoveryInsightService.localDayKey(Date()))
         }
@@ -265,11 +272,13 @@ public final class KpiDetailViewModel {
                 }), let days = hit.value { adoptLoad(days, today: day) }
             }
             // W-FIX10 R-04: HRV / RHR read the hub's calibration verdict; a failure keeps the cached one.
-            if kpiCalibrationKey(metric) != nil, let inputs = health as? any RecoveryInputsProviding {
+            if kpiCalibrationKey(metric) != nil || kpiSourceField(metric) != nil, let inputs = health as? any RecoveryInputsProviding {
                 let day = RecoveryInsightService.localDayKey(Date())
                 if let report = try? await inputs.recoveryInputsReport(date: day, windowDays: RecoveryInsightService.windowDays) {
                     calibration = report.calibration
                     if let c = report.calibration { try? cache.put(Self.keys.calibration, c) }
+                    sourceDays = report.days
+                    try? cache.put(Self.keys.sourceDays, report.days)
                 }
             }
             if isNutritionKpi(metric), let goalsProvider {

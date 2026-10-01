@@ -219,6 +219,28 @@ public nonisolated struct KpiDetailStatus: Equatable, Sendable {
     public let role: JIColorRole
 }
 
+/// W-FIX11 H2-04: the source-labelled metrics (HRV / RHR / Sleep say "Apple Watch") read only the
+/// nights that source has for the metric — `sourceDays` = the hub's Apple-only
+/// `/vitals/recovery-inputs` days. A night without an Apple value stays in the series as missing
+/// (never a Garmin number in an "Apple Watch" average). No source days (an older hub, a mock, any
+/// other metric) = the history as is.
+public nonisolated func kpiSourceFilteredHistory(_ history: [(date: String, value: Double?)], metric: KpiMetricId,
+                                                 sourceDays: [RecoveryInputDay]) -> [(date: String, value: Double?)] {
+    guard !sourceDays.isEmpty, let field = kpiSourceField(metric) else { return history }
+    let nights = Set(sourceDays.filter { field($0) != nil }.map(\.date))
+    return history.map { (date: $0.date, value: nights.contains($0.date) ? $0.value : nil) }
+}
+
+/// The Apple input that marks a night as the labelled source's for `metric` (nil = not filtered).
+nonisolated func kpiSourceField(_ metric: KpiMetricId) -> ((RecoveryInputDay) -> Double?)? {
+    switch metric {
+    case .hrv: { $0.hrvMs }
+    case .rhr: { $0.rhrBpm }
+    case .sleep: { $0.sleepH }
+    default: nil
+    }
+}
+
 /// Readings the 28-day average needs before a direction means anything.
 public nonisolated let kpiDetailMinBaselineReadings = 7
 
