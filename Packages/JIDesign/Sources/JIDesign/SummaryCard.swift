@@ -15,12 +15,16 @@ public struct SummaryCard: View {
     let sparkline: [Double?], sourceMissing: Bool, action: (() -> Void)?
     /// W-GUI F7 (DEV-06): the card's fixed-height family (`nil` = hug content, previews only).
     let family: JITileHeight?
+    /// W-FIX11 H1-10: the sparkline's last day when it is not today ("30 Sep").
+    var sparklineEndLabel: String? = nil
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 72
     @ScaledMetric(relativeTo: .body) private var sparkHeight: CGFloat = 40
 
     public init(icon: String, tint: Color, title: String, value: String?, unit: String? = nil, timestamp: String? = nil,
-                sparkline: [Double?] = [], sourceMissing: Bool = false, family: JITileHeight? = .square, action: (() -> Void)? = nil) {
+                sparkline: [Double?] = [], sourceMissing: Bool = false, family: JITileHeight? = .square,
+                sparklineEndLabel: String? = nil, action: (() -> Void)? = nil) {
+        self.sparklineEndLabel = sparklineEndLabel
         self.icon = icon; self.tint = tint; self.title = title; self.value = value; self.unit = unit
         self.timestamp = timestamp; self.sparkline = sparkline; self.sourceMissing = sourceMissing; self.family = family; self.action = action
     }
@@ -83,7 +87,7 @@ public struct SummaryCard: View {
         if sparkline.compactMap({ $0 }).count >= 2 {
             // W-GUI T3 (report §4.4): a sparkline with its two axis words; the value is printed
             // beside it already, so the line does not repeat it. No band until W3 (never a fake one).
-            NormalSparkline(points: sparkline, color: tint, showsLastValue: false).frame(width: sparkWidth, height: sparkHeight)
+            NormalSparkline(points: sparkline, color: tint, showsLastValue: false, endLabel: sparklineEndLabel).frame(width: sparkWidth, height: sparkHeight)
         }
     }
 
