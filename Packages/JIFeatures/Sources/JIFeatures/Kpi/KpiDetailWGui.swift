@@ -17,7 +17,7 @@ public nonisolated struct KpiDetailTableRow: Equatable, Sendable, Identifiable {
 public nonisolated func kpiDetailTableRows(history: [(date: String, value: Double?)], value: Double?, unit: String, decimals: Int,
                                            isNightly: Bool = true, normal: PersonalNormalResult? = nil) -> [KpiDetailTableRow] {
     let u = unit.isEmpty ? "" : " \(unit)"
-    func num(_ v: Double?) -> String { v.map { jiNumber($0, decimals) + u } ?? "—" }
+    func num(_ v: Double?) -> String { v.map { kpiDetailNumber($0, decimals: decimals) + u } ?? "—" }
     let sorted = history.sorted { $0.date < $1.date }
     let last28 = sorted.suffix(28)
     let counted = last28.filter { $0.value != nil }.count
@@ -31,7 +31,7 @@ public nonisolated func kpiDetailTableRows(history: [(date: String, value: Doubl
     return [
         KpiDetailTableRow(id: "last", title: isNightly ? "Last night" : "Latest", subtitle: lastSubtitle, value: num(value)),
         KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: avgSubtitle, value: num(avg7)),
-        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: normalSubtitle, value: normal.map { "\(jiNumber($0.low, decimals))–\(jiNumber($0.high, decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
+        KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: normalSubtitle, value: normal.map { "\(kpiDetailNumber($0.low, decimals: decimals))–\(kpiDetailNumber($0.high, decimals: decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
         KpiDetailTableRow(id: "counted", title: isNightly ? "Nights counted" : "Days counted", subtitle: "missing ones stay missing", value: "\(counted) of \(max(last28.count, 1))"),
     ]
 }
@@ -42,7 +42,7 @@ public nonisolated let kpiDetailLegend = "shaded = your normal — \(JIMissingRe
 /// W-B57-W3 fixer: the legend with the band once `KpiNormal` has one (the same band the NormalBar shows).
 public nonisolated func kpiDetailLegendText(_ normal: PersonalNormalResult?, decimals: Int) -> String {
     guard let normal else { return kpiDetailLegend }
-    return "shaded = your normal \(jiNumber(normal.low, decimals))–\(jiNumber(normal.high, decimals)) · dashed = median \(jiNumber(normal.median, decimals))"
+    return "shaded = your normal \(kpiDetailNumber(normal.low, decimals: decimals))–\(kpiDetailNumber(normal.high, decimals: decimals)) · dashed = median \(kpiDetailNumber(normal.median, decimals: decimals))"
 }
 
 /// The per-metric block under the table (a section title, rows with a trailing value, a caption).

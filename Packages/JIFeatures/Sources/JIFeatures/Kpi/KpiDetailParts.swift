@@ -76,7 +76,13 @@ struct KpiDetailTrend: View {
                         }
                     }
                 }
-                .chartYAxis { AxisMarks(position: .trailing) }
+                .chartYAxis {
+                    // W-FIX11 H1-16: the axis groups like every other number here ("20,000").
+                    AxisMarks(position: .trailing) { v in
+                        AxisGridLine(); AxisTick()
+                        AxisValueLabel { if let d = v.as(Double.self) { Text(verbatim: kpiAxisNumber(d)) } }
+                    }
+                }
                 .chartXAxis { AxisMarks(values: .automatic(desiredCount: typeSize.isAccessibilitySize ? 2 : 4)) }
                 .frame(minHeight: chartHeight)
                 .overlay {
@@ -274,9 +280,21 @@ public nonisolated func kpiDetailStatus(history: [(date: String, value: Double?)
     }
     let direction = trendDirection(recent: value, baseline: baseline)
     let word = switch direction { case .up: "Up"; case .down: "Down"; case .flat: "Steady"; case .unknown: "—" }
-    let avg = jiNumber(baseline, decimals) + (unit.isEmpty ? "" : " \(unit)")
+    let avg = kpiDetailNumber(baseline, decimals: decimals) + (unit.isEmpty ? "" : " \(unit)")
     return KpiDetailStatus(word: word, symbolName: direction.symbolName,
                            detail: "Your last reading against your 28-day average of \(avg).", role: .text)
+}
+
+/// W-FIX11 H1-16: the ONE number format on KPI detail — en_GB grouping, the Targets rows' too
+/// ("4,179", "15,000 steps"); "—" when missing.
+public nonisolated func kpiDetailNumber(_ v: Double?, decimals: Int) -> String {
+    guard let v, v.isFinite else { return "—" }
+    return jiGroupedNumber(v, decimals)
+}
+
+/// The chart axis' label: whole numbers without decimals, others with one.
+public nonisolated func kpiAxisNumber(_ v: Double) -> String {
+    jiGroupedNumber(v, v.rounded() == v ? 0 : 1)
 }
 
 /// Whole days from `from` to `to` (yyyy-MM-dd, UTC calendar); nil when either is unreadable.

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JICompute
 @testable import JIFeatures
 
 // W-FIX11 H2-04 (bug hunt 2026-10-01): RHR / Sleep detail say "Apple Watch", but the 28-day
@@ -65,4 +66,19 @@ private func series(_ n: Int, _ v: Double) -> [(date: String, value: Double?)] {
                             valueDate: "2026-09-15", today: "2026-10-01")
     #expect(s.word.hasPrefix("—"))
     #expect(s.detail.contains("15 Sep"))
+}
+
+// W-FIX11 H1-16: one number format on KPI detail — hero, status line, table, normal and axis all
+// group like the Targets rows ("4,179", "15,000 steps"), never "4'179" beside "7826".
+@Test func kpiDetailNumbersShareOneFormat() {
+    #expect(kpiDetailNumber(4179, decimals: 0) == "4,179")
+    #expect(kpiDetailNumber(nil, decimals: 0) == "—")
+    #expect(kpiAxisNumber(20000) == "20,000")
+    let h: [(date: String, value: Double?)] = (1...20).map { (date: String(format: "2026-09-%02d", $0), value: 7826) }
+    #expect(kpiDetailStatus(history: h, value: 7826, unit: "steps", decimals: 0).detail.contains("7,826 steps"))
+    let rows = kpiDetailTableRows(history: h, value: 4179, unit: "steps", decimals: 0, isNightly: false,
+                                  normal: PersonalNormalResult(median: 7000, low: 4742, high: 9379, sd: 1, n: 20))
+    #expect(rows.first { $0.id == "last" }?.value == "4,179 steps")
+    #expect(rows.first { $0.id == "avg7" }?.value == "7,826 steps")
+    #expect(rows.first { $0.id == "normal" }?.value == "4,742–9,379 steps")
 }
