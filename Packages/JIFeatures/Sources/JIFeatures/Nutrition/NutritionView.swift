@@ -45,6 +45,7 @@ public struct NutritionView: View {
         .jiTheme(.native)
         // §5: the hand-drawn large title + date line become the system title and subtitle.
         .navigationTitle("Nutrition")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         #if os(iOS)
         // W-FIX3 BUG-34: the selected day in words, never the raw ISO date.
         .navigationSubtitle(typeSize.isAccessibilitySize ? "" : subtitle)
@@ -85,7 +86,7 @@ public struct NutritionView: View {
             }
             JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
             MacroSummaryCard(day: model.day, today: today, source: model.daySource)
-            JISectionHeader("Meals today")
+            JISectionHeader(nutritionMealsTitle(selected: model.selectedDate, today: today))   // W-FIX11 H2-12
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
             // W-GUI M2 (mockup 05): the week as bars from zero against the ±5 % goal band.
             JISectionHeader("7 days vs your goal")
@@ -109,7 +110,7 @@ public struct NutritionView: View {
 
     /// W-GUI M2 (mockup 05): the read-only note and the goal-alignment sentence as one caption.
     private var readOnlyNote: some View {
-        Text(nutritionReadOnlyNote + " " + nutritionGoalAlignCaption)
+        Text(nutritionReadOnlyNote(source: model.daySource) + " " + nutritionGoalAlignCaption)
             .jiFont(.caption).foregroundStyle(theme.color(.muted))
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, JISpacing.s4)

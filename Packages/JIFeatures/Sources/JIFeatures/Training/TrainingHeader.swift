@@ -25,15 +25,20 @@ public nonisolated struct TrainingSubtitle: Equatable, Sendable {
     public var text: String { word.map { "\($0) · \(dateText)" } ?? dateText }
 }
 
+/// W-FIX11 H1-05: `override` = the user's call for the verdict date — the word follows it.
 public nonisolated func trainingSubtitle(verdict: String?, isStale: Bool, date: Date,
+                                         override: VerdictOverride? = nil,
                                          locale: Locale = .autoupdatingCurrent,
                                          timeZone: TimeZone = .autoupdatingCurrent) -> TrainingSubtitle {
     let style = Date.FormatStyle(locale: locale, timeZone: timeZone).weekday(.abbreviated).day().month(.abbreviated)
     let dateText = date.formatted(style)
     guard !isStale, let verdict, !verdict.isEmpty else { return TrainingSubtitle(word: nil, tone: .muted, dateText: dateText) }
-    let parts = displayVerdictParts(verdictParts(verdict))
+    let parts = effectiveVerdictParts(parts: verdictParts(verdict), override: override)
     return TrainingSubtitle(word: verdictUserWord(parts), tone: parts.tone, dateText: dateText)
 }
+
+/// W-FIX11 H1-05: the hero offers "Start session" unless the user called today a rest day.
+public nonisolated func trainingHeroOffersStart(override: VerdictOverride?) -> Bool { override?.choice != .rest }
 
 /// W-FIX3 fixer BUG-44: one exercise line in the Training hero — "50.0 kg · 3 sets".
 public nonisolated struct TrainingHeroRow: Equatable, Sendable, Identifiable {
@@ -135,6 +140,8 @@ struct TrainingSessionHeader: View {
 struct TrainingHeroCard: View {
     let dayLabel: String, sessionName: String?, rows: [TrainingHeroRow]
     let onSendToWatch: (() -> Void)?, onStart: () -> Void
+    /// W-FIX11 H1-05: no "Start session" on a day the user called Rest.
+    var showsStart: Bool = true
     /// W-GUI TR1 (mockup 04): the hero is the screen's one tinted card — the verdict's colour.
     var tint: Color? = nil
     @Environment(\.jiTheme) private var theme
@@ -159,11 +166,13 @@ struct TrainingHeroCard: View {
                     .accessibilityIdentifier("training-hero-exercises")
                 }
                 // W-GUI TR1: ONE primary (Start session); Send to Watch is the secondary (report §7).
-                Button(action: onStart) { Text("Start session") }
-                    .buttonStyle(.jiPrimary)
-                    .accessibilityLabel("Start session")
-                    .accessibilityHint("Opens the live session coach")
-                    .accessibilityIdentifier("session-coach-entry")
+                if showsStart {
+                    Button(action: onStart) { Text("Start session") }
+                        .buttonStyle(.jiPrimary)
+                        .accessibilityLabel("Start session")
+                        .accessibilityHint("Opens the live session coach")
+                        .accessibilityIdentifier("session-coach-entry")
+                }
                 watchButton
             }
         }

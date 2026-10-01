@@ -84,11 +84,11 @@ import JIPersistence
         #expect(kpiDetailStatus(history: h, value: 50, unit: "ms", decimals: 0).word == "Steady")
     }
 
-    @Test func fewerThanSevenReadingsIsCalibrating() {
+    @Test func fewerThanFourteenReadingsIsCalibrating() {   // W-FIX11 H2-09: the hub's 14
         let h = series([50, nil, 52, nil, 48])
         let s = kpiDetailStatus(history: h, value: 48, unit: "ms", decimals: 0)
         #expect(s.word == "— Calibrating")
-        #expect(s.detail == "JI compares against your 28-day average once it has 7 readings (3 so far).")
+        #expect(s.detail == "JI compares against your 28-day average once it has 14 readings (3 so far).")
     }
 
     @Test func noValueIsNoData() {

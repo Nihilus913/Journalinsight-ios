@@ -17,7 +17,7 @@ private func source(_ relative: String) throws -> String {
 
 @Test func bug43_theChangelogLeadsWithTheInstalledReleaseAndReachesThisWeek() {
     let latest = Changelog.swiftEntries[0]
-    #expect(latest.version == "2.0.0")
+    #expect(latest.version == "2.1.0")   // W-FIX11 H2-22
     #expect(latest.date >= "2026-09-25")
     #expect(Changelog.entries.first == latest)
     // One entry per Swift milestone, newest first, every version unique.
@@ -25,8 +25,8 @@ private func source(_ relative: String) throws -> String {
     #expect(dates == dates.sorted(by: >))
     #expect(Changelog.swiftEntries.count >= 3)
     #expect(Set(Changelog.entries.map(\.id)).count == Changelog.entries.count)
-    // The 2.0.0 install row is marked "Installed" on the board.
-    #expect(versionHighlights(Changelog.entries, appVersion: "2.0.0").first?.installed == true)
+    // The 2.1.0 install row is marked "Installed" on the board.
+    #expect(versionHighlights(Changelog.entries, appVersion: "2.1.0").first?.installed == true)
 }
 
 // MARK: - BUG-46: widgets have shipped

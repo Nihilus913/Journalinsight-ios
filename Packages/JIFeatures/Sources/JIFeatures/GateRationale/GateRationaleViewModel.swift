@@ -329,7 +329,7 @@ public final class GateRationaleViewModel {
             let parts = displayVerdictParts(verdictParts(row.verdict))
             let session = row.sessionPrescription.flatMap { $0.isEmpty ? nil : $0 } ?? (parts.session.isEmpty ? nil : parts.session)
             return GateDayRow(date: date, dayLabel: label, session: session, verdictWord: verdictUserWord(parts), tone: parts.tone,
-                              prescription: autoRegulatedPrescription(parts, reason: row.reason))
+                              prescription: gateDayPrescription(verdict: row.verdict, session: session, reason: row.reason))
         }
     }
 
@@ -414,4 +414,15 @@ private let fixtureRationaleMorningJSON = """
 /// definition — `avg_kcal_deficit_7d` is expenditure − intake over the same 7 days — or nil.
 public nonisolated func weeklyEnergyBalance(_ averages: GateAverages) -> Double? {
     averages.avgKcalDeficit7d.map { -$0 }
+}
+
+
+/// W-FIX11 H1-08: a "Last 3 days" row's change line — the auto-regulated prescription, else a
+/// MODIFIED / REDUCED verdict's own session text when it differs from the planned session
+/// ("swap intervals for easy Z2 30-40min" under "Norwegian 4x4 intervals"); nil otherwise.
+public nonisolated func gateDayPrescription(verdict: String?, session: String?, reason: String?) -> String? {
+    let parts = displayVerdictParts(verdictParts(verdict))
+    if let p = autoRegulatedPrescription(parts, reason: reason) { return p }
+    guard parts.tone == .amber, !parts.session.isEmpty, parts.session != session else { return nil }
+    return parts.session.prefix(1).uppercased() + parts.session.dropFirst()
 }

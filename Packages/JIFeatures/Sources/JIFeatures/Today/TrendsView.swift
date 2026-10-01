@@ -41,8 +41,12 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
         // B-57 W3: the band is the normal of the series the card averages; under 14 values it
         // stays "Calibrating" (a value) or "No data" (none).
         let normal = KpiNormal.make(points: s.points, today: today).normal
+        // W-FIX11 H1-13: a nutrition mean over fewer than 7 logged days says how many it has.
+        let logged = s.points.sorted { $0.date < $1.date }.suffix(trendRecentDays).compactMap(\.value).count
+        let note = group == .nutrition && s.value != nil && logged < trendRecentDays ? "\(logged) of \(trendRecentDays) days logged" : nil
         return TrendsCardModel(id: id, group: group, name: name, systemImage: symbol, unit: unit, decimals: decimals, value: s.value,
-                               tint: metricTintRole(id), status: KpiNormal.status(value: s.value, normal: normal), normal: normal)
+                               tint: metricTintRole(id), status: KpiNormal.status(value: s.value, normal: normal), normal: normal,
+                               asOf: note)
     }
     /// W-FIX6 F6-8: an ACWR the hub really sent keeps the card; else the gate-input minutes.
     func loadCard() -> TrendsCardModel {
@@ -62,7 +66,8 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
         let normal = c.normal
         c = TrendsCardModel(id: c.id, group: c.group, name: c.name, systemImage: c.systemImage, unit: c.unit, decimals: c.decimals,
                             value: kg, tint: c.tint, status: KpiNormal.status(value: kg, normal: normal), normal: normal,
-                            asOf: kpiAsOfLabel(valueDate: last.date, today: today))
+                            // W-FIX11 H1-12: an older weigh-in is the last reading, never a 7-day value.
+                            asOf: kpiAsOfLabel(valueDate: last.date, today: today).map { "Last weigh-in · " + $0.replacingOccurrences(of: "as of ", with: "") })
         return c
     }
     return [
@@ -89,6 +94,11 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
 public nonisolated func trendsGoal(_ card: TrendsCardModel, _ goals: NutritionGoalsSnapshot) -> Double? {
     guard card.group == .nutrition, let id = KpiMetricId(rawValue: card.id) else { return nil }
     return goals.goal(for: id)
+}
+
+/// W-FIX11 H1-12: what the card's fill is — the 7-day value, or the last reading (an older weigh-in).
+public nonisolated func trendsValueLabel(_ card: TrendsCardModel) -> String {
+    card.asOf?.hasPrefix("Last weigh-in") == true ? "last reading" : "7 day value"
 }
 
 public nonisolated func trendsCards(_ cards: [TrendsCardModel], filter: TrendsFilter) -> [TrendsCardModel] {
@@ -181,7 +191,8 @@ public struct TrendsView: View {
                     TrendsAsOfLine(card: c, reserve: reserveAsOf)
                     Label(c.status.word, systemImage: c.status.symbolName).jiFont(.caption, weight: .semibold)
                         .foregroundStyle(theme.color(c.status.role))
-                    NormalBar(value: c.value, normal: c.normal?.range, median: c.normal?.median, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false)
+                    NormalBar(value: c.value, normal: c.normal?.range, median: c.normal?.median, goal: trendsGoal(c, nutritionGoals), unit: c.unit, decimals: c.decimals, tint: c.tint, showsCaption: false,
+                              valueLabel: trendsValueLabel(c))
                 }
                 // W-FIX7 F7-5: fill the grid row so tiles in a row are equal height (W-GUI equal tiles).
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

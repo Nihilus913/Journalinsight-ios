@@ -65,6 +65,7 @@ public struct EnergyView: View {
         .jiTheme(.native)
         // §5: the hand-drawn large title becomes the system one.
         .navigationTitle("Energy")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         #if os(iOS)
         .navigationSubtitle(typeSize.isAccessibilitySize ? "" : energySubtitle)
         #endif

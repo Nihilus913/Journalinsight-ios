@@ -7,6 +7,9 @@ import HealthKit
 final class FakeHealthStore: HealthStoreWriting, @unchecked Sendable {
     var isHealthDataAvailable: Bool = true
     var authorizationError: Error?
+    /// W-FIX11 H2-03: every share type answered "Don't Allow".
+    var sharingDenied = false
+    func allSharingDenied(_ types: Set<HKSampleType>) -> Bool { sharingDenied }
     private(set) var authorizationRequested = false
     private(set) var savedObjects: [HKObject] = []
     /// workout sync id -> samples attached via `add(_:to:)`

@@ -43,13 +43,13 @@ struct TrainingWeekPlanTests {
         #expect(s.planDone == 1)
         #expect(s.next?.weekday == 2)              // today's session is next
         #expect(s.nextSessionLabel == "Wed · Day 2 Full Upper")
-        #expect(s.doneText == "1 of 4 done")
+        #expect(s.doneText == "1 of 6 done")
     }
 
     @Test func noDailyRowsThisWeekMeansUnknownNotZero() {
         let s = trainingWeekSummary(planSessions: Self.plan, exercises: [], daily: [Self.kcal("2026-09-14", 600)], today: "2026-09-23")
         #expect(s.planDone == nil)
-        #expect(s.doneText == "— of 4 done")
+        #expect(s.doneText == "— of 6 done")
     }
 
     @Test func pastStrengthDayBelowFloorIsMissed() {

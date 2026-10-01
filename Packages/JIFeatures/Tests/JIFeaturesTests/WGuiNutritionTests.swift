@@ -17,7 +17,7 @@ import JICore
     #expect(nutritionWeekBand(goal: nil) == nil)
     let days = [NutritionDailyRow(date: "2026-09-20", kcalConsumed: 1500), NutritionDailyRow(date: "2026-09-21", kcalConsumed: 1700),
                 NutritionDailyRow(date: "2026-09-22", kcalConsumed: 400)]
-    #expect(nutritionWeekAverageText(days: days, today: "2026-09-22") == "7-day avg 1600 · today so far")
+    #expect(nutritionWeekAverageText(days: days, today: "2026-09-22") == "Avg 1600 kcal · 2 logged days before today")   // W-FIX11 H2-13
     #expect(nutritionWeekAverageText(days: [days[2]], today: "2026-09-22") == nil)
     #expect(nutritionGoalAlignCaption.hasPrefix("Logging stays in YAZIO"))
     #expect(mealDetailYazioCaption.contains("does not log"))

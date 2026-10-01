@@ -2,6 +2,16 @@ import SwiftUI
 import JICore
 import JIDesign
 
+/// W-FIX11 H2-14: meal items always come from the hub's YAZIO rows (Health has no per-item food).
+public nonisolated let mealDetailSourceLabel = "YAZIO via the hub"
+
+/// W-FIX11 H2-14: the footer names the source the day's numbers came from.
+public nonisolated func nutritionReadOnlyNote(source: NutritionDataSource?) -> String {
+    source == .hub
+        ? "Read-only. JI shows what YAZIO sent to the hub; log meals in YAZIO. JI has no food database and never logs food."
+        : nutritionReadOnlyNote
+}
+
 public nonisolated let nutritionReadOnlyNote = "Read-only. JI shows what Apple Health holds; log meals in YAZIO or any app that writes to Health. JI has no food database and never logs food."
 
 public nonisolated struct MealDetail: Equatable, Sendable {
@@ -51,7 +61,7 @@ public struct MealDetailSheet: View {
     @ViewBuilder var content: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: JISpacing.s3) {
-                Label("Read-only · \(JIExplainers.nutritionSourceLabel)", systemImage: "lock")
+                Label("Read-only · \(mealDetailSourceLabel)", systemImage: "lock")
                     .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
                     .padding(.horizontal, JISpacing.s3).padding(.vertical, 6)
                     .background(theme.color(.control), in: RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous))
@@ -64,7 +74,7 @@ public struct MealDetailSheet: View {
                                 .foregroundStyle(theme.color(detail.kcal == nil ? .muted : nutritionKcalTintRole))
                             Text(detail.kcal == nil ? JIMissingReason.noData.rawValue : "kcal").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         }
-                        Text("\(detail.title) · \(JIExplainers.nutritionSourceLabel)").jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        Text("\(detail.title) · \(mealDetailSourceLabel)").jiFont(.caption).foregroundStyle(theme.color(.muted))
                         HStack(spacing: JISpacing.tileGap) {
                             macroTile("Protein", detail.protein, role: .protein)
                             macroTile("Carbs", detail.carbs, role: .carbs)

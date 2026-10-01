@@ -32,9 +32,12 @@ public nonisolated func normalBarCaption(normal: ClosedRange<Double>?, median: D
     return text
 }
 
-public nonisolated func normalBarAccessibilityValue(value: Double?, normal: ClosedRange<Double>?, median: Double?, goal: Double?, unit: String?, decimals: Int) -> String {
+/// W-FIX11 H1-12: `valueLabel` names what the fill is ("7 day value", or "last reading" for an
+/// older weigh-in the card falls back to).
+public nonisolated func normalBarAccessibilityValue(value: Double?, normal: ClosedRange<Double>?, median: Double?, goal: Double?, unit: String?, decimals: Int,
+                                                    valueLabel: String = "7 day value") -> String {
     let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
-    var parts: [String] = [value.map { "7 day value \(jiNumber($0, decimals))\(u)" } ?? "7 day value, no data"]
+    var parts: [String] = [value.map { "\(valueLabel) \(jiNumber($0, decimals))\(u)" } ?? "\(valueLabel), no data"]
     if let normal {
         parts.append("your normal \(jiNumber(normal.lowerBound, decimals)) to \(jiNumber(normal.upperBound, decimals))")
     } else {
@@ -48,12 +51,15 @@ public nonisolated func normalBarAccessibilityValue(value: Double?, normal: Clos
 public struct NormalBar: View {
     let value: Double?, normal: ClosedRange<Double>?, median: Double?, goal: Double?
     let unit: String?, decimals: Int, tint: JIColorRole, showsCaption: Bool
+    var valueLabel: String = "7 day value"
     @Environment(\.jiTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .caption) private var barHeight: CGFloat = 8
 
     public init(value: Double?, normal: ClosedRange<Double>?, median: Double? = nil, goal: Double? = nil,
-                unit: String? = nil, decimals: Int = 0, tint: JIColorRole = .info, showsCaption: Bool = true) {
+                unit: String? = nil, decimals: Int = 0, tint: JIColorRole = .info, showsCaption: Bool = true,
+                valueLabel: String = "7 day value") {
+        self.valueLabel = valueLabel
         self.value = value; self.normal = normal; self.median = median; self.goal = goal
         self.unit = unit; self.decimals = decimals; self.tint = tint; self.showsCaption = showsCaption
     }
@@ -99,7 +105,7 @@ public struct NormalBar: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Against your normal")
-        .accessibilityValue(normalBarAccessibilityValue(value: value, normal: normal, median: median, goal: goal, unit: unit, decimals: decimals))
+        .accessibilityValue(normalBarAccessibilityValue(value: value, normal: normal, median: median, goal: goal, unit: unit, decimals: decimals, valueLabel: valueLabel))
     }
 }
 

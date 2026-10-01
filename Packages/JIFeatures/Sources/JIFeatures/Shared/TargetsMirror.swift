@@ -43,12 +43,22 @@ public final class TargetsMirror {
     /// (W-FIX8 T-1) — only then may a goals-empty body replace the hub's goals.
     @discardableResult
     public func save(_ document: TargetsDocument, clearAllGoals: Bool = false) async -> PushOutcome {
+        // W-FIX11 H2-01: the edit is queued with the document it started from — the last one the
+        // hub answered (`hubBase`), else the stored one before this save — so only the keys the
+        // user changed reach the hub, applied to its fresh copy. Without a hub base and with a
+        // caller that already wrote the store (nothing to diff), the whole document goes, as before.
+        let before = store.loadIfPresent()
         try? store.save(document)
         var body = document
         body.clearAllGoals = clearAllGoals && document.goals.isEmpty
-        guard let id = try? outbox.enqueue(kind: TargetsDocument.outboxKind, payload: body) else { return .queued }
+        var base = store.hubBase() ?? before
+        if store.hubBase() == nil, let b = base, b == store.load() { base = nil }
+        guard let id = try? outbox.enqueue(kind: TargetsDocument.outboxKind,
+                                           payload: TargetsEdit(document: body, base: base)) else { return .queued }
         switch await drain(until: id) {
-        case .push(let outcome): return outcome
+        case .push(let outcome):
+            if case .delivered(let server?) = outcome { adoptDelivered(server) }
+            return outcome
         case .keptHub(let kept):
             // W-FIX8 T-1: the hub refused a goals-empty body and the phone took the hub's goals.
             // The edit itself (a rule, a limit) still has to reach the hub: mirror the adopted
@@ -72,6 +82,7 @@ public final class TargetsMirror {
         let before = store.load()
         let after = store.adoptHub(server, log: log)
         store.markHubSeeded()
+        if store.hubBase() == nil { store.saveHubBase(server) }   // W-FIX11 H2-01
         return after != before
     }
 
@@ -87,9 +98,20 @@ public final class TargetsMirror {
     @discardableResult
     public func pushIfPending() async -> Bool {
         guard let drainer, hubPending else { store.finishMigrationIfDelivered(outbox: outbox); return false }
-        adoptRefusals(await drainer.drainOnce())
+        let results = await drainer.drainOnce()
+        if adoptRefusals(results) == nil {
+            for case .success(.targets(let server)) in results.values { adoptDelivered(server) }
+        }
         store.finishMigrationIfDelivered(outbox: outbox)
         return !hubPending
+    }
+
+    /// W-FIX11 H2-01: the hub's answer after a delivered save is the merged document — the phone
+    /// takes it (so a number changed on the hub shows here too), unless a newer edit is queued.
+    private func adoptDelivered(_ server: TargetsDocument) {
+        guard !hubPending, store.loadIfPresent() != nil else { return }
+        try? store.save(server)
+        store.saveHubBase(server)
     }
 
     /// W-FIX8 T-1: a goals-empty body the hub refused (it holds goals) — the phone takes the hub's.

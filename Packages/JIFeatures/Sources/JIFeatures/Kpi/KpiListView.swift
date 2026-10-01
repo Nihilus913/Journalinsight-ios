@@ -49,6 +49,7 @@ public struct KpiListView: View {
         .jiPageGround()
         .jiTheme(.native)
         .navigationTitle(kpiListTitle)
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .task { await recoveryInsight?.refreshIfStale() }   // WD-2: the Load square's reading
@@ -108,6 +109,11 @@ struct KpiCatalogueGrids: View {
                 HStack(alignment: .firstTextBaseline) {
                     JISectionHeader(kpiListGroupHeader(group, count: items.count))
                 }
+                if group == .onToday, let note = kpiTodayFullNote(count: items.count) {
+                    Text(note).jiFont(.footnote).foregroundStyle(JITheme.native.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("kpi-list-today-full")
+                }
                 SquareGrid(items: items, family: squareTileFamily(catalog: true), onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
                     guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only
                     if model.toggle(id, selected: group != .onToday) {
@@ -157,6 +163,11 @@ public nonisolated let kpiListTitle = "On Today"
 public nonisolated let kpiListSubtitle = "Every metric is a square. Ticked ones sit on Today."
 public nonisolated let kpiListCaption = "Any square can go on a widget. Today holds \(KpiSelection.minSelected) to \(KpiSelection.maxSelected)."
 /// "On Today · 6" for the first group; the others are their names.
+/// W-FIX11 H2-10: said under On Today once it holds the most squares (no "+" is offered then).
+public nonisolated func kpiTodayFullNote(count: Int) -> String? {
+    count >= KpiSelection.maxSelected ? "Today is full (\(count)). Untick one to add another." : nil
+}
+
 public nonisolated func kpiListGroupHeader(_ group: KpiCatalogueGroup, count: Int) -> String {
     group == .onToday ? "\(group.rawValue) · \(count)" : group.rawValue
 }

@@ -194,6 +194,9 @@ public struct NormalBarChart: View {
                             // left and one label height up, over the neighbouring nights.
                             PointMark(x: .value("Night", p.label), y: .value("Value", domain.lowerBound))
                                 .symbol { Circle().strokeBorder(theme.color(.muted), lineWidth: 1.5).frame(width: 9, height: 9) }
+                                // W-FIX11 H2-16: the floor position is not a value — VoiceOver reads the
+                                // container's "no data" for this night, never "value 14.88".
+                                .accessibilityHidden(true)
                         }
                     }
                 }

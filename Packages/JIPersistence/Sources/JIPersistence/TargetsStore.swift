@@ -71,6 +71,20 @@ public nonisolated struct TargetsStore: Sendable {
 
     public func markHubSeeded() { try? prefs.set(Self.hubSeedKey, true) }
 
+    // MARK: W-FIX11 H2-01 — the last document the hub and this phone agreed on
+
+    /// The hub's answer to the last delivered save (or the launch seed's read): the base an edit
+    /// is diffed against, so only what this phone changed since then is sent.
+    public static let hubBaseKey = "targets.hubBase.v1"
+
+    public func hubBase() -> TargetsDocument? { (try? prefs.get(Self.hubBaseKey, as: TargetsDocument.self)) ?? nil }
+
+    public func saveHubBase(_ document: TargetsDocument) {
+        var d = document
+        d.clearAllGoals = false
+        try? prefs.set(Self.hubBaseKey, d)
+    }
+
     /// Takes the hub's sections this phone has nothing in (`TargetsDocument.adoptingHub`) and saves
     /// locally — no mirror body (the hub already holds these numbers). Returns the stored document.
     @discardableResult

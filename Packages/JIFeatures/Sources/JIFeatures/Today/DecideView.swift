@@ -98,6 +98,27 @@ public func decideSubmit(model: VerdictOverrideViewModel, date: String, choice: 
                             optimisticSession: localOverrideSession(choice: choice, parts: parts, sessionForToday: sessionForToday))
 }
 
+/// W-FIX11 H1-01 (S1): what Go writes. With a call already on screen for the verdict date (the
+/// user's Adjust, or an earlier Go) Go confirms THAT call — nothing is written (nil), so the hub's
+/// row stays the user's; only with no call yet does Go accept the hub verdict.
+public nonisolated func decideGoChoice(override: VerdictOverride?) -> VerdictOverrideChoice? {
+    override == nil ? .accept : nil
+}
+
+/// Go's write path (`decideGoChoice`). `true` = a write settled (Decide advances on `settled`);
+/// `false` with no write made = the shown call is kept and the caller advances itself.
+@MainActor
+public func decideGo(model: VerdictOverrideViewModel, date: String, override: VerdictOverride?,
+                     parts: VerdictParts, sessionForToday: String?) async -> Bool {
+    guard let choice = decideGoChoice(override: override) else { return false }
+    return await decideSubmit(model: model, date: date, choice: choice, reason: "", parts: parts, sessionForToday: sessionForToday)
+}
+
+/// W-FIX11 H1-06: VoiceOver's label for Decide's big word — the word itself ("Modified").
+public nonisolated func decideVerdictWordAccessibilityLabel(_ shown: VerdictParts, syncing: Bool) -> String {
+    syncing ? "Syncing" : decideWord(shown)
+}
+
 /// Decide's big word: the user-facing word (`verdictUserWord` — "GO" → "Full", "MODIFIED (HRV low)"
 /// → "Modified"), without RN's parenthetical, which never fits; the reason is carried by the Why
 /// rows (or the reason line when there are none).
@@ -459,8 +480,11 @@ public struct DecideView: View {
                             .jiNumeral(.numeralHero, weight: .heavy)
                             .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                             .lineLimit(1).minimumScaleFactor(0.4)
-                            .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
-                            .accessibilityIdentifier("today.readinessGauge")
+                            // W-FIX11 H1-06: the word is read as the word; the ring beside it keeps
+                            // its own "Readiness …" element (`today.decide.readinessRing`).
+                            .accessibilityLabel(decideVerdictWordAccessibilityLabel(shown, syncing: syncing))
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("today.decide.verdictWord")
                         if !syncing, !shown.session.isEmpty {
                             Text(shown.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                                 .fixedSize(horizontal: false, vertical: true)
@@ -586,9 +610,12 @@ public struct DecideView: View {
     private func go() {
         // No hub write seam (older provider / no database): nothing to record — just move on.
         guard let overrideModel, let verdictDate else { advance(); return }
+        // W-FIX11 H1-01: a call already shown (Adjust → Rest) is kept — Go never replaces it with
+        // the hub verdict.
+        guard decideGoChoice(override: override) != nil else { advance(); return }
         Task {
-            _ = await decideSubmit(model: overrideModel, date: verdictDate, choice: .accept, reason: "",
-                                   parts: verdict, sessionForToday: sessionForToday)
+            _ = await decideGo(model: overrideModel, date: verdictDate, override: override,
+                               parts: verdict, sessionForToday: sessionForToday)
         }   // onChange(settled) advances
     }
 

@@ -37,13 +37,13 @@ public nonisolated func todaysStrengthSession(_ week: TrainingWeekSummary?) -> S
 /// "Week: 1 of 4 sessions"; "—" for the count while no gate row of this week is on the phone.
 public nonisolated func dayWeekFooterText(_ week: TrainingWeekSummary?) -> String? {
     guard let week, week.planTotal > 0 else { return nil }
-    return "Week: \(week.planDone.map(String.init) ?? "—") of \(week.planTotal) sessions"
+    return "Week: \(week.weekCountText) sessions"   // W-FIX11 H1-14
 }
 
 /// The Day footer's "Week review" value: "1 of 4 sessions" from the week, else the W-GUI reason.
 public nonisolated func dayWeekReviewValue(_ week: TrainingWeekSummary?) -> String {
     guard let week, week.planTotal > 0 else { return DayFooterRow.weekReview.value }
-    return "\(week.planDone.map(String.init) ?? "—") of \(week.planTotal) sessions"
+    return "\(week.weekCountText) sessions"   // W-FIX11 H1-14
 }
 
 /// "session 2 of 4" — only while today's session is still to do and the count is known.

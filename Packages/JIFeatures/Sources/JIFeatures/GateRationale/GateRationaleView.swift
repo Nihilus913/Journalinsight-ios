@@ -31,9 +31,14 @@ nonisolated func gateRationaleMidSentence(_ label: String) -> String {
 
 /// Board 03's plain sentence under the verdict word, built only from the hub's gate signals:
 /// sleep against its goal, then every signal that flagged or has no reading. `nil` without signals.
-public nonisolated func gateRationaleWhySentence(signals: [GateSignal]?) -> String? {
+/// W-FIX11 H1-07: `why` = the hub's amber reason; when NO gating signal has a reading it is the
+/// whole story ("Overnight vitals not synced yet, so …"), never five "left out" clauses.
+public nonisolated func gateRationaleWhySentence(signals: [GateSignal]?, why: String? = nil) -> String? {
     let gating = (signals ?? []).filter { $0.status != .context }
     guard !gating.isEmpty else { return nil }
+    if let why = why?.trimmingCharacters(in: .whitespaces), !why.isEmpty, gateRationaleAllMissing(gating) {
+        return why.prefix(1).uppercased() + why.dropFirst() + ", so no overnight signal has a reading and today is held back."
+    }
     var parts: [String] = []
     var otherPassed = false
     for sig in gating {
@@ -60,6 +65,12 @@ public nonisolated func gateRationaleWhySentence(signals: [GateSignal]?) -> Stri
     return joined.prefix(1).uppercased() + joined.dropFirst() + "."
 }
 
+/// W-FIX11 H1-07: every gating signal is without a reading.
+public nonisolated func gateRationaleAllMissing(_ signals: [GateSignal]?) -> Bool {
+    let gating = (signals ?? []).filter { $0.status != .context }
+    return !gating.isEmpty && gating.allSatisfy { $0.value == nil || $0.status == .missing }
+}
+
 /// Board 03 "Computed 07:41": the verdict row's `computed_at` as a local HH:mm; nil when unknown.
 public nonisolated func gateRationaleComputedTime(_ raw: String?, timeZone: TimeZone = .autoupdatingCurrent) -> String? {
     guard let date = parseHubTimestamp(raw) else { return nil }
@@ -79,7 +90,8 @@ public nonisolated struct GateCountedRow: Identifiable, Equatable, Sendable {
 public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals: [String: ClosedRange<Double>],
                                                  recoveryNormals: [String: ClosedRange<Double>] = [:],
                                                  load: Double?, loadMissing: JIMissingReason = .noData,
-                                                 loadReading: RecoveryLoadReading? = nil) -> [GateCountedRow] {
+                                                 loadReading: RecoveryLoadReading? = nil,
+                                                 missingIsTheReason: Bool = false) -> [GateCountedRow] {
     var rows: [GateCountedRow] = (signals ?? []).map { sig in
         // W-TGT: the rationale explains the hub's own call, so its sleep row reads against the number
         // the hub gated on (its signal threshold), exactly as before.
@@ -90,7 +102,9 @@ public nonisolated func gateRationaleCountedRows(signals: [GateSignal]?, normals
             sentence = [gateSignalNoteText(sig).map { $0.prefix(1).uppercased() + $0.dropFirst() + "." }, "Shown, not counted."]
                 .compactMap { $0 }.joined(separator: " ")
         } else if sig.value == nil || sig.status == .missing {
-            sentence = "No overnight value yet. Left out, not counted as bad."
+            // W-FIX11 H1-07: when the missing nights ARE why the day is held back, the row says so.
+            sentence = missingIsTheReason ? "No overnight value yet — this is why today is held back."
+                                          : "No overnight value yet. Left out, not counted as bad."
         } else if sig.key == "sleep_h" {
             let goal = decideCompactNumber(sig.threshold)
             sentence = sig.status == .pass ? "Above your \(goal) h goal, so intervals and heavy days stay open." : "Under your \(goal) h goal."
@@ -226,7 +240,7 @@ public struct GateRationaleView: View {
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
                     .accessibilityIdentifier("gateRationale.verdict.word")
-                if let sentence = gateRationaleWhySentence(signals: model.morning?.gateSignals) {
+                if let sentence = gateRationaleWhySentence(signals: model.morning?.gateSignals, why: model.verdictWhy) {
                     Text(sentence).jiFont(.body).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("gateRationale.verdict.sentence")
@@ -271,7 +285,8 @@ public struct GateRationaleView: View {
                                             recoveryNormals: decideRecoveryNormals(recoveryInsight),
                                             load: KpiMetrics.currentAcwr(model.recovery, now: Date()),
                                             loadMissing: gateRationaleLoadMissingReason(recoveryInsight?.result),
-                                            loadReading: recoveryInsight?.loadReading)
+                                            loadReading: recoveryInsight?.loadReading,
+                                            missingIsTheReason: model.verdictWhy != nil && gateRationaleAllMissing(model.morning?.gateSignals))
         VStack(alignment: .leading, spacing: 0) {
             boardHeader("What counted", trailing: nil)
             Surface(level: 1, padding: 0) {
