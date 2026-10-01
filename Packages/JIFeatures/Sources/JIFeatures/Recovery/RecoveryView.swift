@@ -47,6 +47,7 @@ public struct RecoveryView: View {
         // §5: the hand-drawn large title becomes the system one; W-GUI R1 (mockup 03): the
         // subtitle says the window, and Edit is a glass round button (report §7 rule 2).
         .navigationTitle("Recovery")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .navigationSubtitle(typeSize.isAccessibilitySize ? "" : recoverySubtitle(nights: model.days.count))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

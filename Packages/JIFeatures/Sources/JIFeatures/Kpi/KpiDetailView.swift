@@ -50,6 +50,7 @@ public struct KpiDetailView: View {
         .jiGlassBackButton()   // W-GUI R2 (report §7 rule 2)
         .jiTheme(.native)
         .navigationTitle(model.def.label)
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .refreshable { await model.refresh() }
         .task {
             if !model.hasLiveResult { await model.load() }

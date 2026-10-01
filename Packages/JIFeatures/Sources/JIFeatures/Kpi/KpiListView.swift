@@ -49,6 +49,7 @@ public struct KpiListView: View {
         .jiPageGround()
         .jiTheme(.native)
         .navigationTitle(kpiListTitle)
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .refreshable { await model.refresh() }
         .task { if !model.hasLiveResult { await model.load() } }
         .task { await recoveryInsight?.refreshIfStale() }   // WD-2: the Load square's reading

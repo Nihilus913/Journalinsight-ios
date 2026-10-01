@@ -45,6 +45,7 @@ public struct NutritionView: View {
         .jiTheme(.native)
         // §5: the hand-drawn large title + date line become the system title and subtitle.
         .navigationTitle("Nutrition")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         #if os(iOS)
         // W-FIX3 BUG-34: the selected day in words, never the raw ISO date.
         .navigationSubtitle(typeSize.isAccessibilitySize ? "" : subtitle)
