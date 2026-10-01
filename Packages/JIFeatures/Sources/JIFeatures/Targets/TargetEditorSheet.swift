@@ -238,7 +238,10 @@ struct TargetStepperField: View {
     let id: String
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The − / + circle grows with the text size so the glyph never spills out of it (AX3).
-    @ScaledMetric(relativeTo: .body) private var stepSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .body) private var scaledStep: CGFloat = 30
+    /// W-FIX11 H2-07: capped at 44 pt (the touch-target size) — at AX3+ the scaled circles plus a
+    /// 2.4×-circle number field made the row ≈ 389 pt in a 330 pt card, cut at both edges.
+    private var stepSize: CGFloat { min(scaledStep, 44) }
     /// Value + unit share one fixed column, so every row's − / + sit on the same x (mock 02).
     @ScaledMetric(relativeTo: .body) private var valueColumn: CGFloat = 150
     private let theme = JITheme.native
@@ -261,7 +264,8 @@ struct TargetStepperField: View {
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                         // AX3: the number keeps its width; the unit gives way first ("4…" was cut).
-                        .frame(minWidth: typeSize.isAccessibilitySize ? stepSize * 2.4 : 72)
+                        .frame(minWidth: typeSize.isAccessibilitySize ? 80 : 72,
+                               maxWidth: typeSize.isAccessibilitySize ? .infinity : nil)
                         .layoutPriority(1)
                         .decimalPadKeyboard()
                         .accessibilityLabel(unit.map { "\(title) in \($0)" } ?? title)
