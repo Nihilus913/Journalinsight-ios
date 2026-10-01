@@ -714,6 +714,7 @@ struct RootTabView: View {
         installGlancePlan()
         guard todayModel == nil else { return }
         todayModel = TodayViewModel(provider: store.provider, verdictProvider: verdictSource, cache: env.cache, prefs: env.prefs)
+        todayModel?.uploadBeforeRefresh = { [env] in await env.uploadHealthNow() }
         env.bind(today: todayModel, recovery: recoveryModel)
         gateRationaleModel = GateRationaleViewModel(provider: verdictSource)
         // Outbox on the same on-disk database the drainer reads (see makeGateRespondModel).

@@ -79,6 +79,17 @@ final class AppEnvironment {
         }
     }
 
+    /// Toby 2026-10-01: Today's pull-to-refresh — Apple Health → hub, awaited, so the reload that
+    /// follows already sees last night. Joins nothing if a foreground upload is running (that one
+    /// sends the same data); `-no-healthkit` / no uploader → no-op.
+    func uploadHealthNow() async {
+        guard !uploadInFlight, let uploader = healthKitUploader,
+              !CommandLine.arguments.contains("-no-healthkit") else { return }
+        uploadInFlight = true
+        await uploader.syncAll()
+        uploadInFlight = false
+    }
+
     /// B-57 W1 r4 (g3): the Settings "Sync now" row. Sends Apple Health to the hub first (so last
     /// night is in), then asks the hub to run its canonical sync job (`POST /api/v1/ingestion/sync`
     /// — the same `sync_all` run launchd starts at 07:00; the hub never runs two at once). Throws

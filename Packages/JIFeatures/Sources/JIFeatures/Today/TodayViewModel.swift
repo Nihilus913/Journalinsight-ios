@@ -334,7 +334,13 @@ public final class TodayViewModel {
         await fetchLive()
     }
 
+    /// Toby 2026-10-01: pull-to-refresh sends Apple Health to the hub FIRST (like opening the
+    /// app does), so a pull right after waking brings last night in. Set by the app shell; nil in
+    /// previews/tests → refresh only reloads.
+    @ObservationIgnored public var uploadBeforeRefresh: (@MainActor () async -> Void)?
+
     public func refresh() async {
+        await uploadBeforeRefresh?()
         await TodayWorkoutsModel.shared.refresh()
         await fetchLive()
     }
