@@ -35,8 +35,8 @@ public struct RecoveryView: View {
                 switch model.phase {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
-                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
-                    .accessibilityLabel("No data yet — run a sync on the hub.")
+                case .empty: Surface { Text(recoveryEmptyText(onDevice: model.isOnDeviceSource)).foregroundStyle(theme.color(.muted)) }
+                    .accessibilityLabel(recoveryEmptyText(onDevice: model.isOnDeviceSource))
                 case .loaded: loaded
                 }
             }
@@ -383,4 +383,11 @@ public nonisolated func recoveryDeepHours(insightHours: Double?, days: [Recovery
     guard let d = days.sorted(by: { $0.date > $1.date }).first(where: { $0.deepSleepSec != nil }),
           KpiMetrics.isLastNightFresh(nightDate: d.date, now: now), let sec = d.deepSleepSec else { return nil }
     return sec / 3600
+}
+
+/// W-FIX11 H2-21: the empty state names the source the screen reads — the on-device reader never
+/// sends the user to the hub.
+public nonisolated func recoveryEmptyText(onDevice: Bool) -> String {
+    onDevice ? "No nights from your Apple Watch on this phone yet — wear it to sleep and look again tomorrow."
+             : "No data yet — run a sync on the hub."
 }
