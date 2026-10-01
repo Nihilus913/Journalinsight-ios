@@ -114,6 +114,11 @@ public func decideGo(model: VerdictOverrideViewModel, date: String, override: Ve
     return await decideSubmit(model: model, date: date, choice: choice, reason: "", parts: parts, sessionForToday: sessionForToday)
 }
 
+/// W-FIX11 H1-06: VoiceOver's label for Decide's big word — the word itself ("Modified").
+public nonisolated func decideVerdictWordAccessibilityLabel(_ shown: VerdictParts, syncing: Bool) -> String {
+    syncing ? "Syncing" : decideWord(shown)
+}
+
 /// Decide's big word: the user-facing word (`verdictUserWord` — "GO" → "Full", "MODIFIED (HRV low)"
 /// → "Modified"), without RN's parenthetical, which never fits; the reason is carried by the Why
 /// rows (or the reason line when there are none).
@@ -475,8 +480,11 @@ public struct DecideView: View {
                             .jiNumeral(.numeralHero, weight: .heavy)
                             .foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                             .lineLimit(1).minimumScaleFactor(0.4)
-                            .accessibilityLabel(heroRingAccessibilityLabel(label: "Readiness", value: readiness))
-                            .accessibilityIdentifier("today.readinessGauge")
+                            // W-FIX11 H1-06: the word is read as the word; the ring beside it keeps
+                            // its own "Readiness …" element (`today.decide.readinessRing`).
+                            .accessibilityLabel(decideVerdictWordAccessibilityLabel(shown, syncing: syncing))
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("today.decide.verdictWord")
                         if !syncing, !shown.session.isEmpty {
                             Text(shown.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                                 .fixedSize(horizontal: false, vertical: true)
