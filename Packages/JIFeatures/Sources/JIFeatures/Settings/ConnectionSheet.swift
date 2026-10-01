@@ -129,7 +129,7 @@ public struct ConnectionSheet: View {
     // Never interpolate `model` or the config here — only the fixed, tokenless strings below (rule 2).
     private func statusText(_ s: ConnectionTestResult) -> String {
         switch s {
-        case .ok(let last): "Connected. Last sync: \(last ?? "never")."
+        case .ok(let last): "Connected. Last sync: \(hubLastSyncText(last))."   // W-FIX11 H2-18
         case .unauthorized: "Reachable, but the token was rejected."
         case .unreachable(let m): "Unreachable: \(m)"
         case .other(let m): m
@@ -147,4 +147,29 @@ private extension View {
         self
         #endif
     }
+}
+
+/// W-FIX11 H2-18: the hub's last-sync stamp ("2026-10-01 09:00:12.485395+02:00") as a local day and
+/// time — "today 09:00", "yesterday 21:15", "24 Sep 08:00"; "never" without one; an unreadable
+/// stamp is shown as sent (never invented).
+public nonisolated func hubLastSyncText(_ raw: String?, now: Date = Date(), timeZone: TimeZone = .current) -> String {
+    guard let raw, !raw.isEmpty else { return "never" }
+    guard let date = hubStampDate(raw) else { return raw }
+    var cal = Calendar(identifier: .gregorian); cal.timeZone = timeZone
+    let time = DateFormatter(); time.locale = Locale(identifier: "en_GB"); time.timeZone = timeZone; time.dateFormat = "HH:mm"
+    if cal.isDate(date, inSameDayAs: now) { return "today \(time.string(from: date))" }
+    if let y = cal.date(byAdding: .day, value: -1, to: now), cal.isDate(date, inSameDayAs: y) { return "yesterday \(time.string(from: date))" }
+    time.dateFormat = "d MMM HH:mm"
+    return time.string(from: date)
+}
+
+/// Postgres / ISO 8601 stamps, with or without fractional seconds, "T" or a space.
+nonisolated func hubStampDate(_ raw: String) -> Date? {
+    var s = raw.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "T")
+    if let dot = s.firstIndex(of: "."), let tz = s[dot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" }) {
+        s.removeSubrange(dot..<tz)
+    }
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f.date(from: s)
 }
