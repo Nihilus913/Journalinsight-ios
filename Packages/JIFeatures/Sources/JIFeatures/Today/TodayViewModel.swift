@@ -90,7 +90,7 @@ public final class TodayViewModel {
     private let now: () -> Date
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
                                exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason",
-                               planWeek: "today.planWeek")
+                               planWeek: "today.planWeek", hubLastSync: "today.hubLastSync")
 
     /// W-FIX10 R-01: the active plan's sessions (`GET /planning/plan-sessions`) — the one schedule
     /// resolver (`scheduledSession`) reads today's session from their weekdays. Empty = no plan read
@@ -361,6 +361,8 @@ public final class TodayViewModel {
         if let v = try? cache.get(Self.keys.verdictReason, as: MorningVerdict.self), v.value.date == morning?.verdictDate {
             verdictReason = v.value.reason
         }
+        // W-FIX11 H1-15 (+H2-05): the hub's last sync survives an offline relaunch (never "Not synced yet").
+        if let h = try? cache.get(Self.keys.hubLastSync, as: Date.self) { hubLastSync = h.value }
         lastUploadAt = readLastUpload()
         if morning != nil { phase = .loaded }
         syncMorningState()
@@ -399,7 +401,7 @@ public final class TodayViewModel {
             if let pv = await pR { planSessions = pv }
             planWeek = await pwR   // nil when not served: never keep another week's answer
             if let sv = await sR { sleepSummary = sv }
-            if let hv = await hR { hubLastSync = hv }
+            if let hv = await hR { hubLastSync = hv; try? cache.put(Self.keys.hubLastSync, hv) }
             if let ev = await eR { exercises = ev }
             if let wv = await wR { hubDay = wv }
             lastUploadAt = readLastUpload()

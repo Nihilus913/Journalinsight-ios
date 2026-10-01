@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import JICore
 import JIPersistence
+import JIDesign
 @testable import JIFeatures
 
 // W-FIX11 lane A — sim bug hunt 2026-10-01 (HealthTraining docs/audits/2026-10-01-bug-hunt).
@@ -161,4 +162,25 @@ private func fix11Missing(_ key: String) -> GateSignal {
     #expect(rows.filter { $0.id != "load" }.allSatisfy { $0.sentence == "No overnight value yet — this is why today is held back." })
     // without a hub reason the old wording stays
     #expect(gateRationaleWhySentence(signals: signals)?.contains("left out") == true)
+}
+
+// MARK: - H1-15 (+H2-05) (S2): one sync time, offline never green
+
+@Test @MainActor func h1_15_theHubsLastSyncSurvivesAnOfflineRelaunch() async throws {
+    let cache = OfflineCache(db: try AppDatabase.inMemory())
+    let now = ISO8601DateFormatter().date(from: "2026-09-25T10:51:00Z")!
+    let online = TodayViewModel(provider: Fix2HubStub(days: TodayDataFix2Tests.hubDays, summary: nil), cache: cache, now: { now })
+    await online.load()
+    let synced = try #require(online.syncedAt)
+    // Relaunch with the hub down: the same cache, a provider whose sync status fails.
+    let offline = TodayViewModel(provider: Fix2NoSummaryStub(days: []), cache: cache, now: { now })
+    await offline.load()
+    #expect(offline.syncedAt == synced)   // never "Not synced yet"
+}
+
+@Test func h1_15_offlinePillNamesTheOneSyncTime() {
+    let sync = Date(timeIntervalSince1970: 1_790_000_000)
+    let fetch = sync.addingTimeInterval(9_000)
+    #expect(offlinePillLastDate(syncedAt: sync, fetchedAt: fetch) == sync)
+    #expect(offlinePillLastDate(syncedAt: nil, fetchedAt: fetch) == fetch)
 }

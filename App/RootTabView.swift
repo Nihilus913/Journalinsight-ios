@@ -1328,6 +1328,7 @@ struct RootTabView: View {
         .navigationSubtitle(Self.gateShowsDateSubtitle ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
         .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
         .accessibilityIdentifier("today.gate")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15
         .task { if !model.hasLiveResult { await model.load() } }
         // W-UITEST G-3: the gate's respond model, seeded with the hub's answer (as `TodayView` does).
         .onChange(of: model.gate?.recommendation, initial: true) { _, recommendation in

@@ -21,20 +21,39 @@ public nonisolated func syncedPillIsStale(_ date: Date?, now: Date, calendar: Ca
     return !calendar.isDate(date, inSameDayAs: now)
 }
 
+extension EnvironmentValues {
+    /// The shell's one sync instant (`TodayViewModel.syncedAt`), injected by `RootTabView` on
+    /// every tab stack. `nil` when the shell has not wired it or knows neither time.
+    @Entry public var jiSyncedAt: Date? = nil
+    /// W-FIX11 H1-15: the screen's hub is unreachable — its sync pill drops the green "today" check.
+    @Entry public var jiHubOffline: Bool = false
+}
+
+/// W-FIX11 H1-15 (+H2-05): the pill's face. Offline is never the green check, whatever the time.
+public nonisolated enum SyncedPillStyle: Sendable, Equatable { case today, older, never, offline }
+
+public nonisolated func syncedPillStyle(_ date: Date?, now: Date, calendar: Calendar, offline: Bool) -> SyncedPillStyle {
+    guard let date else { return .never }
+    if offline { return .offline }
+    return calendar.isDate(date, inSameDayAs: now) ? .today : .older
+}
+
 public struct SyncedPill: View {
     let date: Date?, label: JISyncedLabel, now: Date, calendar: Calendar
     @Environment(\.jiTheme) private var theme
+    @Environment(\.jiHubOffline) private var offline
     public init(date: Date?, label: JISyncedLabel = .synced, now: Date = Date(), calendar: Calendar = .autoupdatingCurrent) {
         self.date = date; self.label = label; self.now = now; self.calendar = calendar
     }
     public var body: some View {
-        let today = date.map { calendar.isDate($0, inSameDayAs: now) } ?? false
-        let stale = syncedPillIsStale(date, now: now, calendar: calendar)
+        let style = syncedPillStyle(date, now: now, calendar: calendar, offline: offline)
+        let today = style == .today
+        let stale = style == .older || style == .offline
         // W-GUI F9 (report §4.5): one pill format everywhere — 12 pt radius control fill with a
         // hairline rim; older sync amber, today primary, never-synced muted.
         let shape = RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous)
         Label(syncedPillText(date, label: label, now: now, calendar: calendar),
-              systemImage: date == nil ? "exclamationmark.circle" : (today ? "checkmark" : "clock"))
+              systemImage: date == nil ? "exclamationmark.circle" : (today ? "checkmark" : (style == .offline ? "wifi.exclamationmark" : "clock")))
             .jiFont(.footnote, weight: .semibold)
             .foregroundStyle(theme.color(stale ? .reduced : (today ? .text : .muted)))
             .lineLimit(1).minimumScaleFactor(0.8)

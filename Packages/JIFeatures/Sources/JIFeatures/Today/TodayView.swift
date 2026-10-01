@@ -97,6 +97,7 @@ public struct TodayView: View {
         }
         .animation(JIMotion.standard, value: showMorningReview)
         .environment(\.gateRespondModel, gateRespondModel)
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
             // A fresher `/morning` re-seeds the device's view of the call — except while this
             // device's own write is only queued and the hub has not seen it yet.

@@ -78,6 +78,7 @@ public struct TrainingView: View {
         // large-title collapse come from the navigation stack instead of a `VStack` header.
         .navigationTitle("Training")
         .refreshable { await model.refresh() }
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15
         .task { if !model.hasLiveResult { await model.load() } }
         // W-FIX2 BUG-25: the pending glyph clears after ANY drain — on every appearance, and while
         // a weekday is queued and the screen is up (the watcher ends once nothing is pending).
