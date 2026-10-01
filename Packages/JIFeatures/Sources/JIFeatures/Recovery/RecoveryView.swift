@@ -262,8 +262,10 @@ public struct RecoveryView: View {
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
             ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }
-            if let openKpiCatalogue {
-                JIAddTile(family: .tile, label: "Add a metric") { openKpiCatalogue() }
+            // W-FIX11 H2-11: adds back Recovery's own hidden square (never Today's picker, which
+            // never changed this screen); offered only while one is hidden.
+            if let next = recoveryAddMetricHidden(after: layout) {
+                JIAddTile(family: .tile, label: "Add a metric") { hiddenRaw = next }
                     .accessibilityIdentifier("recovery.addMetric")
             }
         }
@@ -390,4 +392,11 @@ public nonisolated func recoveryDeepHours(insightHours: Double?, days: [Recovery
 public nonisolated func recoveryEmptyText(onDevice: Bool) -> String {
     onDevice ? "No nights from your Apple Watch on this phone yet — wear it to sleep and look again tomorrow."
              : "No data yet — run a sync on the hub."
+}
+
+/// W-FIX11 H2-11: the hidden list after "Add a metric" puts the first hidden square back; nil when
+/// nothing is hidden (no tile then).
+public nonisolated func recoveryAddMetricHidden(after layout: RecoveryTileLayout) -> String? {
+    guard let first = layout.hidden.first else { return nil }
+    return layout.hidden.filter { $0 != first }.joined(separator: ",")
 }
