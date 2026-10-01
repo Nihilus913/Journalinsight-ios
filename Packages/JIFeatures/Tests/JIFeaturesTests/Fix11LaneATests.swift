@@ -217,3 +217,17 @@ private func fix11Missing(_ key: String) -> GateSignal {
     let line = gateDetailWeeklyCaption("Not enough tracked days this week for a nutrition call.")
     #expect(line == "Weekly nutrition (not today's call): not enough tracked days this week for a nutrition call.")
 }
+
+// MARK: - H1-14 (S3): the week count is the strip's — placed session days, any done day counts
+
+@Test func h1_14_weekCountFollowsTheStrip() {
+    func day(_ wd: Int, _ k: TrainingWeekDayKind, _ done: Bool?) -> TrainingWeekDay {
+        TrainingWeekDay(weekday: wd, date: "2026-09-\(28 + wd)", kind: k, sessionName: k == .rest ? nil : "s\(wd)", sessionId: nil, done: done, isToday: wd == 3)
+    }
+    // 4 strength sessions in the plan, only 3 placed; Mon strength done, Thu long run done today.
+    let days = [day(0, .strength, true), day(1, .interval, nil), day(2, .strength, nil), day(3, .longRun, true),
+                day(4, .strength, nil), day(5, .rest, nil), day(6, .rest, nil)]
+    let w = TrainingWeekSummary(days: days, planTotal: 4, assigned: 3, planDone: 1, next: nil)
+    #expect(w.doneText == "2 of 5 done")
+    #expect(dayWeekReviewValue(w) == "2 of 5 sessions")
+}
