@@ -106,7 +106,7 @@ public struct TargetEditorSheet: View {
     @ViewBuilder private func goalSection(_ m: GoalMetric) -> some View {
         Section {
             field(title: m == .kcal ? "Daily goal" : targetsGoalTitle(m), text: $draft.goalText, unit: targetsGoalUnit(m),
-                  step: targetsGoalStep(m), decimals: targetsGoalDecimals(m), fallback: nil, id: "goal")
+                  step: targetsGoalStep(m), decimals: targetsGoalDecimals(m), fallback: targetsGoalStepStart(m), id: "goal")
             if m == .kcal {
                 field(title: draft.deficitIsWeeklyLoss ? "Wanted loss" : "Wanted deficit", text: $draft.deficitText,
                       unit: draft.deficitIsWeeklyLoss ? "kg/week" : "kcal/day",

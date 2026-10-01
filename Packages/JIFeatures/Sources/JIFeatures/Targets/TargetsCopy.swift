@@ -428,6 +428,20 @@ public nonisolated enum TargetsGoalRange {
     }
 }
 
+/// W-FIX11 H2-15: where − / + start on an EMPTY goal field (they did nothing before). Only typed
+/// into the field — never a stored goal until the user saves.
+public nonisolated func targetsGoalStepStart(_ m: GoalMetric) -> Double {
+    switch m {
+    case .weight: 75
+    case .kcal: 2000
+    case .protein: 130
+    case .carbs: 200
+    case .fat: 60
+    case .steps: 8000
+    case .sleep: 7.5
+    }
+}
+
 // MARK: - Editor draft
 
 /// What the editor sheet holds while the user types. `applied(to:)` writes it into the document

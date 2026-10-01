@@ -33,3 +33,14 @@ private func draft(_ m: GoalMetric, _ text: String) -> TargetEditDraft {
     #expect(TargetsGoalRange.range(.steps) == 100...100000)
     #expect(TargetsGoalRange.range(.sleep) == 1...16)
 }
+
+// W-FIX11 H2-15: + / − on an empty goal did nothing. They start from a plausible value inside the
+// goal's range (only typed into the field — nothing is saved until Save).
+@Test func steppingAnEmptyGoalStartsFromItsStartValue() {
+    for m in GoalMetric.allCases {
+        let start = targetsGoalStepStart(m)
+        #expect(TargetsGoalRange.range(m).contains(start), "\(m)")
+    }
+    #expect(TargetEditDraft.stepped("", by: 0.5, decimals: 1, from: targetsGoalStepStart(.sleep)) == "8.0")
+    #expect(TargetEditDraft.stepped("", by: -0.5, decimals: 1, from: targetsGoalStepStart(.sleep)) == "7.0")
+}
