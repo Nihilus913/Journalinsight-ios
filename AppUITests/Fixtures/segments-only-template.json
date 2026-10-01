@@ -1,0 +1,13 @@
+{
+  "name": "UITest Segments Tempo",
+  "location": "outdoor",
+  "weekdays": [],
+  "segments": [
+    {"sport": "running", "steps": [
+      {"purpose": "warmup", "end": {"type": "time", "seconds": 600}, "target": {"type": "hr_range", "lo": 100, "hi": 140}, "repeat": 1}
+    ]},
+    {"sport": "running", "steps": [
+      {"purpose": "work", "end": {"type": "time", "seconds": 1800}, "target": {"type": "hr_range", "lo": 130, "hi": 150}, "repeat": 1}
+    ]}
+  ]
+}

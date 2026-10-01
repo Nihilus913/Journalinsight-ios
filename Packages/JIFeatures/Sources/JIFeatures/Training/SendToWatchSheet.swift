@@ -84,7 +84,7 @@ public struct SendToWatchSheet: View {
                         }
                     }
                     .disabled(model.isBusy)
-                    .accessibilityLabel(template.name)
+                    .accessibilityLabel(WorkoutFormat.accessibilityLabel(template))
                     .accessibilityValue(model.isSelected(template.templateId) ? "Selected" : "Not selected")
                     .accessibilityAddTraits(model.isSelected(template.templateId) ? .isSelected : [])
                     .accessibilityIdentifier("send-to-watch-template-\(template.templateId)")

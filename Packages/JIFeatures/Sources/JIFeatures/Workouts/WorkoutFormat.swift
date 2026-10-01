@@ -80,6 +80,10 @@ public nonisolated enum WorkoutFormat {
 
     /// The library row's second line.
     /// Cardio: "43 min · 10 steps · 100–175 bpm". Strength + run: "Strength · 2 exercises + Run 60 min".
+    /// W-UITEST UT-2: a picker row's spoken label — the name AND its summary line, so VoiceOver
+    /// (and XCUITest) hear "Tempo, 40 min · 2 steps · 100–150 bpm", not the name alone.
+    public static func accessibilityLabel(_ t: WorkoutTemplate) -> String { "\(t.name), \(summary(t))" }
+
     public static func summary(_ t: WorkoutTemplate) -> String {
         let segments = t.effectiveSegments
         guard !segments.isEmpty else { return "No steps yet" }
