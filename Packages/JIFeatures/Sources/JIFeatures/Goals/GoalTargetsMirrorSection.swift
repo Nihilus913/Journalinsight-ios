@@ -12,6 +12,11 @@ public nonisolated func goalTargetsMirrorKcalText(macros: MacroGoals?) -> String
     return String(Int(k.rounded()))
 }
 
+/// W-FIX11 H2-19: "74.0 kg", or "—" when there is no weight target (NaN from the document).
+public nonisolated func goalTargetsMirrorWeightText(_ kg: Double) -> String {
+    kg.isFinite ? String(format: "%.1f kg", kg) : "—"
+}
+
 public struct GoalTargetsMirrorSection: View {
     @Environment(\.jiTheme) private var theme
     @Environment(\.nutritionGoals) private var nutritionGoals
@@ -25,7 +30,7 @@ public struct GoalTargetsMirrorSection: View {
     /// §2b.2: a real `List` section of 44-pt rows — callers place it straight into a `List`.
     public var body: some View {
         Section {
-            row("Weight", String(format: "%.1f kg", goals.weight.targetKg))
+            row("Weight", goalTargetsMirrorWeightText(goals.weight.targetKg))
             row("Bench", goals.strength.first { $0.exercise == "bench" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
             row("Row", goals.strength.first { $0.exercise == "row" }.map { String(format: "%.1f kg", $0.targetKg) } ?? "—")
             row("Steps/day", goals.stepsDaily.map(String.init) ?? "—")
