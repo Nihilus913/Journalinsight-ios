@@ -86,10 +86,14 @@ public final class WorkoutLibraryViewModel {
     /// "8 workouts · 4 on Garmin Connect" — counts of what is actually listed, never a zero for
     /// a library that has not loaded.
     public var summaryLine: String? {
-        guard !templates.isEmpty else { return nil }
-        let onGarmin = templates.filter { $0.garmin != nil }.count
-        let n = templates.count
-        return "\(n) workout\(n == 1 ? "" : "s")" + (onGarmin > 0 ? " · \(onGarmin) on Garmin Connect" : "")
+        // W-FIX11 H1-20: what is listed under the filter — "1 of 4 workouts", nil when none is
+        // (the list says "None in this filter."), never the whole library over an empty list.
+        let shown = visibleTemplates
+        guard !shown.isEmpty else { return nil }
+        let onGarmin = shown.filter { $0.garmin != nil }.count
+        let n = shown.count, total = templates.count
+        let count = filter == .all || n == total ? "\(n) workout\(n == 1 ? "" : "s")" : "\(n) of \(total) workouts"
+        return count + (onGarmin > 0 ? " · \(onGarmin) on Garmin Connect" : "")
     }
 
     /// Why Push / Import are disabled right now (nil = enabled).
