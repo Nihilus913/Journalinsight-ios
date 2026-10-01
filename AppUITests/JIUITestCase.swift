@@ -36,11 +36,33 @@ class JIUITestCase: XCTestCase {
     /// respond), then wait until it is gone.
     func passGate() {
         let go = app.buttons["today.decide.go"]
-        XCTAssertTrue(go.waitForExistence(timeout: 30), "-JIForceGate YES did not open Decide")
+        if !go.waitForExistence(timeout: 45) { dismissSystemAlert() }
+        if !go.waitForExistence(timeout: 15) { dump("Decide") }
+        XCTAssertTrue(go.exists, "-JIForceGate YES did not open Decide")
         expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: go)
         waitForExpectations(timeout: 30)
         go.tap()
         XCTAssertTrue(go.waitForNonExistence(timeout: 15), "Decide stayed up after Go")
+    }
+
+    /// A system alert (notifications, local network) over the first launch: decline it.
+    func dismissSystemAlert() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Don’t Allow", "Don't Allow", "OK", "Allow"] {
+            let b = springboard.buttons[label].firstMatch
+            if b.exists { b.tap(); return }
+        }
+    }
+
+    /// The `training-hero` container stamps its id on every child: the hero child with this text.
+    func hero(labelContains text: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == 'training-hero' AND label CONTAINS %@", text)).firstMatch
+    }
+
+    /// The list cell that holds the row with this id (swipe actions live on the cell).
+    func cell(holding id: String) -> XCUIElement {
+        app.cells.containing(NSPredicate(format: "identifier == %@", id)).firstMatch
     }
 
     func tab(_ name: String) {
@@ -61,6 +83,7 @@ class JIUITestCase: XCTestCase {
         _ = e.waitForExistence(timeout: timeout)
         var n = 0
         while !(e.exists && e.isHittable) && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        if !e.exists { dump(what) }
         XCTAssertTrue(e.exists, "missing \(what)", file: file, line: line)
     }
 
@@ -85,11 +108,30 @@ class JIUITestCase: XCTestCase {
         }
     }
 
+    /// On a miss: the screen + the element tree, attached (and written to `UITEST_DUMPS` if set).
+    func dump(_ what: String) {
+        let tree = app.debugDescription
+        let a = XCTAttachment(string: tree)
+        a.name = "tree-\(what)"
+        a.lifetime = .keepAlways
+        add(a)
+        let s = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        s.name = "miss-\(what)"
+        s.lifetime = .keepAlways
+        add(s)
+        if let dir = ProcessInfo.processInfo.environment["UITEST_DUMPS"], !dir.isEmpty {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            let safe = what.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: " ", with: "_")
+            try? tree.write(toFile: "\(dir)/\(safe).txt", atomically: true, encoding: .utf8)
+            try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: "\(dir)/\(safe).png"))
+        }
+    }
+
     /// A read of the fixture hub (GET only) — what the app wrote, checked at the source.
     func hubGet(_ path: String) throws -> Any {
         var req = URLRequest(url: URL(string: hubURL + path)!)
         req.setValue("Bearer \(hubToken)", forHTTPHeaderField: "Authorization")
-        nonisolated(unsafe) var result: Result<Data, Error> = .failure(URLError(.timedOut))
+        var result: Result<Data, Error> = .failure(URLError(.timedOut))
         let done = expectation(description: "GET \(path)")
         URLSession.shared.dataTask(with: req) { data, response, error in
             if let error { result = .failure(error) }

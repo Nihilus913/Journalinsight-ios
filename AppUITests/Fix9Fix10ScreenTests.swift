@@ -46,12 +46,23 @@ final class Fix9Fix10ScreenTests: JIUITestCase {
         shot("FIX9-1-zone-bounds")
     }
 
-    /// B49B G-3: Today shows "Answered automatically · GATED from Easy Run" for the hub's auto answer.
+    /// B49B G-3: Today shows "Answered automatically · GATED from Easy Run" for the hub's auto answer
+    /// (the Today screen, then its Week review — the two places the responded row can sit).
     func testG3_answeredAutomaticallyLine() {
+        let expected = "Answered automatically · GATED from Easy Run"
+        let line = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Answered automatically'")).firstMatch
         tab("Today")
-        let line = el("today.gateRespond.auto")
-        reveal(line, "G-3 answered-automatically line", timeout: 30)
-        XCTAssertEqual(line.label, "Answered automatically · GATED from Easy Run")
+        _ = el("today.morning.summary").waitForExistence(timeout: 30)
+        var n = 0
+        while !line.exists && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        if !line.exists, el("today.footer.weekReview").exists {
+            el("today.footer.weekReview").tap()
+            n = 0
+            while !line.waitForExistence(timeout: 3) && n < 8 { app.swipeUp(velocity: .slow); n += 1 }
+        }
+        if !line.exists { dump("G-3-line") }
+        XCTAssertTrue(line.exists, "no 'Answered automatically' line on Today or its Week review")
+        if line.exists { XCTAssertEqual(line.label, expected) }
         shot("G3-answered-automatically")
     }
 

@@ -175,6 +175,11 @@ targets:
         TEST_TARGET_NAME: JournalInsight
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
+        # XCTestCase's overrides are nonisolated; XCUI test code is not shipped — Swift 5 mode, no
+        # MainActor default (the app targets keep Swift 6 + strict concurrency).
+        SWIFT_VERSION: "5.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+        SWIFT_STRICT_CONCURRENCY: minimal
   WatchAppTests:
     type: bundle.unit-test
     platform: watchOS

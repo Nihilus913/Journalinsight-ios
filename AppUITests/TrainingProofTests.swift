@@ -25,24 +25,24 @@ final class TrainingProofTests: JIUITestCase {
     }
 
     /// B40-V5: change a day in the day sheet → the hero follows without a relaunch.
+    /// Tuesday (weekday 1) = "Interval Run" (plan session s5); it becomes "Zone 2 60 min".
     func testV5_changeDayHeroFollows() {
-        openDay(6)
-        tapId("training-day-change-s7")
-        tap(element(idPrefix: "training-day-option-", labelContains: "Zone 2 40 min"), "option Zone 2 40 min")
-        XCTAssertTrue(element(idPrefix: "training-day-entry-", labelContains: "Zone 2 40 min").waitForExistence(timeout: 15),
-                      "the day sheet never showed the new session")
+        openDay(1)
+        tapId("training-day-change-s5")
+        tap(element(idPrefix: "training-day-option-", labelContains: "Zone 2 60 min"), "option Zone 2 60 min")
+        reveal(element(idPrefix: "training-day-entry-", labelContains: "Zone 2 60 min"), "day sheet entry Zone 2 60 min")
         tapId("training-day-done")
         XCTAssertTrue(el("training-day-sheet").waitForNonExistence(timeout: 10))
-        let title = el("training-session-title")
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
-        expectation(for: NSPredicate(format: "label CONTAINS %@", "Zone 2 40 min"), evaluatedWith: title)
-        waitForExpectations(timeout: 15)
+        let follows = hero(labelContains: "Zone 2 60 min")
+        if !follows.waitForExistence(timeout: 15) { dump("V5-hero") }
+        XCTAssertTrue(follows.exists, "the hero did not follow the change to Zone 2 60 min")
+        XCTAssertFalse(hero(labelContains: "Interval Run").exists, "the hero still shows Interval Run")
         shot("V5-hero-follows-day-change")
     }
 
     /// B40-V6: Send to Watch shows minutes + steps for a segments-only template (compat `steps: []`).
     func testV6_sendToWatchSegmentsOnlySummary() {
-        tapId("training-send-to-watch")
+        tap(hero(labelContains: "Send to Watch"), "hero Send to Watch")
         let row = element(idPrefix: "send-to-watch-template-", labelContains: Self.segmentsOnly)
         reveal(row, "Send to Watch row \(Self.segmentsOnly)", timeout: 20)
         XCTAssertTrue(row.label.contains("40 min · 2 steps"), "summary line: \(row.label)")
@@ -55,10 +55,10 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: Self.segmentsOnly)
         reveal(row, "library row \(Self.segmentsOnly)")
         let id = row.identifier.replacingOccurrences(of: "workouts-row-", with: "")
-        row.swipeLeft()
+        cell(holding: row.identifier).swipeLeft()
         tap(app.buttons["Send to Watch"].firstMatch, "swipe Send to Watch")
         let picked = el("send-to-watch-template-\(id)")
-        XCTAssertTrue(picked.waitForExistence(timeout: 20), "the Send to Watch sheet did not open on \(Self.segmentsOnly)")
+        reveal(picked, "Send to Watch sheet on \(Self.segmentsOnly)", timeout: 20)
         XCTAssertEqual(picked.value as? String, "Selected")
         XCTAssertTrue(el("send-to-watch-send").exists)
         shot("V7-library-send-to-watch")
@@ -71,7 +71,7 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: name)
         reveal(row, "library row \(name)")
         let rowY = row.frame.midY
-        row.swipeLeft()
+        cell(holding: row.identifier).swipeLeft()
         tap(app.buttons["Delete"].firstMatch, "swipe Delete")
         XCTAssertTrue(app.staticTexts["Delete \(name)?"].waitForExistence(timeout: 10), "no confirmation for \(name)")
         // Anchored: the confirmation sits by the row, not as a bottom sheet across the screen.
