@@ -135,3 +135,30 @@ private func fix11Morning(_ verdict: String) -> MorningResponse {
     #expect(trainingHeroOffersStart(override: rest) == false)
     #expect(trainingHeroOffersStart(override: nil) == true)
 }
+
+// MARK: - H1-06 (S2): VoiceOver reads Decide's verdict word
+
+@Test func h1_06_decideVerdictWordLabelIsTheWord() {
+    let shown = effectiveVerdictParts(parts: verdictParts("GO (auto-regulated) — Long Zone 2 75-90min"), override: nil)
+    #expect(decideVerdictWordAccessibilityLabel(shown, syncing: false) == "Modified")
+    #expect(decideVerdictWordAccessibilityLabel(shown, syncing: true) == "Syncing")
+    #expect(!decideVerdictWordAccessibilityLabel(shown, syncing: false).hasPrefix("Readiness"))
+}
+
+// MARK: - H1-07 (S2): a Modified day held for missing vitals says so first
+
+private func fix11Missing(_ key: String) -> GateSignal {
+    GateSignal(key: key, label: key, value: nil, unit: key == "sleep_h" ? "h" : "ms", threshold: 7,
+               direction: .min, scaleMin: 0, scaleMax: 100, status: .missing)
+}
+
+@Test func h1_07_allMissingSaysTheRealReasonInOneSentence() {
+    let signals = ["sleep_score", "hrv", "rhr", "sleep_h", "recovery"].map(fix11Missing)
+    let s = gateRationaleWhySentence(signals: signals, why: "overnight vitals not synced yet")
+    #expect(s == "Overnight vitals not synced yet, so no overnight signal has a reading and today is held back.")
+    #expect(s?.contains("left out") == false)
+    let rows = gateRationaleCountedRows(signals: signals, normals: [:], load: nil, missingIsTheReason: true)
+    #expect(rows.filter { $0.id != "load" }.allSatisfy { $0.sentence == "No overnight value yet — this is why today is held back." })
+    // without a hub reason the old wording stays
+    #expect(gateRationaleWhySentence(signals: signals)?.contains("left out") == true)
+}
