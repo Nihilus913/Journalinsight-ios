@@ -26,6 +26,7 @@ public func assignableSessions(planSessions: [PlanSessionOut], exercises: [Exerc
 /// workout library. Writes go through `TrainingViewModel.changeDay` (Outbox first, B-52), so each
 /// change is saved on tap — there is no separate Save step.
 public struct TrainingWeekView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize   // W-FIX11 H1-17
     @Bindable private var model: TrainingViewModel
     @State private var dayPreview: TrainingDayRef?
     @Environment(\.gateSettings) private var gateSettings
@@ -100,7 +101,12 @@ public struct TrainingWeekView: View {
 
     private func rowLabel(_ day: TrainingWeekDay, pending: Bool) -> some View {
         let titles = model.dayPreview(weekday: day.weekday).entries.map(\.title)
-        return HStack(spacing: JISpacing.s3) {
+        // W-FIX11 H1-17: at AX sizes the weekday sits above the title (Today / Training already
+        // stack there) — side by side the title broke mid-word ("Up-per", "Zone / 2 / 40").
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(spacing: JISpacing.s3))
+        return layout {
             Text(trainingWeekdayShortNames[day.weekday]).jiFont(.body, weight: day.isToday ? .bold : .regular)
                 .foregroundStyle(theme.color(day.isToday ? .text : .muted)).frame(minWidth: 44, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
@@ -112,9 +118,11 @@ public struct TrainingWeekView: View {
                 }
                 if pending { Text("Waiting to sync").jiFont(.caption).foregroundStyle(theme.color(.muted)) }
             }
-            Spacer(minLength: JISpacing.s2)
-            Text(day.kind.rawValue).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
-                .accessibilityHidden(true)
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: JISpacing.s2)
+                Text(day.kind.rawValue).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
+                    .accessibilityHidden(true)
+            }
         }
     }
 
