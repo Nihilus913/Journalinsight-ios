@@ -130,7 +130,7 @@ private func dailyRows(_ json: String) throws -> [DailyKpiRow] {
     let cards = trendsCards(recovery: [], daily: daily, averages: nil, today: "2026-09-28")
     let weight = try #require(cards.first { $0.id == "weight" })
     #expect(weight.value == 79.5)
-    #expect(weight.asOf == kpiAsOfLabel(valueDate: "2026-09-19", today: "2026-09-28"))
+    #expect(weight.asOf == kpiAsOfLabel(valueDate: "2026-09-19", today: "2026-09-28").map { "Last weigh-in · " + $0.replacingOccurrences(of: "as of ", with: "") })   // W-FIX11 H1-12
     #expect(weight.asOf != nil)
     // A week that has weigh-ins keeps the 7-day mean and no date.
     let fresh = try dailyRows(#"[{"date":"2026-09-27","weight_kg":80.0},{"date":"2026-09-28","weight_kg":79.0}]"#)

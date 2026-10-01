@@ -231,3 +231,29 @@ private func fix11Missing(_ key: String) -> GateSignal {
     #expect(w.doneText == "2 of 5 done")
     #expect(dayWeekReviewValue(w) == "2 of 5 sessions")
 }
+
+// MARK: - H1-12 / H1-13 (S3): Trends never passes an old weigh-in or 2 logged days as "7 days"
+
+private func fix11Daily(_ date: String, _ values: [String: Double?]) -> DailyKpiRow {
+    var r = try! JSON.decoder.decode(DailyKpiRow.self, from: Data("{\"date\":\"\(date)\"}".utf8))
+    r.values = values
+    return r
+}
+
+@Test func h1_12_oldWeighInIsLabelledAsTheLastReading() {
+    let daily = [fix11Daily("2026-09-19", ["weight_kg": 79.5])] + (24...30).map { fix11Daily("2026-09-\($0)", ["weight_kg": nil]) }
+    let w = trendsCards(recovery: [], daily: daily, averages: nil, today: "2026-10-01").first { $0.id == "weight" }!
+    #expect(w.value == 79.5)
+    #expect(w.asOf?.hasPrefix("Last weigh-in") == true)
+    #expect(trendsValueLabel(w) == "last reading")
+    #expect(normalBarAccessibilityValue(value: 79.5, normal: nil, median: nil, goal: nil, unit: "kg", decimals: 1,
+                                        valueLabel: trendsValueLabel(w)).hasPrefix("last reading 79.5 kg"))
+}
+
+@Test func h1_13_nutritionCardSaysHowManyDaysItAverages() {
+    let daily = (24...30).map { d in fix11Daily("2026-09-\(d)", ["kcal_consumed": d >= 28 && d <= 29 ? 1431 : nil]) }
+    let k = trendsCards(recovery: [], daily: daily, averages: nil, today: "2026-10-01").first { $0.id == "kcal" }!
+    #expect(k.asOf == "2 of 7 days logged")
+    let full = (24...30).map { d in fix11Daily("2026-09-\(d)", ["kcal_consumed": 1900]) }
+    #expect(trendsCards(recovery: [], daily: full, averages: nil, today: "2026-10-01").first { $0.id == "kcal" }!.asOf == nil)
+}
