@@ -184,3 +184,20 @@ private func fix11Missing(_ key: String) -> GateSignal {
     #expect(offlinePillLastDate(syncedAt: sync, fetchedAt: fetch) == sync)
     #expect(offlinePillLastDate(syncedAt: nil, fetchedAt: fetch) == fetch)
 }
+
+// MARK: - H1-10 (S3): the square's sparkline ends on its own day
+
+@Test func h1_10_squareSparklineEndsOnTheAsOfDay() {
+    let old = TodayChip(id: "hrv", label: "HRV", value: 23, unit: "ms", points: [20, 22, 23], sourceMissing: false, asOf: "as of 30 Sep")
+    #expect(todaySummaryCardSpec(for: old).sparklineEndLabel == "30 Sep")
+    let fresh = TodayChip(id: "hrv", label: "HRV", value: 23, unit: "ms", points: [20, 22, 23], sourceMissing: false)
+    #expect(todaySummaryCardSpec(for: fresh).sparklineEndLabel == nil)
+}
+
+// MARK: - H2-20 (S3): More › Apple Health opens the Apple Health screen
+
+@Test func h2_20_appleHealthShortcutIsTheSettingsHealthRow() {
+    let row = settingsShortcutRow("health")
+    #expect(row?.sectionIds == ["l0.health"])
+    if case .push(let title, _, _)? = row?.kind { #expect(title == "Apple Health") } else { Issue.record("not a push row") }
+}
