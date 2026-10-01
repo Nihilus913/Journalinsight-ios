@@ -367,7 +367,8 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
         tintRole: todayCardTintRole(chip.id),
         title: chip.label,
         value: value,
-        unit: value == nil ? nil : chip.unit,
+        // W-FIX11 H1-18: the sleep score's number says what it is ("80 score", not a bare "80").
+        unit: value == nil ? nil : (chip.unit ?? (chip.id == "sleep" ? "score" : nil)),
         timestamp: chip.sourceMissing ? nil : todayCardCaption(chip),
         sparkline: chip.points,
         sourceMissing: chip.sourceMissing,

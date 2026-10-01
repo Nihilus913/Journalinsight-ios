@@ -257,3 +257,12 @@ private func fix11Daily(_ date: String, _ values: [String: Double?]) -> DailyKpi
     let full = (24...30).map { d in fix11Daily("2026-09-\(d)", ["kcal_consumed": 1900]) }
     #expect(trendsCards(recovery: [], daily: full, averages: nil, today: "2026-10-01").first { $0.id == "kcal" }!.asOf == nil)
 }
+
+// MARK: - H1-18 (S3): the Sleep square's number says what it is
+
+@Test func h1_18_sleepSquareValueHasAUnit() {
+    let sleep = TodayChip(id: "sleep", label: "Sleep", value: 80, unit: nil, points: [80, 87], sourceMissing: false)
+    #expect(todaySummaryCardSpec(for: sleep).unit == "score")
+    let none = TodayChip(id: "sleep", label: "Sleep", value: nil, unit: nil, points: [], sourceMissing: false)
+    #expect(todaySummaryCardSpec(for: none).unit == nil)
+}
