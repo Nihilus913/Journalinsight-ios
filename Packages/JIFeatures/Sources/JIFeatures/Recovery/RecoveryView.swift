@@ -35,8 +35,8 @@ public struct RecoveryView: View {
                 switch model.phase {
                 case .idle, .loading: loading
                 case .error(let msg): errorCard(msg)
-                case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
-                    .accessibilityLabel("No data yet — run a sync on the hub.")
+                case .empty: Surface { Text(recoveryEmptyText(onDevice: model.isOnDeviceSource)).foregroundStyle(theme.color(.muted)) }
+                    .accessibilityLabel(recoveryEmptyText(onDevice: model.isOnDeviceSource))
                 case .loaded: loaded
                 }
             }
@@ -140,8 +140,13 @@ public struct RecoveryView: View {
             VStack(alignment: .leading, spacing: JISpacing.s3) {
                 Button { openKpiDetail?(metric.kpiId) } label: {
                     HStack(spacing: JISpacing.s2) {
-                        Image(systemName: metric.symbol).foregroundStyle(theme.color(metric.tint)).accessibilityHidden(true)
+                        // W-FIX11 H2-24: at AX sizes the title broke mid-word ("Overnig / ht HRV"): the
+                        // icon gives way and the title shrinks to fit one line instead.
+                        if !typeSize.isAccessibilitySize {
+                            Image(systemName: metric.symbol).foregroundStyle(theme.color(metric.tint)).accessibilityHidden(true)
+                        }
                         Text(metric.title).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                            .lineLimit(1).minimumScaleFactor(0.5)
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(theme.color(.mutedNested))
                             .accessibilityHidden(true)
@@ -153,13 +158,21 @@ public struct RecoveryView: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityHint(openKpiDetail == nil ? "" : "Opens \(metric.title)")
                 .accessibilityIdentifier("recovery.card.\(metric.rawValue)")
-                HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
-                    Text(jiValueText(reading.value, decimals: metric.decimals))
-                        .jiNumeral(.numeralMedium, weight: .heavy, tint: reading.value == nil ? .muted : metric.tint)
-                    if reading.value != nil { Text(metric.unit).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
-                    Spacer(minLength: JISpacing.s2)
+                // W-FIX11 H2-24: at AX sizes the caption gets its own full-width line ("RMS / SD",
+                // "Cali- / brating" were squeezed into a narrow column beside the number).
+                let valueRow = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: JISpacing.s2))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: JISpacing.s2))
+                valueRow {
+                    HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
+                        Text(jiValueText(reading.value, decimals: metric.decimals))
+                            .jiNumeral(.numeralMedium, weight: .heavy, tint: reading.value == nil ? .muted : metric.tint)
+                        if reading.value != nil { Text(metric.unit).jiFont(.footnote).foregroundStyle(theme.color(.muted)).fixedSize() }
+                    }
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: JISpacing.s2) }
                     Text(calibrationCaption ?? recoveryNormalText(normal?.range, decimals: metric.decimals)).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                        .multilineTextAlignment(.trailing)
+                        .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Text(reading.value == nil ? "— \(JIMissingReason.noData.rawValue)" : (reading.asOf ?? "last night"))
                     .jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
@@ -262,8 +275,10 @@ public struct RecoveryView: View {
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
             ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }
-            if let openKpiCatalogue {
-                JIAddTile(family: .tile, label: "Add a metric") { openKpiCatalogue() }
+            // W-FIX11 H2-11: adds back Recovery's own hidden square (never Today's picker, which
+            // never changed this screen); offered only while one is hidden.
+            if let next = recoveryAddMetricHidden(after: layout) {
+                JIAddTile(family: .tile, label: "Add a metric") { hiddenRaw = next }
                     .accessibilityIdentifier("recovery.addMetric")
             }
         }
@@ -383,4 +398,18 @@ public nonisolated func recoveryDeepHours(insightHours: Double?, days: [Recovery
     guard let d = days.sorted(by: { $0.date > $1.date }).first(where: { $0.deepSleepSec != nil }),
           KpiMetrics.isLastNightFresh(nightDate: d.date, now: now), let sec = d.deepSleepSec else { return nil }
     return sec / 3600
+}
+
+/// W-FIX11 H2-21: the empty state names the source the screen reads — the on-device reader never
+/// sends the user to the hub.
+public nonisolated func recoveryEmptyText(onDevice: Bool) -> String {
+    onDevice ? "No nights from your Apple Watch on this phone yet — wear it to sleep and look again tomorrow."
+             : "No data yet — run a sync on the hub."
+}
+
+/// W-FIX11 H2-11: the hidden list after "Add a metric" puts the first hidden square back; nil when
+/// nothing is hidden (no tile then).
+public nonisolated func recoveryAddMetricHidden(after layout: RecoveryTileLayout) -> String? {
+    guard let first = layout.hidden.first else { return nil }
+    return layout.hidden.filter { $0 != first }.joined(separator: ",")
 }

@@ -272,6 +272,11 @@ public nonisolated func nutritionSectionTitle(selected: String, today: String) -
     selected == today ? "Today" : (nutritionDayParts(selected)?.weekday ?? selected)
 }
 
+/// W-FIX11 H2-12: the meals header names the picked day ("Meals · Monday"), never "today" on a past day.
+public nonisolated func nutritionMealsTitle(selected: String, today: String) -> String {
+    selected == today ? "Meals today" : "Meals · \(nutritionDayParts(selected)?.weekday ?? selected)"
+}
+
 /// The macro card's caption: "Macros today" or "Macros · Wednesday".
 public nonisolated func macroCardTitle(date: String, today: String) -> String {
     date == today ? "Macros today" : "Macros · \(nutritionDayParts(date)?.weekday ?? date)"

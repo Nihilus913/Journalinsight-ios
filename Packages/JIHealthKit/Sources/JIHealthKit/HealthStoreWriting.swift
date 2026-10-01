@@ -34,6 +34,13 @@ public protocol HealthStoreWriting: Sendable {
     /// deletes the previous route by that id first (`HKSeriesType.workoutRoute()`), since a route
     /// is never replaced in place. A no-op for an empty `locations`.
     func insertRoute(_ locations: [CLLocation], for workout: HKWorkout, metadata: [String: Any]) async throws
+    /// W-FIX11 H2-03: true when the user answered "Don't Allow" for every type in `types`
+    /// (HealthKit's share request itself succeeds on a decline).
+    func allSharingDenied(_ types: Set<HKSampleType>) -> Bool
+}
+
+public extension HealthStoreWriting {
+    func allSharingDenied(_ types: Set<HKSampleType>) -> Bool { false }
 }
 
 public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
@@ -44,6 +51,10 @@ public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
 
     public func requestAuthorization(toShare types: Set<HKSampleType>) async throws {
         try await store.requestAuthorization(toShare: types, read: [])
+    }
+
+    public func allSharingDenied(_ types: Set<HKSampleType>) -> Bool {
+        !types.isEmpty && types.allSatisfy { store.authorizationStatus(for: $0) == .sharingDenied }
     }
 
     public func existingSyncVersions(sampleType: HKSampleType, start: Date, end: Date) async throws -> [String: Int] {

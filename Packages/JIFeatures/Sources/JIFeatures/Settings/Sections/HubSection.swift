@@ -55,7 +55,7 @@ private struct HubSectionRows: View {
     // Never interpolate the model or the config here — only the fixed, tokenless strings (rule 2).
     private func statusText(_ s: ConnectionTestResult) -> String {
         switch s {
-        case .ok(let last): "Connected. Last sync: \(last ?? "never")."
+        case .ok(let last): "Connected. Last sync: \(hubLastSyncText(last))."   // W-FIX11 H2-18
         case .unauthorized: "Reachable, but the token was rejected (401)."
         case .unreachable(let m): "Unreachable: \(m)"
         case .other(let m): m

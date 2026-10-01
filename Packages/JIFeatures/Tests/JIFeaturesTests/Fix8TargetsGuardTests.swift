@@ -141,7 +141,9 @@ private let hubGoals: TargetsDocument = {
     let model = TargetsModel(prefs: prefs, mirror: TargetsMirror(prefs: prefs, outbox: outbox,
                                                                  drainer: OutboxDrainer(outbox: outbox, hub: hub)))
     await model.update { $0.rules[.weekKcalFloor] = 1500 }
-    #expect(hub.refusals == 1)
+    // W-FIX11 H2-01: the rule edit is a patch on the hub's fresh copy — nothing goals-empty is
+    // ever sent, so there is no refusal; the hub keeps its goals and the phone takes them.
+    #expect(hub.refusals == 0)
     #expect(hub.puts.count == 1 && hub.puts.allSatisfy { !$0.goals.isEmpty })
     #expect(hub.stored.goals == hubGoals.goals && hub.stored.rules[.weekKcalFloor] == 1500)
     #expect(model.document.goals == hubGoals.goals && !model.hubPending)
@@ -174,10 +176,9 @@ private let hubGoals: TargetsDocument = {
     let hub = GuardedTargetsHub(hubGoals)
     let mirror = GateSettingsMirror(prefs: prefs, provider: hub)
     try prefs.set(GateSettingsMirror.pendingKey, true)
-    #expect(await mirror.pushIfPending() == false)     // refused, stays pending; hub untouched
-    #expect(hub.puts.isEmpty && hub.stored == hubGoals)
-    // After the launch seed the phone carries the hub's goals, and the retry goes through.
-    await TargetsMirror.seedFromHubIfNeeded(store: TargetsStore(prefs: prefs), hub: hub)
+    // W-FIX11 H2-01: the mirror sends only its Limits on a fresh hub copy — the hub's goals stay.
     #expect(await mirror.pushIfPending())
+    #expect(hub.refusals == 0)
     #expect(hub.puts.count == 1 && hub.puts[0].goals == hubGoals.goals && hub.puts[0].limits.hrCapBpm == 170)
+    #expect(hub.stored.goals == hubGoals.goals)
 }

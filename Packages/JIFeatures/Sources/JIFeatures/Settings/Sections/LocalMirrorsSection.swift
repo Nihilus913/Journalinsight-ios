@@ -1,4 +1,5 @@
 import SwiftUI
+import JICore
 import JIDesign
 import JIPersistence
 
@@ -57,7 +58,8 @@ private struct LocalMirrorsSectionRows: View {
             goalStore: LocalMirrorsDatabase.goalStore,
             targets: model.kpiListModel?.targets ?? [],
             targetsCache: LocalMirrorsDatabase.cache,
-            decisionLog: LocalMirrorsDatabase.decisionLog
+            decisionLog: LocalMirrorsDatabase.decisionLog,
+            targetsDocument: { LocalMirrorsDatabase.db.flatMap { TargetsStore(prefs: PrefStore(db: $0)).loadIfPresent() } }
         )
     }
 }

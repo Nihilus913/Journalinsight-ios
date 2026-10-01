@@ -108,8 +108,9 @@ public final class OutboxDrainer {
     /// retires them unsent. The spelling stays so rows already on a phone are recognised.
     public nonisolated static let legacyGoalsKind = "goals_put"
     /// W-TGT: the whole `TargetsDocument` (`PUT /planning/targets`), queued by `TargetsMirror` and
-    /// by the §5 import. Last-write-wins: only the newest pending row is sent; older ones are
-    /// retired unsent (they are superseded, never replayed over a newer document).
+    /// by the §5 import. W-FIX11 H2-01: each row is a `TargetsEdit` (the changed keys over the
+    /// document it was edited from); the queue goes out as ONE PUT with the newest row — every
+    /// edit applied in order to a fresh hub copy — and all rows retire together.
     public nonisolated static let targetsKind = TargetsDocument.outboxKind
     public nonisolated static let knownKinds: Set<String> = [
         weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
@@ -204,17 +205,24 @@ public final class OutboxDrainer {
                 try? outbox.markSent(id: row.id)
             case Self.targetsKind:
                 guard let targets else { continue }
-                guard row.id == newestTargetsId else { try? outbox.markSent(id: row.id); continue }   // superseded
-                guard let body = try? JSONDecoder().decode(TargetsDocument.self, from: row.payload) else { continue }
+                // W-FIX11 H2-01: every queued edit is a patch of the keys it changed; they go out
+                // together with the newest row, applied in order to a FRESH copy of the hub's
+                // document (never the phone's stale whole document over the hub's newer numbers).
+                guard row.id == newestTargetsId else { continue }
+                let queued = rows.filter { $0.kind == Self.targetsKind }
+                let edits = queued.compactMap { TargetsEdit.decodeOutbox($0.payload) }
+                guard TargetsEdit.decodeOutbox(row.payload) != nil else { continue }
                 do {
+                    let hubCopy = TargetsEdit.needsHubCopy(edits) ? try await targets.targets() : nil
+                    guard let body = TargetsEdit.compose(edits, onto: hubCopy) else { continue }
                     let server = try await targets.putTargets(body)
-                    try? outbox.markSent(id: row.id)
+                    for q in queued { try? outbox.markSent(id: q.id) }
                     results[row.id] = .success(.targets(server))
                 } catch let refused as TargetsWouldClearGoals {
                     // W-FIX8 T-1: a goals-empty body met a hub that holds goals — nothing was sent.
                     // Retired, never retried (it would only be refused again); the result carries
                     // the hub's document so `TargetsMirror` adopts it (hub wins over empty local).
-                    try? outbox.markSent(id: row.id)
+                    for q in queued { try? outbox.markSent(id: q.id) }
                     results[row.id] = .failure(refused)
                 } catch {
                     try? outbox.markFailed(id: row.id, error: Self.describeTargets(error))

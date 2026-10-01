@@ -14,6 +14,13 @@ import JIHub
 /// already in Health. Cursor (last fully-written day) persists in the
 /// App-Group `UserDefaults` suite (`group.toby913.JournalInsight`, same suite as `SnapshotStore`)
 /// under key `hk.backload.cursor`, so a killed/resumed run picks up where it left off.
+/// W-FIX11 H2-03: lets exactly one of two racing tasks resume a continuation.
+final class ResumeOnce: @unchecked Sendable {   // unchecked: `done` is only touched under `lock`
+    private let lock = NSLock()
+    private var done = false
+    func claim() -> Bool { lock.withLock { if done { return false }; done = true; return true } }
+}
+
 public final class HealthKitBackloader: BackloadRunning, Sendable {
     private let hub: BackloadClient
     private let store: any HealthStoreWriting
@@ -50,10 +57,34 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
         } catch {
             throw BackloadError.authorizationDenied
         }
+        // W-FIX11 H2-03: "Don't Allow" does not fail the request — read the answer, so a decline
+        // ends in the denied message instead of a run that can write nothing.
+        if store.allSharingDenied(Self.allSampleTypes) { throw BackloadError.authorizationDenied }
         // W9 L2: the overlap policy needs to READ other sources' workouts. A read decline is
         // never fatal (HealthKit then answers with our own objects only, which the reader
         // excludes -> nothing to overlap -> every hub workout is written as before).
-        try? await reader?.requestAuthorization(toRead: [HKWorkoutType.workoutType()])
+        // W-FIX11 H2-03: after a declined share sheet this request never answered and Backload
+        // stayed on "Requesting Health access…" forever — it is waited for at most 5 s.
+        if let reader {
+            await Self.waitAtMost(seconds: Self.readAuthTimeout) {
+                try? await reader.requestAuthorization(toRead: [HKWorkoutType.workoutType()])
+            }
+        }
+    }
+
+    static let readAuthTimeout: Double = 5
+
+    /// Runs `op` unstructured and returns when it finishes or after `seconds`, whichever is first
+    /// (a HealthKit call that never answers may also ignore cancellation, so it is not awaited).
+    static func waitAtMost(seconds: Double, _ op: @escaping @Sendable () async -> Void) async {
+        let once = ResumeOnce()
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            let work = Task { await op(); if once.claim() { cont.resume() } }
+            Task {
+                try? await Task.sleep(for: .seconds(seconds))
+                if once.claim() { work.cancel(); cont.resume() }
+            }
+        }
     }
 
     public func run(_ range: BackloadRange, progress: @Sendable (BackloadProgress) -> Void) async throws -> BackloadSummary {

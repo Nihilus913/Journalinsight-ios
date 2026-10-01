@@ -410,6 +410,38 @@ public nonisolated func targetsFieldText(_ v: Double?, decimals: Int) -> String 
     return targetsNumber(v, decimals)
 }
 
+// MARK: - Goal ranges (W-FIX11 H2-02)
+
+/// Plausible goal ranges, inclusive — the same numbers as the hub's `GOAL_RANGES`
+/// (HT app/planning/targets.py), which refuses a body outside them.
+public nonisolated enum TargetsGoalRange {
+    public static func range(_ m: GoalMetric) -> ClosedRange<Double> {
+        switch m {
+        case .weight: 20...400
+        case .kcal: 500...10000
+        case .protein: 1...600
+        case .carbs: 1...1500
+        case .fat: 1...500
+        case .steps: 100...100000
+        case .sleep: 1...16
+        }
+    }
+}
+
+/// W-FIX11 H2-15: where − / + start on an EMPTY goal field (they did nothing before). Only typed
+/// into the field — never a stored goal until the user saves.
+public nonisolated func targetsGoalStepStart(_ m: GoalMetric) -> Double {
+    switch m {
+    case .weight: 75
+    case .kcal: 2000
+    case .protein: 130
+    case .carbs: 200
+    case .fat: 60
+    case .steps: 8000
+    case .sleep: 7.5
+    }
+}
+
 // MARK: - Editor draft
 
 /// What the editor sheet holds while the user types. `applied(to:)` writes it into the document
@@ -483,6 +515,11 @@ public nonisolated struct TargetEditDraft: Equatable, Sendable {
     public var validationMessage: String? {
         guard case .goal(let m) = subject, case .value(let goal) = targetsParse(goalText) else { return nil }
         guard goal > 0 else { return "A goal is above zero. Leave it blank for no goal." }
+        // W-FIX11 H2-02: a plausible range per goal (7,977.5 kg was saved); the hub refuses the same.
+        let r = TargetsGoalRange.range(m)
+        guard r.contains(goal) else {
+            return "\(targetsGoalTitle(m)): between \(targetsNumber(r.lowerBound, 0)) and \(targetsNumber(r.upperBound, 0)) \(targetsGoalUnit(m))."
+        }
         guard m == .kcal, !trackerIncludesDeficit, case .value(let d) = targetsParse(deficitText) else { return nil }
         guard d >= 0 else { return "The deficit is zero or more." }
         if let target = kcalTargetPreview, target <= 0 {

@@ -27,6 +27,12 @@ public final class RecoveryViewModel {
     private let cache: OfflineCache
     private let now: () -> Date
     private static let key = "recovery.days"
+    /// W-FIX11 H2-06: the on-device source (Developer › Read from Apple Watch) caches under its own
+    /// key — its empty answer once replaced the hub's nights, and Recovery offline showed "0 nights".
+    private static let onDeviceKey = "recovery.days.ondevice"
+    private var cacheKey: String { isOnDeviceSource ? Self.onDeviceKey : Self.key }
+    /// True when the source is not the hub (no hub capability set) — the on-device Apple Watch reader.
+    public var isOnDeviceSource: Bool { !provider.capabilities.isSuperset(of: .hubAll) }
     /// W-FIX6 F6-1: 42 nights, so the cards' normal (today−34 … today−7, `PersonalNormal`) sees
     /// the same 28 nights the KPI detail and the hub use — 28 fetched nights left only 21 in it.
     public static let windowDays = RecoveryInsightService.windowDays
@@ -91,7 +97,7 @@ public final class RecoveryViewModel {
     public func refresh() async { await fetchLive() }
 
     private func restoreFromCache() {
-        if let hit = try? cache.get(Self.key, as: [RecoveryDay].self) {
+        if let hit = try? cache.get(cacheKey, as: [RecoveryDay].self) {
             days = hit.value; fetchedAt = hit.fetchedAt; everSynced = true
         }
         if !days.isEmpty { phase = .loaded }
@@ -103,7 +109,7 @@ public final class RecoveryViewModel {
         do {
             let provider = self.provider
             let cache = self.cache
-            let result = try await SectionLoader.load(key: Self.key, cache: cache) { try await provider.recovery(windowDays: Self.windowDays) }
+            let result = try await SectionLoader.load(key: cacheKey, cache: cache) { try await provider.recovery(windowDays: Self.windowDays) }
 
             if let value = result.value { days = value }
             fetchedAt = result.fetchedAt ?? fetchedAt

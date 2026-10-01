@@ -42,6 +42,20 @@ public nonisolated enum Changelog {
         ]
     )
 
+    // W-FIX11 H2-22: "2.0.0 · 25 Sep" stayed the installed entry through FIX6–FIX11, Targets, the
+    // workout and Apple Health waves. 2.1.0 is the release they make; the About screen marks it.
+    public static let targetsEntry = ChangelogEntry(
+        version: "2.1.0",
+        date: "2026-10-01",
+        title: "Targets, workouts and Apple Health",
+        items: [
+            "One Targets screen for every goal, limit and rule — a change on one screen never overwrites a newer number on the hub, and goals outside a plausible range are refused",
+            "Workouts: session progress, time in each zone, heart-rate samples and Send to Watch from the plan",
+            "Apple Health first: macros, HRV, resting heart rate and sleep read from Health, with a classic SDNN copy for other apps, and pull to refresh uploads Health before reloading",
+            "Recovery, KPI detail and Nutrition say where each number comes from, work offline from what this phone already holds, and fit at large text sizes",
+        ]
+    )
+
     // W-FIX3 BUG-43: the changelog stopped at 17 Sep. One entry per Swift milestone since, newest
     // first. The installed release is `2.0.0` (the About screen marks the entry whose version
     // equals `CFBundleShortVersionString` "Installed"); the earlier Swift milestones are its
@@ -81,7 +95,7 @@ public nonisolated enum Changelog {
         ]
     )
 
-    public static let swiftEntries: [ChangelogEntry] = [fixesEntry, morningFlowEntry, nativeLookEntry, swiftNativeEntry]
+    public static let swiftEntries: [ChangelogEntry] = [targetsEntry, fixesEntry, morningFlowEntry, nativeLookEntry, swiftNativeEntry]
 
     /// What the screen renders: Swift entries first, then every RN entry (newest first).
     public static let entries: [ChangelogEntry] = swiftEntries + rnEntries

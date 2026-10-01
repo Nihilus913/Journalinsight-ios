@@ -24,6 +24,8 @@ public final class LocalMirrorsViewModel {
     private let decisionLog: DecisionLogStore?
     private let goalStore: GoalStore?
     private let targetsCache: OfflineCache?
+    /// W-FIX11 H2-19: the phone's targets document (where goals live since W-TGT).
+    private let targetsDocument: (@MainActor () -> TargetsDocument?)?
 
     /// Oracle `useRecentDecisions(10)` — the section's bounded window.
     public nonisolated static let recentLimit = 10
@@ -37,8 +39,10 @@ public final class LocalMirrorsViewModel {
         goalStore: GoalStore? = nil,
         targets: [KpiTarget] = [],
         targetsCache: OfflineCache? = nil,
-        decisionLog: DecisionLogStore?
+        decisionLog: DecisionLogStore?,
+        targetsDocument: (@MainActor () -> TargetsDocument?)? = nil
     ) {
+        self.targetsDocument = targetsDocument
         self.goals = goals
         self.goalStore = goalStore
         self.targets = targets
@@ -47,6 +51,9 @@ public final class LocalMirrorsViewModel {
     }
 
     public func load() async {
+        // W-FIX11 H2-19: the goals are the targets document's since W-TGT (the old
+        // goal_targets_mirror copy is no longer written) — read it first.
+        if goals == nil, let doc = targetsDocument?() { goals = localMirrorsGoals(from: doc) }
         if goals == nil, let goalStore { goals = try? goalStore.loadGoalTargetsMirror() }
         // W-FIX1 BUG-24: the persisted copy the KPI list writes on every online load — the
         // in-memory list is empty whenever Settings opens without the KPI screen having run.
@@ -56,6 +63,17 @@ public final class LocalMirrorsViewModel {
         }
         decisions = (try? decisionLog?.recent(limit: Self.recentLimit)) ?? []
     }
+}
+
+/// W-FIX11 H2-19: the document's goals in the mirror's `Goals` shape; nil when it holds none. A
+/// missing weight target is NaN (the section shows "—", rule 5).
+public nonisolated func localMirrorsGoals(from doc: TargetsDocument) -> Goals? {
+    let g = doc.goals
+    guard !g.isEmpty else { return nil }
+    return Goals(weight: WeightGoal(baseKg: g.weight?.baseKg, targetKg: g.weight?.targetKg ?? .nan, targetDate: g.weight?.targetDate),
+                 strength: g.strength.map { StrengthGoal(exercise: $0.exercise, targetKg: $0.targetKg) },
+                 stepsDaily: g.stepsDaily,
+                 nutrition: NutritionGoal(kcalGoal: g.kcal?.targetKcal, proteinG: g.proteinG, carbsG: g.carbsG, fatG: g.fatG))
 }
 
 /// W-FIX1 BUG-24: the `OfflineCache` key `KpiListViewModel` stores `plan.kpi_target` under.

@@ -67,9 +67,12 @@ public struct KpiDetailView: View {
         if !isNutritionKpi(model.metric) {
             let unit = model.def.unit
             KpiDetailValueCard(
-                valueText: formatKpiValue(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"),
+                valueText: kpiDetailNumber(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"),
                 label: model.def.label,
-                status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals),
+                status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals,
+                                        hubCalibrating: model.calibrationCaption != nil,
+                                        valueDate: model.showsLoadMinutes ? nil : model.latest?.date,
+                                        today: RecoveryInsightService.localDayKey(Date())),
                 asOf: model.asOfLabel,
                 tint: metricTintRole(model.metric.rawValue),
                 heroTint: model.metric == .sleep ? theme.color(.sleep) : nil

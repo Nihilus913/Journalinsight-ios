@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import JICore
 import JIPersistence
+import JIDesign
 @testable import JIFeatures
 
 /// W-FIX7 N-1 / N-2: Fuel, Nutrition, Energy and the KPI screens read Apple Health daily totals
@@ -86,7 +87,7 @@ import JIPersistence
                                   goalCaption: { _, _ in nil }, load: nil, health: health)
         let fibre = n.first { $0.id == "fibre" }
         let sugar = n.first { $0.id == "sugar" }
-        #expect(fibre?.value == 12 && fibre?.status == nil && fibre?.unit == "g" && fibre?.badge == .add)
+        #expect(fibre?.value == 12 && fibre?.status == nil && fibre?.unit == "g" && fibre?.badge == JISquareBadge.none)   // W-FIX11 H2-10
         #expect(sugar?.value == 51 && sugar?.goalText == kpiAsOfLabel(valueDate: "2026-09-27", today: "2026-09-28"))
         let none = kpiCatalogueItems(group: .nutrition, visible: [], value: { _ in nil }, today: "2026-09-28",
                                      goalCaption: { _, _ in nil }, load: nil, health: [])

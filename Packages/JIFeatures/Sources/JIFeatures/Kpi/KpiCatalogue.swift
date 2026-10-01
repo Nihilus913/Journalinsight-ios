@@ -28,7 +28,7 @@ public nonisolated func kpiCatalogueExtras(health: [HealthDailyTotals], today: S
         let reading = HealthDailyTotals.latest(field, in: health)
         return JISquareItem(id: id, label: label, systemImage: symbol, value: reading?.value, decimals: 0, unit: reading == nil ? nil : "g",
                             goalText: reading.flatMap { kpiAsOfLabel(valueDate: $0.date, today: today) },
-                            status: reading == nil ? .missing(.noData) : nil, badge: .add)
+                            status: reading == nil ? .missing(.noData) : nil, badge: .none)   // W-FIX11 H2-10: display-only
     }
     return [square("fibre", "Fibre", "leaf", \.fiberG), square("sugar", "Sugar", "drop", \.sugarG)]
 }
@@ -87,7 +87,9 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
                             status: reading == nil ? .missing(.noData) : nil, badge: badge)
     }
     if group == .onToday { return visible.map { square($0, badge: .selected) } }
-    let rest = KpiMetricId.allCases.filter { kpiCatalogueGroup($0) == group && !visible.contains($0) }.map { square($0, badge: .add) }
+    // W-FIX11 H2-10: at the cap a "+" did nothing — no badge then (the On Today note says why).
+    let addable: JISquareBadge = visible.count < KpiSelection.maxSelected ? .add : .none
+    let rest = KpiMetricId.allCases.filter { kpiCatalogueGroup($0) == group && !visible.contains($0) }.map { square($0, badge: addable) }
     return group == .nutrition ? rest + kpiCatalogueExtras(health: health, today: today) : rest
 }
 
