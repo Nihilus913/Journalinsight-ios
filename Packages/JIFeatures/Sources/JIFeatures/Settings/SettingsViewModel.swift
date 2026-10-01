@@ -52,6 +52,8 @@ public final class SettingsViewModel {
     public private(set) var lastSyncStartedAt: Date?
 
     private let onSaved: (ConnectionConfig) -> Void
+    /// W-SSOT-2 S2-3: Today's plan rows + served week, so the Weekly plan banks on the same days.
+    private let weeklyPlanSchedule: WeeklyPlanViewModel.Schedule?
 
     public init(
         store: ConnectionConfigStore,
@@ -64,6 +66,7 @@ public final class SettingsViewModel {
         makeKpiDetailModel: (@MainActor (KpiMetricId) -> KpiDetailViewModel?)? = nil,
         goalsProvider: (any EnergyProviding)? = nil,
         todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
+        weeklyPlanSchedule: WeeklyPlanViewModel.Schedule? = nil,
         sections: [any SettingsSection] = SettingsRegistry.sections,
         syncAction: (@MainActor () async throws -> Void)? = nil,
         now: @escaping () -> Date = Date.init,
@@ -81,6 +84,7 @@ public final class SettingsViewModel {
         self.makeKpiDetailModel = makeKpiDetailModel
         self.goalsProvider = goalsProvider
         self.todayChips = todayChips
+        self.weeklyPlanSchedule = weeklyPlanSchedule
         // `sorted` is stable in Swift's stdlib (documented since 5.x), so equal keys keep registry order.
         self.sections = sections.sorted { $0.sortKey < $1.sortKey }
         self.onSaved = onSaved
@@ -143,7 +147,8 @@ public final class SettingsViewModel {
     public func makeWeeklyPlanModel() -> WeeklyPlanViewModel {
         // B-57 W2 (B-73): the user's own goals (`goals.macros`) seed the plan before the hub's.
         WeeklyPlanViewModel(store: WeeklyPlanStore(prefs: prefs), goalsProvider: goalsProvider,
-                            jiGoals: { [prefs] in try? MacroGoalsStore(prefs: prefs).load() })
+                            jiGoals: { [prefs] in try? MacroGoalsStore(prefs: prefs).load() },
+                            schedule: weeklyPlanSchedule)
     }
 
     public var kpiSubtitle: String { "\(kpiSelectedCount) selected · Today's stat strip and home-screen widget" }

@@ -124,7 +124,8 @@ public struct TodayView: View {
                        normals: decideSignalNormals(recovery: model.recovery),
                        banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
                        isStale: model.morning?.isStale,
-                       heldReason: model.heldReason) { model.morningEvent(.gateResponded) }
+                       heldReason: model.heldReason,
+                       planWeek: model.planWeek) { model.morningEvent(.gateResponded) }
         } else {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {
@@ -268,7 +269,7 @@ public struct TodayView: View {
                     sessionForToday: dayNextSessionForToday(hub: model.morning?.sessionForToday, scheduled: model.scheduledSessionToday),
                     override: currentOverride,
                     plan: model.exercises, weekday: model.todayWeekday,
-                    zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm)
+                    zones: gateSettings.zones, capBpm: gateSettings.hrCapBpm, week: model.planWeek)
     }
 
     private var nextCard: some View {
@@ -556,7 +557,7 @@ public nonisolated func dayPlannedSession(names: [String?], plan: [Exercise], we
 /// (both optional — never a default) instead of "Exercises and weights — No data".
 public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: String?, override: VerdictOverride?,
                                     plan: [Exercise] = [], weekday: Int? = nil,
-                                    zones: HrZones? = nil, capBpm: Int? = nil) -> DayNextCard {
+                                    zones: HrZones? = nil, capBpm: Int? = nil, week: PlanWeekOut? = nil) -> DayNextCard {
     let shown = effectiveVerdictParts(parts: verdict, override: override)
     if TodayMorningFlow.isRestDay(shown) { return DayNextCard(session: "Rest day", prescription: nil, rows: [], exercises: nil, isRest: true) }
     let session = override != nil && !shown.session.isEmpty ? shown.session
@@ -569,7 +570,7 @@ public nonisolated func dayNextCard(verdict: VerdictParts, sessionForToday: Stri
     let rows = cardioOnly ? [] : trainingHeroRows(exercises: plan, session: planned)
     let cardio = dayCardioLine(session: session, zones: zones, capBpm: capBpm)
     let saysNoData = rows.isEmpty && (cardio == nil || daySessionHasStrengthPart(session))
-    return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override), rows: rows,
+    return DayNextCard(session: session, prescription: decidePrescriptionLine(verdict: verdict, override: override, week: week), rows: rows,
                        exercises: saysNoData ? "Exercises and weights — \(JIMissingReason.noData.rawValue)" : nil,
                        cardio: cardio, plannedSession: rows.isEmpty ? nil : planned?.name)
 }

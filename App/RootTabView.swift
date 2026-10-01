@@ -1208,6 +1208,8 @@ struct RootTabView: View {
             },
             goalsProvider: hub as? any EnergyProviding,
             todayChips: { todayModel?.squareChips ?? [] },
+            // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
+            weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },
             syncAction: { try await env.syncNow() }
         ) { config in
             env.apply(config)
@@ -1283,7 +1285,8 @@ struct RootTabView: View {
                            banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
                            // W-FIX10 R-04: the hub's own count of real Apple HRV nights (DH-4) when it sent one.
                            calibrationNights: recoveryInsight?.calibration.map { $0.component("hrv")?.nights ?? $0.nights }
-                               ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
+                               ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count,
+                           planWeek: model.planWeek) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
                     .onAppear {
                         if gateConfigModel == nil {

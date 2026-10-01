@@ -42,12 +42,23 @@ public final class WeeklyPlanViewModel {
     /// this the response landing a moment later would silently clobber it. A user edit always
     /// wins over a lagging seed, unconditionally.
     private var goalsSeeded = false
+    /// W-SSOT-2 S2-3: the week's schedule — the plan rows and the hub's served `/planning/week`
+    /// (`TodayViewModel.planSessions` / `.planWeek`); the served week wins. nil = the fixed table.
+    public typealias Schedule = @MainActor () -> (planSessions: [PlanSessionOut]?, week: PlanWeekOut?)
+    private let schedule: Schedule?
 
     public init(store: WeeklyPlanStore, goalsProvider: (any EnergyProviding)? = nil,
-                jiGoals: (@MainActor () -> MacroGoals?)? = nil) {
+                jiGoals: (@MainActor () -> MacroGoals?)? = nil, schedule: Schedule? = nil) {
         self.store = store
         self.goalsProvider = goalsProvider
         self.jiGoals = jiGoals
+        self.schedule = schedule
+    }
+
+    /// The training days the plan banks against (served week → rows → fixed table).
+    private var trainDays: [WeekDay] {
+        let s = schedule?()
+        return trainingWeekDays(planSessions: s?.planSessions, week: s?.week)
     }
 
     /// Board status line under the hero: the plan's weekly average against the user's goal.
@@ -69,8 +80,10 @@ public final class WeeklyPlanViewModel {
     }
 
     public var plan: PeriodizedPlan {
-        computePeriodizedPlan(
-            PeriodizedPlanInput(weeklyAvgKcal: weeklyAvgKcal, trainKcal: trainKcal, proteinG: proteinG, fatG: fatG)
+        let s = schedule?()
+        return computePeriodizedPlan(
+            PeriodizedPlanInput(weeklyAvgKcal: weeklyAvgKcal, trainKcal: trainKcal, proteinG: proteinG, fatG: fatG),
+            planSessions: s?.planSessions, week: s?.week
         )
     }
 
@@ -135,7 +148,8 @@ public final class WeeklyPlanViewModel {
             // B-57 W1 fixer: step from the target the screen shows (a held target, when capped),
             // and never past what the rest days can fund — a "+" that changes nothing on screen
             // while the stored number climbs would be a lie.
-            let ceiling = weeklyPlanMaxTrainKcal(weeklyAvgKcal: weeklyAvgKcal, proteinG: proteinG, fatG: fatG) ?? .infinity
+            let ceiling = weeklyPlanMaxTrainKcal(weeklyAvgKcal: weeklyAvgKcal, proteinG: proteinG, fatG: fatG,
+                                                 trainDays: trainDays) ?? .infinity
             setTrainKcal(min(ceiling, max(weeklyAvgKcal, value(of: .trainKcal) + delta)))
         case .protein: setProteinG(max(80, proteinG + delta))
         case .fat: setFatG(max(30, fatG + delta))
