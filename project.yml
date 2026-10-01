@@ -50,9 +50,9 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: JournalInsight
-        # W-FIX3 fixer BUG-43: the shipped release (Changelog's installed entry). The Watch app and
+        # W-FIX3 fixer BUG-43: the shipped release (Changelog's installed entry). W-FIX11 H2-22: 2.1.0. The Watch app and
         # the widget extension carry the same version — an embedded bundle must match its host.
-        CFBundleShortVersionString: "2.0.0"
+        CFBundleShortVersionString: "2.1.0"
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -111,7 +111,7 @@ targets:
       path: WatchApp/Info.plist
       properties:
         CFBundleDisplayName: JournalInsight
-        CFBundleShortVersionString: "2.0.0" # W-FIX3 fixer BUG-43: = the host app
+        CFBundleShortVersionString: "2.1.0" # W-FIX3 fixer BUG-43: = the host app
         WKApplication: true
         WKCompanionAppBundleIdentifier: toby913.JournalInsight
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
@@ -133,7 +133,7 @@ targets:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: Widgets
-        CFBundleShortVersionString: "2.0.0" # W-FIX3 fixer BUG-43: = the host app
+        CFBundleShortVersionString: "2.1.0" # W-FIX3 fixer BUG-43: = the host app
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
