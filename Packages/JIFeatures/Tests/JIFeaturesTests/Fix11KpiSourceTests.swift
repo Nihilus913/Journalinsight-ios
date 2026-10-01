@@ -43,3 +43,26 @@ private var appleInputs: [RecoveryInputDay] {
     let rows = kpiDetailTableRows(history: h, value: 70, unit: "bpm", decimals: 0, isNightly: true)
     #expect(rows.first { $0.id == "counted" }?.value == "18 of 28")
 }
+
+// W-FIX11 H2-09: no direction word while the hub calibrates, under 14 readings (the hub's own
+// count), or on an old reading ("Up" on a 16-day-old Readiness).
+private func series(_ n: Int, _ v: Double) -> [(date: String, value: Double?)] {
+    (1...n).map { (date: String(format: "2026-09-%02d", $0), value: v) }
+}
+
+@Test func calibratingHubMeansNoDirection() {
+    let s = kpiDetailStatus(history: series(20, 23), value: 23, unit: "ms", decimals: 0, hubCalibrating: true)
+    #expect(s.word == "— Calibrating")
+}
+
+@Test func thirteenReadingsIsStillCalibrating() {
+    #expect(kpiDetailStatus(history: series(13, 50), value: 50, unit: "ms", decimals: 0).word == "— Calibrating")
+    #expect(kpiDetailStatus(history: series(14, 50), value: 50, unit: "ms", decimals: 0).word == "Steady")
+}
+
+@Test func anOldReadingGetsNoDirection() {
+    let s = kpiDetailStatus(history: series(20, 50), value: 60, unit: "", decimals: 0,
+                            valueDate: "2026-09-15", today: "2026-10-01")
+    #expect(s.word.hasPrefix("—"))
+    #expect(s.detail.contains("15 Sep"))
+}

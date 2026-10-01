@@ -241,16 +241,32 @@ nonisolated func kpiSourceField(_ metric: KpiMetricId) -> ((RecoveryInputDay) ->
     }
 }
 
-/// Readings the 28-day average needs before a direction means anything.
-public nonisolated let kpiDetailMinBaselineReadings = 7
+/// Readings the 28-day average needs before a direction means anything. W-FIX11 H2-09: 14, the
+/// hub's own calibration count (7 said "Steady" beside "Calibrating · 6 of 14 nights").
+public nonisolated let kpiDetailMinBaselineReadings = 14
 
+/// W-FIX11 H2-09: a reading older than this many days gets no direction word.
+public nonisolated let kpiDetailFreshDays = 2
+
+/// `hubCalibrating`: the hub says this metric's normal is still calibrating — no direction then.
+/// `valueDate` / `today` (yyyy-MM-dd): an old reading ("Up" on a 16-day-old Readiness) gets none.
 public nonisolated func kpiDetailStatus(history: [(date: String, value: Double?)], value: Double?,
-                                        unit: String, decimals: Int) -> KpiDetailStatus {
+                                        unit: String, decimals: Int, hubCalibrating: Bool = false,
+                                        valueDate: String? = nil, today: String? = nil) -> KpiDetailStatus {
     guard let value, value.isFinite else {
         return KpiDetailStatus(word: "— \(JIMissingReason.noData.rawValue)", symbolName: "minus",
                                detail: "Nothing from this source yet.", role: .muted)
     }
+    if let valueDate, let today, let age = kpiDayDistance(from: valueDate, to: today), age > kpiDetailFreshDays {
+        return KpiDetailStatus(word: "— Old reading", symbolName: "minus",
+                               detail: "The last reading is from \(kpiShortDay(valueDate)) — too old to compare with your average.",
+                               role: .muted)
+    }
     let window = history.sorted { $0.date < $1.date }.suffix(trendBaselineDays).compactMap(\.value)
+    if hubCalibrating {
+        return KpiDetailStatus(word: "— \(JIMissingReason.calibrating.rawValue)", symbolName: "minus",
+                               detail: "Your normal is still being learned — no direction until it is set.", role: .muted)
+    }
     guard window.count >= kpiDetailMinBaselineReadings, let baseline = trendAverage(history, days: trendBaselineDays) else {
         return KpiDetailStatus(word: "— \(JIMissingReason.calibrating.rawValue)", symbolName: "minus",
                                detail: "JI compares against your 28-day average once it has \(kpiDetailMinBaselineReadings) readings (\(window.count) so far).",
@@ -261,6 +277,24 @@ public nonisolated func kpiDetailStatus(history: [(date: String, value: Double?)
     let avg = jiNumber(baseline, decimals) + (unit.isEmpty ? "" : " \(unit)")
     return KpiDetailStatus(word: word, symbolName: direction.symbolName,
                            detail: "Your last reading against your 28-day average of \(avg).", role: .text)
+}
+
+/// Whole days from `from` to `to` (yyyy-MM-dd, UTC calendar); nil when either is unreadable.
+nonisolated func kpiDayDistance(from: String, to: String) -> Int? {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
+    guard let a = f.date(from: String(from.prefix(10))), let b = f.date(from: String(to.prefix(10))) else { return nil }
+    return Int((b.timeIntervalSince(a) / 86_400).rounded())
+}
+
+/// "15 Sep" for yyyy-MM-dd.
+nonisolated func kpiShortDay(_ iso: String) -> String {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
+    guard let d = f.date(from: String(iso.prefix(10))) else { return iso }
+    let out = DateFormatter()
+    out.locale = Locale(identifier: "en_GB"); out.timeZone = TimeZone(identifier: "UTC"); out.dateFormat = "d MMM"
+    return out.string(from: d)
 }
 
 /// The value card: the number, its status word and the explanation line (board `03 KpiDetail`).
