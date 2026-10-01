@@ -94,6 +94,9 @@ final class Fix11DecideTests: JIUITestCase {
     /// H1-01 (S1) + H1-02 / H1-05: Adjust → Rest → Save shows Rest on Today at once; a relaunch
     /// (forced gate) → Go keeps Rest on the hub and on Today; Training's header says Rest.
     func testH1_01_adjustRestThenGoKeepsRest() throws {
+        // The first launch of a run can come up without Decide (the simulator's first-instance
+        // quirk, bug hunt 2026-10-01): relaunch once — the gate is forced on every launch.
+        if !awaitDecide() { app.terminate(); app.launch() }
         XCTAssertTrue(awaitDecide(), "-JIForceGate YES did not open Decide")
         let adjust = app.buttons["today.decide.adjust"]
         guard adjust.waitForExistence(timeout: 10) else { throw XCTSkip("the fixture day is a rest day — no Adjust") }
