@@ -109,7 +109,7 @@ public struct NutritionView: View {
 
     /// W-GUI M2 (mockup 05): the read-only note and the goal-alignment sentence as one caption.
     private var readOnlyNote: some View {
-        Text(nutritionReadOnlyNote + " " + nutritionGoalAlignCaption)
+        Text(nutritionReadOnlyNote(source: model.daySource) + " " + nutritionGoalAlignCaption)
             .jiFont(.caption).foregroundStyle(theme.color(.muted))
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, JISpacing.s4)
