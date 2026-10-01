@@ -40,10 +40,13 @@ public final class GateSettingsMirror {
 
     @discardableResult
     public func pushIfPending() async -> Bool {
-        guard hubPending, let provider, let doc = TargetsStore(prefs: prefs).loadIfPresent() else { return false }
+        guard hubPending, let provider, TargetsStore(prefs: prefs).loadIfPresent() != nil else { return false }
         let s = store.load()
         do {
-            _ = try await provider.putTargets(doc)
+            // W-FIX11 H2-01: only the Limits + caution rule this mirror owns, on a FRESH hub copy —
+            // never the phone's whole (possibly stale) document over the hub's goals.
+            let fresh = try await provider.targets()
+            _ = try await provider.putTargets(s.applied(to: fresh))
             // Only clear when nothing newer was saved while the PUT was in flight.
             if store.load() == s { try? prefs.remove(Self.pendingKey) }
             return true
