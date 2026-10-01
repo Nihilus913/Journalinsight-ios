@@ -166,6 +166,10 @@ struct RootTabView: View {
     @State private var gateConfigModel: GateConfigViewModel?
     // W-B57b (B-62): Decide's verdict-override write model, built beside `gateRationaleModel`.
     @State private var verdictOverrideModel: VerdictOverrideViewModel?
+    // W-UITEST G-3: the weekly gate answer model, one per recommendation — shared by the forced
+    // gate (Decide › Why › rationale) and `TodayView`, so both show the same answer and an answer
+    // given on one is the other's too.
+    @State private var gateRespondModel: GateRespondViewModel?
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
     @State private var sendToWatchModel: SendToWatchViewModel?
     @State private var recoveryModel: RecoveryViewModel?
@@ -671,7 +675,7 @@ struct RootTabView: View {
                     onOpenConnection: { showConnection = true },
                     onSelectKpi: { metric in pushKpiDetail(metric, on: .today) },
                     onOpenTrends: { router.push(.trends, on: .today) },
-                    makeGateRespondModel: { recommendation in makeGateRespondModel(recommendation, provider: store.provider) }
+                    makeGateRespondModel: { recommendation in sharedGateRespondModel(recommendation, provider: store.provider) }
                 )
                 .environment(\.gateRationaleModel, gateRationaleModel)
                 .environment(\.verdictOverrideModel, verdictOverrideModel)
@@ -725,6 +729,13 @@ struct RootTabView: View {
     // whenever the loaded gate's recommendation changes. Outbox-first over the same on-disk
     // `AppDatabase` the Journal tab uses (v4_decision_log lives there); nil when the hub provider
     // cannot answer gates or the database cannot open — the card then simply does not mount.
+    /// W-UITEST G-3: the one respond model for this recommendation (built on first ask).
+    private func sharedGateRespondModel(_ recommendation: GateRecommendation, provider: any HealthDataProvider) -> GateRespondViewModel? {
+        if let gateRespondModel, gateRespondModel.recommendation == recommendation { return gateRespondModel }
+        gateRespondModel = makeGateRespondModel(recommendation, provider: provider)
+        return gateRespondModel
+    }
+
     private func makeGateRespondModel(_ recommendation: GateRecommendation, provider: any HealthDataProvider) -> GateRespondViewModel? {
         guard let respondProvider = provider as? any GateRespondProviding else { return nil }
         let db = journalDB ?? { let d = (try? AppDatabase.onDisk()); journalDB = d; return d }()
@@ -1285,6 +1296,10 @@ struct RootTabView: View {
                            calibrationNights: recoveryInsight?.calibration.map { $0.component("hrv")?.nights ?? $0.nights }
                                ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
+                    // W-UITEST G-3: Decide's "Why" rows open the rationale, whose foot carries the
+                    // weekly answer ("Answered automatically · …") — both were inert here.
+                    .environment(\.gateRationaleModel, gateRationaleModel)
+                    .environment(\.gateRespondModel, gateRespondModel)
                     .onAppear {
                         if gateConfigModel == nil {
                             // W-FIX5 W4-1: with the mirror, so a change here reaches the hub and
@@ -1309,6 +1324,12 @@ struct RootTabView: View {
         .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
         .accessibilityIdentifier("today.gate")
         .task { if !model.hasLiveResult { await model.load() } }
+        // W-UITEST G-3: the gate's respond model, seeded with the hub's answer (as `TodayView` does).
+        .onChange(of: model.gate?.recommendation, initial: true) { _, recommendation in
+            guard let provider = env.providerStore?.provider else { return }
+            recommendation.flatMap { sharedGateRespondModel($0, provider: provider) }?.seed(model.morning?.gateAnswer)
+        }
+        .onChange(of: model.morning?.gateAnswer) { _, fresh in gateRespondModel?.seed(fresh) }
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
             guard let verdictOverrideModel else { return }
             if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }

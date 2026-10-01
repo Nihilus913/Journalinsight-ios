@@ -72,10 +72,27 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: name)
         reveal(row, "library row \(name)")
         let rowY = row.frame.midY
-        row.swipeLeft()
-        if !app.buttons["Delete"].firstMatch.waitForExistence(timeout: 3) { swipeOpen(row) }
-        tap(app.buttons["Delete"].firstMatch, "swipe Delete")
-        XCTAssertTrue(app.staticTexts["Delete \(name)?"].waitForExistence(timeout: 10), "no confirmation for \(name)")
+        let rowCell = cell(holding: row.identifier)
+        // The swipe actions live on the List cell; tap the open action directly (a scroll would
+        // close it).
+        // (The swipe button's identifier is its SF Symbol, "trash" — match the label.)
+        let swipeDelete = app.buttons.matching(NSPredicate(format: "label == 'Delete'")).firstMatch
+        for attempt in 0..<3 {
+            switch attempt {
+            case 0: rowCell.swipeLeft()
+            case 1: rowCell.swipeLeft(velocity: .fast)
+            default: swipeOpen(rowCell)
+            }
+            if swipeDelete.waitForExistence(timeout: 3), app.frame.contains(CGPoint(x: swipeDelete.frame.midX, y: swipeDelete.frame.midY)) { break }
+            dump("V8-swipe-\(attempt)")
+        }
+        XCTAssertTrue(swipeDelete.exists, "the trailing swipe never opened on \(name)")
+        shot("V8-red-delete-swipe-open")
+        // SwiftUI's swipe buttons report isHittable == false; tap their centre.
+        swipeDelete.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let title = app.staticTexts["Delete \(name)?"]
+        if !title.waitForExistence(timeout: 10) { dump("V8-confirm") }
+        XCTAssertTrue(title.exists, "no confirmation for \(name)")
         // Anchored: the confirmation sits by the row, not as a bottom sheet across the screen.
         let confirm = app.buttons.matching(NSPredicate(format: "label == 'Delete'")).allElementsBoundByIndex.last!
         XCTAssertLessThan(abs(confirm.frame.midY - rowY), 320, "confirmation at y=\(confirm.frame.midY), row at y=\(rowY)")

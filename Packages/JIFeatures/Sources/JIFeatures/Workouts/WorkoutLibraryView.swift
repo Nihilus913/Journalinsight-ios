@@ -166,7 +166,10 @@ public struct WorkoutLibraryView: View {
         .accessibilityIdentifier("workouts-row-\(t.templateId)")
         .swipeActions(edge: .trailing) {
             // B40-V8: the native tint turned the destructive swipe accent green, like Push to Garmin.
-            Button(role: .destructive) { pendingDelete = t } label: { Label("Delete", systemImage: "trash") }
+            // W-UITEST V8: not `role: .destructive` — on a swipe that role starts the List's own
+            // row-removal and tears down this row's confirmationDialog before it can present, so
+            // the tap did nothing. The red tint stays; the confirmation asks after the swipe closes.
+            Button { Task { @MainActor in pendingDelete = t } } label: { Label("Delete", systemImage: "trash") }
                 .tint(theme.color(.danger))
             if model.pushDisabledReason(for: t) == nil {
                 Button { Task { await model.pushToGarmin(t) } } label: { Label("Push to Garmin", systemImage: "arrow.up.circle") }

@@ -12,7 +12,8 @@
 # The hub stays a CHILD of this script (never nohup'ed / detached): Postgres.app verifies "trust"
 # clients through their parent app and refuses an orphaned process (a permission dialog).
 # Seeded fixtures (the throwaway DB only):
-#   - G-3: today's gate answered automatically ("GATED" from "Easy Run", source 'auto').
+#   - G-3: today's gate answered automatically ("GATED" from "Easy Run", source 'auto'), and the
+#     last 7 days tracked (YAZIO rows: 1900 kcal, 4 meals) so the weekly gate is decidable.
 #   - FIX9-1: the latest Apple workout with zone_time moved to today, Watch bounds fixed to
 #     <117 / 117–139 / 139–160 / 160–176 / 176+ (5 / 10 / 15 / 2 / 1 min).
 #   - UT-2: a segments-only workout template "UITest Segments Tempo" (compat steps: [], 2 segments).
@@ -48,6 +49,13 @@ INSERT INTO plan.decision_log (date, window_days, recommendation, user_choice, s
                                auto_classification, auto_activity, logged_at)
 VALUES (current_date, 7, 'GO', 'y', 'auto', 'GATED', 'Easy Run', now());
 INSERT INTO core.day (date) VALUES (current_date) ON CONFLICT DO NOTHING;
+-- G-3: a fully tracked week, so the weekly gate is not INSUFFICIENT_DATA (which hides the
+-- answer card — and with it the "Answered automatically" line — on the gate rationale).
+INSERT INTO core.day (date) SELECT current_date - i FROM generate_series(0, 6) i ON CONFLICT DO NOTHING;
+INSERT INTO core.nutrition_daily (date, kcal_consumed, protein_g, carbs_g, fat_g, meals_logged, dso_key)
+  SELECT current_date - i, 1900, 160, 180, 60, 4, 3 FROM generate_series(0, 6) i
+  ON CONFLICT (date) DO UPDATE SET kcal_consumed = GREATEST(core.nutrition_daily.kcal_consumed, 1900),
+    meals_logged = GREATEST(core.nutrition_daily.meals_logged, 4);
 CREATE TEMP TABLE z AS
   SELECT aw.activity_id FROM import.apple_workout aw JOIN core.activity a USING (activity_id)
   WHERE aw.zone_time IS NOT NULL ORDER BY a.start_time_utc DESC LIMIT 1;

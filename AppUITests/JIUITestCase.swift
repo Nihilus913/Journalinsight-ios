@@ -36,8 +36,7 @@ class JIUITestCase: XCTestCase {
     /// respond), then wait until it is gone.
     func passGate() {
         let go = app.buttons["today.decide.go"]
-        if !go.waitForExistence(timeout: 45) { dismissSystemAlert() }
-        if !go.waitForExistence(timeout: 15) {
+        if !awaitDecide() {
             // Strict in LaunchSmokeTests (UT-1); the screen tests go on from wherever the app is.
             dump("Decide")
             XCTAssertFalse(strictGate, "-JIForceGate YES did not open Decide")
@@ -47,6 +46,33 @@ class JIUITestCase: XCTestCase {
         waitForExpectations(timeout: 30)
         go.tap()
         XCTAssertTrue(go.waitForNonExistence(timeout: 15), "Decide stayed up after Go")
+    }
+
+    /// Waits for Decide's Go. Over a first launch the simulator can show HealthKit's own "Health
+    /// Access" sheet (a read request left pending by an earlier run) — the gate never comes up
+    /// under it. Decline it (HealthKit remembers) and relaunch, which re-forces the gate.
+    @discardableResult
+    func awaitDecide() -> Bool {
+        let go = app.buttons["today.decide.go"]
+        if go.waitForExistence(timeout: 30) { return true }
+        if declineHealthAccessSheet() {
+            app.terminate()
+            app.launch()
+            if go.waitForExistence(timeout: 45) { return true }
+        }
+        dismissSystemAlert()
+        return go.waitForExistence(timeout: 15)
+    }
+
+    /// HealthKit's "Health Access" sheet: scroll to its "Don’t Allow" row and tap it.
+    func declineHealthAccessSheet() -> Bool {
+        guard app.navigationBars["Health Access"].exists else { return false }
+        let no = app.staticTexts.matching(NSPredicate(format: "label IN %@", ["Don’t Allow", "Don't Allow"])).firstMatch
+        var n = 0
+        while !(no.exists && no.isHittable) && n < 12 { app.tables.firstMatch.swipeUp(); n += 1 }
+        guard no.exists && no.isHittable else { dump("Health Access sheet"); return false }
+        no.tap()
+        return app.navigationBars["Health Access"].waitForNonExistence(timeout: 10)
     }
 
     /// A system alert (notifications, local network) over the first launch: decline it.
