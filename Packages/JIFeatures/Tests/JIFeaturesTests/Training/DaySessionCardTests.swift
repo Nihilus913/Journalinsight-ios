@@ -40,7 +40,7 @@ struct DaySessionCardTests {
 
     @Test func todaysSessionAndFooter() {
         #expect(todaysStrengthSession(Self.week) == "Day 2 Full Upper")
-        #expect(dayWeekFooterText(Self.week) == "Week: 1 of 4 sessions")
+        #expect(dayWeekFooterText(Self.week) == "Week: 1 of 6 sessions")
         #expect(dayWeekFooterText(nil) == nil)
     }
 
@@ -64,7 +64,7 @@ struct DaySessionCardTests {
     }
 
     @Test func weekReviewValueCountsTheWeekOrSaysWhy() {
-        #expect(dayWeekReviewValue(Self.week) == "1 of 4 sessions")
+        #expect(dayWeekReviewValue(Self.week) == "1 of 6 sessions")
         #expect(dayWeekReviewValue(nil) == DayFooterRow.weekReview.value)
         #expect(daySessionOrdinal(Self.week) == "session 2 of 4")
         #expect(daySessionOrdinal(nil) == nil)

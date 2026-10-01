@@ -15,6 +15,10 @@ public nonisolated func offlinePillVisible(fetchedAt: Date?, hubReachable: Bool,
     return now.timeIntervalSince(fetchedAt) <= 86_400
 }
 
+/// W-FIX11 H1-15 (+H2-05): the time every offline face names — the shell's one sync instant
+/// (`jiSyncedAt`, what the sync pills say), else this screen's last fetch. Never three times.
+public nonisolated func offlinePillLastDate(syncedAt: Date?, fetchedAt: Date?) -> Date? { syncedAt ?? fetchedAt }
+
 /// "Offline · last 07:41" — the last CALL's time (the hub's, not the phone's), or "Offline" alone.
 public nonisolated func offlinePillText(lastTime: String?) -> String {
     lastTime.map { "Offline · last \($0)" } ?? "Offline"
@@ -39,9 +43,10 @@ public struct OfflinePill: View {
     let fetchedAt: Date?
     let now: Date
     @Environment(\.jiTheme) private var theme
+    @Environment(\.jiSyncedAt) private var syncedAt
     public init(fetchedAt: Date?, now: Date = Date()) { self.fetchedAt = fetchedAt; self.now = now }
 
-    private var lastTime: String? { fetchedAt.map(jiShortTime) }
+    private var lastTime: String? { offlinePillLastDate(syncedAt: syncedAt, fetchedAt: fetchedAt).map(jiShortTime) }
 
     public var body: some View {
         HStack(spacing: JISpacing.s1 + 2) {
@@ -68,6 +73,7 @@ public struct StalenessBanner: View {
     let now: Date
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
+    @Environment(\.jiSyncedAt) private var syncedAt
     public init(fetchedAt: Date?, hubReachable: Bool, now: Date = Date()) { self.fetchedAt = fetchedAt; self.hubReachable = hubReachable; self.now = now }
     public var body: some View {
         if stalenessBannerVisible(fetchedAt: fetchedAt, hubReachable: hubReachable, now: now), let fetchedAt {
@@ -75,7 +81,7 @@ public struct StalenessBanner: View {
                 Image(systemName: "wifi.exclamationmark")
                     .foregroundStyle(theme.color(.reduced))
                     .accessibilityLabel("Hub unreachable")
-                Text(stalenessBannerText(lastTime: jiShortTime(fetchedAt)))
+                Text(stalenessBannerText(lastTime: jiShortTime(offlinePillLastDate(syncedAt: syncedAt, fetchedAt: fetchedAt) ?? fetchedAt)))
                     .jiFont(.footnote).foregroundStyle(theme.color(.text))
                     .fixedSize(horizontal: false, vertical: true)
             }

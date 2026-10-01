@@ -4,8 +4,21 @@ import SwiftUI
 /// (`normal == nil` → no band, never a fake one), the last value labelled at its dot, and two
 /// axis words ("14d ago" → "today"). A sparkline with no scale is removed, not kept — this one
 /// always carries its words. `points` are oldest → newest; `nil` = a missing day (a gap).
-public nonisolated func sparklineAxisWords(count: Int) -> (start: String, end: String) {
-    (count <= 1 ? "today" : "\(count - 1)d ago", "today")
+/// W-FIX11 H1-10: `endLabel` = the last point's own day ("30 Sep") when it is not today — the axis
+/// then ends on that day, never on "today".
+public nonisolated func sparklineAxisWords(count: Int, endLabel: String? = nil) -> (start: String, end: String) {
+    guard let endLabel else { return (count <= 1 ? "today" : "\(count - 1)d ago", "today") }
+    return (count <= 1 ? endLabel : "\(count - 1)d earlier", endLabel)
+}
+
+/// W-FIX11 H1-11 (+H2-17): VoiceOver's sparkline summary. The last value keeps the data's own
+/// precision (ACWR 1.764 → "1.76", never "2") even where the caller passed 0 decimals.
+public nonisolated func sparklineAccessibilityLabel(points: [Double?], decimals: Int, unit: String?) -> String {
+    guard let last = sparklineLastValue(points) else { return "no values yet" }
+    let vals = points.compactMap { $0 }
+    let integral = vals.allSatisfy { $0.rounded() == $0 }
+    let shown = integral ? decimals : max(decimals, vals.allSatisfy { abs($0) < 10 } ? 2 : 1)
+    return "last \(jiNumber(last, shown))\(unit.map { " \($0)" } ?? ""), \(points.count) days"
 }
 
 /// The last known value (the label beside the dot); nil when nothing is known.
@@ -18,18 +31,20 @@ public struct NormalSparkline: View {
     /// The last-value label is optional: a card that already prints the value beside the line
     /// (SummaryCard) passes `false` so the number is never shown twice.
     let showsLastValue: Bool
+    /// W-FIX11 H1-10: the last point's day when it is not today (nil = the line ends today).
+    var endLabel: String? = nil
     @Environment(\.jiTheme) private var theme
     @ScaledMetric(relativeTo: .body) private var height: CGFloat = 28
 
-    public init(points: [Double?], normal: ClosedRange<Double>? = nil, tint: JIColorRole = .text, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true) {
+    public init(points: [Double?], normal: ClosedRange<Double>? = nil, tint: JIColorRole = .text, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true, endLabel: String? = nil) {
         self.points = points; self.normal = normal; self.tint = tint; self.color = nil; self.unit = unit; self.decimals = decimals
-        self.showsLastValue = showsLastValue
+        self.showsLastValue = showsLastValue; self.endLabel = endLabel
     }
 
     /// The same sparkline with a resolved colour (SummaryCard's `tint: Color`).
-    public init(points: [Double?], normal: ClosedRange<Double>? = nil, color: Color, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true) {
+    public init(points: [Double?], normal: ClosedRange<Double>? = nil, color: Color, unit: String? = nil, decimals: Int = 0, showsLastValue: Bool = true, endLabel: String? = nil) {
         self.points = points; self.normal = normal; self.tint = .text; self.color = color; self.unit = unit; self.decimals = decimals
-        self.showsLastValue = showsLastValue
+        self.showsLastValue = showsLastValue; self.endLabel = endLabel
     }
 
     private var lineColor: Color { color ?? theme.color(tint) }
@@ -59,18 +74,18 @@ public struct NormalSparkline: View {
             }
             .frame(height: height)
             HStack {
-                Text(sparklineAxisWords(count: points.count).start)
+                Text(sparklineAxisWords(count: points.count, endLabel: endLabel).start)
                 Spacer(minLength: 4)
                 if showsLastValue, let v = lastValue {
                     Text(jiNumber(v, decimals) + (unit.map { " \($0)" } ?? "")).foregroundStyle(lineColor).fontWeight(.semibold)
                 }
                 Spacer(minLength: 4)
-                Text(sparklineAxisWords(count: points.count).end)
+                Text(sparklineAxisWords(count: points.count, endLabel: endLabel).end)
             }
             .jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(lastValue.map { "last \(jiNumber($0, decimals))\(unit.map { " \($0)" } ?? ""), \(points.count) days" } ?? "no values yet")
+        .accessibilityLabel(sparklineAccessibilityLabel(points: points, decimals: decimals, unit: unit))
     }
 }
 

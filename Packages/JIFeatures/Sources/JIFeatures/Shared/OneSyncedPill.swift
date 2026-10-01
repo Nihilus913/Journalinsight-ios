@@ -6,11 +6,8 @@ import JICore
 // (`/ingestion/status` `last_sync`) and this app's last 2xx HealthKit upload, exactly what the
 // Day pill shows since W-FIX2 (`TodayViewModel.syncedAt`). Never the moment a screen fetched.
 
-extension EnvironmentValues {
-    /// The shell's one sync instant (`TodayViewModel.syncedAt`), injected by `RootTabView` on
-    /// every tab stack. `nil` when the shell has not wired it or knows neither time.
-    @Entry public var jiSyncedAt: Date? = nil
-}
+// `jiSyncedAt` (the shell's one sync instant) lives in JIDesign since W-FIX11 H1-15, so the
+// offline pill / staleness banner name the same time as this pill.
 
 /// The pill's instant: the newer of the injected shell value and the uploader's own record.
 /// `nil` ("Not synced yet") when neither is known.

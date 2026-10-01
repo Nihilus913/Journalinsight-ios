@@ -95,6 +95,22 @@ private func makeLibrary(_ hub: FakeWorkoutHub, db: AppDatabase? = nil) throws -
         #expect(vm.summaryLine == "2 workouts")
     }
 
+    /// W-FIX11 H1-20: the count follows the filter ("4 workouts" never sits over "None in this filter").
+    @Test func h1_20_summaryCountsTheFilteredList() async throws {
+        let hub = FakeWorkoutHub(rows: [run("Zone 2", id: 1), run("Tempo", id: 2), strengthRun("Friday", id: 3)])
+        let (vm, _, _) = try makeLibrary(hub)
+        await vm.load()
+        #expect(vm.summaryLine == "3 workouts")
+        vm.filter = .strengthRun
+        #expect(vm.summaryLine == "1 of 3 workouts")
+        vm.filter = .running
+        #expect(vm.summaryLine == "2 of 3 workouts")
+        let (empty, _, _) = try makeLibrary(FakeWorkoutHub(rows: [run("Zone 2", id: 1)]))
+        await empty.load()
+        empty.filter = .strengthRun
+        #expect(empty.summaryLine == nil)
+    }
+
     // MARK: X-1 (exit-plan change 1, XC half) — an empty local library never overwrites the hub
 
     @Test func firstLaunchWithAnEmptyLocalLibrarySendsNoWrite() async throws {

@@ -136,6 +136,8 @@ struct RootTabView: View {
     // for the Backup row) the moment the sheet opens and dropped on dismiss so a saved hub
     // config or a changed KPI selection is re-read next time.
     @State private var showSettings = false
+    /// W-FIX11 H2-20: More › Apple Health opens the Apple Health screen itself (not the Settings root).
+    @State private var showAppleHealth = false
     /// B-46 item 10: "My KPIs" is presented, never pushed — see the toolbar button's comment.
     @State private var showKpiList = false
     /// W-FIX2 BUG-21: the My KPIs sheet's own stack — a square pushes its detail inside the sheet.
@@ -430,6 +432,13 @@ struct RootTabView: View {
                 // W-FIX5 fixer: Settings → My KPIs / Gate thresholds read the same recovery insight
                 // (Load square, onboarding nights) as the tab stacks — a sheet does not inherit it.
                 shellStackEnvironment(SettingsView(model: settingsModel))
+            } else {
+                ProgressView().task { settingsModel = await makeSettingsModel() }
+            }
+        }
+        .sheet(isPresented: $showAppleHealth, onDismiss: { settingsModel = nil }) {
+            if let settingsModel {
+                shellStackEnvironment(SettingsRowShortcut(model: settingsModel, rowId: "health"))
             } else {
                 ProgressView().task { settingsModel = await makeSettingsModel() }
             }
@@ -821,7 +830,7 @@ struct RootTabView: View {
                 }
                 JISectionHeader("App")
                 moreCard {
-                    Button { showSettings = true } label: {
+                    Button { showAppleHealth = true } label: {
                         JIChevronRow {
                             MoreRowLabel("Apple Health", systemImage: "heart.text.square",
                                          value: MoreRowValue(lead: moreAppleHealthText(lastUpload: healthKitLastUploadDate(),
@@ -1074,6 +1083,7 @@ struct RootTabView: View {
                 if let trainingModel {
                     TrainingView(model: trainingModel)
                         .environment(\.sendToWatchModel, sendToWatchModel)
+                        .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
                 } else {
                     ProgressView()
                         .task {
@@ -1327,6 +1337,7 @@ struct RootTabView: View {
         .navigationSubtitle(Self.gateShowsDateSubtitle ? Date().formatted(.dateTime.weekday(.wide).day().month(.wide)) : "")
         .navigationBarTitleDisplayMode(Self.gateShowsDateSubtitle ? .automatic : .inline)
         .accessibilityIdentifier("today.gate")
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15
         .task { if !model.hasLiveResult { await model.load() } }
         // W-UITEST G-3: the gate's respond model, seeded with the hub's answer (as `TodayView` does).
         .onChange(of: model.gate?.recommendation, initial: true) { _, recommendation in
@@ -1336,7 +1347,7 @@ struct RootTabView: View {
         .onChange(of: model.morning?.gateAnswer) { _, fresh in gateRespondModel?.seed(fresh) }
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
             guard let verdictOverrideModel else { return }
-            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+            verdictOverrideModel.seedFromHub(fresh)   // W-FIX11 H1-02: never wipes this device's newer call
         }
     }
 

@@ -83,3 +83,67 @@ final class Fix9Fix10ScreenTests: JIUITestCase {
         return (weight?["target_kg"] as? NSNumber)?.doubleValue ?? -1
     }
 }
+
+/// W-FIX11 lane A (sim bug hunt 2026-10-01): the user's call survives Go, and every screen says it.
+final class Fix11DecideTests: JIUITestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        launch()
+    }
+
+    /// H1-01 (S1) + H1-02 / H1-05: Adjust → Rest → Save shows Rest on Today at once; a relaunch
+    /// (forced gate) → Go keeps Rest on the hub and on Today; Training's header says Rest.
+    func testH1_01_adjustRestThenGoKeepsRest() throws {
+        // The first launch of a run can come up without Decide (the simulator's first-instance
+        // quirk, bug hunt 2026-10-01): relaunch once — the gate is forced on every launch.
+        if !awaitDecide() { app.terminate(); app.launch() }
+        XCTAssertTrue(awaitDecide(), "-JIForceGate YES did not open Decide")
+        let adjust = app.buttons["today.decide.adjust"]
+        guard adjust.waitForExistence(timeout: 10) else { throw XCTSkip("the fixture day is a rest day — no Adjust") }
+        expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: adjust)
+        waitForExpectations(timeout: 30)
+        adjust.tap()
+        tapId("today.decide.adjust.choice.rest")
+        tapId("today.decide.adjust.reason.Schedule constraint")
+        tapId("today.decide.adjust.save")
+        XCTAssertTrue(app.buttons["today.decide.go"].waitForNonExistence(timeout: 20), "Decide stayed up after Save")
+        // H1-02: Today shows the call at once (no relaunch).
+        let summary = el("today.morning.summary")
+        XCTAssertTrue(summary.waitForExistence(timeout: 20), "no morning summary line after Save")
+        XCTAssertTrue(summary.label.contains("Rest"), "Today after Save: \(summary.label)")
+        shot("H1-02-today-after-save")
+        // H1-01: relaunch (Decide forced again, showing Rest) → Go.
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(awaitDecide(), "the relaunch did not re-open Decide")
+        let go = app.buttons["today.decide.go"]
+        expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: go)
+        waitForExpectations(timeout: 30)
+        go.tap()
+        XCTAssertTrue(go.waitForNonExistence(timeout: 15), "Decide stayed up after Go")
+        sleep(2)
+        let morning = try hubGet("/api/v1/planning/morning") as? [String: Any]
+        let choice = (morning?["verdict_override"] as? [String: Any])?["choice"] as? String
+        XCTAssertEqual(choice, "rest", "the hub's override after Go")
+        XCTAssertTrue(summary.waitForExistence(timeout: 20))
+        XCTAssertTrue(summary.label.contains("Rest"), "Today after Go: \(summary.label)")
+        shot("H1-01-today-after-go")
+        // H1-05: Training agrees.
+        tab("Training")
+        let header = el("training-date-header")
+        XCTAssertTrue(header.waitForExistence(timeout: 20))
+        XCTAssertFalse(header.label.contains("Modified"), "Training header: \(header.label)")
+        XCTAssertTrue(header.label.contains("Rest"), "Training header: \(header.label)")
+        shot("H1-05-training-after-rest")
+    }
+
+    /// H1-06 (S2): VoiceOver reads Decide's verdict word as the word, the ring keeps its own label.
+    func testH1_06_decideVerdictWordIsReadAsTheWord() {
+        XCTAssertTrue(awaitDecide(), "-JIForceGate YES did not open Decide")
+        let word = el("today.decide.verdictWord")
+        XCTAssertTrue(word.waitForExistence(timeout: 20), "no verdict word element")
+        XCTAssertFalse(word.label.hasPrefix("Readiness"), "verdict word label: \(word.label)")
+        XCTAssertTrue(["Full", "Modified", "Rest"].contains { word.label.hasPrefix($0) }, "verdict word label: \(word.label)")
+        XCTAssertTrue(el("today.decide.readinessRing").exists, "the ring lost its own element")
+    }
+}

@@ -54,6 +54,22 @@ public final class VerdictOverrideViewModel {
     /// Re-seed from a fresher `/morning` (does not touch `phase`).
     public func seed(_ override: VerdictOverride?) { current = override }
 
+    /// W-FIX11 H1-02: the `/morning` re-seed Today and the gate screen apply. Once this device has
+    /// made a call (`.logged` / `.queued`), a `/morning` that does not carry it yet — no row, a row
+    /// for another date, or an older row — never wipes it (it used to: Today showed the hub verdict
+    /// after Adjust → Save until a relaunch). A newer row (another device's call) still wins.
+    public func seedFromHub(_ fresh: VerdictOverride?) {
+        if phase == .logged || phase == .queued, let mine = current {
+            guard let fresh, fresh.date == mine.date else { return }
+            if let theirs = parseHubTimestamp(fresh.createdAt) {
+                if let ours = parseHubTimestamp(mine.createdAt), theirs < ours { return }
+            } else if fresh != mine {
+                return   // an undated hub row cannot be newer than this device's own call
+            }
+        }
+        current = fresh
+    }
+
     /// Go = `.accept`; Adjust = `.full` / `.modified` / `.rest` + a reason. `optimisticSession` is
     /// what `current.session` shows while the row is only queued (see `localOverrideSession`).
     @discardableResult

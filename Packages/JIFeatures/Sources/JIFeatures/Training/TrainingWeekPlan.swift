@@ -53,9 +53,21 @@ public nonisolated struct TrainingWeekSummary: Sendable, Equatable {
 
     public var matchesPlan: Bool { planTotal > 0 && assigned == planTotal }
 
+    /// W-FIX11 H1-14: the week's count is the strip's — every session day placed this week
+    /// (strength, intervals, long run), not the plan's strength total (which can be unreachable when
+    /// a session has no day), and a done day of any kind counts.
+    public var weekSessionDays: Int { days.filter { $0.kind != .rest }.count }
+    public var weekTotal: Int { weekSessionDays > 0 ? weekSessionDays : planTotal }
+    /// nil = unknown (no gate row this week and nothing marked done) — never a zero.
+    public var weekDone: Int? {
+        let done = days.filter { $0.kind != .rest && $0.done == true }.count
+        return planDone == nil && done == 0 ? nil : done
+    }
+    public var weekCountText: String { "\(weekDone.map(String.init) ?? "—") of \(weekTotal)" }
+
     public var doneText: String {
         guard planTotal > 0 else { return "No plan yet" }
-        return "\(planDone.map(String.init) ?? "—") of \(planTotal) done"
+        return "\(weekCountText) done"
     }
 
     public var nextSessionLabel: String? {

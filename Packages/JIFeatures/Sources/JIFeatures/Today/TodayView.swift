@@ -97,11 +97,12 @@ public struct TodayView: View {
         }
         .animation(JIMotion.standard, value: showMorningReview)
         .environment(\.gateRespondModel, gateRespondModel)
+        .environment(\.jiHubOffline, !model.hubReachable)   // W-FIX11 H1-15: no green check while offline
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
             // A fresher `/morning` re-seeds the device's view of the call — except while this
             // device's own write is only queued and the hub has not seen it yet.
             guard let verdictOverrideModel else { return }
-            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+            verdictOverrideModel.seedFromHub(fresh)   // W-FIX11 H1-02: never wipes this device's newer call
         }
     }
 
@@ -469,7 +470,8 @@ public struct TodayView: View {
 
     /// B-57 §9 Coach: the one change for today, built from the DTOs this screen already holds.
     private var coachContent: CoachContent {
-        CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery)
+        CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery,
+                                  override: currentOverride, verdictReason: model.verdictReason, today: model.verdictDate)
     }
 
     private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
