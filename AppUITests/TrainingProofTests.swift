@@ -50,14 +50,14 @@ final class TrainingProofTests: JIUITestCase {
         shot("V6-send-to-watch-segments-only")
     }
 
-    /// B40-V7: the library row's swipe "Send to Watch" opens the sheet with that workout picked.
+    /// B40-V7: the library row's menu "Send to Watch" opens the sheet with that workout picked.
     func testV7_librarySendToWatch() {
         openLibrary()
         let row = element(idPrefix: "workouts-row-", labelContains: Self.segmentsOnly)
         reveal(row, "library row \(Self.segmentsOnly)")
         let id = row.identifier.replacingOccurrences(of: "workouts-row-", with: "")
-        swipeOpen(row)
-        tap(app.buttons["Send to Watch"].firstMatch, "swipe Send to Watch")
+        row.press(forDuration: 1.2)   // the row's context menu carries Send to Watch
+        tap(app.buttons["Send to Watch"].firstMatch, "menu Send to Watch")
         let picked = el("send-to-watch-template-\(id)")
         reveal(picked, "Send to Watch sheet on \(Self.segmentsOnly)", timeout: 20)
         XCTAssertEqual(picked.value as? String, "Selected")
@@ -72,7 +72,8 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: name)
         reveal(row, "library row \(name)")
         let rowY = row.frame.midY
-        swipeOpen(row)
+        row.swipeLeft()
+        if !app.buttons["Delete"].firstMatch.waitForExistence(timeout: 3) { swipeOpen(row) }
         tap(app.buttons["Delete"].firstMatch, "swipe Delete")
         XCTAssertTrue(app.staticTexts["Delete \(name)?"].waitForExistence(timeout: 10), "no confirmation for \(name)")
         // Anchored: the confirmation sits by the row, not as a bottom sheet across the screen.

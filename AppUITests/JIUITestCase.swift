@@ -37,8 +37,12 @@ class JIUITestCase: XCTestCase {
     func passGate() {
         let go = app.buttons["today.decide.go"]
         if !go.waitForExistence(timeout: 45) { dismissSystemAlert() }
-        if !go.waitForExistence(timeout: 15) { dump("Decide") }
-        XCTAssertTrue(go.exists, "-JIForceGate YES did not open Decide")
+        if !go.waitForExistence(timeout: 15) {
+            // Strict in LaunchSmokeTests (UT-1); the screen tests go on from wherever the app is.
+            dump("Decide")
+            XCTAssertFalse(strictGate, "-JIForceGate YES did not open Decide")
+            return
+        }
         expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: go)
         waitForExpectations(timeout: 30)
         go.tap()
@@ -72,6 +76,9 @@ class JIUITestCase: XCTestCase {
     func cell(holding id: String) -> XCUIElement {
         app.cells.containing(NSPredicate(format: "identifier == %@", id)).firstMatch
     }
+
+    /// Whether a missing Decide fails the test (UT-1 smoke) or is only recorded (screen tests).
+    var strictGate: Bool { false }
 
     func tab(_ name: String) {
         let b = app.tabBars.buttons[name]
@@ -154,6 +161,7 @@ class JIUITestCase: XCTestCase {
 
 /// UT-1: the target runs — the forced gate opens on launch against the fixture hub, Go clears it.
 final class LaunchSmokeTests: JIUITestCase {
+    override var strictGate: Bool { true }
     func testForcedGateOpensAndGoClearsIt() {
         launch()
         passGate()
