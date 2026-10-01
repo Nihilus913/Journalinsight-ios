@@ -30,7 +30,7 @@ public nonisolated struct SessionType: RawRepresentable, Hashable, Sendable {
 }
 
 /// `SESSION_BY_WEEKDAY`'s `(name, type)` tuple as a named value.
-public nonisolated struct PlannedSession: Hashable, Sendable {
+public nonisolated struct GateSession: Hashable, Sendable {
     public let name: String
     public let type: SessionType
 

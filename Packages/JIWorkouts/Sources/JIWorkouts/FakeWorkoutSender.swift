@@ -24,9 +24,6 @@ public actor FakeWorkoutSender: WorkoutSending {
         self.error = error
     }
 
-    public func setAuthorizationResult(_ granted: Bool) { authorizationResult = granted }
-    public func setError(_ error: (any Error)?) { self.error = error }
-
     public func requestAuthorization() async throws -> Bool {
         calls.append(.requestAuthorization)
         if let error { throw error }

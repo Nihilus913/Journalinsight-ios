@@ -40,16 +40,26 @@ public final class TrainingViewModel {
     /// without a rollback, because the optimistic row is persisted either way.
     private let outbox: Outbox?
     private let drainer: OutboxDrainer?
+    /// W-B40 L3 (B-82): the B-40 workout library the day picker offers and the day preview reads
+    /// (a library workout's day is its `weekdays`). Built over the same provider, cache and outbox
+    /// when the provider serves the library routes (`HubDataProvider` does); nil otherwise — the
+    /// picker then offers the plan sessions only and says why.
+    public let library: WorkoutLibraryViewModel?
     /// B-57 W5: public so the App snapshot writer, `ProgressionService` and `cachedWeekSummary`
     /// read the same cached rows (B-52) this screen writes.
     public nonisolated static let cacheKeys = (
         gate: "training.gate", morning: "training.morning", exercises: "training.exercises",
-        planSessions: "training.planSessions"
+        planSessions: "training.planSessions",
+        allPlanSessions: "training.allPlanSessions"
     )
     private static let keys = cacheKeys
     private var everSynced = false
     private var neverSyncedObserved = false
     private var dayDetailTask: Task<Void, Never>?
+    /// B40-V5: set by a day-sheet change; the day detail's `planned_session` (joined server-side
+    /// BEFORE the change) is ignored until a clean live day fetch replaces it, so the hero never
+    /// shows — or starts — the session that was just moved away, online or queued offline.
+    private var plannedSessionEditedLocally = false
 
     /// Per-exercise "arm the reversal confirm / show a save failure" UI state — keyed by
     /// `exerciseId`, read by `LiftSteppers`. Kept on the VM (not local `@State` in the view) so a
@@ -75,6 +85,11 @@ public final class TrainingViewModel {
     /// rows stay the source for which lifts a session contains.
     public private(set) var planSessions: [PlanSessionOut] = []
 
+    /// W-B40 fixer (B40-V1): the hub's whole plan (`GET /planning/plan-sessions`), cardio and rest
+    /// included — the day sheet changes those through the same `plan_weekday` write. Empty = an
+    /// older hub / never fetched: the cardio days then follow the morning-call schedule.
+    public private(set) var allPlanSessions: [PlanSessionOut] = []
+
     /// B-45 (a): the REAL device day this screen is being looked at on — never the hub's
     /// `verdict_date`, which is whatever day `scripts/morning_go.py` last wrote a verdict on.
     public var todayDate: Date { now() }
@@ -92,10 +107,13 @@ public final class TrainingViewModel {
     /// the source of truth (it joins `plan_session.weekday` server-side); a hub without the field
     /// falls back to the weekday carried on the plan rows themselves, and only then to nothing.
     public var plannedSessionForSelectedDay: PlannedSession? {
-        if let planned = dayDetail?.plannedSession, dayDetail?.date == selectedDate { return planned }
+        if !plannedSessionEditedLocally, let planned = dayDetail?.plannedSession, dayDetail?.date == selectedDate { return planned }
         guard let weekday = selectedPlanWeekday else { return nil }
-        guard let row = exercises.first(where: { $0.weekday == weekday }) else { return nil }
-        return PlannedSession(id: row.sessionId ?? row.exerciseId, name: row.sessionName, weekday: weekday)
+        if let row = exercises.first(where: { $0.weekday == weekday }) {
+            return PlannedSession(id: row.sessionId ?? row.exerciseId, name: row.sessionName, weekday: weekday)
+        }
+        guard plannedSessionEditedLocally, let session = allPlanSessions.first(where: { $0.weekday == weekday }) else { return nil }
+        return PlannedSession(id: session.id, name: session.name, weekday: weekday)
     }
 
     /// Mon = 0 … Sun = 6 for `selectedDate`, computed in the same UTC calendar the day keys use.
@@ -112,11 +130,15 @@ public final class TrainingViewModel {
         selectedDate: String? = nil,
         outbox: Outbox? = nil,
         drainer: OutboxDrainer? = nil,
+        library: WorkoutLibraryViewModel? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.provider = provider; self.healthProvider = healthProvider; self.cache = cache
         self.strengthStore = strengthStore; self.now = now
         self.outbox = outbox; self.drainer = drainer
+        self.library = library ?? (provider as? any WorkoutLibraryProviding).map {
+            WorkoutLibraryViewModel(provider: $0, cache: cache, outbox: outbox, now: now)
+        }
         self.selectedDate = selectedDate ?? String(now().ISO8601Format().prefix(10))
     }
 
@@ -139,8 +161,21 @@ public final class TrainingViewModel {
     /// B-57 W5: this week, from the rows on screen (updates with every optimistic assignment).
     /// W-FIX7 F7-1: today's day is done when Apple Health holds a matching workout today.
     public var weekSummary: TrainingWeekSummary {
-        trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString)
-            .applyingTodayWorkouts(todayWorkouts.workouts)
+        trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString,
+                            otherSessions: allPlanSessions, templates: library?.templates ?? [])
+            .applyingTodayWorkouts(todaysWorkouts)
+    }
+
+    /// W-FIX9 fixer (verify r1 FIX9V-2): today's `/training/day/{today}` activities (Garmin + Apple
+    /// dso 4), kept whichever day is selected — the second source Today already reads (G1).
+    public private(set) var todayHubActivities: [DayActivity] = []
+    /// W-SSOT-1 SS-2: the hub's completion for today (`/training/day` `completion`), preferred when present.
+    public private(set) var todayHubCompletion: HubCompletion?
+
+    /// Today's workouts from BOTH sources — Apple Health on the phone and the hub's rows — by the
+    /// same `TodayWorkout.merging` Today uses, so Training and Today never disagree on "done".
+    public var todaysWorkouts: [TodayWorkout] {
+        TodayWorkout.merging(local: todayWorkouts.workouts, hub: todayHubActivities)
     }
 
     /// W-FIX7 F7-1: the shared Apple Health workouts model (a seam for tests).
@@ -150,7 +185,7 @@ public final class TrainingViewModel {
     public var selectedDayCompletion: SessionCompletion {
         guard selectedDate == todayDateString,
               let day = weekSummary.days.first(where: { $0.isToday }) else { return .none }
-        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todayWorkouts.workouts)
+        return SessionCompletion.resolve(planned: day.plannedSessionKind, workouts: todaysWorkouts, hub: todayHubCompletion)
     }
 
     /// W-FIX7 fixer: today's Apple Health workouts for the "This day" card — none for any other day.
@@ -167,7 +202,10 @@ public final class TrainingViewModel {
         guard !exercises.isEmpty || !sessions.isEmpty else { return nil }
         let gate = (try? cache.get(cacheKeys.gate, as: GateResponse.self))?.value
             ?? (try? cache.get("today.gate", as: GateResponse.self))?.value
-        return trainingWeekSummary(planSessions: sessions, exercises: exercises, daily: gate?.daily ?? [], today: today)
+        let all = (try? cache.get(cacheKeys.allPlanSessions, as: [PlanSessionOut].self))?.value ?? []
+        let templates = (try? cache.get(WorkoutLibraryViewModel.cacheKey, as: [WorkoutTemplate].self))?.value ?? []
+        return trainingWeekSummary(planSessions: sessions, exercises: exercises, daily: gate?.daily ?? [], today: today,
+                                   otherSessions: all, templates: templates)
     }
 
     public func load() async {
@@ -176,12 +214,17 @@ public final class TrainingViewModel {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        loadTodayHubIfOtherDaySelected()
+        // B-82: the library loads from its cache first, drains its queued day changes, re-reads.
+        await library?.load()
     }
 
     public func refresh() async {
         reconcilePendingSync()
         await fetchLive()
         loadDay(for: selectedDate)
+        loadTodayHubIfOtherDaySelected()
+        await library?.load()
     }
 
     /// Day-strip tap-through (E15-10 in the oracle): re-queries `dayDetail` for the tapped date
@@ -193,7 +236,19 @@ public final class TrainingViewModel {
         loadDay(for: date)
     }
 
+    /// FIX9V-2: with another day selected, today's hub rows still load (same cache key as the day detail).
+    private func loadTodayHubIfOtherDaySelected() {
+        let today = todayDateString
+        guard selectedDate != today else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let result = try? await SectionLoader.load(key: "training.day.\(today)", cache: self.cache) { try await self.provider.trainingDay(date: today) }
+            if let value = result?.value, self.todayDateString == today { self.todayHubActivities = value.activities; self.todayHubCompletion = value.completion }
+        }
+    }
+
     private func restoreFromCache() {
+        if let d = try? cache.get("training.day.\(todayDateString)", as: TrainingDayDetail.self) { todayHubActivities = d.value.activities; todayHubCompletion = d.value.completion }
         if let g = try? cache.get(Self.keys.gate, as: GateResponse.self) { gate = g.value; fetchedAt = g.fetchedAt; everSynced = true }
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) { morning = m.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
@@ -201,6 +256,7 @@ public final class TrainingViewModel {
         // cold launch with no hub still shows which session is trained on which day — including a
         // weekday assigned while offline and still sitting in the outbox.
         if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
+        if let a = try? cache.get(Self.keys.allPlanSessions, as: [PlanSessionOut].self) { allPlanSessions = a.value }
         if gate != nil { phase = .loaded }
         if gate != nil || morning != nil || !exercises.isEmpty { }
     }
@@ -249,6 +305,7 @@ public final class TrainingViewModel {
             }
         }
         fetchedAt = g.fetchedAt ?? fetchedAt
+        await fetchAllPlanSessions()
 
         let sectionErrors = [g.error, m.error, e.error].compactMap { $0 }
         let representative = sectionErrors.first { if case .unauthorized = $0 { return true }; return false }
@@ -285,7 +342,11 @@ public final class TrainingViewModel {
             guard let self else { return }
             let result = try? await SectionLoader.load(key: "training.day.\(date)", cache: self.cache) { try await self.provider.trainingDay(date: date) }
             guard !Task.isCancelled else { return }
-            if let value = result?.value { self.dayDetail = value }
+            if let value = result?.value {
+                self.dayDetail = value
+                if date == self.todayDateString { self.todayHubActivities = value.activities; self.todayHubCompletion = value.completion }
+            }
+            if let result, result.error == nil, !result.stale { self.plannedSessionEditedLocally = false }
             self.dayDetailLoading = false
         }
     }
@@ -328,6 +389,7 @@ public final class TrainingViewModel {
 
         let previousExercises = exercises
         let previousSessions = planSessions
+        let previousAll = allPlanSessions
         applyAssignment(sessionId: sessionId, sessionName: sessionName, weekday: weekday)
         persistPlan()
 
@@ -337,7 +399,7 @@ public final class TrainingViewModel {
             // losing the tap would be the worse lie of the two.
             do { _ = try await provider.updatePlanSessionWeekday(sessionId: sessionId, weekday: weekday) }
             catch {
-                if isRefusal(error) { rollBack(to: previousExercises, previousSessions, sessionId: sessionId) }
+                if isRefusal(error) { rollBack(to: previousExercises, previousSessions, previousAll, sessionId: sessionId) }
                 else { pendingSessionSync.insert(sessionId) }
             }
             return
@@ -349,7 +411,7 @@ public final class TrainingViewModel {
         ) else {
             // The queue itself is unwritable (disk full, DB locked). That is a real failure to
             // record the intent, not an offline moment, and must not masquerade as pending.
-            rollBack(to: previousExercises, previousSessions, sessionId: sessionId)
+            rollBack(to: previousExercises, previousSessions, previousAll, sessionId: sessionId)
             return
         }
         pendingSessionSync.insert(sessionId)
@@ -359,7 +421,7 @@ public final class TrainingViewModel {
         let results = await drainer.drainOnce()
         if case .failure(let error)? = results[rowId], isRefusal(error) {
             try? outbox.markSent(id: rowId)   // retire a row the hub will never accept
-            rollBack(to: previousExercises, previousSessions, sessionId: sessionId)
+            rollBack(to: previousExercises, previousSessions, previousAll, sessionId: sessionId)
         }
         reconcilePendingSync()
     }
@@ -397,15 +459,95 @@ public final class TrainingViewModel {
         }
     }
 
+    // MARK: - B-82 day-first
+
+    public enum DayChangeResult: Equatable, Sendable {
+        /// The hub has it.
+        case saved
+        /// On this phone, queued for the hub (shown at once, marked "Waiting to sync").
+        case queued
+        /// The hub refused it — said out loud, that row rolled back.
+        case refused(String)
+    }
+
+    /// The plan-session spine the day flow reads (cached ids first, including an offline pick),
+    /// plus the plan's cardio / rest sessions when the hub lists them (B40-V1).
+    var daySpine: [WeekSpineEntry] {
+        trainingDaySpine(strength: weekSpine(planSessions: planSessions, exercises: exercises), sessions: allPlanSessions)
+    }
+
+    /// B40-V1: refresh the whole-plan list. Optional on every count — an older hub (no route) or
+    /// an unreachable one keeps what is cached; a still-queued weekday is never undone.
+    private func fetchAllPlanSessions() async {
+        guard let fresh = try? await provider.planSessions() else { return }
+        allPlanSessions = Self.mergePendingWeekdays(into: fresh, pending: pendingSessionSync, previous: allPlanSessions)
+        try? cache.put(Self.keys.allPlanSessions, allPlanSessions)
+    }
+
+    /// What day `weekday` (Mon = 0) holds this week — strength sessions with their lifts, the
+    /// library workouts on it, or the morning-call schedule's fixed session; empty = rest.
+    public func dayPreview(weekday: Int) -> TrainingDayPreview {
+        let day = weekSummary.days.first { $0.weekday == weekday }
+            ?? TrainingWeekDay(weekday: weekday, date: "", kind: .rest, sessionName: nil, sessionId: nil, done: nil, isToday: false)
+        return trainingDayPreview(day: day, spine: daySpine, exercises: exercises, templates: library?.templates ?? [])
+    }
+
+    /// The picker for day `weekday`: the plan sessions and the whole workout library.
+    public func dayOptions(weekday: Int) -> TrainingDayOptions {
+        trainingDayOptions(weekday: weekday, spine: daySpine, templates: library?.templates ?? [])
+    }
+
+    /// true while this entry's day change is queued and not yet accepted by the hub.
+    public func isPending(_ entry: TrainingDayPreview.Entry) -> Bool {
+        switch entry {
+        case .strength(let id?, _, _), .session(let id, _, _): pendingSessionSync.contains(id)
+        case .template(let t): t.templateId < 0 || (library?.pendingTemplateIds.contains(t.templateId) ?? false)
+        case .strength(nil, _, _), .scheduled: false
+        }
+    }
+
+    /// B-82: put `adding` on day `weekday` and/or take `removing` off it. Every write is
+    /// offline-first — a plan session through `assignSession` (Outbox `plan_weekday`), a library
+    /// workout through the library's queued template write (Outbox `workout_template`) — so an
+    /// unreachable hub queues and the day shows the change at once. A refusal stops the rest.
+    public func changeDay(weekday: Int, adding: TrainingDayChoice?, removing: TrainingDayPreview.Entry?) async -> DayChangeResult {
+        let writes = trainingDayWrites(weekday: weekday, adding: adding, removing: removing,
+                                       spine: daySpine, templates: library?.templates ?? [])
+        var queued = false
+        for write in writes {
+            switch write {
+            case .sessionWeekday(let id, let name, let day):
+                await assignSession(sessionId: id, sessionName: name, weekday: day)
+                if sessionAssignFailed.contains(id) { return .refused("The hub refused moving \(name). It stays where it was.") }
+                if pendingSessionSync.contains(id) { queued = true }
+            case .templateWeekdays(let template, let days):
+                guard let library else { return .refused("The workout library isn't available here — nothing was changed.") }
+                var draft = WorkoutTemplateDraft(template)
+                draft.weekdays = days
+                switch await library.save(draft, editing: template) {
+                case .saved: break
+                case .queued: queued = true
+                case .refused(let why): return .refused(why)
+                }
+            }
+        }
+        if !writes.isEmpty {
+            plannedSessionEditedLocally = true
+            loadDay(for: selectedDate)
+        }
+        return queued ? .queued : .saved
+    }
+
     /// The hub refused THIS row (4xx other than 401, or an old hub with no such route) — as
     /// opposed to being unreachable, which is what the outbox exists for.
     private func isRefusal(_ error: Error) -> Bool {
         OutboxDrainer.isPermanentRejection(error) || error is PlanSessionUpdateUnavailable
     }
 
-    private func rollBack(to rows: [Exercise], _ sessions: [PlanSessionOut], sessionId: Int) {
+    private func rollBack(to rows: [Exercise], _ sessions: [PlanSessionOut], _ all: [PlanSessionOut], sessionId: Int) {
         exercises = rows
         planSessions = sessions
+        allPlanSessions = all
         pendingSessionSync.remove(sessionId)
         sessionAssignFailed.insert(sessionId)
         persistPlan()
@@ -414,11 +556,18 @@ public final class TrainingViewModel {
     private func persistPlan() {
         try? cache.put(Self.keys.exercises, exercises)
         try? cache.put(Self.keys.planSessions, planSessions)
+        try? cache.put(Self.keys.allPlanSessions, allPlanSessions)
     }
 
     /// The optimistic mutation itself, over both the exercise rows (so the Plan list re-labels)
     /// and the plan-session spine (so the week strip and the cached set agree).
     private func applyAssignment(sessionId: Int, sessionName: String, weekday: Int?) {
+        // B40-V1: the whole-plan list follows every move; a cardio / rest session lives ONLY there
+        // (it must never become a strength row of the week strip's spine).
+        if let i = allPlanSessions.firstIndex(where: { $0.id == sessionId }) {
+            allPlanSessions[i].weekday = weekday
+            if trainingSessionKind(type: allPlanSessions[i].sessionType, name: allPlanSessions[i].name) != .strength { return }
+        }
         exercises = exercises.map { row in
             guard row.sessionId == sessionId || (row.sessionId == nil && row.sessionName == sessionName) else { return row }
             var updated = row
@@ -502,7 +651,8 @@ public extension TrainingWeekDay {
     nonisolated var plannedSessionKind: PlannedSessionKind {
         switch kind {
         case .strength: .strength
-        case .interval, .longRun: .cardio
+        case .interval: .interval   // W-FIX9 (audit F3): a walk never completes an interval day
+        case .longRun: .cardio
         case .rest: .rest
         }
     }

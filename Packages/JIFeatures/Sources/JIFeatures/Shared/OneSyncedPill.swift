@@ -1,5 +1,6 @@
 import SwiftUI
 import JIDesign
+import JICore
 
 // W-FIX4 L2 (PF-04): one sync-pill rule for every screen — the newer of the hub's last sync
 // (`/ingestion/status` `last_sync`) and this app's last 2xx HealthKit upload, exactly what the
@@ -31,7 +32,7 @@ public struct OneSyncedPill: View {
 
     public var body: some View {
         SyncedPill(date: oneSyncPillDate(injected: injected,
-                                         lastUpload: parseHubTimestamp(uploadRecord?.string(forKey: "hk.upload.lastSuccess"))),
+                                         lastUpload: parseHubTimestamp(uploadRecord?.string(forKey: PrefKeys.hkLastUploadSuccess))),
                    label: label)
     }
 }
@@ -40,5 +41,5 @@ public struct OneSyncedPill: View {
 /// W-GUI M1: the uploader's last 2xx HealthKit upload (`hk.upload.lastSuccess`, App Group) as a
 /// date — the same record the pill reads; nil when there has never been one.
 public nonisolated func healthKitLastUploadDate(_ record: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight")) -> Date? {
-    parseHubTimestamp(record?.string(forKey: "hk.upload.lastSuccess"))
+    parseHubTimestamp(record?.string(forKey: PrefKeys.hkLastUploadSuccess))
 }

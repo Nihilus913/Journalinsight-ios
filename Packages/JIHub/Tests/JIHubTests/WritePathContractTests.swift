@@ -118,12 +118,6 @@ extension HubClientTests {
     private static let reviewedWrites: [String: String] = [
         "HubDataProvider+Targets.swift: PUT /api/v1/planning/targets":
             "full replace — goals-empty guard above (preflight GET + hub 409)",
-        "HubDataProvider+Goals.swift: PUT /api/v1/planning/goals":
-            "retired route (hub 405); a GoalsUpdate is a patch: nil fields are omitted, not cleared",
-        "HubDataProvider+GateSettings.swift: PUT /api/v1/planning/gate-settings":
-            "retired route (hub 405); fallback only when /planning/targets is missing",
-        "HubDataProvider+KpiTargets.swift: PUT /api/v1/planning/kpi-targets/\\(id)":
-            "retired route (hub 405); keyed single row with a required threshold",
         "HubDataProvider+Training.swift: PUT /api/v1/planning/exercises/\\(exerciseId)":
             "keyed patch of one exercise",
         "HubDataProvider+Training.swift: PUT /api/v1/planning/plan-sessions/\\(sessionId)":
@@ -134,6 +128,17 @@ extension HubClientTests {
         "HubDataProvider+VerdictOverride.swift: POST /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+VerdictOverride.swift: DELETE /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+Push.swift: POST /api/v1/planning/push-token": "upsert this device's token",
+        // W-B40 X-1 (XC half): the workout library's writes — see HubDataProviderWorkoutsTests.
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates":
+            "create one template; a segment-less draft is refused before sending (WorkoutTemplateWouldClear)",
+        "HubDataProvider+Workouts.swift: PUT /api/v1/planning/workout-templates/\\(id)":
+            "keyed replace of one template; a segment-less draft is refused before sending (hub: ≥1 segment)",
+        "HubDataProvider+Workouts.swift: DELETE /api/v1/planning/workout-templates/\\(id)":
+            "one keyed template, only from an explicit user delete",
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates/\\(id)/push-garmin":
+            "no body; hub pushes its own stored row to Garmin",
+        "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates/import-garmin":
+            "no body; hub-side idempotent import, skips templates edited since import",
     ]
 
     @Test func everyHubWriteIsReviewed() throws {
@@ -158,6 +163,22 @@ extension HubClientTests {
         let unreviewed = found.subtracting(Self.reviewedWrites.keys)
         #expect(unreviewed.isEmpty, "unreviewed hub write(s): \(unreviewed.sorted())")
         #expect(found.count >= 10)   // the scan still sees the writes (guards against a regex that matches nothing)
+    }
+
+    /// W-FIX10 F10-1 (audit 03-F1): the three routes W-TGT removed hub-side are never written
+    /// (`PUT /planning/goals` answered every GoalsSetup save with a 405, replayed forever).
+    @Test func theRetiredRoutesAreNeverWritten() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/JIHub")
+        for file in try FileManager.default.contentsOfDirectory(atPath: sources.path) where file.hasSuffix(".swift") {
+            let text = try String(contentsOf: sources.appendingPathComponent(file), encoding: .utf8)
+            for retired in ["\"/api/v1/planning/goals\"", "\"/api/v1/planning/gate-settings\"", "/api/v1/planning/kpi-targets/"] {
+                for line in text.split(separator: "\n") where line.contains(retired) {
+                    #expect(!line.contains("send(\"PUT\""), "\(file) still writes \(retired)")
+                }
+            }
+        }
     }
 
     @Test func anEmptyGoalsPatchClearsNothing() throws {

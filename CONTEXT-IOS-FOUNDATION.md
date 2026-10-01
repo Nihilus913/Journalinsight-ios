@@ -352,3 +352,16 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 - Running the app test bundle prints XCTest's "Executed 0 tests" next to the real Swift Testing summary — cosmetic noise from the two frameworks coexisting.
 - Commit `2f83d64` has its `Co-Authored-By` trailer on the subject line instead of the body (verified via `git show --stat 2f83d64`).
 
+
+## 14. W-SSOT-1 renames / new shared symbols (2026-09-29)
+
+- `JICompute.PlannedSession` → `JICompute.GateSession` (same `(name, type)` shape); JICore's Codable `PlannedSession(id, name, weekday)` keeps its name.
+- `JICore.PrefKeys.hkLastUploadSuccess` is the one `"hk.upload.lastSuccess"` literal (`HealthKitUploader.lastSuccessKey` / `HealthKitArrival.globalKey` alias it).
+- `JIDesign.DurationFormat` (`hoursMinutes`, `hoursPaddedMinutes`, `clock`, `minutes`) replaces the inline duration strings.
+- `GateSignal` gains optional `bandLo`/`bandHi`/`bandMethod` (+ `hubBand`); `decideHubBand(note)` (regex) is deleted.
+- `TrainingProviding.planWeek(start:)` (defaulted, throws `PlanWeekUnavailable`) + `PlanWeekOut`; `PlanScheduleResolver(planWeek:planSessions:fixedWeek:)` prefers a complete served week.
+
+## 15. W-B49B additions (2026-09-29)
+
+- `HKMetricSpec.init` gains defaulted `rereadSince: Date?` (+ `previousAnchorKey`): after an anchor bump, a phone that holds the previous version's anchor re-reads from `rereadSince` instead of `firstSyncDays`; fresh installs keep the full window. RMSSD spec = `anchorVersion: 3`, re-read from 2026-09-13 local (DH-6).
+- `JICore.GateAnswer` (+ `gateAnswerLine`) and `MorningResponse.gateAnswer` (`/planning/morning` `gate_answer`, optional); `GateRespondViewModel.seed(_:)`/`autoAnswer`/`answeredLine` — the hub's automatic answer shows as "Answered automatically · <FULL/GATED> from <workout>"; a tap on this device always wins (G-3).

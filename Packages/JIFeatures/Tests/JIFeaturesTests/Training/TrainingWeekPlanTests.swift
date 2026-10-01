@@ -102,7 +102,7 @@ extension TrainingWeekPlanTests {
         #expect(trainingWeekDayAccessibilityLabel(s.days[0]) == "Monday, strength, Day 1 Full Upper, done")
         #expect(trainingWeekDayAccessibilityLabel(s.days[2]) == "Wednesday, today, strength, Day 2 Full Upper")
         #expect(trainingWeekDayAccessibilityLabel(s.days[6]) == "Sunday, rest")
-        #expect(trainingWeekLegend == "S strength · I intervals · R long run")
+        #expect(trainingWeekLegend == "S strength · I intervals · R long run · + library workout")
     }
 
     /// W-FIX3 BUG-33 carried to the new strip: seven fixed circles stop scaling before AX sizes.
@@ -131,5 +131,38 @@ extension TrainingWeekPlanTests {
     @Test func intervalCaptionNamesTheCapOnlyWhenSet() {
         #expect(trainingWeekIntervalCaption(hrCapBpm: 172) == "Your cap 172")
         #expect(trainingWeekIntervalCaption(hrCapBpm: nil) == "No cap set")
+    }
+}
+
+// W-B40 fixer — B40-V1/V2: the strip follows the plan's own cardio sessions when the hub lists
+// them, and shows the library workouts the day sheet shows.
+extension TrainingWeekPlanTests {
+    static let cardio = [
+        PlanSessionOut(id: 5, name: "Interval Run", weekday: 5, sessionType: "cardio"),
+        PlanSessionOut(id: 6, name: "Long Zone 2", weekday: 4, sessionType: "cardio"),   // moved Thu → Fri
+        PlanSessionOut(id: 7, name: "Rest", weekday: 6, sessionType: "rest"),
+    ]
+    static let strengthMonWed = [PlanSessionOut(id: 1, name: "Day 1", weekday: 0), PlanSessionOut(id: 2, name: "Day 2", weekday: 2)]
+
+    @Test func knownPlanCardioSessionsReplaceTheFixedSchedule() {
+        let s = trainingWeekSummary(planSessions: Self.strengthMonWed, exercises: [], daily: [], today: "2026-09-23",
+                                    otherSessions: Self.cardio)
+        #expect(s.days.map(\.kind.rawValue) == ["S", "–", "S", "–", "R", "I", "–"])
+        #expect(s.days[4].sessionName == "Long Zone 2" && s.days[5].sessionName == "Interval Run")
+        #expect(s.planTotal == 2)   // "n of N done" still counts the strength plan
+    }
+
+    @Test func libraryWorkoutsOnADayAreOnTheStrip() {
+        let sunday = WorkoutTemplate(templateId: 1, name: "Long Run Zone 2", activity: "running", location: .outdoor, weekdays: [6],
+                                     steps: [], updatedAt: "2026-09-28T08:00:00Z")
+        let linked = WorkoutTemplate(templateId: 2, name: "day 1", activity: "strength", location: .indoor, weekdays: [3],
+                                     steps: [], updatedAt: "2026-09-28T08:00:00Z")
+        let s = trainingWeekSummary(planSessions: Self.strengthMonWed, exercises: [], daily: [], today: "2026-09-23",
+                                    templates: [sunday, linked])
+        #expect(s.days[6].extras == ["Long Run Zone 2"])
+        #expect(s.days[3].extras.isEmpty)   // named like plan session Day 1 → that session, not an extra
+        #expect(trainingWeekDayAccessibilityLabel(s.days[6]).hasSuffix("plus Long Run Zone 2"))
+        #expect(trainingWeekDayGlyph(s.days[6]) == "+")
+        #expect(trainingWeekDayGlyph(s.days[0]) == "S")
     }
 }

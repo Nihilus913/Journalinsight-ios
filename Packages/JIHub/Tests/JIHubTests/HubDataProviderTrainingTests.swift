@@ -46,6 +46,36 @@ extension HubClientTests {
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/plan-sessions/7")
     }
 
+    /// W-B40 fixer (B40-V1): the whole plan, cardio and rest included, with its session type.
+    @Test func planSessionsListsTheWholePlanWithItsSessionType() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/planning/plan-sessions"] = (200, Data("""
+        [{"id":1,"name":"Day 1 Full Upper","weekday":0,"session_type":"strength"},
+         {"id":6,"name":"Long Zone 2","weekday":3,"session_type":"cardio"},
+         {"id":7,"name":"Rest","weekday":null,"session_type":"rest"}]
+        """.utf8))
+        let rows = try await configuredProvider().planSessions()
+        #expect(rows.map(\.id) == [1, 6, 7])
+        #expect(rows.map(\.sessionType) == ["strength", "cardio", "rest"])
+        #expect(rows[2].weekday == nil)
+        #expect(StubURLProtocol.lastRequest?.httpMethod == "GET")
+        #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/plan-sessions")
+    }
+
+    /// W-SSOT-1 SS-7: `GET /planning/week?start=` — seven days of the hub's `session_for`.
+    @Test func planWeekGetsTheServedWeekFromStart() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/planning/week"] = (200, Data("""
+        {"start":"2026-09-28","days":[{"date":"2026-09-30","weekday":2,"session_id":4,"name":"Long Zone 2","session_type":"cardio","prescription":"Long Zone 2 75-90min","type":"z2","source":"plan"}]}
+        """.utf8))
+        let w = try await configuredProvider().planWeek(start: "2026-09-28")
+        #expect(w.start == "2026-09-28")
+        #expect(w.days.first?.prescription == "Long Zone 2 75-90min")
+        #expect(w.days.first?.type == "z2")
+        #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/week")
+        #expect(StubURLProtocol.lastRequest?.url?.query == "start=2026-09-28")
+    }
+
     @Test func exercisesDecodesContractFixture() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.responses["/api/v1/planning/exercises"] = (200, Data("""

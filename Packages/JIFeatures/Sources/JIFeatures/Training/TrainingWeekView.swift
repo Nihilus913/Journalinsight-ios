@@ -14,22 +14,20 @@ public nonisolated func trainingWeekIntervalCaption(hrCapBpm: Int?) -> String {
     hrCapBpm.map { "Your cap \($0)" } ?? "No cap set"
 }
 
-/// Sessions the hub can take a weekday for (a real plan_session id — B-52's rule). MainActor:
-/// `AssignWeekdaySheet.Session`'s init is (JIFeatures default isolation).
-public func assignableSessions(planSessions: [PlanSessionOut], exercises: [Exercise]) -> [AssignWeekdaySheet.Session] {
+/// Sessions the hub can take a weekday for (a real plan_session id — B-52's rule).
+public func assignableSessions(planSessions: [PlanSessionOut], exercises: [Exercise]) -> [TrainingSessionRef] {
     weekSpine(planSessions: planSessions, exercises: exercises).compactMap { e in
-        e.id.map { AssignWeekdaySheet.Session(id: $0, name: e.name, weekday: e.weekday) }
+        e.id.map { TrainingSessionRef(id: $0, name: e.name, weekday: e.weekday) }
     }
 }
 
-/// B-57 W5 board 3/02 "Your week". Writes go through `TrainingViewModel.assignSession` (Outbox
-/// first, B-52), so each change is saved on tap — there is no separate Save step. A strength day
-/// opens its session's weekday sheet; a rest day offers the sessions to put on it; the interval
-/// and long-run days follow the morning-call schedule (not assignable until B-40 templates).
+/// B-57 W5 board 3/02 "Your week". W-B40 L3 (B-82): day-first — every row opens that day's
+/// preview (`TrainingDaySheet`), where Change / Add pick from the plan sessions and the B-40
+/// workout library. Writes go through `TrainingViewModel.changeDay` (Outbox first, B-52), so each
+/// change is saved on tap — there is no separate Save step.
 public struct TrainingWeekView: View {
     @Bindable private var model: TrainingViewModel
-    @State private var editing: AssignWeekdaySheet.Session?
-    @State private var pickingFor: Int?
+    @State private var dayPreview: TrainingDayRef?
     @Environment(\.gateSettings) private var gateSettings
     /// B-33: a screen root reads the theme it installs (see `TrainingView`).
     private let theme = JITheme.native
@@ -37,12 +35,11 @@ public struct TrainingWeekView: View {
     public init(model: TrainingViewModel) { self.model = model }
 
     private var summary: TrainingWeekSummary { model.weekSummary }
-    private var sessions: [AssignWeekdaySheet.Session] { assignableSessions(planSessions: model.planSessions, exercises: model.exercises) }
 
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Give each day a session. Training counts what you assign here.")
+                Text("Give each day a session from your plan or your workout library.")
                     .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, JISpacing.s4).padding(.bottom, JISpacing.s3)
@@ -63,7 +60,7 @@ public struct TrainingWeekView: View {
                     }
                     .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
                 }
-                Text("The Training count follows these days. Intervals and the long run follow the morning-call schedule for now.")
+                Text("Tap a day to see its session and change it. The Training count follows the strength days.")
                     .jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
@@ -76,25 +73,7 @@ public struct TrainingWeekView: View {
         .jiTheme(.native)
         .navigationTitle("Your week")
         .onAppear { model.screenAppeared() }
-        .sheet(item: $editing) { session in
-            AssignWeekdaySheet(session: session, isSaving: model.pendingSessionAssign.contains(session.id),
-                               didFail: model.sessionAssignFailed.contains(session.id)) { weekday in
-                Task {
-                    await model.assignSession(sessionId: session.id, sessionName: session.name, weekday: weekday)
-                    if !model.sessionAssignFailed.contains(session.id) { editing = nil }
-                }
-            }
-        }
-        .confirmationDialog("Put a session on \(pickingFor.map { planWeekdayNames[$0] } ?? "")",
-                            isPresented: Binding(get: { pickingFor != nil }, set: { if !$0 { pickingFor = nil } }),
-                            titleVisibility: .visible) {
-            ForEach(sessions) { s in
-                Button(s.weekday.map { "\(s.name) (now \(trainingWeekdayShortNames[$0]))" } ?? s.name) {
-                    let day = pickingFor
-                    Task { await model.assignSession(sessionId: s.id, sessionName: s.name, weekday: day) }
-                }
-            }
-        }
+        .sheet(item: $dayPreview) { ref in TrainingDaySheet(model: model, weekday: ref.weekday) }
     }
 
     private var summaryCard: some View {
@@ -120,11 +99,13 @@ public struct TrainingWeekView: View {
     }
 
     private func rowLabel(_ day: TrainingWeekDay, pending: Bool) -> some View {
-        HStack(spacing: JISpacing.s3) {
+        let titles = model.dayPreview(weekday: day.weekday).entries.map(\.title)
+        return HStack(spacing: JISpacing.s3) {
             Text(trainingWeekdayShortNames[day.weekday]).jiFont(.body, weight: day.isToday ? .bold : .regular)
                 .foregroundStyle(theme.color(day.isToday ? .text : .muted)).frame(minWidth: 44, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
-                Text(day.sessionName ?? "Rest").jiFont(.body).foregroundStyle(theme.color(day.kind == .rest ? .muted : .text))
+                Text(titles.isEmpty ? "Rest" : titles.joined(separator: " + ")).jiFont(.body)
+                    .foregroundStyle(theme.color(titles.isEmpty ? .muted : .text))
                     .fixedSize(horizontal: false, vertical: true)
                 if day.kind == .interval {
                     Text(trainingWeekIntervalCaption(hrCapBpm: gateSettings.hrCapBpm)).jiFont(.caption).foregroundStyle(theme.color(.muted))
@@ -137,34 +118,14 @@ public struct TrainingWeekView: View {
         }
     }
 
-    /// The action a row offers, or nil when there is none (interval / long run, a rest day with no
-    /// assignable session, a strength day whose session has no hub id) — no chevron without an action.
-    private func action(for day: TrainingWeekDay) -> (() -> Void)? {
-        switch day.kind {
-        case .strength:
-            guard let id = day.sessionId, let s = sessions.first(where: { $0.id == id }) else { return nil }
-            return { editing = s }
-        case .rest:
-            guard !sessions.isEmpty else { return nil }
-            return { pickingFor = day.weekday }
-        case .interval, .longRun:
-            return nil
-        }
-    }
-
-    @ViewBuilder private func dayRow(_ day: TrainingWeekDay) -> some View {
-        let pending = day.sessionId.map { model.pendingSessionSync.contains($0) } ?? false
+    private func dayRow(_ day: TrainingWeekDay) -> some View {
+        let entries = model.dayPreview(weekday: day.weekday).entries
+        let pending = entries.contains { model.isPending($0) }
         let label = trainingWeekDayAccessibilityLabel(day) + (pending ? ", waiting to sync" : "")
-        if let action = action(for: day) {
-            Button(action: action) { JIChevronRow { rowLabel(day, pending: pending) } }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .combine).accessibilityLabel(label)
-                .accessibilityIdentifier("training-week-row-\(day.weekday)")
-        } else {
-            rowLabel(day, pending: pending)
-                .frame(minHeight: JIChevronRowMetrics.minHeight - 2 * JIChevronRowMetrics.verticalPadding)
-                .accessibilityElement(children: .combine).accessibilityLabel(label)
-                .accessibilityIdentifier("training-week-row-\(day.weekday)")
-        }
+        return Button { dayPreview = TrainingDayRef(weekday: day.weekday) } label: { JIChevronRow { rowLabel(day, pending: pending) } }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine).accessibilityLabel(label)
+            .accessibilityHint("Shows \(planWeekdayNames[day.weekday])'s session")
+            .accessibilityIdentifier("training-week-row-\(day.weekday)")
     }
 }

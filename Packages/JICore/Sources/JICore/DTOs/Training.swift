@@ -10,9 +10,48 @@ public struct DayActivity: Codable, Sendable, Equatable {
     public var name: String?
     public var durationSec: Double?
     public var distanceM: Double?
-    public init(activityId: Int, type: String, name: String?, durationSec: Double?, distanceM: Double?) {
+    /// W-B81 A-5: `"apple"` (core.activity dso_key 4) or `"garmin"` — HT `_coerce_activity`. Every
+    /// field below is optional: an older hub omits them and the row still decodes.
+    public var source: String?
+    public var avgHr: Int?
+    public var maxHr: Int?
+    /// Apple-only effort × minutes (HT migration 054); nil for Garmin.
+    public var sessionLoad: Double?
+    /// ISO-8601 UTC start ("2026-09-28T05:02:04+00:00").
+    public var startTimeUtc: String?
+    /// iOS 27 `HKWorkoutZoneGroup` time-in-zone, when the hub exposes it (payload `zone_time`).
+    public var zoneTime: [WorkoutZoneTime]?
+
+    public init(activityId: Int, type: String, name: String?, durationSec: Double?, distanceM: Double?,
+                source: String? = nil, avgHr: Int? = nil, maxHr: Int? = nil, sessionLoad: Double? = nil,
+                startTimeUtc: String? = nil, zoneTime: [WorkoutZoneTime]? = nil) {
         self.activityId = activityId; self.type = type; self.name = name
         self.durationSec = durationSec; self.distanceM = distanceM
+        self.source = source; self.avgHr = avgHr; self.maxHr = maxHr; self.sessionLoad = sessionLoad
+        self.startTimeUtc = startTimeUtc; self.zoneTime = zoneTime
+    }
+
+    /// W-B81: an Apple Health workout the phone uploaded (dso 4), read back from the hub.
+    public var isAppleHealth: Bool { source == "apple" }
+
+    /// `startTimeUtc` parsed; nil when absent or unparsable.
+    public var startDate: Date? {
+        guard let startTimeUtc else { return nil }
+        let f = ISO8601DateFormatter()
+        if let d = f.date(from: startTimeUtc) { return d }
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: startTimeUtc)
+    }
+}
+
+/// W-B81: one `HKWorkoutZoneGroup` zone — `upperBpm == nil` is the open top zone.
+public struct WorkoutZoneTime: Codable, Sendable, Equatable {
+    public var zone: Int
+    public var lowerBpm: Int?
+    public var upperBpm: Int?
+    public var seconds: Double
+    public init(zone: Int, lowerBpm: Int?, upperBpm: Int?, seconds: Double) {
+        self.zone = zone; self.lowerBpm = lowerBpm; self.upperBpm = upperBpm; self.seconds = seconds
     }
 }
 
@@ -44,10 +83,44 @@ public struct TrainingDayDetail: Codable, Sendable, Equatable {
     /// Optional per the Contract: an older hub simply omits it and the day card falls back to
     /// "logged only" rather than failing to decode the whole response.
     public var plannedSession: PlannedSession?
-    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet], plannedSession: PlannedSession? = nil) {
+    /// W-SSOT-1 SS-2: the hub's ONE completion rule for this date (HT `app/training/completion.py`).
+    /// Optional: an older hub omits it and the app's own rule answers alone.
+    public var completion: HubCompletion?
+    public init(date: String, activities: [DayActivity], exerciseSets: [DayExerciseSet], plannedSession: PlannedSession? = nil,
+                completion: HubCompletion? = nil) {
         self.date = date; self.activities = activities; self.exerciseSets = exerciseSets
-        self.plannedSession = plannedSession
+        self.plannedSession = plannedSession; self.completion = completion
     }
+}
+
+/// W-SSOT-1 SS-2: `GET /training/day/{date}` `completion` — the hub's answer to "was the planned
+/// session done?" (the same rule morning_go's exercise KPI counts). Parts: `strength` / `cardio`;
+/// an interval day's cardio part is filled only by a run or a ride (a walk never completes it).
+/// `status` stays a string (done / partial / open) so a future value never fails the decode.
+public struct HubCompletion: Codable, Sendable, Equatable {
+    public struct Part: Codable, Sendable, Equatable {
+        public var part: String
+        public var done: Bool
+        public var activityIds: [Int]
+        public init(part: String, done: Bool, activityIds: [Int] = []) {
+            self.part = part; self.done = done; self.activityIds = activityIds
+        }
+    }
+    /// strength | interval | z2 | optional | rest
+    public var sessionType: String
+    /// false = nothing owed (rest, an optional day).
+    public var owed: Bool
+    public var parts: [Part]
+    public var status: String
+    /// The lead part is done — what the exercise KPI / streak counts.
+    public var credited: Bool
+
+    public init(sessionType: String, owed: Bool, parts: [Part], status: String, credited: Bool) {
+        self.sessionType = sessionType; self.owed = owed; self.parts = parts; self.status = status; self.credited = credited
+    }
+
+    public var isDone: Bool { status == "done" }
+    public var isPartial: Bool { status == "partial" }
 }
 
 /// `GET /api/v1/planning/exercises` row (oracle: `Exercise` in `types.ts`). `repsTarget` is a
@@ -160,7 +233,12 @@ public struct PlanSessionOut: Codable, Sendable, Equatable, Identifiable {
     public var id: Int
     public var name: String
     public var weekday: Int?
-    public init(id: Int, name: String, weekday: Int?) { self.id = id; self.name = name; self.weekday = weekday }
+    /// `plan.plan_session.session_type` — "strength" | "cardio" | "rest". Only
+    /// `GET /planning/plan-sessions` (W-B40 fixer) carries it; nil everywhere else.
+    public var sessionType: String?
+    public init(id: Int, name: String, weekday: Int?, sessionType: String? = nil) {
+        self.id = id; self.name = name; self.weekday = weekday; self.sessionType = sessionType
+    }
 }
 
 /// Mon = 0 … Sun = 6 (Python's `date.weekday()`, which is what `plan.plan_session.weekday` holds).

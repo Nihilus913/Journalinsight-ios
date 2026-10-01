@@ -54,6 +54,18 @@ private func makeVM(
     #expect(vm.canSend == false)
 }
 
+/// B40-V7: "Send to Watch" on a library row opens the sheet with exactly that workout picked,
+/// and the sheet's own load keeps the pick.
+@Test @MainActor func sendToWatchFromALibraryRowPicksOnlyThatWorkout() async throws {
+    let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()))
+    vm.toggle(1)
+    vm.pickOnly(2)
+    #expect(vm.selected == [2])
+    await vm.load()
+    #expect(vm.selected == [2])
+    #expect(vm.canSend)
+}
+
 @Test @MainActor func sendToWatchMultiSelectToggles() async throws {
     let vm = makeVM(provider: FakeTemplatesProvider(rows: try await seedRows()))
     await vm.load()
@@ -147,9 +159,9 @@ private func makeVM(
 }
 // B-57 W4: the footer names only the limits the user set.
 @Test func alertNoteShowsOnlyTheLimitsTheUserSet() {
-    #expect(sendToWatchAlertNote(.none) == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm.")
+    #expect(sendToWatchAlertNote(.none) == "Cardio only — strength parts are logged in JournalInsight, not sent. Heart-rate alerts are absolute bpm.")
     #expect(sendToWatchAlertNote(WorkoutHrLimits(capBpm: 175, zone5FloorBpm: 176))
-            == "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm, capped at your 175 bpm, below your Zone 5 (176).")
+            == "Cardio only — strength parts are logged in JournalInsight, not sent. Heart-rate alerts are absolute bpm, capped at your 175 bpm, below your Zone 5 (176).")
 }
 
 @Test @MainActor func zone5TargetErrorNamesTheUsersChoice() async throws {

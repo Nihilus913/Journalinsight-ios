@@ -41,6 +41,33 @@ public nonisolated func verdictReasonLine(_ parts: VerdictParts) -> String? {
     return inner.isEmpty ? nil : inner
 }
 
+/// W-FIX10 R-05: the hub's reason while the morning push is held for the watch
+/// (`morning_go.py` `WAITING_FOR_WATCH_REASON`, written to `plan.morning_verdict.reason`); nil for
+/// any other reason.
+public nonisolated func decideHeldReason(_ reason: String?) -> String? {
+    guard let reason = reason?.trimmingCharacters(in: .whitespacesAndNewlines),
+          reason.hasPrefix("Waiting for the watch") else { return nil }
+    return reason
+}
+
+/// The one human "why" line under Decide's verdict.
+public nonisolated enum DecideWhyLine: Equatable, Sendable {
+    /// The push is held: the overnight data is not in yet (shown even with gate signals).
+    case held(String)
+    /// The hub's reduced prescription on an amber day.
+    case prescription(String)
+    /// The verdict's own reason (a pre-048 verdict, no gate signals).
+    case reason(String)
+}
+
+public nonisolated func decideWhyLine(verdict: VerdictParts, override: VerdictOverride?, hasGateSignals: Bool,
+                                      heldReason: String?) -> DecideWhyLine? {
+    if override == nil, let held = decideHeldReason(heldReason) { return .held(held) }
+    if let prescription = decidePrescriptionLine(verdict: verdict, override: override) { return .prescription(prescription) }
+    if !hasGateSignals, let reason = verdictReasonLine(verdict) { return .reason(reason) }
+    return nil
+}
+
 /// One row of the Adjust sheet's choice picker.
 public nonisolated struct AdjustChoice: Equatable, Sendable, Identifiable {
     public let choice: VerdictOverrideChoice
@@ -254,6 +281,8 @@ public struct DecideView: View {
     let calibrationNights: Int?
     /// W-FIX6 F6-11: the hub's `is_stale` for this call (nil = not sent).
     let isStale: Bool?
+    /// W-FIX10 R-05: the hub's "Waiting for the watch…" reason while the push is held (nil = not held).
+    let heldReason: String?
     @State private var showAdjust = false
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
@@ -270,12 +299,12 @@ public struct DecideView: View {
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
                 banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, isStale: Bool? = nil,
-                onAdvance: @escaping () -> Void) {
+                heldReason: String? = nil, onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
-        self.calibrationNights = calibrationNights; self.isStale = isStale
+        self.calibrationNights = calibrationNights; self.isStale = isStale; self.heldReason = heldReason
     }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
@@ -443,15 +472,25 @@ public struct DecideView: View {
                         .accessibilityIdentifier("today.decide.was")
                 }
                 if !syncing {
-                    // The one human why: the hub's reduced prescription on an amber day, else the
-                    // verdict's own reason line (a pre-048 verdict).
-                    if let prescription = decidePrescriptionLine(verdict: verdict, override: override) {
+                    // The one human why (`decideWhyLine`): W-FIX10 R-05 the held "Waiting for the
+                    // watch…" reason (even with gate signals), else the hub's reduced prescription on
+                    // an amber day, else the verdict's own reason line (a pre-048 verdict).
+                    switch decideWhyLine(verdict: verdict, override: override, hasGateSignals: gateSignals != nil,
+                                         heldReason: heldReason) {
+                    case .held(let held)?:
+                        Label(held, systemImage: "applewatch").jiFont(.footnote, weight: .semibold)
+                            .foregroundStyle(theme.color(.text))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("today.decide.held")
+                    case .prescription(let prescription)?:
                         Text(prescription).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.text))
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("today.decide.prescription")
-                    } else if gateSignals == nil, let reason = verdictReasonLine(verdict) {
+                    case .reason(let reason)?:
                         Text(reason).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("today.decide.reason")
+                    case nil:
+                        EmptyView()
                     }
                 }
                 if inlineActions { actionRows(actions: actions, showsAdjust: showsAdjust) }
@@ -709,20 +748,29 @@ struct DecideReadinessRing: View {
 /// Bevel" (a check, status green — rule 6) or "Other activity · Walk · 30 min · Workout" (muted,
 /// the session stays open). Nothing at all when Health has no workout today.
 public struct SessionCompletionLine: View {
-    let completion: SessionCompletion
+    let text: String?
+    let isDone: Bool
     @Environment(\.jiTheme) private var theme
 
-    public init(completion: SessionCompletion) { self.completion = completion }
+    public init(completion: SessionCompletion) { self.text = completion.statusText; self.isDone = completion.isDone }
+
+    /// W-FIX9: NEXT's line from the session's parts — ticked once any part is done, and naming it.
+    public init(progress: SessionProgress) { self.text = progress.statusText; self.isDone = progress.anyDone }
+
+    /// W-FIX9 fixer (FIX9V-4): NEXT's line with the hub rows under it (`dayNextDoneLine`).
+    public init(progress: SessionProgress, hubWorkouts: [DayActivity]) {
+        self.text = dayNextDoneLine(progress, hubWorkouts: hubWorkouts); self.isDone = progress.anyDone
+    }
 
     public var body: some View {
-        if let text = completion.statusText {
+        if let text {
             Label {
                 Text(text).jiFont(.caption, weight: .semibold).fixedSize(horizontal: false, vertical: true)
             } icon: {
-                Image(systemName: completion.isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
+                Image(systemName: isDone ? "checkmark.circle.fill" : "figure.mixed.cardio")
             }
-            .foregroundStyle(theme.color(completion.isDone ? .go : .muted))
-            .accessibilityIdentifier(completion.isDone ? "session.done" : "session.otherActivity")
+            .foregroundStyle(theme.color(isDone ? .go : .muted))
+            .accessibilityIdentifier(isDone ? "session.done" : "session.otherActivity")
         }
     }
 }

@@ -11,7 +11,8 @@ import JIPersistence
 /// kind `targets`, via `TargetsMirror`); `/planning/goals` is read-only on the hub now.
 @MainActor
 public final class GoalsMirror {
-    private let targets: TargetsMirror
+    /// W-FIX10 F10-1: GoalsSetup's weight / strength / steps save through the same document.
+    public let targets: TargetsMirror
 
     public init(targets: TargetsMirror) { self.targets = targets }
 

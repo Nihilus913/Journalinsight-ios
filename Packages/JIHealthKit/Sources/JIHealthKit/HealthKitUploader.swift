@@ -1,7 +1,9 @@
 #if canImport(HealthKit)
 import Foundation
 import HealthKit
+import JICore
 import JIHub
+import Synchronization
 
 /// One Apple Watch metric this app reads and uploads. Deliberately HK-identifier-agnostic at the
 /// call site inside this file (`HKQuantityTypeIdentifier`/`HKCategoryTypeIdentifier` construction
@@ -33,9 +35,23 @@ public struct HKMetricSpec: Sendable {
         anchorVersion <= 1 ? "hk.upload.anchor.\(sampleType.identifier)"
                            : "hk.upload.anchor.\(sampleType.identifier).v\(anchorVersion)"
     }
+    /// W-B49B DH-6: a bounded re-read after an anchor bump. When set AND the previous version's
+    /// anchor exists (the phone ran the old version), the first pass under the new key reads from
+    /// this instant instead of the `firstSyncDays` window. A fresh install (no previous anchor)
+    /// still gets the full window. `nil` = the plain `firstSyncDays` re-send.
+    public let rereadSince: Date?
+    /// The anchor key of `anchorVersion - 1`, or `nil` at version 1.
+    public var previousAnchorKey: String? {
+        switch anchorVersion {
+        case ...1: return nil
+        case 2: return "hk.upload.anchor.\(sampleType.identifier)"
+        default: return "hk.upload.anchor.\(sampleType.identifier).v\(anchorVersion - 1)"
+        }
+    }
 
-    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, anchorVersion: Int = 1, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
+    public init(sampleType: HKSampleType, metricName: String, units: String, backgroundFrequency: HKUpdateFrequency, anchorVersion: Int = 1, rereadSince: Date? = nil, mapSamples: @escaping @Sendable ([HKSample]) -> [HAEDataPoint]) {
         self.sampleType = sampleType
+        self.rereadSince = rereadSince
         self.metricName = metricName
         self.units = units
         self.backgroundFrequency = backgroundFrequency
@@ -69,39 +85,6 @@ public enum HKSampleMapping {
                     source: q.sourceRevision.source.name
                 )
             }
-        }
-    }
-
-    /// One HAE point per LOCAL DAY: the arithmetic mean of that day's quantity samples, converted
-    /// to `unit` and dated at the day's local midnight. Was the native-RMSSD mapping until B-65
-    /// (RMSSD now goes per reading, see `hrvRMSSDPerReading`); kept as a generic builder, no app
-    /// caller today. Ordered by date so the envelope is deterministic. Non-quantity samples are
-    /// skipped.
-    public static func dayAverage(unit: HKUnit, timeZone: @escaping @Sendable () -> TimeZone = { .current }) -> @Sendable ([HKSample]) -> [HAEDataPoint] {
-        { samples in
-            let zone = timeZone()
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = zone
-            var byDay: [Date: (sum: Double, count: Int, source: String?)] = [:]
-            for case let q as HKQuantitySample in samples {
-                let day = cal.startOfDay(for: q.startDate)
-                let value = q.quantity.doubleValue(for: unit)
-                let existing = byDay[day]
-                byDay[day] = (
-                    sum: (existing?.sum ?? 0) + value,
-                    count: (existing?.count ?? 0) + 1,
-                    source: existing?.source ?? q.sourceRevision.source.name
-                )
-            }
-            return byDay
-                .sorted { $0.key < $1.key }
-                .map { day, acc in
-                    HAEDataPoint(
-                        date: HAEDate.format(day, timeZone: zone),
-                        qty: acc.sum / Double(acc.count),
-                        source: acc.source
-                    )
-                }
         }
     }
 
@@ -175,7 +158,9 @@ extension HKMetricSpec {
     /// unavailable on this OS. One point per reading in milliseconds, dated with the reading's
     /// own timestamp (B-65) — the hub classifies overnight vs daytime readings against the
     /// night's sleep segments. `anchorVersion: 2` = one 120-day re-send of the per-reading
-    /// history for the 28-night baseline. Wire name = frozen `HAEMetricName.heartRateVariabilityRMSSD`.
+    /// history for the 28-night baseline. `anchorVersion: 3` (W-B49B DH-6) = one re-read from
+    /// 2026-09-13 local midnight on a phone that ran v2 (the hub missed Recovery HRV 09-13…09-18;
+    /// the own-source filter, DH-3, is in the store query and unchanged). Wire name = frozen `HAEMetricName.heartRateVariabilityRMSSD`.
     public static func hrvRMSSDPerReading(
         sampleType: HKSampleType? = HKReadKind.hrvRMSSD.sampleType,
         backgroundFrequency: HKUpdateFrequency = .hourly,
@@ -187,9 +172,19 @@ extension HKMetricSpec {
             metricName: HAEMetricName.heartRateVariabilityRMSSD,
             units: "ms",
             backgroundFrequency: backgroundFrequency,
-            anchorVersion: 2,
+            anchorVersion: 3,
+            rereadSince: rmssdRereadStart(timeZone: timeZone()),
             mapSamples: HKSampleMapping.perSample(unit: .secondUnit(with: .milli), timeZone: timeZone)
         )
+    }
+}
+
+extension HKMetricSpec {
+    /// DH-6: 2026-09-13 00:00 in `timeZone` — first day the hub is missing Recovery HRV.
+    static func rmssdRereadStart(timeZone: TimeZone) -> Date? {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timeZone
+        return cal.date(from: DateComponents(year: 2026, month: 9, day: 13))
     }
 }
 
@@ -231,14 +226,24 @@ public final class HealthKitUploader: Sendable {
     private let statistics: (any HealthStoreUploadStatistics)?
     /// Local-day grid for daily totals (device zone).
     private let calendar: Calendar
+    /// W-B81 A-4: the Apple-workout reader (the real reader conforms); `nil` = no workout upload.
+    private let workoutReader: (any HealthStoreWorkoutUploadReading)?
+    /// Offset the workout dates are written in (the device's, never UTC — frozen README).
+    private let timeZone: TimeZone
+    /// One workout sync at a time; a trigger that arrives mid-run asks for one more pass instead of
+    /// a parallel one (observer + foreground + Connect firing together = no duplicate POSTs).
+    private let workoutRun = Mutex(WorkoutRunState())
 
-    public init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], appGroupSuite: String = HealthKitUploader.appGroupSuite) {
+    public init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], appGroupSuite: String = HealthKitUploader.appGroupSuite,
+                timeZone: TimeZone = .current) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = UserDefaults(suiteName: appGroupSuite)
         self.statistics = store as? any HealthStoreUploadStatistics
         self.calendar = Self.deviceCalendar()
+        self.workoutReader = store as? any HealthStoreWorkoutUploadReading
+        self.timeZone = timeZone
     }
 
     private static func deviceCalendar() -> Calendar {
@@ -248,13 +253,16 @@ public final class HealthKitUploader: Sendable {
     /// Test seam: inject a `UserDefaults` double directly, matching `HealthKitBackloader`'s own
     /// pattern for the same reason (a bogus suite name isn't guaranteed `nil` across toolchains).
     init(store: any HealthStoreReading, hub: HubClient, specs: [HKMetricSpec], defaults: UserDefaults?,
-         statistics: (any HealthStoreUploadStatistics)? = nil, calendar: Calendar? = nil) {
+         statistics: (any HealthStoreUploadStatistics)? = nil, calendar: Calendar? = nil,
+         workouts: (any HealthStoreWorkoutUploadReading)? = nil, timeZone: TimeZone = .current) {
         self.store = store
         self.hub = hub
         self.specs = specs
         self.anchorDefaults = defaults
         self.statistics = statistics
         self.calendar = calendar ?? Self.deviceCalendar()
+        self.workoutReader = workouts
+        self.timeZone = timeZone
     }
 
     /// The launch request — the only one the app makes without a tap. W-FIX8 M-1: it asks for the
@@ -263,7 +271,10 @@ public final class HealthKitUploader: Sendable {
     /// of a phone that granted Health before it existed. Already-answered types never re-prompt.
     public func requestAuthorization() async throws {
         guard store.isHealthDataAvailable else { throw HealthKitUploaderError.healthDataUnavailable }
-        try await store.requestAuthorization(toRead: Set(specs.map { $0.sampleType as HKObjectType }).union(HKReadKind.allReadTypes))
+        var types = Set(specs.map { $0.sampleType as HKObjectType }).union(HKReadKind.allReadTypes)
+        // W-B81: the workout reader also needs the HR series, route, distance/energy and effort types.
+        if workoutReader != nil { types.formUnion(HKWorkoutUploadTypes.readTypes) }
+        try await store.requestAuthorization(toRead: types)
     }
 
     /// Enables background delivery for every configured metric and registers an observer that
@@ -283,6 +294,17 @@ public final class HealthKitUploader: Sendable {
             }
             queries.append(query)
         }
+        // W-B81 A-4: a finished Watch workout wakes the app like the daily types do.
+        if workoutReader != nil, let workoutType = HKReadKind.workouts.sampleType {
+            try await store.enableBackgroundDelivery(for: workoutType, frequency: .immediate)
+            let query = store.startObserving(workoutType) { [weak self] completion in
+                Task { [weak self] in
+                    defer { completion() }
+                    _ = try? await self?.syncWorkouts()
+                }
+            }
+            queries.append(query)
+        }
         return queries
     }
 
@@ -296,6 +318,10 @@ public final class HealthKitUploader: Sendable {
             do { results[spec.metricName] = .success(try await sync(spec)) }
             catch { results[spec.metricName] = .failure(error) }
         }
+        if workoutReader != nil {
+            do { results[Self.workoutsResultKey] = .success(try await syncWorkouts()) }
+            catch { results[Self.workoutsResultKey] = .failure(error) }
+        }
         return results
     }
 
@@ -307,8 +333,8 @@ public final class HealthKitUploader: Sendable {
     /// Page size for the anchored query; a full page means "there may be more" and loops.
     public nonisolated static let pageLimit = 2_000
     /// App-Group key holding the instant (ISO-8601, UTC) of the last 2xx upload POST (B-65).
-    /// Settings shows it as "Last Apple upload HH:mm"; JIFeatures duplicates the literal.
-    public nonisolated static let lastSuccessKey = "hk.upload.lastSuccess"
+    /// Settings shows it as "Last Apple upload HH:mm"; the key is `PrefKeys.hkLastUploadSuccess`.
+    public nonisolated static let lastSuccessKey = PrefKeys.hkLastUploadSuccess
 
     /// Fetches anchored pages for one metric, maps each, POSTs it and advances the anchor per
     /// page. `@concurrent`: runs off the caller's actor — under `NonisolatedNonsendingByDefault`
@@ -321,7 +347,7 @@ public final class HealthKitUploader: Sendable {
             return try await syncDailyTotals(spec, type: type, unit: unit, statistics: statistics, now: now)
         }
         var anchor = readAnchor(spec.anchorKey)
-        let since: Date? = anchor == nil ? now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400) : nil
+        let since: Date? = anchor == nil ? firstPassStart(spec, now: now) : nil
         var uploaded = 0
         while true {
             let page = try await store.anchoredSamples(sampleType: spec.sampleType, anchor: anchor, since: since, limit: Self.pageLimit)
@@ -341,6 +367,16 @@ public final class HealthKitUploader: Sendable {
             anchor = page.newAnchor
             guard page.samples.count >= Self.pageLimit else { return uploaded }
         }
+    }
+
+    /// Start of a type's first pass (no anchor under its current key): the spec's `rereadSince`
+    /// when the previous version's anchor exists (DH-6 bounded re-read), else `firstSyncDays` back.
+    private func firstPassStart(_ spec: HKMetricSpec, now: Date) -> Date {
+        let window = now.addingTimeInterval(-Double(Self.firstSyncDays) * 86_400)
+        if let reread = spec.rereadSince, let previous = spec.previousAnchorKey, anchorDefaults?.data(forKey: previous) != nil {
+            return max(reread, window)
+        }
+        return window
     }
 
     // MARK: - Daily totals (WD-6)
@@ -510,6 +546,71 @@ public final class HealthKitUploader: Sendable {
         return rawSumsByStartDay(all, unit: unit)
     }
 
+    // MARK: - Apple workouts (W-B81 A-4)
+
+    /// `syncAll()` result key for the workout upload.
+    public nonisolated static let workoutsResultKey = "workouts"
+    /// Anchor of the `HKWorkout` change feed (same `hk.upload.anchor.<type>` scheme as the metrics).
+    public nonisolated static let workoutAnchorKey = "hk.upload.anchor.HKWorkoutTypeIdentifier"
+    /// HealthKit objects per anchored page — each workout pulls its HR series and route, so pages
+    /// stay small (a 45-min outdoor run ≈ 2.7 k route points + 500 HR readings).
+    public nonisolated static let workoutPageLimit = 25
+    /// Workouts per POST, keeping one body well inside `HubClient`'s 15 s timeout.
+    public nonisolated static let workoutBatchSize = 5
+
+    /// Uploads Apple workouts new/changed since the persisted anchor (first run: the window
+    /// chosen in Settings, `WorkoutBackfill`, 30 days by default). Idempotent on the hub by workout UUID. X-1: nothing is
+    /// POSTed for an empty page, deletions are never sent, a failed read or POST sends nothing
+    /// partial and leaves the anchor where it was (the page is retried whole). Returns the
+    /// number of workouts sent.
+    @discardableResult
+    @concurrent
+    public func syncWorkouts(now: Date = Date()) async throws -> Int {
+        guard let reader = workoutReader else { return 0 }
+        let mayRun = workoutRun.withLock { state -> Bool in
+            if state.running { state.again = true; return false }
+            state.running = true; return true
+        }
+        guard mayRun else { return 0 }
+        var sent = 0
+        do {
+            repeat { sent += try await workoutPass(reader, now: now) }
+            while workoutRun.withLock { state -> Bool in
+                if state.again { state.again = false; return true }
+                state.running = false; return false
+            }
+        } catch {
+            workoutRun.withLock { $0 = WorkoutRunState() }
+            throw error
+        }
+        return sent
+    }
+
+    private func workoutPass(_ reader: any HealthStoreWorkoutUploadReading, now: Date) async throws -> Int {
+        var anchor = readAnchor(Self.workoutAnchorKey)
+        // First run (or a widened window): the Settings choice, not `firstSyncDays`.
+        let since: Date? = anchor == nil ? WorkoutBackfill.current(anchorDefaults).since(now: now) : nil
+        var sent = 0
+        while true {
+            let page = try await reader.anchoredWorkoutRecords(anchor: anchor, since: since, limit: Self.workoutPageLimit)
+            let workouts = page.records.map { AppleWorkoutMapper.payload($0, timeZone: timeZone) }
+            var batchStart = 0
+            while batchStart < workouts.count {
+                let batch = Array(workouts[batchStart..<min(batchStart + Self.workoutBatchSize, workouts.count)])
+                let _: HAEUploadResponse = try await hub.post(Self.uploadPath, body: HAEEnvelope(workouts: batch))
+                let arrived = ISO8601DateFormatter().string(from: Date())
+                anchorDefaults?.set(arrived, forKey: Self.lastSuccessKey)
+                if let type = HKReadKind.workouts.sampleType { anchorDefaults?.set(arrived, forKey: HealthKitArrival.key(for: type)) }
+                sent += batch.count
+                batchStart += Self.workoutBatchSize
+            }
+            // Only after every batch of the page is on the hub.
+            writeAnchor(page.newAnchor, key: Self.workoutAnchorKey)
+            anchor = page.newAnchor ?? anchor
+            guard page.fetchedCount >= Self.workoutPageLimit else { return sent }
+        }
+    }
+
     // MARK: - Anchor persistence
 
     private func readAnchor(_ key: String) -> HKQueryAnchor? {
@@ -521,5 +622,11 @@ public final class HealthKitUploader: Sendable {
         guard let anchor, let data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true) else { return }
         anchorDefaults?.set(data, forKey: key)
     }
+}
+
+/// `running`: a workout sync is in flight; `again`: a trigger arrived meanwhile → one more pass.
+struct WorkoutRunState: Sendable {
+    var running = false
+    var again = false
 }
 #endif

@@ -11,6 +11,10 @@ public struct TrainingView: View {
     /// B-57 W5: "Edit week" pushes the TrainingWeek screen, where the weekday assignment
     /// (B-45 (c) / B-52 outbox) now lives.
     @State private var showWeek = false
+    /// W-B40 L3 (B-82): day-first — a tap on a day of the week strip opens that day's preview.
+    @State private var dayPreview: TrainingDayRef?
+    /// W-B40 L3: the B-40 workout library, pushed from the toolbar (nil model = no library routes).
+    @State private var showLibrary = false
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -27,6 +31,7 @@ public struct TrainingView: View {
     public init(model: TrainingViewModel) { self.model = model }
 
     public var body: some View {
+        ScrollViewReader { proxy in
         ScreenScroll {   // W-GUI F6: the shared scroll root (edge effect, sweep branch)
             VStack(alignment: .leading, spacing: 16) {
                 // B-45 (a): the screen's own date is the REAL device day (mirrors `TodayView`).
@@ -46,6 +51,18 @@ public struct TrainingView: View {
             }
             .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
+        }
+        #if DEBUG
+        // W-B81 dev affordance (same family as `-training-day`): `-training-scroll this-day` scrolls
+        // to the "This day" card once loaded, so a scripted run can screenshot the completed workouts.
+        .task(id: model.phase) {
+            guard model.phase == .loaded, let i = CommandLine.arguments.firstIndex(of: "-training-scroll"),
+                  i + 1 < CommandLine.arguments.count else { return }
+            let target = CommandLine.arguments[i + 1]   // "this-day" or a row id ("completed-workout-<activity id>")
+            try? await Task.sleep(for: .seconds(1))
+            proxy.scrollTo(target == "this-day" ? "training-this-day" : target, anchor: .top)
+        }
+        #endif
         }
         .jiPageGround()
         .jiTheme(.native)
@@ -74,6 +91,82 @@ public struct TrainingView: View {
         }
         #endif
         .navigationDestination(isPresented: $showWeek) { TrainingWeekView(model: model) }
+        .navigationDestination(isPresented: $showLibrary) {
+            if let library = model.library { WorkoutLibraryView(model: library, onSendToWatch: librarySendToWatch) }
+        }
+        .sheet(item: $dayPreview) { ref in
+            TrainingDaySheet(model: model, weekday: ref.weekday, initialRoute: Self.launchArgumentDayRoute())
+        }
+        #if DEBUG
+        // B-82 dev affordance (same family as `-start-tab`): `-training-day <0-6>` opens that day's
+        // sheet once the screen is up; `-training-day-route pick|library` also pushes the picker /
+        // library; `-training-day-autopick <option id>` makes that pick first — so a scripted simulator run can screenshot the flow without a tap.
+        .task {
+            guard let wd = Self.launchArgumentDay() else { return }
+            try? await Task.sleep(for: .seconds(3))
+            // `-training-day-autopick <option id>` ("s8" / "t3"): make that pick first, as a tap would.
+            // W-FIX10 F10-2: the day is selected first, as a tap does (the hero follows it), so the
+            // B40-V5 proof shows the hero after the change.
+            if let date = model.weekSummary.days.first(where: { $0.weekday == wd })?.date { model.selectDate(date) }
+            if let i = CommandLine.arguments.firstIndex(of: "-training-day-autopick"), i + 1 < CommandLine.arguments.count {
+                let options = model.dayOptions(weekday: wd)
+                if let o = (options.plan + options.library).first(where: { $0.id == CommandLine.arguments[i + 1] }) {
+                    _ = await model.changeDay(weekday: wd, adding: o.choice, removing: nil)
+                }
+            }
+            // `-training-day-sheet off`: leave the sheet closed so the hero is on screen.
+            if trainingLaunchDaySheetOpens() { dayPreview = TrainingDayRef(weekday: wd) }
+        }
+        // W-FIX10 F10-2 (B40-V6 proof): `-send-to-watch-open [t<id>]` opens the Send to Watch sheet
+        // once the screen is up (that library workout picked), without a tap.
+        .task {
+            guard let route = trainingLaunchSendToWatch() else { return }
+            try? await Task.sleep(for: .seconds(4))
+            #if canImport(WorkoutKit)
+            guard let sendToWatch else { return }
+            if case .template(let id) = route { sendToWatch.pickOnly(id) }
+            showSendToWatch = true
+            #endif
+        }
+        #endif
+        .toolbar {
+            if model.library != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showLibrary = true } label: { Image(systemName: "figure.run.square.stack") }
+                        .accessibilityLabel("Workout library")
+                        .accessibilityIdentifier("training-open-library")
+                }
+            }
+        }
+    }
+
+    static func launchArgumentDay(_ arguments: [String] = CommandLine.arguments) -> Int? {
+        #if DEBUG
+        guard let i = arguments.firstIndex(of: "-training-day"), arguments.index(after: i) < arguments.endIndex,
+              let wd = Int(arguments[arguments.index(after: i)]), (0...6).contains(wd) else { return nil }
+        return wd
+        #else
+        return nil
+        #endif
+    }
+
+    static func launchArgumentDayRoute(_ arguments: [String] = CommandLine.arguments) -> TrainingDaySheet.Route? {
+        #if DEBUG
+        guard let i = arguments.firstIndex(of: "-training-day-route"), arguments.index(after: i) < arguments.endIndex else { return nil }
+        switch arguments[arguments.index(after: i)] {
+        case "pick": return .pick(replacing: nil)
+        case "library": return .library
+        default: return nil
+        }
+        #else
+        return nil
+        #endif
+    }
+
+    /// B-82: a day tap selects it for "This day" AND opens its preview (day-first).
+    private func openDay(_ date: String) {
+        model.selectDate(date)
+        if let wd = model.weekSummary.days.first(where: { $0.date == date })?.weekday { dayPreview = TrainingDayRef(weekday: wd) }
     }
 
     private var watchLine: String? {
@@ -112,7 +205,7 @@ public struct TrainingView: View {
                     // B-57 W5 (board 3/01): the plan week (S / I / R / –, n of N done, Edit week)
                     // replaces the kcal day strip; a tap still selects the day for "This day".
                     TrainingThisWeekStrip(summary: model.weekSummary, selectedDate: model.selectedDate,
-                                          onSelect: model.selectDate) { showWeek = true }
+                                          onSelect: openDay) { showWeek = true }
                     if let summary = trainingPlanSummary(sessionNames: model.planSessions.map(\.name)) {
                         Text(summary).jiFont(.caption).foregroundStyle(theme.color(.muted))
                             .fixedSize(horizontal: false, vertical: true)
@@ -135,7 +228,7 @@ public struct TrainingView: View {
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
             JISectionHeader("Readiness")
             GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale)
-            JISectionHeader("This day")
+            JISectionHeader("This day").id("training-this-day")
             TrainingDayDetailCard(
                 date: model.selectedDate,
                 detail: model.dayDetail,
@@ -181,6 +274,16 @@ public struct TrainingView: View {
         return date.formatted(Date.FormatStyle(timeZone: trainingStripCalendar.timeZone).weekday(.abbreviated).day().month(.abbreviated))
     }
 
+    /// B40-V7: the library's per-row "Send to Watch" — the same sheet, that workout picked.
+    private var librarySendToWatch: ((WorkoutTemplate) -> Void)? {
+        #if canImport(WorkoutKit)
+        guard let sendToWatch else { return nil }
+        return { template in sendToWatch.pickOnly(template.templateId); showSendToWatch = true }
+        #else
+        nil
+        #endif
+    }
+
     private var sendToWatchAction: (() -> Void)? {
         #if canImport(WorkoutKit)
         sendToWatch == nil ? nil : { showSendToWatch = true }
@@ -188,4 +291,21 @@ public struct TrainingView: View {
         nil
         #endif
     }
+}
+
+/// W-FIX10 F10-2: DEBUG launch routes for the screenshot proofs (developer mode off, no taps).
+/// `-send-to-watch-open` alone = the sheet as the hero opens it; `-send-to-watch-open t<id>` =
+/// that library workout picked (the library row's action).
+nonisolated enum TrainingLaunchSendToWatch: Equatable, Sendable { case hero, template(Int) }
+
+nonisolated func trainingLaunchSendToWatch(_ arguments: [String] = CommandLine.arguments) -> TrainingLaunchSendToWatch? {
+    guard let i = arguments.firstIndex(of: "-send-to-watch-open") else { return nil }
+    if i + 1 < arguments.count, arguments[i + 1].hasPrefix("t"), let id = Int(arguments[i + 1].dropFirst()) { return .template(id) }
+    return .hero
+}
+
+/// `-training-day-sheet off` keeps the `-training-day` sheet closed (default: it opens).
+nonisolated func trainingLaunchDaySheetOpens(_ arguments: [String] = CommandLine.arguments) -> Bool {
+    guard let i = arguments.firstIndex(of: "-training-day-sheet"), i + 1 < arguments.count else { return true }
+    return arguments[i + 1] != "off"
 }

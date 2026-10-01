@@ -40,6 +40,39 @@ public nonisolated struct TrainingHeroRow: Equatable, Sendable, Identifiable {
     public let id: Int
     public let name: String
     public let load: String
+    /// W-FIX9 C-3 (G2): the plan row's numbers, for NEXT's "3 × 8 @ 50 kg" (nil = the plan has none).
+    public var sets: Int? = nil
+    /// The plan's free-text reps target ("8", "6-12", "max", "10/side").
+    public var reps: String? = nil
+    /// The working weight; 0 = bodyweight (no load claimed).
+    public var kg: Double? = nil
+
+    public init(id: Int, name: String, load: String, sets: Int? = nil, reps: String? = nil, kg: Double? = nil) {
+        self.id = id; self.name = name; self.load = load; self.sets = sets; self.reps = reps; self.kg = kg
+    }
+
+    /// "3 × 8" / "3 × 6–12" / "8 reps" / "3 sets"; nil with neither.
+    public var setsTimesReps: String? {
+        let r = reps.map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "-", with: "–") }.flatMap { $0.isEmpty ? nil : $0 }
+        switch (sets, r) {
+        case let (s?, r?): return "\(s) × \(r)"
+        case let (nil, r?): return "\(r) reps"
+        case let (s?, nil): return "\(s) sets"
+        case (nil, nil): return nil
+        }
+    }
+
+    /// W-FIX9 C-3: NEXT's right column — "3 × 8 @ 50 kg"; the weight is left out for bodyweight or
+    /// none; "—" when the plan has nothing (never an invented load).
+    public var prescription: String {
+        let load = kg.flatMap { $0 > 0 ? "\(decideCompactNumber($0)) kg" : nil }
+        switch (setsTimesReps, load) {
+        case let (sr?, l?): return "\(sr) @ \(l)"
+        case let (sr?, nil): return sr
+        case let (nil, l?): return l
+        case (nil, nil): return "—"
+        }
+    }
 }
 
 /// The planned session's exercises (by `sessionId`, or by name when the hub carries no id). A
@@ -52,7 +85,8 @@ public nonisolated func trainingHeroRows(exercises: [Exercise], session: Planned
         let kg = e.currentWeightKg.flatMap { $0 > 0 ? String(format: "%.1f kg", $0) : nil }   // 0 kg = bodyweight: no load claimed
         let sets = e.sets.map { "\($0) sets" }
         let load = [kg, sets].compactMap { $0 }.joined(separator: " · ")
-        return TrainingHeroRow(id: e.exerciseId, name: e.exerciseName, load: load.isEmpty ? "—" : load)
+        return TrainingHeroRow(id: e.exerciseId, name: e.exerciseName, load: load.isEmpty ? "—" : load,
+                               sets: e.sets, reps: e.repsTarget, kg: e.currentWeightKg)
     }
 }
 

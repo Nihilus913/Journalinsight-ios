@@ -475,7 +475,7 @@ struct RootTabView: View {
 
     /// B-57 W4: the hub mirror for gate settings over the current provider (nil = local only).
     private func gateSettingsMirror() -> GateSettingsMirror {
-        GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any GateSettingsProviding)
+        GateSettingsMirror(prefs: env.prefs, provider: hubScreens as? any TargetsProviding)
     }
 
     /// Re-reads the stored settings (after onboarding, or a change in Targets › Limits).
@@ -1281,7 +1281,9 @@ struct RootTabView: View {
                            syncedAt: model.syncedAt,
                            normals: decideSignalNormals(recovery: model.recovery),
                            banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
-                           calibrationNights: model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
+                           // W-FIX10 R-04: the hub's own count of real Apple HRV nights (DH-4) when it sent one.
+                           calibrationNights: recoveryInsight?.calibration.map { $0.component("hrv")?.nights ?? $0.nights }
+                               ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
                     .onAppear {
                         if gateConfigModel == nil {

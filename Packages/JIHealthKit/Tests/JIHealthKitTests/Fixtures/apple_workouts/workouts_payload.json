@@ -1,0 +1,326 @@
+{
+  "data": {
+    "metrics": [
+      {
+        "name": "step_count",
+        "units": "count",
+        "data": [
+          {
+            "date": "2026-09-28 00:00:00 +0200",
+            "qty": 11240,
+            "source": "Apple Watch"
+          }
+        ]
+      }
+    ],
+    "workouts": [
+      {
+        "uuid": "6F1C2A4E-3B7D-4E21-9A10-21A0B0C0D001",
+        "sport": "running",
+        "name": "Indoor Run",
+        "is_indoor": true,
+        "source": "Apple Watch",
+        "start": "2026-09-21 18:30:00 +0200",
+        "end": "2026-09-21 19:05:00 +0200",
+        "duration_s": 2100,
+        "distance_m": 6020.0,
+        "kcal": 412.0,
+        "avg_hr_bpm": 148,
+        "max_hr_bpm": 165,
+        "effort_user": 6.0,
+        "effort_estimated": 5.8,
+        "is_parent": false,
+        "segment_count": 0,
+        "activities": [],
+        "hr_samples": [
+          {
+            "ts": "2026-09-21 18:30:00 +0200",
+            "bpm": 102
+          },
+          {
+            "ts": "2026-09-21 18:35:00 +0200",
+            "bpm": 131
+          },
+          {
+            "ts": "2026-09-21 18:40:00 +0200",
+            "bpm": 144
+          },
+          {
+            "ts": "2026-09-21 18:45:00 +0200",
+            "bpm": 149
+          },
+          {
+            "ts": "2026-09-21 18:50:00 +0200",
+            "bpm": 152
+          },
+          {
+            "ts": "2026-09-21 18:55:00 +0200",
+            "bpm": 155
+          },
+          {
+            "ts": "2026-09-21 19:00:00 +0200",
+            "bpm": 158
+          },
+          {
+            "ts": "2026-09-21 19:05:00 +0200",
+            "bpm": 165
+          }
+        ],
+        "route": []
+      },
+      {
+        "uuid": "9B3E7D10-5A2C-4F88-8E61-28A0B0C0D002",
+        "sport": "running",
+        "name": "Outdoor Run",
+        "is_indoor": false,
+        "source": "Apple Watch",
+        "start": "2026-09-28 07:12:04 +0200",
+        "end": "2026-09-28 07:58:34 +0200",
+        "duration_s": 2790,
+        "distance_m": 8210.0,
+        "kcal": 598.0,
+        "avg_hr_bpm": 152,
+        "max_hr_bpm": 178,
+        "effort_user": 7.0,
+        "effort_estimated": 6.9,
+        "is_parent": true,
+        "segment_count": 3,
+        "activities": [
+          {
+            "uuid": "9B3E7D10-5A2C-4F88-8E61-28A0B0C0D0A1",
+            "sport": "running",
+            "name": "Warm-up",
+            "start": "2026-09-28 07:12:04 +0200",
+            "end": "2026-09-28 07:22:04 +0200",
+            "duration_s": 600,
+            "distance_m": 1520.0
+          },
+          {
+            "uuid": "9B3E7D10-5A2C-4F88-8E61-28A0B0C0D0A2",
+            "sport": "running",
+            "name": "Work",
+            "start": "2026-09-28 07:22:04 +0200",
+            "end": "2026-09-28 07:52:04 +0200",
+            "duration_s": 1800,
+            "distance_m": 5900.0
+          },
+          {
+            "uuid": "9B3E7D10-5A2C-4F88-8E61-28A0B0C0D0A3",
+            "sport": "running",
+            "name": "Cool-down",
+            "start": "2026-09-28 07:52:04 +0200",
+            "end": "2026-09-28 07:58:34 +0200",
+            "duration_s": 390,
+            "distance_m": 790.0
+          }
+        ],
+        "hr_samples": [
+          {
+            "ts": "2026-09-28 07:12:04 +0200",
+            "bpm": 98
+          },
+          {
+            "ts": "2026-09-28 07:17:14 +0200",
+            "bpm": 128
+          },
+          {
+            "ts": "2026-09-28 07:22:24 +0200",
+            "bpm": 139
+          },
+          {
+            "ts": "2026-09-28 07:27:34 +0200",
+            "bpm": 150
+          },
+          {
+            "ts": "2026-09-28 07:32:44 +0200",
+            "bpm": 158
+          },
+          {
+            "ts": "2026-09-28 07:37:54 +0200",
+            "bpm": 163
+          },
+          {
+            "ts": "2026-09-28 07:43:04 +0200",
+            "bpm": 170
+          },
+          {
+            "ts": "2026-09-28 07:48:14 +0200",
+            "bpm": 178
+          },
+          {
+            "ts": "2026-09-28 07:53:24 +0200",
+            "bpm": 149
+          },
+          {
+            "ts": "2026-09-28 07:58:34 +0200",
+            "bpm": 132
+          }
+        ],
+        "route": [
+          {
+            "ts": "2026-09-28 07:12:04 +0200",
+            "lat": 53.561,
+            "lon": 10.004,
+            "elevation_m": 12.0,
+            "speed_mps": 2.5,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:17:14 +0200",
+            "lat": 53.5631,
+            "lon": 10.0057,
+            "elevation_m": 13.5,
+            "speed_mps": 2.6,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:22:24 +0200",
+            "lat": 53.5652,
+            "lon": 10.0074,
+            "elevation_m": 15.0,
+            "speed_mps": 3.3,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:27:34 +0200",
+            "lat": 53.5673,
+            "lon": 10.0091,
+            "elevation_m": 16.5,
+            "speed_mps": 3.4,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:32:44 +0200",
+            "lat": 53.5694,
+            "lon": 10.0108,
+            "elevation_m": 12.0,
+            "speed_mps": 3.3,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:37:54 +0200",
+            "lat": 53.5715,
+            "lon": 10.004,
+            "elevation_m": 13.5,
+            "speed_mps": 3.5,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:43:04 +0200",
+            "lat": 53.5736,
+            "lon": 10.0057,
+            "elevation_m": 15.0,
+            "speed_mps": 3.4,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:48:14 +0200",
+            "lat": 53.5757,
+            "lon": 10.0074,
+            "elevation_m": 16.5,
+            "speed_mps": 3.3,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:53:24 +0200",
+            "lat": 53.5778,
+            "lon": 10.0091,
+            "elevation_m": 12.0,
+            "speed_mps": 2.4,
+            "h_accuracy_m": 4.0
+          },
+          {
+            "ts": "2026-09-28 07:58:34 +0200",
+            "lat": 53.5799,
+            "lon": 10.0108,
+            "elevation_m": 13.5,
+            "speed_mps": 2.1,
+            "h_accuracy_m": 4.0
+          }
+        ],
+        "zone_time": [
+          {
+            "zone": 1,
+            "lower_bpm": 0,
+            "upper_bpm": 125,
+            "seconds": 240
+          },
+          {
+            "zone": 2,
+            "lower_bpm": 125,
+            "upper_bpm": 140,
+            "seconds": 520
+          },
+          {
+            "zone": 3,
+            "lower_bpm": 140,
+            "upper_bpm": 155,
+            "seconds": 910
+          },
+          {
+            "zone": 4,
+            "lower_bpm": 155,
+            "upper_bpm": 170,
+            "seconds": 880
+          },
+          {
+            "zone": 5,
+            "lower_bpm": 170,
+            "upper_bpm": null,
+            "seconds": 240
+          }
+        ]
+      },
+      {
+        "uuid": "2D8A4C66-1E9F-4B35-B7C2-25A0B0C0D003",
+        "sport": "cycling",
+        "name": "Indoor Cycle",
+        "is_indoor": true,
+        "source": "Apple Watch",
+        "start": "2026-09-25 17:45:00 +0200",
+        "end": "2026-09-25 18:30:00 +0200",
+        "duration_s": 2700,
+        "distance_m": null,
+        "kcal": 380.0,
+        "avg_hr_bpm": 131,
+        "max_hr_bpm": 158,
+        "effort_user": null,
+        "effort_estimated": 5.3,
+        "is_parent": false,
+        "segment_count": 0,
+        "activities": [],
+        "hr_samples": [
+          {
+            "ts": "2026-09-25 17:45:00 +0200",
+            "bpm": 95
+          },
+          {
+            "ts": "2026-09-25 17:52:30 +0200",
+            "bpm": 118
+          },
+          {
+            "ts": "2026-09-25 18:00:00 +0200",
+            "bpm": 129
+          },
+          {
+            "ts": "2026-09-25 18:07:30 +0200",
+            "bpm": 134
+          },
+          {
+            "ts": "2026-09-25 18:15:00 +0200",
+            "bpm": 138
+          },
+          {
+            "ts": "2026-09-25 18:22:30 +0200",
+            "bpm": 158
+          },
+          {
+            "ts": "2026-09-25 18:30:00 +0200",
+            "bpm": 126
+          }
+        ],
+        "route": []
+      }
+    ]
+  }
+}

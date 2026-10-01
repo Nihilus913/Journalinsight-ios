@@ -1,0 +1,466 @@
+[
+  {
+    "template_id": 1,
+    "name": "Long Run Zone 2",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      6
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 600,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 4500,
+        "hr_lo": 116,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-28T06:00:00Z",
+    "segments": [
+      {
+        "sport": "running",
+        "steps": [
+          {
+            "purpose": "warmup",
+            "end": {
+              "type": "time",
+              "seconds": 600
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "work",
+            "end": {
+              "type": "time",
+              "seconds": 4500
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 116,
+              "hi": 138
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "cooldown",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          }
+        ]
+      }
+    ],
+    "description": null,
+    "gated_template_id": null,
+    "garmin": {
+      "workout_id": 1633309938,
+      "current": true,
+      "pushed_at": null
+    }
+  },
+  {
+    "template_id": 2,
+    "name": "Zone 2 40 min",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      0
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 1800,
+        "hr_lo": 117,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-28T06:00:00Z",
+    "segments": [
+      {
+        "sport": "running",
+        "steps": [
+          {
+            "purpose": "warmup",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "work",
+            "end": {
+              "type": "time",
+              "seconds": 1800
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 117,
+              "hi": 138
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "cooldown",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          }
+        ]
+      }
+    ],
+    "description": null,
+    "gated_template_id": null,
+    "garmin": null
+  },
+  {
+    "template_id": 3,
+    "name": "Norwegian 4×4",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      1,
+      5
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 600,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 240,
+        "hr_lo": 160,
+        "hr_hi": 175,
+        "repeat": 4
+      },
+      {
+        "purpose": "recovery",
+        "seconds": 180,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 4
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-28T06:00:00Z",
+    "segments": [
+      {
+        "sport": "running",
+        "steps": [
+          {
+            "purpose": "warmup",
+            "end": {
+              "type": "time",
+              "seconds": 600
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "work",
+            "end": {
+              "type": "time",
+              "seconds": 240
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 160,
+              "hi": 175
+            },
+            "repeat": 4,
+            "description": null
+          },
+          {
+            "purpose": "recovery",
+            "end": {
+              "type": "time",
+              "seconds": 180
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 4,
+            "description": null
+          },
+          {
+            "purpose": "cooldown",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          }
+        ]
+      }
+    ],
+    "description": null,
+    "gated_template_id": 2,
+    "garmin": null
+  },
+  {
+    "template_id": 4,
+    "name": "Zone 2 60 min",
+    "activity": "running",
+    "location": "outdoor",
+    "weekdays": [
+      2,
+      4
+    ],
+    "steps": [
+      {
+        "purpose": "warmup",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      },
+      {
+        "purpose": "work",
+        "seconds": 3000,
+        "hr_lo": 117,
+        "hr_hi": 138,
+        "repeat": 1
+      },
+      {
+        "purpose": "cooldown",
+        "seconds": 300,
+        "hr_lo": 100,
+        "hr_hi": 140,
+        "repeat": 1
+      }
+    ],
+    "updated_at": "2026-09-28T06:00:00Z",
+    "segments": [
+      {
+        "sport": "running",
+        "steps": [
+          {
+            "purpose": "warmup",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "work",
+            "end": {
+              "type": "time",
+              "seconds": 3000
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 117,
+              "hi": 138
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "cooldown",
+            "end": {
+              "type": "time",
+              "seconds": 300
+            },
+            "target": {
+              "type": "hr_range",
+              "lo": 100,
+              "hi": 140
+            },
+            "repeat": 1,
+            "description": null
+          }
+        ]
+      }
+    ],
+    "description": null,
+    "gated_template_id": null,
+    "garmin": null
+  },
+  {
+    "template_id": 5,
+    "name": "Friday",
+    "activity": "multi_sport",
+    "location": "outdoor",
+    "weekdays": [],
+    "steps": [],
+    "updated_at": "2026-09-28T06:00:00Z",
+    "segments": [
+      {
+        "sport": "strength",
+        "steps": [
+          {
+            "purpose": "warmup",
+            "end": {
+              "type": "lap"
+            },
+            "target": {
+              "type": "none"
+            },
+            "repeat": 1,
+            "description": "Jump rope: 3 × 1 min, easy"
+          },
+          {
+            "exercise_key": "Barbell Bench Press",
+            "garmin_category": "BENCH_PRESS",
+            "garmin_exercise": "BARBELL_BENCH_PRESS",
+            "sets": 3,
+            "reps": 12,
+            "seconds": null,
+            "weight_kg": 40.0,
+            "rest_seconds": 120,
+            "description": null
+          },
+          {
+            "exercise_key": "Plank",
+            "garmin_category": "PLANK",
+            "garmin_exercise": "PLANK",
+            "sets": 3,
+            "reps": null,
+            "seconds": 45,
+            "weight_kg": null,
+            "rest_seconds": 60,
+            "description": null
+          },
+          {
+            "exercise_key": "KB Overhead Triceps Extension",
+            "garmin_category": "TRICEPS_EXTENSION",
+            "garmin_exercise": null,
+            "sets": 3,
+            "reps": 12,
+            "seconds": null,
+            "weight_kg": 12.0,
+            "rest_seconds": 90,
+            "description": null
+          }
+        ]
+      },
+      {
+        "sport": "running",
+        "steps": [
+          {
+            "purpose": "work",
+            "end": {
+              "type": "time",
+              "seconds": 3600
+            },
+            "target": {
+              "type": "hr_zone",
+              "zone": 2
+            },
+            "repeat": 1,
+            "description": null
+          },
+          {
+            "purpose": "cooldown",
+            "end": {
+              "type": "distance",
+              "meters": 1000
+            },
+            "target": {
+              "type": "none"
+            },
+            "repeat": 1,
+            "description": null
+          }
+        ]
+      }
+    ],
+    "description": "Strength + Zone 2 run",
+    "gated_template_id": null,
+    "garmin": {
+      "workout_id": 1498828508,
+      "current": false,
+      "pushed_at": "2026-09-27T18:30:00Z"
+    }
+  }
+]

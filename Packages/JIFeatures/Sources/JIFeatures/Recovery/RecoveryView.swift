@@ -130,8 +130,11 @@ public struct RecoveryView: View {
     private func metricCard(_ metric: RecoveryCardMetric) -> some View {
         let reading = recoveryCardReading(days: model.days, metric: metric)
         // B-57 W3 S2: the real 28-day normal (the gate's inputs for HRV / RHR); nil = "your normal —".
+        // W-FIX10 R-04: while the hub calibrates this metric, no band at all (not even the plotted
+        // nights' own) and the card says "Calibrating · n of N nights".
+        let calibrationCaption = insightCalibrationCaption(metric)
         let normal = recoveryCardNormal(metric: metric, days: model.days, insightNormal: insightNormal(metric),
-                                        today: recoveryToday)
+                                        today: recoveryToday, hubCalibrating: calibrationCaption != nil)
         let tint = metric == .sleep ? theme.color(.sleep) : nil
         return Surface(level: 1, padding: JISpacing.cardPadding, tint: tint) {
             VStack(alignment: .leading, spacing: JISpacing.s3) {
@@ -155,7 +158,7 @@ public struct RecoveryView: View {
                         .jiNumeral(.numeralMedium, weight: .heavy, tint: reading.value == nil ? .muted : metric.tint)
                     if reading.value != nil { Text(metric.unit).jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
                     Spacer(minLength: JISpacing.s2)
-                    Text(recoveryNormalText(normal?.range, decimals: metric.decimals)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    Text(calibrationCaption ?? recoveryNormalText(normal?.range, decimals: metric.decimals)).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .multilineTextAlignment(.trailing)
                 }
                 Text(reading.value == nil ? "— \(JIMissingReason.noData.rawValue)" : (reading.asOf ?? "last night"))
@@ -199,6 +202,14 @@ public struct RecoveryView: View {
     }
 
     /// Last night's value from the gate's inputs (nil = no reading — never a zero).
+    private func insightCalibrationCaption(_ metric: RecoveryCardMetric) -> String? {
+        switch metric {
+        case .hrv: insight?.calibrationCaption(for: .hrv)
+        case .rhr: insight?.calibrationCaption(for: .rhr)
+        case .sleep: nil
+        }
+    }
+
     private func insightLastNight(_ metric: RecoveryMetric) -> Double? {
         insight?.lastNights(metric, count: 1).last?.value
     }
@@ -282,7 +293,10 @@ public struct RecoveryView: View {
 /// inputs, 42 days) when it exists, else the normal of the nights the card plots; the sleep card
 /// plots the sleep score, so only a score normal fits it. nil = "your normal —" (Calibrating).
 public nonisolated func recoveryCardNormal(metric: RecoveryCardMetric, days: [RecoveryDay],
-                                           insightNormal: PersonalNormalResult?, today: String) -> PersonalNormalResult? {
+                                           insightNormal: PersonalNormalResult?, today: String,
+                                           hubCalibrating: Bool = false) -> PersonalNormalResult? {
+    // W-FIX10 R-04: the hub's calibrating verdict wins over any band the plotted nights could give.
+    if metric != .sleep, hubCalibrating { return nil }
     if metric != .sleep, let insightNormal { return insightNormal }
     return KpiNormal.make(points: days.map { (date: $0.date, value: metric.value($0)) }, today: today).normal
 }

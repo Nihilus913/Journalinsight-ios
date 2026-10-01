@@ -10,7 +10,7 @@ import HealthKit
 /// instead. Read set per the W2d card plus B-57 W2 (B-73): steps, active energy, exercise time,
 /// resting HR, HRV (SDNN + RMSSD), sleep analysis, body mass/fat/lean/BMI, workouts; resting
 /// (basal) energy; dietary energy, protein, carbohydrates and fat (read-only; JI never logs food); W-FIX7 N-2:
-/// dietary fibre and sugar.
+/// dietary fibre and sugar; W-FIX10 DH-8: respiratory rate, SpO2, sleeping wrist temperature, VO2max.
 public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     case stepCount
     case activeEnergy
@@ -37,6 +37,12 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     /// W-FIX7 N-2: fibre + sugar the food app (YAZIO) writes to Health — My KPIs Fibre / Sugar. Read-only.
     case dietaryFiber
     case dietarySugar
+    /// W-FIX10 DH-8 (audit 04-a1): uploaded since W-FIX2 FM-10 / W-DATA R4 but, until now, not
+    /// part of the read vocabulary — so the permission verdict never reported them. Read-only.
+    case respiratoryRate
+    case oxygenSaturation
+    case sleepingWristTemperature
+    case vo2Max
 
     /// `nil` only for `.hrvRMSSD` when the iOS 27 RMSSD type isn't available — every other kind
     /// always resolves to a concrete `HKSampleType`.
@@ -61,6 +67,10 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
         case .dietaryFat: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFatTotal)
         case .dietaryFiber: return HKQuantityType(HKQuantityTypeIdentifier.dietaryFiber)
         case .dietarySugar: return HKQuantityType(HKQuantityTypeIdentifier.dietarySugar)
+        case .respiratoryRate: return HKQuantityType(HKQuantityTypeIdentifier.respiratoryRate)
+        case .oxygenSaturation: return HKQuantityType(HKQuantityTypeIdentifier.oxygenSaturation)
+        case .sleepingWristTemperature: return HKQuantityType(HKQuantityTypeIdentifier.appleSleepingWristTemperature)
+        case .vo2Max: return HKQuantityType(HKQuantityTypeIdentifier.vo2Max)
         }
     }
 
@@ -91,6 +101,32 @@ public enum HKReadKind: String, Sendable, Equatable, Hashable, CaseIterable {
     /// request is still valid against it).
     public static var allReadTypes: Set<HKObjectType> {
         Set(availableCases.compactMap { $0.sampleType as HKObjectType? })
+    }
+}
+
+/// W-B81 A-4: the extra HealthKit types the Apple-workout uploader reads for each workout — its
+/// heart-rate series and statistics, route, distance/energy statistics and the effort scores.
+/// Named here because this is the one file allowed to spell HK identifiers (see `HKReadKind`).
+/// Read-only; requested by `HealthKitUploader.requestAuthorization` (not by the permission
+/// screen's `HKReadKind` verdict, so an older grant never flips back to "not determined").
+public enum HKWorkoutUploadTypes {
+    public static var heartRate: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.heartRate) }
+    public static var activeEnergy: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.activeEnergyBurned) }
+    /// Total distance, whichever statistic the workout carries (first non-nil wins, in this order).
+    public static var distances: [HKQuantityType] {
+        [HKQuantityTypeIdentifier.distanceWalkingRunning, .distanceCycling, .distanceSwimming, .distanceWheelchair,
+         .distanceDownhillSnowSports, .distanceRowing, .distancePaddleSports, .distanceCrossCountrySkiing, .distanceSkatingSports]
+            .map { HKQuantityType($0) }
+    }
+    /// `workoutEffortScore` (the user's 1–10 rating) and `estimatedWorkoutEffortScore` (Apple's).
+    public static var workoutEffort: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.workoutEffortScore) }
+    public static var estimatedWorkoutEffort: HKQuantityType { HKQuantityType(HKQuantityTypeIdentifier.estimatedWorkoutEffortScore) }
+    public static var route: HKSeriesType { HKSeriesType.workoutRoute() }
+
+    public static var readTypes: Set<HKObjectType> {
+        var types: Set<HKObjectType> = [HKWorkoutType.workoutType(), heartRate, activeEnergy, workoutEffort, estimatedWorkoutEffort, route]
+        for d in distances { types.insert(d) }
+        return types
     }
 }
 #endif

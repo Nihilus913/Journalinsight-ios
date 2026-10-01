@@ -83,6 +83,9 @@ public final class SendToWatchViewModel {
         if selected.contains(templateId) { selected.remove(templateId) } else { selected.insert(templateId) }
     }
 
+    /// B40-V7: the library row's "Send to Watch" — that workout, and only it, is picked.
+    public func pickOnly(_ templateId: Int) { selected = [templateId] }
+
     public func isSelected(_ templateId: Int) -> Bool { selected.contains(templateId) }
 
     public var isBusy: Bool { state == .loading || state == .sending }
@@ -139,8 +142,9 @@ public final class SendToWatchViewModel {
 }
 
 /// SendToWatch footer. The cap part appears only when the user set a cap.
+/// W-FIX10 F10-3 (B40 obs 3): Bevel is retired (B-38 / B-40) — strength is logged in JI.
 public nonisolated func sendToWatchAlertNote(_ limits: WorkoutHrLimits) -> String {
-    "Cardio only — strength stays in Bevel. Heart-rate alerts are absolute bpm"
+    "Cardio only — strength parts are logged in JournalInsight, not sent. Heart-rate alerts are absolute bpm"
         + (limits.capBpm.map { ", capped at your \($0) bpm" } ?? "")
         + (limits.zone5FloorBpm.map { ", below your Zone 5 (\($0))" } ?? "") + "."
 }

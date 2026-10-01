@@ -71,34 +71,4 @@ public struct MealTimeline: View {
             }
         return known + extras
     }
-
-    private func mealSection(slot: String, items: [NutritionMealItem]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(Self.labels[slot] ?? slot.capitalized).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(.text))
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("meal-row-\(slot)")
-            // §2b.2: each logged item is a 44-pt inset-grouped row.
-            ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                Group { if typeSize.isAccessibilitySize {
-                    // W-FIX3 BUG-33: at AX sizes a name beside its kcal broke mid-word
-                    // ("Schink-/en"); the kcal takes its own line under the whole name.
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.name).jiFont(.body).foregroundStyle(theme.color(.text))
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text(verbatim: mealItemKcalText(item.kcal)).jiFont(.body).foregroundStyle(theme.color(.muted))
-                    }
-                    .frame(maxWidth: .infinity, minHeight: JIRow<EmptyView>.minHeight, alignment: .leading)
-                    .accessibilityElement(children: .combine)
-                } else {
-                    JIRow(title: item.name, systemImage: "fork.knife", tint: theme.color(.info)) {
-                        // W-FIX3 BUG-36: the same rounding as My KPIs / KpiDetail / the Meal sheet.
-                        Text(verbatim: mealItemKcalText(item.kcal))
-                            .accessibilityLabel(mealItemKcalText(item.kcal))
-                    }
-                } }
-                .accessibilityLabel(item.name)
-                if idx != items.count - 1 { Divider().overlay(theme.color(.hairlineNested)).padding(.leading, 40) }
-            }
-        }
-    }
 }

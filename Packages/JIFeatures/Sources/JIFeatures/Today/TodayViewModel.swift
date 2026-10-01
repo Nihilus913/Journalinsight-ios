@@ -89,12 +89,44 @@ public final class TodayViewModel {
     private let prefs: PrefStore?
     private let now: () -> Date
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
-                               exercises: "today.exercises")
+                               exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason",
+                               planWeek: "today.planWeek")
+
+    /// W-FIX10 R-01: the active plan's sessions (`GET /planning/plan-sessions`) — the one schedule
+    /// resolver (`scheduledSession`) reads today's session from their weekdays. Empty = no plan read
+    /// (not a `TrainingProviding`, an older hub, or never answered); a failure keeps the last rows.
+    public private(set) var planSessions: [PlanSessionOut] = []
+    /// W-SSOT-1 SS-7: the hub's served week (`GET /planning/week?start=`) — preferred over the rows
+    /// above; nil when the hub does not serve it (older hub) or it was never read.
+    public private(set) var planWeek: PlanWeekOut?
+
+    /// W-FIX10 R-01: today's session from the plan's weekdays (what the day sheet moves — the rule
+    /// the hub's morning call follows). nil when no plan was read: the hub's labels stand.
+    public var scheduledSessionToday: String? {
+        guard !planSessions.isEmpty || planWeek != nil else { return nil }
+        return scheduledSession(on: todayDateString, planSessions: planSessions, week: planWeek)?.name
+    }
+
+    /// W-FIX10 R-05: the persisted reason of the verdict date's call (`/planning/morning-verdict`).
+    public private(set) var verdictReason: String?
+
+    /// W-FIX10 R-05: "Waiting for the watch…" while the hub holds the morning push (nil otherwise).
+    public var heldReason: String? { decideHeldReason(verdictReason) }
 
     /// W-FIX4 PF-02: the hub's plan (`/planning/exercises`, the rows Training lists) — Day's NEXT card
     /// names today's exercises and working weights from it. Empty when the provider has no plan
     /// (not a `TrainingProviding`) or never answered; a failure keeps the last known rows.
     public private(set) var exercises: [Exercise] = []
+
+    /// W-B81 A-5: today's completed workouts from the hub (`/training/day/{today}` — Apple dso 4 and
+    /// Garmin), for Day's NEXT card. Same cache key as Training's day detail. Empty when the provider
+    /// has no training routes; a failure keeps the last known rows.
+    public var hubWorkouts: [DayActivity] { hubDay?.activities ?? [] }
+    /// W-FIX9 G3: the whole `/training/day/{today}` answer — its logged sets feed NEXT's
+    /// logged-vs-planned lift rows (C-3). nil until the hub answered.
+    public private(set) var hubDay: TrainingDayDetail?
+    /// Today's logged sets from the hub (empty = none logged, or no hub answer yet).
+    public var hubExerciseSets: [DayExerciseSet] { hubDay?.exerciseSets ?? [] }
 
     /// Today's weekday in the plan's numbering (Mon = 0 … Sun = 6), for the NEXT card's fallback.
     public var todayWeekday: Int {
@@ -111,7 +143,7 @@ public final class TodayViewModel {
     /// (`hk.upload.lastSuccess`, written by JIHealthKit's `HealthKitUploader` in the App Group).
     public private(set) var lastUploadAt: Date?
     private let uploadRecord: UserDefaults?
-    private static let lastUploadKey = "hk.upload.lastSuccess"
+    private static let lastUploadKey = PrefKeys.hkLastUploadSuccess
 
     /// W-FIX2 L5 (DEV-03): what the sync chip shows — the newer of the hub's last sync and this
     /// app's last successful HealthKit upload. `nil` ("Not synced yet") when neither is known —
@@ -316,6 +348,13 @@ public final class TodayViewModel {
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
+        if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
+        if let w = try? cache.get(Self.keys.planWeek, as: PlanWeekOut.self), w.value.start == planWeekStart(todayDateString) {
+            planWeek = w.value
+        }
+        if let v = try? cache.get(Self.keys.verdictReason, as: MorningVerdict.self), v.value.date == morning?.verdictDate {
+            verdictReason = v.value.reason
+        }
         lastUploadAt = readLastUpload()
         if morning != nil { phase = .loaded }
         syncMorningState()
@@ -346,13 +385,24 @@ public final class TodayViewModel {
             async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
             async let hR = Self.loadHubLastSync(provider: provider)
             async let eR = Self.loadExercises(provider: provider, cache: cache)
+            let today = todayDateString
+            async let wR = Self.loadHubWorkouts(provider: provider, cache: cache, date: today)
+            async let pR = Self.loadPlanSessions(provider: provider, cache: cache)
+            async let pwR = Self.loadPlanWeek(provider: provider, cache: cache, date: today)
             let (m, g, r) = try await (mR, gR, rR)
+            if let pv = await pR { planSessions = pv }
+            planWeek = await pwR   // nil when not served: never keep another week's answer
             if let sv = await sR { sleepSummary = sv }
             if let hv = await hR { hubLastSync = hv }
             if let ev = await eR { exercises = ev }
+            if let wv = await wR { hubDay = wv }
             lastUploadAt = readLastUpload()
 
             if let mv = m.value { morning = mv; syncMorningState() }
+            // W-FIX10 R-05: the call's persisted reason (the held "Waiting for the watch…" line).
+            if let date = morning?.verdictDate {
+                verdictReason = await Self.loadVerdictReason(provider: verdictSource, cache: cache, date: date)
+            }
             if let gv = g.value { gate = gv }
             // W-FIX1 BUG-12: the hub's invented `acwr` 0.0 is cleared here, so every Day reader of the
             // rows (the hero Load ring, the EditToday square, Trends) shows "—", never "0.00".
@@ -418,6 +468,30 @@ public final class TodayViewModel {
     nonisolated private static func loadExercises(provider: any HealthDataProvider, cache: OfflineCache) async -> [Exercise]? {
         guard let tp = provider as? any TrainingProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.exercises, cache: cache) { try await tp.exercises() })?.value
+    }
+
+    nonisolated private static func loadPlanSessions(provider: any HealthDataProvider, cache: OfflineCache) async -> [PlanSessionOut]? {
+        guard let tp = provider as? any TrainingProviding else { return nil }
+        return (try? await SectionLoader.load(key: keys.planSessions, cache: cache) { try await tp.planSessions() })?.value
+    }
+
+    /// W-SSOT-1 SS-7: `date`'s week from the hub; nil when the route is not served (the rows answer).
+    nonisolated private static func loadPlanWeek(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> PlanWeekOut? {
+        guard let tp = provider as? any TrainingProviding, let start = planWeekStart(date) else { return nil }
+        let week = (try? await SectionLoader.load(key: keys.planWeek, cache: cache) { try await tp.planWeek(start: start) })?.value
+        return week?.start == start ? week : nil   // a cached fallback from another week is no answer
+    }
+
+    /// The reason of `date`'s call; nil when the hub has none for that date (never another day's).
+    nonisolated private static func loadVerdictReason(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> String? {
+        let row = (try? await SectionLoader.load(key: keys.verdictReason, cache: cache) { try await provider.morningVerdict(date: date) })?.value
+        guard let row, row.date == date else { return nil }
+        return row.reason
+    }
+
+    nonisolated private static func loadHubWorkouts(provider: any HealthDataProvider, cache: OfflineCache, date: String) async -> TrainingDayDetail? {
+        guard let tp = provider as? any TrainingProviding else { return nil }
+        return (try? await SectionLoader.load(key: "training.day.\(date)", cache: cache) { try await tp.trainingDay(date: date) })?.value
     }
 
     nonisolated private static func loadHubLastSync(provider: any HealthDataProvider) async -> Date? {
@@ -609,20 +683,38 @@ public final class TodayWorkoutsModel {
         onChange?()
     }
 
-    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's workouts.
-    public func completion(sessionLabel: String?) -> SessionCompletion {
-        SessionCompletion.resolve(planned: PlannedSessionKind.classify(sessionLabel), workouts: workouts)
+    /// Today's session (by its label — "Day 1 Full Upper", "Long Z2", "Rest") against today's
+    /// workouts: Apple Health's, plus the hub's `core.activity` rows (`hub`, Garmin + Apple — W-FIX9 G1).
+    /// W-SSOT-1 SS-2: `hubCompletion` (the hub's `/training/day` `completion`) is preferred when present.
+    public func completion(sessionLabel: String?, hub: [DayActivity] = [], hubCompletion: HubCompletion? = nil) -> SessionCompletion {
+        progress(sessionLabel: sessionLabel, hub: hub, hubCompletion: hubCompletion).completion
+    }
+
+    /// W-FIX9 G5: every part of today's session (the same rule as `completion`).
+    public func progress(sessionLabel: String?, hub: [DayActivity] = [], hubCompletion: HubCompletion? = nil) -> SessionProgress {
+        SessionCompletion.progress(sessionLabel: sessionLabel, workouts: TodayWorkout.merging(local: workouts, hub: hub),
+                                   hub: hubCompletion)
     }
 }
 
 public extension TodayViewModel {
-    /// F7-1: the label of today's planned session — the hub's session for today, else the call's session.
+    /// F7-1: the label of today's planned session — the hub's session for today, else (W-FIX10 R-01)
+    /// the plan's session for today's weekday, else the call's session.
     var plannedSessionLabel: String? {
-        [morning?.sessionForToday, verdict.session].compactMap { $0 }.first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        [morning?.sessionForToday, scheduledSessionToday, verdict.session].compactMap { $0 }
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
-    /// F7-1: today's session against today's Apple Health workouts (`.none` = unchanged).
+    /// F7-1: today's session against today's workouts — Apple Health and the hub (W-FIX9 G1).
+    /// `.none` = unchanged.
     func sessionCompletion(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionCompletion {
-        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel)
+        workouts.completion(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts,
+                            hubCompletion: sessionLabel == nil ? hubDay?.completion : nil)
+    }
+
+    /// W-FIX9 C-1: the parts of today's session, for the summary line (same rule, same inputs).
+    func sessionProgress(workouts: TodayWorkoutsModel = .shared, sessionLabel: String? = nil) -> SessionProgress {
+        workouts.progress(sessionLabel: sessionLabel ?? plannedSessionLabel, hub: hubWorkouts,
+                          hubCompletion: sessionLabel == nil ? hubDay?.completion : nil)
     }
 }

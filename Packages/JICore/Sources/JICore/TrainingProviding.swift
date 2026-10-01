@@ -18,12 +18,35 @@ public protocol TrainingProviding: Sendable {
     /// written before the route existed (fixtures, `MockDataProvider`) still conforms and simply
     /// reports the feature as unavailable instead of pretending the write landed.
     func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut
+
+    /// `GET /api/v1/planning/plan-sessions` (W-B40 fixer, B40-V1) — every session of the active
+    /// plan, cardio and rest included (the exercise rows only carry sessions that have lifts).
+    /// Defaulted: a provider without the route reports it unavailable and the app falls back to
+    /// the morning-call schedule for the cardio days.
+    func planSessions() async throws -> [PlanSessionOut]
+
+    /// `GET /api/v1/planning/week?start=` (W-SSOT-1 SS-7) — the hub's seven-day schedule, one
+    /// `session_for` answer per date. Defaulted: an older hub (no route) throws
+    /// `PlanWeekUnavailable` and the resolver falls back to `planSessions()`.
+    func planWeek(start: String) async throws -> PlanWeekOut
 }
 
 public extension TrainingProviding {
     func updatePlanSessionWeekday(sessionId: Int, weekday: Int?) async throws -> PlanSessionOut {
         throw PlanSessionUpdateUnavailable()
     }
+
+    func planSessions() async throws -> [PlanSessionOut] {
+        throw PlanSessionListUnavailable()
+    }
+
+    func planWeek(start: String) async throws -> PlanWeekOut {
+        throw PlanWeekUnavailable()
+    }
+}
+
+public struct PlanSessionListUnavailable: Error, Sendable, Equatable {
+    public init() {}
 }
 
 public struct PlanSessionUpdateUnavailable: Error, Sendable, Equatable {

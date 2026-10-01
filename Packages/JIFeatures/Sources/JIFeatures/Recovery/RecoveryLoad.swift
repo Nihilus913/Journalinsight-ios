@@ -57,7 +57,12 @@ public nonisolated func recoveryLoadReading(days: [RecoveryInputDay], today: Str
 
 extension RecoveryInsightService {
     /// W-DATA R9: the Load reading over the loaded inputs; nil before a load or without data.
-    public var loadReading: RecoveryLoadReading? { recoveryLoadReading(days: days, today: today) }
+    /// W-FIX10 R-04: while the hub calibrates `load`, the minutes stay but the band does not.
+    public var loadReading: RecoveryLoadReading? {
+        guard let r = recoveryLoadReading(days: days, today: today) else { return nil }
+        guard calibration?.isCalibrating("load") ?? false else { return r }
+        return RecoveryLoadReading(minutes: r.minutes, normal: nil, points: r.points)
+    }
 }
 
 /// W-DATA R9: Today's "Load" square. An ACWR the hub really sent keeps the square; otherwise the

@@ -34,7 +34,7 @@ import JIPersistence
 // DEV-15: a row still queued from an earlier session reads as pending on load (the truth).
 @Test @MainActor func dev15QueuedRowFromEarlierSessionReadsPending() async throws {
     let (vm, outbox, _) = try goalsFixture()
-    _ = try outbox.enqueue(kind: OutboxDrainer.goalsKind, payload: GoalsUpdate(nutrition: .init(kcalGoal: 1800, proteinG: nil, carbsG: nil, fatG: nil)))
+    _ = try outbox.enqueue(kind: TargetsDocument.outboxKind, payload: TargetsDocument.empty)   // W-FIX10: goals travel in the targets body
     await vm.load()
     #expect(vm.hubPending)
     #expect(!GoalsSetupViewModel.goalsPending(in: Outbox(db: try AppDatabase.inMemory())))
@@ -48,7 +48,7 @@ import JIPersistence
 
 // W4-1: the app's foreground push clears "Not on the hub yet" on a GateConfig that stays open.
 @Test @MainActor func w41ForegroundClearsNotOnTheHubYet() async throws {
-    let prefs = try PrefStore(db: AppDatabase.inMemory())
+    let prefs = try postImportPrefs()
     let hub = GateSettingsHubFake(); hub.fail = true
     let name = Notification.Name("fix5.l2.test.active")
     let vm = GateConfigViewModel(prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub),
@@ -64,7 +64,7 @@ import JIPersistence
 }
 
 @Test @MainActor func w41ForegroundSyncReReadsTheFlag() async throws {
-    let prefs = try PrefStore(db: AppDatabase.inMemory())
+    let prefs = try postImportPrefs()
     let hub = GateSettingsHubFake(); hub.fail = true
     let vm = GateConfigViewModel(prefStore: prefs, mirror: GateSettingsMirror(prefs: prefs, provider: hub))
     vm.loadLocal()

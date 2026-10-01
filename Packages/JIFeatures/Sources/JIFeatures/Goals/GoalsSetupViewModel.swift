@@ -73,12 +73,30 @@ public nonisolated func nextWorkingWeightRows(lifts: [LiftProgression], entries:
 /// "Does your goal already include a deficit?" and calls again with `confirmed: true`.
 public enum NutritionSaveOutcome: Equatable, Sendable { case saved, needsDeficitCheck, failed }
 
+/// The GoalsSetup form's weight / strength / steps written into the targets document's Goals
+/// (W-FIX10 F10-1). The form always sends its whole state for these three: `weight` replaces the
+/// target and date (nil date = no target date; the base weight is kept), `strength` replaces the
+/// list, `stepsDaily` nil = no step goal. Nutrition is not touched (it saves through
+/// `saveNutrition`); a patch without `weight` / `strength` leaves those as they are.
+public nonisolated func goalsSetupApplying(_ patch: GoalsUpdate, to goals: TargetGoals) -> TargetGoals {
+    var g = goals
+    if let w = patch.weight {
+        g.weight = WeightTarget(baseKg: w.baseKg ?? goals.weight?.baseKg, targetKg: w.targetKg ?? goals.weight?.targetKg,
+                                targetDate: w.targetDate)
+    }
+    if let s = patch.strength { g.strength = s.map { StrengthGoal(exercise: $0.exercise, targetKg: $0.targetKg) } }
+    g.stepsDaily = patch.stepsDaily
+    return g
+}
+
 /// W4-L3 (P-goals), mirrors `mobile/app/goals-setup.tsx` + `mobile/src/data/useGoals.ts`'s
 /// `useGoals`/`useUpdateGoals`. Reads through the frozen `EnergyProviding.goals()` (the same
-/// `GET /planning/goals` route the Energy tab already calls); writes through the new
-/// `GoalsProviding.updateGoals` (`PUT /planning/goals`). On a successful save, the result is also
-/// written into `GoalStore`'s `goal_targets_mirror` (local-first mirror, R6c-3a) so it never
-/// drifts stale relative to what was actually shown/edited.
+/// `GET /planning/goals` route the Energy tab already calls).
+/// W-FIX10 F10-1 (audit 03-F1): writes go into the phone's `TargetsStore` and reach the hub as the
+/// ONE targets body (outbox kind `targets`, via `GoalsMirror.targets`) — the removed
+/// `PUT /planning/goals` answered every save with a 405. A save is local-first: it lands on this
+/// phone whether or not the hub is reachable ("hub sync pending" until the body is delivered), and
+/// the edited document is written into `GoalStore`'s `goal_targets_mirror` (R6c-3a).
 @Observable @MainActor
 public final class GoalsSetupViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, saving, error(String) }
@@ -104,10 +122,10 @@ public final class GoalsSetupViewModel {
     private let mirror: GoalsMirror?   // TEMP bridge until B-50: hub weekly gate
     private let burnSource: (@MainActor () async -> EnergyBurnWindow?)?
     private let onNutritionSaved: (@MainActor () -> Void)?
-    /// W-FIX5 DEV-15: whether a goals PUT is still in the outbox (nil = only this model's saves say).
+    /// W-FIX5 DEV-15: whether a targets body is still in the outbox (nil = only this model's saves say).
     private let hubPendingSource: (@MainActor () -> Bool)?
-    /// W-FIX5 fixer (Goals-stale): the hub's goals after a successful PUT, so the shell's Goals card
-    /// and More row stop showing the pre-save document.
+    /// W-FIX5 fixer (Goals-stale): the goals after a save, so the shell's Goals card and More row
+    /// stop showing the pre-save document.
     private let onGoalsSaved: (@MainActor (Goals) -> Void)?
     /// W-FIX6 F6-4: how often, and how many times, a pending model re-reads the outbox after
     /// `refreshHubPending` — the foreground drain lands a moment after the scene turns active.
@@ -115,9 +133,6 @@ public final class GoalsSetupViewModel {
     private let hubPollLimit: Int
     /// The watcher polling the outbox while "hub sync pending" shows (nil when idle).
     private(set) var hubWatch: Task<Void, Never>?
-    /// W-FIX6 F6-4: the last weight/steps patch the hub refused while unreachable; re-sent once the
-    /// queued mirror is delivered (the hub is back), so "Couldn't save — try again." clears itself.
-    private var failedPatch: GoalsUpdate?
 
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
@@ -186,21 +201,20 @@ public final class GoalsSetupViewModel {
         }
     }
 
-    /// The queued PUT reached the hub: re-send a weight/steps patch that failed meanwhile, else
-    /// drop a failed-save error the reachable hub no longer justifies (reloading its document).
+    /// The queued body reached the hub: drop a load error the reachable hub no longer justifies
+    /// (reloading its document).
     private func hubCameBack() async {
-        if let failedPatch {
-            await save(failedPatch)
-        } else if case .error = phase, let fresh = try? await provider.goals() {
+        if case .error = phase, let fresh = try? await provider.goals() {
             goals = fresh
             phase = .loaded
         }
     }
 
-    /// True while a goals row (or, W-TGT, the targets document that carries the goals now) is
-    /// still queued in `outbox` (a read error counts as not pending).
+    /// True while the targets document (which carries the goals, W-TGT) is still queued in
+    /// `outbox` (a read error counts as not pending). A legacy `goals_put` row is not pending
+    /// work: the drainer retires it unsent (W-FIX10 F10-1).
     public static func goalsPending(in outbox: Outbox) -> Bool {
-        (try? outbox.pending())?.contains { $0.kind == OutboxDrainer.goalsKind || $0.kind == TargetsDocument.outboxKind } ?? false
+        (try? outbox.pending())?.contains { $0.kind == TargetsDocument.outboxKind } ?? false
     }
 
     /// B-57 W1: read-only; updates itself after each logged session.
@@ -244,27 +258,48 @@ public final class GoalsSetupViewModel {
     /// Bumps when the mirror is refreshed, so `nextWorkingWeights` re-renders.
     private var strengthRevision = 0
 
-    /// Applies `patch` via `PUT /planning/goals`; on success the server's full document replaces
-    /// `goals` (never the local optimistic merge — same "server is source of truth" rule as the
-    /// RN oracle's `onSuccess`) and is upserted into `goal_targets_mirror`.
+    /// W-FIX10 F10-1: saves `patch` (weight / strength / steps) into the targets document on this
+    /// phone and mirrors it (`TargetsMirror`, outbox kind `targets`). The shown document is the
+    /// edited one at once (`goalsSetupApplying` over the loaded goals) — never a hub round trip.
+    /// Offline is not an error: the body stays queued and "hub sync pending" shows until it lands.
+    /// Returns false only when this phone could not store it (no targets store wired).
     @discardableResult
     public func save(_ patch: GoalsUpdate) async -> Bool {
         savedAt = nil
-        phase = .saving
-        do {
-            let result = try await provider.updateGoals(patch)
-            goals = result
-            try? goalStore?.saveGoalTargetsMirror(result, now: now())
-            savedAt = now()
-            phase = .loaded
-            failedPatch = nil
-            onGoalsSaved?(result)
-            return true
-        } catch {
-            phase = .error(Self.describe(error))
-            if case .network = error as? HubError { failedPatch = patch } else { failedPatch = nil }
+        guard let targets = mirror?.targets else {
+            phase = .error("Couldn't save on this phone — try again.")
             return false
         }
+        phase = .saving
+        let outcome = await targets.update { $0.goals = goalsSetupApplying(patch, to: $0.goals) }
+        if let current = goals {
+            let edited = Self.shown(current, patch)
+            goals = edited
+            try? goalStore?.saveGoalTargetsMirror(edited, now: now())
+            onGoalsSaved?(edited)
+        }
+        savedAt = now()
+        phase = .loaded
+        switch outcome {
+        case .delivered:
+            hubPending = false
+        case .queued:
+            hubPending = true
+            if hubWatch == nil { watchHubPending() }
+        }
+        return true
+    }
+
+    /// The hub-shaped goals document after a GoalsSetup save (same rules as `goalsSetupApplying`).
+    nonisolated static func shown(_ current: Goals, _ patch: GoalsUpdate) -> Goals {
+        var g = current
+        if let w = patch.weight {
+            g.weight = WeightGoal(baseKg: w.baseKg ?? current.weight.baseKg, targetKg: w.targetKg ?? current.weight.targetKg,
+                                  targetDate: w.targetDate)
+        }
+        if let s = patch.strength { g.strength = s.map { StrengthGoal(exercise: $0.exercise, targetKg: $0.targetKg) } }
+        g.stepsDaily = patch.stepsDaily
+        return g
     }
 
     /// "The band settles after a full week of Apple Health data." shows while this is false.

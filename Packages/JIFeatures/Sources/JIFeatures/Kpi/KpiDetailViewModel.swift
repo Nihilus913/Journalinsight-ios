@@ -1,13 +1,14 @@
 import Foundation
 import Observation
 import JICore
+import JICompute
 import JIDesign
 import JIPersistence
 
 /// KPI detail view model (W3b-L2, P-kpi). One metric's history (Swift Charts) + its matching gate
-/// rule(s), with an inline threshold editor that round-trips through
-/// `KpiTargetsProviding.updateKpiTarget` (PUT). Same section-loading/error-precedence discipline as
-/// `KpiListViewModel`/`EnergyViewModel`.
+/// rule(s). Same section-loading/error-precedence discipline as `KpiListViewModel`/`EnergyViewModel`.
+/// W-FIX10 F10-1: the threshold write (`saveThreshold` → `PUT /kpi-targets/{id}`, removed hub-side,
+/// no call site) is gone; a rule threshold is edited in Targets › Rules.
 @Observable @MainActor
 public final class KpiDetailViewModel {
     public enum Phase: Equatable, Sendable { case idle, loading, loaded, error(String) }
@@ -63,8 +64,6 @@ public final class KpiDetailViewModel {
         case .error(let message): .error(message)
         }
     }
-    public private(set) var saving = false
-    public private(set) var saveError: String?
 
     private let healthProvider: any HealthDataProvider
     private let nutritionProvider: any NutritionProviding
@@ -79,7 +78,16 @@ public final class KpiDetailViewModel {
     private let medicationStore: MedicationStore?
     public private(set) var medication: MedicationEntry?
     public let daytimeHrv: Double?
-    private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals", load: "kpidetail.load")
+    private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals", load: "kpidetail.load",
+                               calibration: "kpidetail.calibration")
+
+    /// W-FIX10 R-04: the hub's baseline verdict (`/vitals/recovery-inputs` `calibration`, HT DH-4)
+    /// for HRV / RHR. nil = not loaded / older hub / other metric — the phone's own band stands.
+    public private(set) var calibration: RecoveryCalibration?
+    /// "Calibrating · 4 of 14 nights" while the hub calibrates this metric's normal, else nil.
+    public var calibrationCaption: String? {
+        kpiCalibrationKey(metric).flatMap { recoveryCalibrationCaption(calibration, key: $0) }
+    }
 
     public init(
         metric: KpiMetricId,
@@ -225,6 +233,9 @@ public final class KpiDetailViewModel {
         if let hit = try? cache.get(Self.keys.gate, as: GateResponse.self) { dailyRows = hit.value.daily; gateAverages = hit.value.averages }
         if let hit = try? cache.get(Self.keys.targets, as: [KpiTarget].self) { targets = hit.value }
         if macro, let hit = try? cache.get(Self.keys.goals, as: Goals.self) { goals = hit.value }
+        if kpiCalibrationKey(metric) != nil, let hit = try? cache.get(Self.keys.calibration, as: RecoveryCalibration.self) {
+            calibration = hit.value
+        }
         if metric == .acwr, let hit = try? cache.get(Self.keys.load, as: [RecoveryInputDay].self) {
             adoptLoad(hit.value, today: RecoveryInsightService.localDayKey(Date()))
         }
@@ -252,6 +263,14 @@ public final class KpiDetailViewModel {
                 if let hit = try? await SectionLoader.load(key: Self.keys.load, cache: cache, fetch: {
                     try await inputs.recoveryInputs(date: day, windowDays: RecoveryInsightService.windowDays)
                 }), let days = hit.value { adoptLoad(days, today: day) }
+            }
+            // W-FIX10 R-04: HRV / RHR read the hub's calibration verdict; a failure keeps the cached one.
+            if kpiCalibrationKey(metric) != nil, let inputs = health as? any RecoveryInputsProviding {
+                let day = RecoveryInsightService.localDayKey(Date())
+                if let report = try? await inputs.recoveryInputsReport(date: day, windowDays: RecoveryInsightService.windowDays) {
+                    calibration = report.calibration
+                    if let c = report.calibration { try? cache.put(Self.keys.calibration, c) }
+                }
             }
             if isNutritionKpi(metric), let goalsProvider {
                 if let hit = try? await SectionLoader.load(key: Self.keys.goals, cache: cache, fetch: { try await goalsProvider.goals() }),
@@ -301,29 +320,6 @@ public final class KpiDetailViewModel {
         loadReading = recoveryLoadReading(days: days, today: today)
     }
 
-    /// `PUT /api/v1/planning/kpi-targets/{id}` round trip — the inline editor's only write path.
-    /// A failure leaves `target` untouched and surfaces the hub's own `detail` verbatim via
-    /// `saveError` (never a silently-swallowed failure, CLAUDE.md rule 4).
-    public func saveThreshold(_ newThreshold: Double) async {
-        guard let target else { return }
-        saving = true
-        saveError = nil
-        do {
-            let updated = try await targetsProvider.updateKpiTarget(
-                id: target.targetId, threshold: newThreshold, thresholdHi: target.thresholdHi, description: target.description
-            )
-            if let i = targets.firstIndex(where: { $0.targetId == updated.targetId }) { targets[i] = updated } else { targets.append(updated) }
-            // Re-fetch the full list rather than caching a synthetic one-row array under the key
-            // `KpiListViewModel` also reads — a partial overwrite here would corrupt its cache.
-            if let full = try? await targetsProvider.kpiTargets() {
-                try? cache.put(Self.keys.targets, full)
-            }
-        } catch {
-            saveError = Self.describe(error)
-        }
-        saving = false
-    }
-
     private static func describe(_ error: Error) -> String {
         switch error as? HubError {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
@@ -332,4 +328,12 @@ public final class KpiDetailViewModel {
         case .none: "Unexpected error: \(error.localizedDescription)"
         }
     }
+}
+
+/// W-FIX10 R-04: the KPI detail's one normal — none while the hub calibrates the metric (the
+/// 7-day mean stays: it is a plain average of real nights, not a band).
+public nonisolated func kpiDetailNormal(points: [(date: String, value: Double?)], today: String,
+                                        hubCalibrating: Bool) -> (normal: PersonalNormalResult?, sevenDay: Double?) {
+    let r = KpiNormal.make(points: points, today: today)
+    return hubCalibrating ? (nil, r.sevenDay) : r
 }

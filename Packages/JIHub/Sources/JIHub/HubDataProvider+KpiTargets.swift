@@ -8,9 +8,4 @@ extension HubDataProvider: KpiTargetsProviding {
         let response: KpiTargetsResponse = try await client.get("/api/v1/planning/kpi-targets")
         return response.targets
     }
-
-    public func updateKpiTarget(id: Int, threshold: Double, thresholdHi: Double?, description: String?) async throws -> KpiTarget {
-        let body = KpiTargetUpdateBody(threshold: threshold, thresholdHi: thresholdHi, description: description)
-        return try await client.send("PUT", "/api/v1/planning/kpi-targets/\(id)", body: body)
-    }
 }

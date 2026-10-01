@@ -6,11 +6,17 @@ import Foundation
 /// be tested on any `swift test` host without a real health store.
 public struct HAEEnvelope: Encodable, Sendable, Equatable {
     public var data: HAEEnvelopeData
-    public init(metrics: [HAEMetric]) { self.data = HAEEnvelopeData(metrics: metrics) }
+    public init(metrics: [HAEMetric]) { self.data = HAEEnvelopeData(metrics: metrics, workouts: nil) }
+    /// W-B81 A-4: a workout upload — `{"data":{"metrics":[],"workouts":[...]}}` (frozen fixture
+    /// `apple_workouts/workouts_payload.json`).
+    public init(metrics: [HAEMetric] = [], workouts: [HAEWorkout]) { self.data = HAEEnvelopeData(metrics: metrics, workouts: workouts) }
 }
 
 public struct HAEEnvelopeData: Encodable, Sendable, Equatable {
     public var metrics: [HAEMetric]
+    /// W-B81 X-1: `nil` on every metric upload, so the key is ABSENT (synthesized `encodeIfPresent`)
+    /// — never `[]`, which a reader could take for "the phone has no workouts".
+    public var workouts: [HAEWorkout]?
 }
 
 public struct HAEMetric: Encodable, Sendable, Equatable {

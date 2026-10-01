@@ -76,14 +76,6 @@ public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
 nonisolated func decideCompactNumber(_ v: Double) -> String { jiNumber(v, v.rounded() == v ? 0 : 1) }
 nonisolated func decideCompactNumber(_ v: Double?) -> String { v.map { decideCompactNumber($0) } ?? "—" }
 
-/// The hub's own band in an Apple-night note ("band 41–52 ms") — that IS the normal the hub gated on.
-public nonisolated func decideHubBand(_ note: String?) -> ClosedRange<Double>? {
-    guard let note, let r = note.range(of: #"band\s+([0-9.]+)\s*[–-]\s*([0-9.]+)"#, options: .regularExpression) else { return nil }
-    let nums = note[r].split(whereSeparator: { !($0.isNumber || $0 == ".") }).compactMap { Double($0) }
-    guard nums.count == 2, nums[0] <= nums[1] else { return nil }
-    return nums[0]...nums[1]
-}
-
 /// W-FIX3 BUG-30: the SignalRow reference is "your normal a–b" (spec §1) or, for sleep time, the
 /// "goal 7 h" the hub gates on — never "threshold 70" / "floor 6.0 h". With no normal yet the line
 /// says so ("your normal — Calibrating"); a missing value says why ("no overnight value yet").
@@ -111,7 +103,7 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         }
     } else if s.value == nil {
         detail = "no overnight value yet"
-    } else if let band = decideHubBand(s.note) ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
+    } else if let band = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
         shownNormal = band; detail = nil
     } else {
         detail = "your normal — \(JIMissingReason.calibrating.rawValue)"

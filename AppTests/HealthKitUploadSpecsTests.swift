@@ -61,6 +61,16 @@ struct HealthKitUploadSpecsTests {
         }
     }
 
+    /// W-FIX10 DH-8: resp / SpO2 / wrist temp / VO2max moved onto `HKReadKind` keep their
+    /// version-1 anchor keys (no 120-day re-send).
+    @Test func dh8KindsKeepTheirVersionOneAnchors() {
+        for id: HKQuantityTypeIdentifier in [.respiratoryRate, .oxygenSaturation, .appleSleepingWristTemperature, .vo2Max] {
+            let specs = AppEnvironment.healthKitUploadSpecs.filter { $0.sampleType.identifier == id.rawValue }
+            #expect(specs.count == 1, "\(id.rawValue)")
+            #expect(specs.first?.anchorKey == "hk.upload.anchor.\(id.rawValue)")
+        }
+    }
+
     @Test func noTypeIsUploadedTwiceUnderOneAnchor() {
         let keys = AppEnvironment.healthKitUploadSpecs.map(\.anchorKey)
         #expect(Set(keys).count == keys.count)

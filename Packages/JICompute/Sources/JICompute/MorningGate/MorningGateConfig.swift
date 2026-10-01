@@ -196,16 +196,17 @@ public nonisolated struct MorningGateConfig: Hashable, Sendable {
     )
 }
 
-/// `SESSION_BY_WEEKDAY` (`scripts/morning_go.py` L160-176). Monday = 0 …
+/// `SESSION_BY_WEEKDAY` (`scripts/morning_go.py` L160-176) — W-FIX10 R-01: the FALLBACK schedule
+/// only; the day's session comes from the plan's weekdays (`sessionFor(_:plan:)`). Monday = 0 …
 /// Sunday = 6 (Python `date.weekday()` convention — see `CalendarMath.isoWeekday`).
-public nonisolated let sessionByWeekday: [PlannedSession] = [
-    PlannedSession(name: "Day 1 Full Upper + Z2 40min", type: .strength),
-    PlannedSession(name: "Norwegian 4x4 intervals", type: .interval),
-    PlannedSession(name: "Day 2 Full Upper + Z2 60min", type: .strength),
-    PlannedSession(name: "Long Zone 2 75-90min", type: .z2),
-    PlannedSession(name: "Day 3 Full Upper + Z2 60min", type: .strength),
-    PlannedSession(name: "Norwegian 4x4 intervals", type: .interval),
-    PlannedSession(name: "Rest", type: .rest),
+public nonisolated let sessionByWeekday: [GateSession] = [
+    GateSession(name: "Day 1 Full Upper + Z2 40min", type: .strength),
+    GateSession(name: "Norwegian 4x4 intervals", type: .interval),
+    GateSession(name: "Day 2 Full Upper + Z2 60min", type: .strength),
+    GateSession(name: "Long Zone 2 75-90min", type: .z2),
+    GateSession(name: "Day 3 Full Upper + Z2 60min", type: .strength),
+    GateSession(name: "Norwegian 4x4 intervals", type: .interval),
+    GateSession(name: "Rest", type: .rest),
 ]
 
 /// Saturday flipped optional -> interval on this date (`morning_go.py`
@@ -213,15 +214,21 @@ public nonisolated let sessionByWeekday: [PlannedSession] = [
 /// dates keep evaluating under the schedule that was actually planned for them.
 public nonisolated let saturdayIntervalEffective = "2026-08-30"
 
-private let saturdayLegacy = PlannedSession(
+private let saturdayLegacy = GateSession(
     name: "Rest — optional Day 4 Full Upper parked until adjusted",
     type: .optional
 )
 
-/// `session_for(day)` — the planned session for an ISO date, respecting
-/// schedule changeovers.
-public nonisolated func sessionFor(_ iso: String) throws -> PlannedSession {
+/// `PLAN_WEEKDAYS_EFFECTIVE` (`morning_go.py`): from this date the morning call follows
+/// `plan.plan_session.weekday` (what the app's day sheet moves). Earlier dates keep the fixed table.
+public nonisolated let planWeekdaysEffective = "2026-09-29"
+
+/// `session_for(day, plan)` — the planned session for an ISO date, respecting schedule changeovers.
+/// W-FIX10 R-01: `plan` is the plan's week (Mon = 0 … Sun = 6, `JICore.PlanScheduleResolver`); the
+/// fixed `sessionByWeekday` table is only the fallback (before the changeover, or no/malformed plan).
+public nonisolated func sessionFor(_ iso: String, plan: [GateSession]? = nil) throws -> GateSession {
     let weekday = try CalendarMath.isoWeekday(iso)
+    if let plan, plan.count == 7, iso >= planWeekdaysEffective { return plan[weekday] }
     // Python compares `date` objects; ISO strings of equal width compare the
     // same way lexicographically, which is what the TS oracle relies on too.
     if weekday == 5 && iso < saturdayIntervalEffective { return saturdayLegacy }

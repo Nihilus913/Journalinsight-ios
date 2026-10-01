@@ -44,3 +44,22 @@ extension HubClientTests {
             .contains(URLQueryItem(name: "window_days", value: "1")))
     }
 }
+
+/// W-FIX10 R-04 — the envelope's DH-4 `calibration` block reaches the phone.
+extension HubClientTests {
+    @Test func recoveryInputsReportDecodesCalibration() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/vitals/recovery-inputs"] = (200, Data("""
+        {"date":"2026-09-29","days":[{"date":"2026-09-29","hrv_ms":38.0,"rhr_bpm":null,"sleep_h":null,"deep_h":null,"rem_h":null,"load_min":null}],
+         "calibration":{"status":"calibrating","calibrating":true,"nights":4,"nights_needed":14,
+                        "components":{"hrv":{"status":"calibrating","nights":4},"load":{"status":"ok","nights":28}}}}
+        """.utf8))
+        let config = ConnectionConfig(baseURL: URL(string: "http://hub.test:8000")!, token: "t0k")
+        let provider = HubDataProvider(client: HubClient(config: config, session: StubURLProtocol.session()))
+        let r = try await provider.recoveryInputsReport(date: "2026-09-29", windowDays: 42)
+        #expect(r.days.count == 1)
+        #expect(r.calibration?.nights == 4 && r.calibration?.nightsNeeded == 14)
+        #expect(r.calibration?.isCalibrating("hrv") == true)
+        #expect(r.calibration?.isCalibrating("load") == false)
+    }
+}

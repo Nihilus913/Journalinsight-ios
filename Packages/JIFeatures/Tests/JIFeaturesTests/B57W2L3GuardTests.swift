@@ -7,7 +7,7 @@ import JIPersistence
 /// W-B57-W2 L3 guard tests (first commit, green on base 0a7a136). They pin the behaviour the
 /// goals store + mirror work must not break:
 /// - GoalsSetup's `load()` is read-only: it never PUTs goals (Review Focus 4, no PUT storm).
-/// - A failed goals save keeps the last server document and reports an error (never a fake save).
+/// - (W-FIX10) An offline goals save is stored on the phone and queued, never a fake hub save.
 /// - Every Outbox kind that existed before W2 stays known, so rows already queued on a phone are
 ///   never orphaned by a new kind.
 private final class PutCountingGoalsProvider: GoalsSetupProviding, @unchecked Sendable {
@@ -19,11 +19,6 @@ private final class PutCountingGoalsProvider: GoalsSetupProviding, @unchecked Se
     init(fail: HubError? = nil) { self.fail = fail }
     func energy(windowDays: Int) async throws -> EnergyReport { try await inner.energy(windowDays: windowDays) }
     func goals() async throws -> Goals { try await inner.goals() }
-    func updateGoals(_ patch: GoalsUpdate) async throws -> Goals {
-        lock.withLock { _puts += 1 }
-        if let fail { throw fail }
-        return try await inner.updateGoals(patch)
-    }
 }
 
 @Test @MainActor func guardGoalsSetupLoadNeverPutsGoals() async throws {
@@ -35,17 +30,16 @@ private final class PutCountingGoalsProvider: GoalsSetupProviding, @unchecked Se
     #expect(hub.puts == 0)
 }
 
-@Test @MainActor func guardFailedGoalsSaveKeepsServerDocumentAndReportsError() async throws {
-    let hub = PutCountingGoalsProvider(fail: .network("down"))
-    let vm = GoalsSetupViewModel(provider: hub)
+/// W-FIX10 F10-1: an offline goals save is never a fake save and never an error — it is stored on
+/// this phone and queued as the targets body (the old `PUT /planning/goals` is gone).
+@Test @MainActor func guardOfflineGoalsSaveIsStoredAndQueued() async throws {
+    let hub = TargetsHubFake(); hub.fail = .network("down")
+    let (vm, targets, outbox) = try goalsSetupFixture(hub: hub)
     await vm.load()
-    let before = vm.goals
-    let ok = await vm.save(GoalsUpdate(stepsDaily: 1234))
-    #expect(!ok)
-    #expect(hub.puts == 1)
-    #expect(vm.goals == before)
-    #expect(vm.savedAt == nil)
-    guard case .error = vm.phase else { Issue.record("expected an error phase"); return }
+    #expect(await vm.save(GoalsUpdate(stepsDaily: 1234)))
+    #expect(targets.store.load().goals.stepsDaily == 1234)
+    #expect(try outbox.pending().map(\.kind) == [TargetsDocument.outboxKind])
+    #expect(vm.hubPending && vm.phase == .loaded)
 }
 
 @Test @MainActor func guardPreW2OutboxKindsStayKnown() {

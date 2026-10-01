@@ -139,16 +139,18 @@ public nonisolated func displayVerdictParts(_ parts: VerdictParts) -> VerdictPar
 /// Prefers the hub's own persisted reason (`/planning/morning-verdict` `reason`,
 /// "Amber (<why>): <what to do>.") — the text after the amber clause. Without it (Today's
 /// `/morning` carries no reason) it is the hub's fixed amber instruction for the planned session's
-/// type, looked up by name in `sessionByWeekday` (the same table `evaluate` reads): strength →
+/// type, looked up by name in the schedule (`planSchedule` — the plan, then the table): strength →
 /// "lift … 1-2 reps shy of failure; trim Z2 to ~25min or walk", long Z2 → "cap the long run at
 /// ~45min easy, or walk it". A session name the table does not know gets nil — never guessed.
-public nonisolated func autoRegulatedPrescription(_ parts: VerdictParts, reason: String? = nil) -> String? {
+public nonisolated func autoRegulatedPrescription(_ parts: VerdictParts, reason: String? = nil,
+                                                  planSessions: [PlanSessionOut]? = nil) -> String? {
     guard isAutoRegulated(parts) else { return nil }
     if let reason, let range = reason.range(of: "): ") {
         let tail = reason[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         if !tail.isEmpty { return capitalizedFirst(tail) }
     }
-    switch sessionByWeekday.first(where: { $0.name == parts.session })?.type {
+    // W-FIX10 R-01: the kind comes from the one schedule resolver (the plan's sessions, then the table).
+    switch planSchedule(planSessions).kind(named: parts.session) {
     case .strength?: return AutoRegulatedCopy.strength
     case .z2?: return AutoRegulatedCopy.longZ2
     default: return nil
