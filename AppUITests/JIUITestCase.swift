@@ -60,6 +60,14 @@ class JIUITestCase: XCTestCase {
             .matching(NSPredicate(format: "identifier == 'training-hero' AND label CONTAINS %@", text)).firstMatch
     }
 
+    /// A finger drag right → left across the row (XCUIElement.swipeLeft is too quick for the
+    /// List's swipe actions here), so the trailing actions stay open.
+    func swipeOpen(_ row: XCUIElement) {
+        let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+        let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+    }
+
     /// The list cell that holds the row with this id (swipe actions live on the cell).
     func cell(holding id: String) -> XCUIElement {
         app.cells.containing(NSPredicate(format: "identifier == %@", id)).firstMatch

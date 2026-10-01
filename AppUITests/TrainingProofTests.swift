@@ -25,17 +25,18 @@ final class TrainingProofTests: JIUITestCase {
     }
 
     /// B40-V5: change a day in the day sheet → the hero follows without a relaunch.
-    /// Tuesday (weekday 1) = "Interval Run" (plan session s5); it becomes "Zone 2 60 min".
+    /// The verify-r2 repro: Tuesday's plan session "Interval Run" (s5) becomes the plan's
+    /// "Long Zone 2" (s6); the hero must say Long Zone 2, not the old session or "— No data".
     func testV5_changeDayHeroFollows() {
         openDay(1)
         tapId("training-day-change-s5")
-        tap(element(idPrefix: "training-day-option-", labelContains: "Zone 2 60 min"), "option Zone 2 60 min")
-        reveal(element(idPrefix: "training-day-entry-", labelContains: "Zone 2 60 min"), "day sheet entry Zone 2 60 min")
+        tapId("training-day-option-s6")
+        reveal(el("training-day-entry-s6"), "day sheet entry Long Zone 2")
         tapId("training-day-done")
         XCTAssertTrue(el("training-day-sheet").waitForNonExistence(timeout: 10))
-        let follows = hero(labelContains: "Zone 2 60 min")
+        let follows = hero(labelContains: "Long Zone 2")
         if !follows.waitForExistence(timeout: 15) { dump("V5-hero") }
-        XCTAssertTrue(follows.exists, "the hero did not follow the change to Zone 2 60 min")
+        XCTAssertTrue(follows.exists, "the hero did not follow the change to Long Zone 2")
         XCTAssertFalse(hero(labelContains: "Interval Run").exists, "the hero still shows Interval Run")
         shot("V5-hero-follows-day-change")
     }
@@ -55,7 +56,7 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: Self.segmentsOnly)
         reveal(row, "library row \(Self.segmentsOnly)")
         let id = row.identifier.replacingOccurrences(of: "workouts-row-", with: "")
-        cell(holding: row.identifier).swipeLeft()
+        swipeOpen(row)
         tap(app.buttons["Send to Watch"].firstMatch, "swipe Send to Watch")
         let picked = el("send-to-watch-template-\(id)")
         reveal(picked, "Send to Watch sheet on \(Self.segmentsOnly)", timeout: 20)
@@ -71,7 +72,7 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: name)
         reveal(row, "library row \(name)")
         let rowY = row.frame.midY
-        cell(holding: row.identifier).swipeLeft()
+        swipeOpen(row)
         tap(app.buttons["Delete"].firstMatch, "swipe Delete")
         XCTAssertTrue(app.staticTexts["Delete \(name)?"].waitForExistence(timeout: 10), "no confirmation for \(name)")
         // Anchored: the confirmation sits by the row, not as a bottom sheet across the screen.

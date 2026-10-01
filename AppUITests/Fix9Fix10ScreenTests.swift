@@ -14,9 +14,10 @@ final class Fix9Fix10ScreenTests: JIUITestCase {
     /// retired PUT /planning/goals (a 405 replayed from the outbox forever).
     func testF10_1_goalsSetupSavesTargetsNo405() throws {
         let before = try weightTarget()
-        tab("More")
-        tapId("more.nutrition")
-        tapId("macro-edit-goals")
+        // Goals setup lives behind KPI detail › "Edit macro goals" (Today's protein square).
+        tab("Today")
+        tapId("today.chip.protein")
+        tapId("kpi-detail-edit-macro-goals")
         let stepper = el("goals-setup-weight-target")
         reveal(stepper, "weight target stepper")
         tap(stepper.buttons["Increment"].firstMatch, "weight target +")
