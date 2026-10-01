@@ -69,3 +69,47 @@ private func fix11VM(_ provider: VerdictOverrideFakeProvider = VerdictOverrideFa
     vm.seedFromHub(nil)
     #expect(vm.current == nil)
 }
+
+// MARK: - H1-03 / H1-04 (S2): the coach card says the user's call and dates old vitals
+
+private func fix11Morning(_ verdict: String) -> MorningResponse {
+    try! JSON.decoder.decode(MorningResponse.self, from: Data("""
+    {"today_activities": [], "verdict": "\(verdict)", "verdict_date": "2026-10-01",
+     "experiment": null, "carbs_3d_avg": 150, "carb_watch_floor": 120, "hrv_series": []}
+    """.utf8))
+}
+
+@Test func h1_03_coachChangeReadsTheUsersRest() {
+    let rest = VerdictOverride(date: "2026-10-01", choice: .rest, reason: "Schedule constraint", session: "Rest — walks only", createdAt: nil)
+    let c = CoachContentBuilder.build(morning: fix11Morning("GO (auto-regulated) — Long Zone 2 75-90min"), gate: nil, recovery: [],
+                                      override: rest)
+    #expect(c.change == CoachContentBuilder.restChange)
+    #expect(!c.change.contains("Modified"))
+}
+
+@Test func h1_03_coachChangeReadsTheUsersFullAndModified() {
+    let m = fix11Morning("GO (auto-regulated) — Long Zone 2 75-90min")
+    let full = VerdictOverride(date: "2026-10-01", choice: .full, reason: nil, session: "Long Zone 2 75-90min", createdAt: nil)
+    #expect(CoachContentBuilder.build(morning: m, gate: nil, recovery: [], override: full).change == "Your call: Long Zone 2 75-90min.")
+    let accept = VerdictOverride(date: "2026-10-01", choice: .accept, reason: nil, session: "Long Zone 2 75-90min", createdAt: nil)
+    #expect(CoachContentBuilder.build(morning: m, gate: nil, recovery: [], override: accept).change.hasPrefix("Modified: "))
+}
+
+@Test func h1_04_coachSignalsFromAnEarlierNightSayTheirDayAndTheHubReason() {
+    let rec = (0..<4).map { i in RecoveryDay(date: "2026-09-\(27 + i)", sleepScore: [87, 87, 87, 80][i], rhrBpm: [73, 73, 73, 62][i],
+                                             hrvRmssdMs: [22, 22, 22, 23][i]) }
+    let c = CoachContentBuilder.build(morning: fix11Morning("GO (auto-regulated) — Long Zone 2 75-90min"), gate: nil, recovery: rec,
+                                      verdictReason: "Amber (overnight vitals not synced yet): cap the long run at ~45min easy, or walk it.",
+                                      today: "2026-10-01", locale: Locale(identifier: "en_GB"))
+    #expect(c.signals.first == "Sleep 80 vs 87 avg (30 Sep)")
+    #expect(c.signals.allSatisfy { $0.hasSuffix("(30 Sep)") })
+    #expect(c.why == "overnight vitals not synced yet")
+    #expect(coachOverlayNote(c)?.hasPrefix("Why: overnight vitals not synced yet · Sleep 80") == true)
+}
+
+@Test func h1_04_todaysSignalsStayUndated() {
+    let rec = (0..<4).map { i in RecoveryDay(date: "2026-09-\(27 + i)", sleepScore: [87, 87, 87, 80][i]) }
+    let c = CoachContentBuilder.build(morning: nil, gate: nil, recovery: rec, today: "2026-09-30", locale: Locale(identifier: "en_GB"))
+    #expect(c.signals == ["Sleep 80 vs 87 avg"])
+    #expect(c.why == nil)
+}
