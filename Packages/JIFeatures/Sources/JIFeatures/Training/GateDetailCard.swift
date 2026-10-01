@@ -67,7 +67,7 @@ public struct GateDetailCard: View {
                         .accessibilityIdentifier("gate-detail-prescription")
                 }
                 if let weekly = gateDetailWeeklyLine(gate) {
-                    Text(weekly)
+                    Text(gateDetailWeeklyCaption(weekly))
                         .font(.footnote).foregroundStyle(theme.color(.muted)).padding(.top, 2)
                 }
             }
@@ -81,6 +81,12 @@ public struct GateDetailCard: View {
         .accessibilityIdentifier("gate-detail-card")
     }
 
+}
+
+/// W-FIX11 H1-09: on the Readiness card the weekly note is labelled as the week's nutrition — it
+/// never reads as the reason for today's verdict.
+public nonisolated func gateDetailWeeklyCaption(_ sentence: String) -> String {
+    "Weekly nutrition (not today's call): " + sentence.prefix(1).lowercased() + sentence.dropFirst()
 }
 
 /// W-FIX1 BUG-27: the weekly nutrition gate as one plain sentence (never "Gate recommendation:

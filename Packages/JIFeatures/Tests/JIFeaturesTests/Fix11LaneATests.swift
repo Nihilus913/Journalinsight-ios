@@ -201,3 +201,19 @@ private func fix11Missing(_ key: String) -> GateSignal {
     #expect(row?.sectionIds == ["l0.health"])
     if case .push(let title, _, _)? = row?.kind { #expect(title == "Apple Health") } else { Issue.record("not a push row") }
 }
+
+// MARK: - H1-08 (S3): "Last 3 days" keeps a MODIFIED day's change line
+
+@Test func h1_08_modifiedDayKeepsItsChangeLine() {
+    #expect(gateDayPrescription(verdict: "MODIFIED — swap intervals for easy Z2 30-40min",
+                                session: "Norwegian 4x4 intervals", reason: nil) == "Swap intervals for easy Z2 30-40min")
+    #expect(gateDayPrescription(verdict: "GO — Full Upper", session: "Full Upper", reason: nil) == nil)
+    #expect(gateDayPrescription(verdict: "MODIFIED — Easy Z2", session: "Easy Z2", reason: nil) == nil)
+}
+
+// MARK: - H1-09 (S3): the weekly nutrition note never reads as today's reason
+
+@Test func h1_09_readinessCardLabelsTheWeeklyNote() {
+    let line = gateDetailWeeklyCaption("Not enough tracked days this week for a nutrition call.")
+    #expect(line == "Weekly nutrition (not today's call): not enough tracked days this week for a nutrition call.")
+}
