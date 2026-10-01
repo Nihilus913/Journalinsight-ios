@@ -1336,7 +1336,7 @@ struct RootTabView: View {
         .onChange(of: model.morning?.gateAnswer) { _, fresh in gateRespondModel?.seed(fresh) }
         .onChange(of: model.morning?.verdictOverride, initial: true) { _, fresh in
             guard let verdictOverrideModel else { return }
-            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+            verdictOverrideModel.seedFromHub(fresh)   // W-FIX11 H1-02: never wipes this device's newer call
         }
     }
 

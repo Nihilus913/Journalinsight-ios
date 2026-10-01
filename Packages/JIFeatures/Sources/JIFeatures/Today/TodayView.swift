@@ -101,7 +101,7 @@ public struct TodayView: View {
             // A fresher `/morning` re-seeds the device's view of the call — except while this
             // device's own write is only queued and the hub has not seen it yet.
             guard let verdictOverrideModel else { return }
-            if fresh != nil || verdictOverrideModel.phase != .queued { verdictOverrideModel.seed(fresh) }
+            verdictOverrideModel.seedFromHub(fresh)   // W-FIX11 H1-02: never wipes this device's newer call
         }
     }
 
