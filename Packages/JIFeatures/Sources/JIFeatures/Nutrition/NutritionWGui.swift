@@ -27,12 +27,15 @@ public nonisolated func nutritionWeekBand(goal: Double?) -> ClosedRange<Double>?
     return (goal * 0.95)...(goal * 1.05)
 }
 
-/// "7-day avg 1536 · today so far" from the week rows (nil when nothing is logged).
+/// W-FIX11 H2-13: the average of the logged days in the bars' own window (the newest 7 rows) before
+/// today — "Avg 1431 kcal · 2 logged days before today"; nil when none is logged. It used to average
+/// a day outside the bars and say "today so far" while leaving today out.
 public nonisolated func nutritionWeekAverageText(days: [NutritionDailyRow], today: String) -> String? {
-    let logged = days.filter { $0.date != today }.compactMap(\.kcalConsumed)
+    let window = days.sorted { $0.date < $1.date }.suffix(7)
+    let logged = window.filter { $0.date < today }.compactMap(\.kcalConsumed)
     guard !logged.isEmpty else { return nil }
     let avg = logged.reduce(0, +) / Double(logged.count)
-    return "7-day avg \(nutritionWholeText(avg)) · today so far"
+    return "Avg \(nutritionWholeText(avg)) kcal · \(logged.count) logged day\(logged.count == 1 ? "" : "s") before today"
 }
 
 public nonisolated let nutritionGoalAlignCaption = "Logging stays in YAZIO; JI reads, never writes. Your kcal goal comes from the deficit you declared in Goals: keep YAZIO\u{2019}s goal aligned with it."

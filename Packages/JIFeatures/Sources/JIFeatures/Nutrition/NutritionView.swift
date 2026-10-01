@@ -85,7 +85,7 @@ public struct NutritionView: View {
             }
             JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
             MacroSummaryCard(day: model.day, today: today, source: model.daySource)
-            JISectionHeader("Meals today")
+            JISectionHeader(nutritionMealsTitle(selected: model.selectedDate, today: today))   // W-FIX11 H2-12
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
             // W-GUI M2 (mockup 05): the week as bars from zero against the ±5 % goal band.
             JISectionHeader("7 days vs your goal")
