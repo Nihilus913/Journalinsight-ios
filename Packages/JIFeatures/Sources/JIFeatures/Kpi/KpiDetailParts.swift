@@ -303,17 +303,13 @@ public nonisolated func kpiAxisNumber(_ v: Double) -> String {
 
 /// Whole days from `from` to `to` (yyyy-MM-dd, UTC calendar); nil when either is unreadable.
 nonisolated func kpiDayDistance(from: String, to: String) -> Int? {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-    guard let a = f.date(from: String(from.prefix(10))), let b = f.date(from: String(to.prefix(10))) else { return nil }
-    return Int((b.timeIntervalSince(a) / 86_400).rounded())
+    guard let a = DayKey(iso: from), let b = DayKey(iso: to) else { return nil }
+    return a.days(to: b)
 }
 
 /// "15 Sep" for yyyy-MM-dd.
 nonisolated func kpiShortDay(_ iso: String) -> String {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-    guard let d = f.date(from: String(iso.prefix(10))) else { return iso }
+    guard let d = DayKey(iso: iso)?.startDate(in: .gmt) else { return iso }
     let out = DateFormatter()
     out.locale = Locale(identifier: "en_GB"); out.timeZone = TimeZone(identifier: "UTC"); out.dateFormat = "d MMM"
     return out.string(from: d)

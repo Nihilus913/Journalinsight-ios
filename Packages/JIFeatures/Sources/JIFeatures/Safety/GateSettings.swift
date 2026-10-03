@@ -143,17 +143,8 @@ public nonisolated enum HrCapRecheck {
         var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c
     }
 
-    private static func formatter() -> DateFormatter {
-        let f = DateFormatter()
-        f.calendar = calendar; f.timeZone = calendar.timeZone
-        f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
-        return f
-    }
-
     public static func addDays(_ iso: String, _ n: Int) -> String {
-        let f = formatter()
-        guard let d = f.date(from: iso), let out = calendar.date(byAdding: .day, value: n, to: d) else { return iso }
-        return f.string(from: out)
+        DayKey(iso: iso)?.adding(days: n).iso ?? iso
     }
 
     /// Confirmation + 56 days; if that is today or already past, tomorrow (an overdue check

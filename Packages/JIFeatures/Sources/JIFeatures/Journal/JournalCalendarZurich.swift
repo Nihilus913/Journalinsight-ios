@@ -1,6 +1,9 @@
 import Foundation
+import JICore
 
 /// The Journal's one calendar (W9.5 L3, P-journal — scout S2-3).
+///
+/// W-KEYS K1: the day arithmetic delegates to `JICore.DayKey` (Zurich injected as the zone).
 ///
 /// Journal day buckets (`entries.date`, streaks, Mon–Sun weeks, the month grid) must agree with the
 /// hub's day boundary, which is Europe/Zurich by contract (W2h). Reading the device's current calendar
@@ -23,15 +26,12 @@ public nonisolated enum JournalCalendarZurich {
 
     /// `yyyy-MM-dd` of the Zurich calendar day containing `d`.
     public static func isoDay(_ d: Date) -> String {
-        let c = calendar.dateComponents([.year, .month, .day], from: d)
-        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+        DayKey(date: d, in: timeZone).iso
     }
 
-    /// Zurich midnight for a `yyyy-MM-dd` string; `nil` when the string is not three integers.
+    /// Zurich midnight for a `yyyy-MM-dd` string; `nil` when it is not a valid `DayKey`.
     public static func date(fromISODay iso: String) -> Date? {
-        let parts = iso.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        DayKey(iso: iso)?.startDate(in: timeZone)
     }
 
     /// A `DateFormatter` for `format` that renders in Zurich (labels for Zurich-midnight dates

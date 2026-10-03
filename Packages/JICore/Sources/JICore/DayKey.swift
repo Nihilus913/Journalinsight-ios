@@ -1,7 +1,7 @@
 import Foundation
 
 /// The one calendar-day key (W-KEYS K1, audit P6): a `yyyy-MM-dd` string plus the arithmetic
-/// that used to be re-implemented with `ISO8601Format().prefix(10)` (a UTC day) and ad-hoc
+/// that used to be re-implemented with the UTC `ISO8601Format()` prefix (a UTC day) and ad-hoc
 /// `DateFormatter`s across the app.
 ///
 /// **Zone (Toby D1, 2026-10-03):** the day follows the time zone set on the phone —

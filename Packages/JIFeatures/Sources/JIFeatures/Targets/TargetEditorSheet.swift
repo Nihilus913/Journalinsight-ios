@@ -308,14 +308,7 @@ extension View {
     }
 }
 
-nonisolated func targetEditorDay(_ iso: String) -> Date? {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
-    return f.date(from: String(iso.prefix(10)))
-}
+/// W-KEYS K3: the editor's date picker shows the device calendar → the phone-zone `DayKey`.
+nonisolated func targetEditorDay(_ iso: String) -> Date? { DayKey(iso: iso)?.startDate }
 
-nonisolated func targetEditorISO(_ date: Date) -> String {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
-    return f.string(from: date)
-}
+nonisolated func targetEditorISO(_ date: Date) -> String { DayKey(date: date).iso }

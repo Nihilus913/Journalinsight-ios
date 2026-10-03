@@ -139,7 +139,7 @@ public final class TrainingViewModel {
         self.library = library ?? (provider as? any WorkoutLibraryProviding).map {
             WorkoutLibraryViewModel(provider: $0, cache: cache, outbox: outbox, now: now)
         }
-        self.selectedDate = selectedDate ?? String(now().ISO8601Format().prefix(10))
+        self.selectedDate = selectedDate ?? DayKey.today(now: now()).iso
     }
 
     public var screenState: ScreenState {
@@ -156,7 +156,7 @@ public final class TrainingViewModel {
         }
     }
 
-    public var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    public var todayDateString: String { DayKey.today(now: now()).iso }
 
     /// B-57 W5: this week, from the rows on screen (updates with every optimistic assignment).
     /// W-FIX7 F7-1: today's day is done when Apple Health holds a matching workout today.
