@@ -36,8 +36,10 @@ extension MockDataProvider: LiveSessionProviding {
         )
     }
 
+#if DEBUG
     /// Test-only: rewinds the shared synthesized feed to the start of its profile so tests don't
     /// bleed tick state into one another (the feed is process-global, not per-instance, since the
     /// frozen `MockDataProvider` struct carries no identity to key a per-instance ticker on).
     public static func resetLiveSessionFeed() { LiveSessionTickBox.shared.reset() }
+#endif
 }

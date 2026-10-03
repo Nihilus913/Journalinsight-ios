@@ -523,8 +523,10 @@ public final class TodayViewModel {
         morningState = stored ?? memoryMorningStates[date] ?? .decide
     }
 
+#if DEBUG
     /// Test seam: assigns `morning` the way a fetch would, then re-syncs the morning state.
     func setMorningForTesting(_ m: MorningResponse) { morning = m; syncMorningState() }
+#endif
 
     private static func describe(_ error: Error) -> String {
         switch error as? HubError {

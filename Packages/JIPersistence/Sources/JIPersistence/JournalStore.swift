@@ -122,12 +122,14 @@ public struct JournalStore: Sendable {
         }
     }
 
+#if DEBUG
     /// Distinct entry dates, newest first — feeds streak/calendar computations.
     public func allDates() throws -> [String] {
         try db.pool.read { grdb in
             try String.fetchAll(grdb, sql: "SELECT DISTINCT date FROM entries ORDER BY date DESC")
         }
     }
+#endif
 
     public func allTags() throws -> [String] {
         try db.pool.read { grdb in
@@ -135,6 +137,7 @@ public struct JournalStore: Sendable {
         }
     }
 
+#if DEBUG
     /// Reads the raw (still-sealed, if a real cipher is in play) `text`/`mood` columns for a given
     /// entry id — a test-only seam so `JournalStoreTests` can assert the on-disk value is actually
     /// ciphertext, never plaintext, without reaching into GRDB directly.
@@ -146,6 +149,7 @@ public struct JournalStore: Sendable {
             return (row["text"], row["mood"])
         }
     }
+#endif
 
     private func setTags(entryId: Int64, tags: [String]) throws {
         guard !tags.isEmpty else { return }
