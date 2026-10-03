@@ -170,3 +170,54 @@ private func setBody(_ id: String, _ idx: Int, kg: Double = 50) -> StrengthSetIn
         #expect(bare.pendingCount == 1)
     }
 }
+
+/// W-B38-A fix (verifier gap): strength rows queued offline must go out when the hub is back even
+/// if the Log sets screen is never reopened — the app-wide `OutboxDrainer` (watchdog / retry
+/// scheduler / BG refresh) replays them through the strength lane.
+@MainActor @Suite struct StrengthOutboxAppDrainTests {
+    let hub = StrengthFakeHub()
+    let outbox: Outbox
+    init() throws { outbox = Outbox(db: try AppDatabase.inMemory()) }
+
+    private func queueOfflineSession(_ queue: StrengthOutbox) async {
+        hub.online = false
+        queue.enqueue(.createSession(StrengthSessionCreate(clientId: "S", date: "2026-10-03", startedAt: "2026-10-03T07:00:00Z", sessionId: 1)))
+        for i in 1...2 { queue.enqueue(.logSet(session: "S", setBody("set-\(i)", i))) }
+        queue.enqueue(.complete(session: "S", StrengthSessionComplete(endedAt: "2026-10-03T08:00:00Z", advance: [])))
+        await queue.drainOnce()
+    }
+
+    @Test func appDrainerReplaysStrengthRowsWithoutTheScreen() async throws {
+        await queueOfflineSession(StrengthOutbox(outbox: outbox, provider: hub))   // the screen, then gone
+        let drainer = OutboxDrainer(outbox: outbox, hub: hub)
+        #expect(drainer.drainableKinds.contains(StrengthOutbox.kind))
+        #expect(drainer.pendingDeliverableCount() == 4)                          // the scheduler keeps retrying
+        hub.online = true
+        await drainer.drainOnForeground()
+        #expect(drainer.pendingDeliverableCount() == 0)
+        #expect(hub.setOrder == ["set-1", "set-2"])
+        #expect(hub.completes.count == 1)
+    }
+
+    @Test func appDrainerWithoutTrainingProviderLeavesStrengthRowsAlone() async throws {
+        await queueOfflineSession(StrengthOutbox(outbox: outbox, provider: hub))
+        let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil)
+        #expect(!drainer.drainableKinds.contains(StrengthOutbox.kind))
+        hub.online = true
+        await drainer.drainOnce()
+        #expect(StrengthOutbox(outbox: outbox, provider: hub).pendingCount == 4)
+    }
+
+    @Test func screenAndAppDrainOverlappingNeverSendTwice() async throws {
+        let screen = StrengthOutbox(outbox: outbox, provider: hub)
+        await queueOfflineSession(screen)
+        hub.online = true
+        let drainer = OutboxDrainer(outbox: outbox, hub: hub)
+        async let a = screen.drainOnce()
+        async let b = drainer.drainOnce()
+        _ = await (a, b)
+        #expect(hub.completes.count == 1)                                        // one advance, not two
+        #expect(hub.calls.filter { $0.hasPrefix("POST set set-1") }.count == 1)
+        #expect(screen.pendingCount == 0)
+    }
+}

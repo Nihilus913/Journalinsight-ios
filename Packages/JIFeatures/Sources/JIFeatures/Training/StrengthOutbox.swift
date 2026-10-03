@@ -55,15 +55,21 @@ public nonisolated enum StrengthWriteOutcome: Sendable, Equatable {
 /// log replaces the earlier row — and the hub is idempotent on client_id anyway, so a replay after
 /// a crash between "hub answered" and "row retired" still lands one row.
 ///
-/// The app-wide `OutboxDrainer` skips this kind (it skips kinds it does not know), so this type
-/// is the one owner that replays them.
+/// The app-wide `OutboxDrainer` (watchdog / retry scheduler / BG refresh) triggers this lane's
+/// pass when its provider can serve the strength routes; the Log sets screen drains on load and
+/// after each write. Both go through `drainOnce()`, serialised process-wide.
 @MainActor
 public final class StrengthOutbox {
     public nonisolated static let kind = "strength"
 
     private let outbox: Outbox
     private let provider: any TrainingProviding
-    private var inFlight: Task<[Int64: StrengthWriteOutcome], Never>?
+    /// Process-wide, not per instance: the Log sets screen and the app-wide `OutboxDrainer` each
+    /// hold their own `StrengthOutbox` over the same queue, and two overlapping passes would
+    /// otherwise both read a row before either retired it (a double `complete` = a double
+    /// progression advance). Each pass re-reads `pending()`, so a waiting pass skips what the
+    /// one before it delivered.
+    private static var inFlight: Task<[Int64: StrengthWriteOutcome], Never>?
 
     public init(outbox: Outbox, provider: any TrainingProviding) {
         self.outbox = outbox; self.provider = provider
@@ -105,12 +111,12 @@ public final class StrengthOutbox {
     /// pass (so a row it just enqueued is never left behind by a pass that started before it).
     @discardableResult
     public func drainOnce() async -> [Int64: StrengthWriteOutcome] {
-        while let running = inFlight { _ = await running.value }
+        while let running = Self.inFlight { _ = await running.value }
         let pass = Task { @MainActor [self] in
-            defer { self.inFlight = nil }
+            defer { Self.inFlight = nil }
             return await self.drainPass()
         }
-        inFlight = pass
+        Self.inFlight = pass
         return await pass.value
     }
 
