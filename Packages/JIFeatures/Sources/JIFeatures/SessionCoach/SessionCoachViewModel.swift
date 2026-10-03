@@ -61,13 +61,23 @@ public final class SessionCoachViewModel {
     private let pollNs: UInt64
     private var pollTask: Task<Void, Never>?
 
-    public init(provider: (any HealthDataProvider)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
+    public convenience init(provider: (any HealthDataProvider)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
+        self.init(live: provider as? any LiveSessionProviding, pollIntervalMs: pollIntervalMs, settings: settings)
+    }
+
+    /// W-B38-B B-8: a live source handed in directly — the phone's `MirroredSessionFeed` (the Watch's
+    /// mirrored strength session). `mirrored` is set when it is that feed, so the screen also lists
+    /// the sets as they land.
+    public init(live: (any LiveSessionProviding)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
         self.settings = settings
-        let live = provider as? any LiveSessionProviding
         self.liveProvider = live
+        self.mirrored = live as? MirroredSessionFeed
         self.capable = live != nil
         self.pollNs = pollIntervalMs * 1_000_000
     }
+
+    /// B-8: the mirrored Watch session (sets, current exercise), nil for any other source.
+    public let mirrored: MirroredSessionFeed?
 
     /// Idempotent — a second call while already polling is a no-op (mirrors the oracle's effect
     /// running once per mount, not re-arming on every render).

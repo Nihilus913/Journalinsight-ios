@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JIWorkouts
 @testable import JIFeatures
 
 /// A `HealthDataProvider` double that deliberately does NOT conform to `LiveSessionProviding` —
@@ -139,5 +140,66 @@ struct SessionCoachViewModelTests {
         #expect(!sessionCoachIntro(zone5Trainer).contains("limit"))
         #expect(sessionCoachSafetyLine(toby) == "Your limits still apply either way: HR ≤ 175 · Zone 5 (176–198) avoided.")
         #expect(sessionCoachUnitLine(toby) == "bpm · cap 175 · Z5 176–198 avoided")
+    }
+}
+
+/// W-B38-B B-8 — the Watch's mirrored strength session drives the coach: HR from the bridge, cap
+/// state against the user's own limit, sets as they land; stale or absent HR is never an all-clear.
+extension SessionCoachViewModelTests {
+    final class Clock { var t = Date(timeIntervalSince1970: 1_790_000_000) }
+
+    @Test @MainActor func testMirroredSampleDrivesCapState() async throws {
+        let clock = Clock()
+        let feed = MirroredSessionFeed(now: { clock.t })
+        let vm = SessionCoachViewModel(live: feed, pollIntervalMs: 10, settings: GateSettings(hrCapBpm: 175))
+        #expect(vm.capable)
+        #expect(vm.mirrored === feed)
+
+        let session = UUID()
+        feed.mirrorStarted(at: clock.t)
+        feed.ingest(.sessionStarted(StrengthBridgeSessionStart(sessionClientId: session, planSessionId: 7, date: "2026-10-05", startedAt: clock.t)))
+        clock.t += 60
+        feed.ingest(.heartRate(bpm: 180, at: clock.t))
+        vm.start()
+        try await Task.sleep(nanoseconds: 60_000_000)
+        #expect(vm.sample?.hrBpm == 180)
+        #expect(vm.sample?.elapsedS == 60)
+        #expect(vm.capState == .breach)
+
+        feed.ingest(.heartRate(bpm: 150, at: clock.t))
+        try await Task.sleep(nanoseconds: 60_000_000)
+        #expect(vm.capState == .under)
+
+        // A reading older than the stale window is reported as none → unknown, never "under".
+        clock.t += MirroredSessionFeed.hrStaleAfter + 1
+        try await Task.sleep(nanoseconds: 60_000_000)
+        vm.stop()
+        #expect(vm.sample?.hrBpm == nil)
+        #expect(vm.capState == .unknown)
+    }
+
+    @Test @MainActor func setsLandOnceAndEditsAndDeletesApply() {
+        let feed = MirroredSessionFeed()
+        let session = UUID()
+        feed.mirrorStarted(at: .now)
+        let s1 = StrengthBridgeSet(clientId: UUID(), sessionClientId: session, exerciseKey: "Barbell Bench Press", exerciseId: 1,
+                                   setIndex: 1, kind: .reps, reps: 8, weightKg: 50, durationS: nil, rpe: 7, performedAt: .now)
+        feed.ingest(.setLogged(s1)); feed.ingest(.setLogged(s1))
+        #expect(feed.sets.count == 1)
+        var edited = s1; edited.weightKg = 52.5
+        feed.ingest(.setEdited(edited))
+        #expect(feed.sets.first?.weightKg == 52.5)
+        #expect(feed.currentExerciseKey == "Barbell Bench Press")
+        feed.ingest(.setDeleted(clientId: s1.clientId, sessionClientId: session))
+        #expect(feed.sets.isEmpty)
+    }
+
+    @Test @MainActor func noMirrorThrowsAnHonestReasonNotAZero() async {
+        let feed = MirroredSessionFeed()
+        await #expect(throws: MirroredSessionFeed.FeedError.notMirroring) { try await feed.liveSession() }
+        feed.mirrorStarted(at: .now)
+        feed.ingest(.sessionEnded(StrengthBridgeSessionEnd(sessionClientId: UUID(), endedAt: .now, hkWorkoutUUID: nil)))
+        #expect(!feed.isMirroring)
+        await #expect(throws: MirroredSessionFeed.FeedError.notMirroring) { try await feed.liveSession() }
     }
 }
