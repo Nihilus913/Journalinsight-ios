@@ -162,6 +162,39 @@ enum Migrations {
                 t.column("synced", .integer).notNull().defaults(to: 0)
             }
         }
+        // W-B38-A A-7: the iPhone strength logger, LOCAL-FIRST (the hub's plan.strength_session /
+        // plan.strength_set_log, migration 059, mirror these rows once the `strength` outbox
+        // drains). Keyed by client UUIDs so a replayed write is idempotent on both sides; a set
+        // hangs off its session's client_id (the hub id may not exist yet while offline).
+        // NOT the UserDefaults `StrengthStateStore` (that one holds progression TARGETS).
+        m.registerMigration("v5_strength_log") { db in
+            try db.create(table: "strength_session_log", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("client_id", .text).notNull().unique()
+                t.column("remote_id", .integer)
+                t.column("session_id", .integer)
+                t.column("session_name", .text)
+                t.column("date", .text).notNull()
+                t.column("started_at", .text).notNull()
+                t.column("ended_at", .text)
+            }
+            try db.create(table: "strength_set_log", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("client_id", .text).notNull().unique()
+                t.column("session_client_id", .text).notNull()
+                    .references("strength_session_log", column: "client_id", onDelete: .cascade)
+                t.column("exercise_key", .text).notNull()
+                t.column("exercise_id", .integer)
+                t.column("set_index", .integer).notNull()
+                t.column("kind", .text).notNull()
+                t.column("reps", .integer)
+                t.column("weight_kg", .double)
+                t.column("duration_s", .integer)
+                t.column("rpe", .double)
+                t.column("performed_at", .text).notNull()
+            }
+            try db.create(index: "strength_set_log_session", on: "strength_set_log", columns: ["session_client_id"], ifNotExists: true)
+        }
         return m
     }
 }
