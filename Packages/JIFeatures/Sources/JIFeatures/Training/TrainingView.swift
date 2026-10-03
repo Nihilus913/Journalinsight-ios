@@ -1,6 +1,7 @@
 import SwiftUI
 import JICore
 import JIDesign
+import JIPersistence
 
 /// Training screen (W3a-L3, frozen contract `TrainingView.init(model:)`). Composes the week/day
 /// strips, gate summary, session-coach entry, day detail, and lift steppers — oracle:
@@ -8,6 +9,13 @@ import JIDesign
 public struct TrainingView: View {
     @Bindable private var model: TrainingViewModel
     @State private var showSessionCoach = false
+    /// W-B38-A A-10: "Start session" offers the live coach and the set logger.
+    @State private var showStartChoice = false
+    @State private var strengthLog: StrengthLogViewModel?
+    @State private var strengthHistory: StrengthHistoryViewModel?
+    @State private var showStrengthLog = false
+    @Environment(\.strengthLogDeps) private var strengthLogDeps
+    @Environment(\.progression) private var progression
     /// B-57 W5: "Edit week" pushes the TrainingWeek screen, where the weekday assignment
     /// (B-45 (c) / B-52 outbox) now lives.
     @State private var showWeek = false
@@ -93,6 +101,15 @@ public struct TrainingView: View {
         // Wiring the real provider through is a follow-up once `TrainingViewModel` exposes one.
         .navigationDestination(isPresented: $showSessionCoach) {
             SessionCoachView(model: SessionCoachViewModel(provider: nil, settings: gateSettings))
+        }
+        // W-B38-A A-10: the entry offers "Log sets" next to the coach (only when the app wired the
+        // on-disk strength log; previews / tests keep the coach-only tap).
+        .confirmationDialog("Start session", isPresented: $showStartChoice, titleVisibility: .visible) {
+            Button("Log sets") { openStrengthLog() }
+            Button("Live coach") { showSessionCoach = true }
+        }
+        .navigationDestination(isPresented: $showStrengthLog) {
+            if let strengthLog { StrengthLogView(model: strengthLog, history: strengthHistory) }
         }
         #if canImport(WorkoutKit)
         .sheet(isPresented: $showSendToWatch) {
@@ -230,7 +247,7 @@ public struct TrainingView: View {
                 sessionName: model.plannedSessionForSelectedDay?.name,
                 rows: trainingHeroRows(exercises: model.exercises, session: model.plannedSessionForSelectedDay),
                 onSendToWatch: sendToWatchAction,
-                onStart: { showSessionCoach = true },
+                onStart: { if strengthLogDeps == nil { showSessionCoach = true } else { showStartChoice = true } },
                 showsStart: model.selectedDate != model.todayDateString || trainingHeroOffersStart(override: currentOverride),
                 tint: subtitle.word == nil ? nil : trainingToneColor(subtitle.tone, theme))
             // W-FIX7 F7-1: today's session done (or another activity) from Apple Health.
@@ -282,6 +299,21 @@ public struct TrainingView: View {
     private var heroDayLabel: String {
         guard model.selectedDate != model.todayDateString, let date = trainingStripDate(model.selectedDate) else { return "Today" }
         return date.formatted(Date.FormatStyle(timeZone: trainingStripCalendar.timeZone).weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    /// W-B38-A A-10: the logger over the selected training (its exercises + progression's next
+    /// weight), built once per tap so its state survives re-renders.
+    private func openStrengthLog() {
+        guard let deps = strengthLogDeps else { return }
+        let session = model.plannedSessionForSelectedDay
+        let lifts = strengthLogLifts(exercises: model.exercises, session: session, progressions: progression?.lifts ?? [])
+        let store = StrengthSessionLogStore(db: deps.db)
+        let today = model.todayDateString
+        strengthLog = StrengthLogViewModel(lifts: lifts, sessionId: session?.id, sessionName: session?.name, store: store,
+                                           outbox: Outbox(db: deps.db), provider: deps.provider, prefs: deps.prefs,
+                                           today: { today })
+        strengthHistory = StrengthHistoryViewModel(store: store, provider: deps.provider, today: { today })
+        showStrengthLog = true
     }
 
     /// B40-V7: the library's per-row "Send to Watch" — the same sheet, that workout picked.
