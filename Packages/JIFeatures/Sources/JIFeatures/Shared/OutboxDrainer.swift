@@ -37,6 +37,11 @@ public final class OutboxDrainer {
     private let planWeekday: (any PlanSessionWeekdayProviding)?
     private let verdictOverride: (any VerdictOverrideProviding)?
     private let targets: (any TargetsProviding)?   // W-TGT: the one mirror body
+    /// W-B38-A: the strength-log lane (kind `"strength"`). Its rows replay in order through
+    /// `StrengthOutbox` (one ordered pass, stop at the first transient failure) — this drainer
+    /// only triggers that pass, so a session logged offline goes out when the hub is back even
+    /// if the Log sets screen is never reopened.
+    private let strength: StrengthOutbox?
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -56,7 +61,8 @@ public final class OutboxDrainer {
         gateRespond: (any GateRespondProviding)?,
         planWeekday: (any PlanSessionWeekdayProviding)? = nil,
         verdictOverride: (any VerdictOverrideProviding)? = nil,
-        targets: (any TargetsProviding)? = nil
+        targets: (any TargetsProviding)? = nil,
+        strength: (any TrainingProviding)? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
@@ -64,6 +70,7 @@ public final class OutboxDrainer {
         self.planWeekday = planWeekday
         self.verdictOverride = verdictOverride
         self.targets = targets
+        self.strength = strength.map { StrengthOutbox(outbox: outbox, provider: $0) }
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -75,7 +82,8 @@ public final class OutboxDrainer {
             gateRespond: provider as? any GateRespondProviding,
             planWeekday: provider as? any PlanSessionWeekdayProviding,
             verdictOverride: provider as? any VerdictOverrideProviding,
-            targets: provider as? any TargetsProviding
+            targets: provider as? any TargetsProviding,
+            strength: provider as? any TrainingProviding
         )
     }
 
@@ -87,7 +95,8 @@ public final class OutboxDrainer {
             gateRespond: hub as? any GateRespondProviding,
             planWeekday: hub as? any PlanSessionWeekdayProviding,
             verdictOverride: hub as? any VerdictOverrideProviding,
-            targets: hub as? any TargetsProviding
+            targets: hub as? any TargetsProviding,
+            strength: hub as? any TrainingProviding
         )
     }
 
@@ -125,6 +134,7 @@ public final class OutboxDrainer {
         if planWeekday != nil { kinds.insert(Self.planWeekdayKind) }
         if verdictOverride != nil { kinds.insert(Self.verdictOverrideKind); kinds.insert(Self.verdictOverrideClearKind) }
         if targets != nil { kinds.insert(Self.targetsKind); kinds.insert(Self.legacyGoalsKind) }
+        if strength != nil { kinds.insert(StrengthOutbox.kind) }
         return kinds
     }
 
@@ -229,8 +239,14 @@ public final class OutboxDrainer {
                     results[row.id] = .failure(error)
                 }
             default:
-                continue
+                continue   // incl. `StrengthOutbox.kind`: replayed below, as one ordered lane
             }
+        }
+        // W-B38-A: the strength lane's own in-order pass (serialised process-wide with the Log
+        // sets screen's pass, so a row is never sent by both). Its outcomes are not
+        // `OutboxDelivery`s; `pendingDeliverableCount()` still counts what it leaves queued.
+        if let strength, rows.contains(where: { $0.kind == StrengthOutbox.kind }) {
+            _ = await strength.drainOnce()
         }
         return results
     }
