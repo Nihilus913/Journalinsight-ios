@@ -1084,6 +1084,7 @@ struct RootTabView: View {
                         .environment(\.sendToWatchModel, sendToWatchModel)
                         .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
                         .environment(\.strengthLogDeps, strengthLogDeps)   // W-B38-A A-10
+                        .environment(\.strengthWatchPlanSender) { StrengthMirrorCoordinator.shared.sendPlan($0) }   // W-B38-B
                 } else {
                     ProgressView()
                         .task {

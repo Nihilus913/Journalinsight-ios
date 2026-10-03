@@ -43,6 +43,7 @@
 		688BBEA7DE2ECE9506686012 /* GateMediumLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA13A0C17791F561000010 /* GateMediumLayout.swift */; };
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		6EC61424D6E2156988CA5EB9 /* GateMediumLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA13A0C17791F561000010 /* GateMediumLayout.swift */; };
+		736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */; };
 		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
 		74229C6C308983C442714079 /* AppleWorkoutUploadSimTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4AA2AFE31332D2F3A8FAF3 /* AppleWorkoutUploadSimTests.swift */; };
 		75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */; };
@@ -179,6 +180,7 @@
 		2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRouteMappingTests.swift; sourceTree = "<group>"; };
 		3261685EDB3B86163D8948AA /* Fix6FixerAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix6FixerAppTests.swift; sourceTree = "<group>"; };
 		33B95FD08E32DDCC89D64B00 /* Fix7L1AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix7L1AppTests.swift; sourceTree = "<group>"; };
+		33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthMirrorCoordinator.swift; sourceTree = "<group>"; };
 		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		34E9F65F4C5401CDA46CA524 /* ReadinessGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadinessGlance.swift; sourceTree = "<group>"; };
 		43B4E55EDF3D96E26FC79F31 /* SnapshotWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotWiringTests.swift; sourceTree = "<group>"; };
@@ -429,6 +431,14 @@
 			path = Notifications;
 			sourceTree = "<group>";
 		};
+		6EF54B2BA7816A1667FE83F3 /* Strength */ = {
+			isa = PBXGroup;
+			children = (
+				33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */,
+			);
+			path = Strength;
+			sourceTree = "<group>";
+		};
 		7E21C80B99A2A95B8D6662A4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -466,6 +476,7 @@
 				056638029CC232C84D208888 /* Debug */,
 				323BFC5FC4A1CC8F4B9CDEF1 /* Navigation */,
 				6E9E123931A2C465AE3A467C /* Notifications */,
+				6EF54B2BA7816A1667FE83F3 /* Strength */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -745,6 +756,7 @@
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
+				736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */,
 				D67FD48EBDFAC2DEE1F7F571 /* StrengthSessionActivityAttributes.swift in Sources */,
 				4DD5F87BB4120072A84705E3 /* StrengthSessionActivityController.swift in Sources */,
 				B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */,

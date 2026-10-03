@@ -2,6 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 import JIPersistence
+import JIWorkouts
 
 /// Training screen (W3a-L3, frozen contract `TrainingView.init(model:)`). Composes the week/day
 /// strips, gate summary, session-coach entry, day detail, and lift steppers — oracle:

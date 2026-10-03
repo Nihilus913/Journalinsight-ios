@@ -11,12 +11,27 @@ import JIWorkouts
 @MainActor
 public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
     private let store: StrengthSessionLogStore
-    private let queue: StrengthOutbox?
-    /// The outbox drain after each write (the App passes one; tests leave it nil).
-    private let afterWrite: (() -> Void)?
+    /// Resolves the strength outbox over the CURRENT hub provider (nil before a connection exists:
+    /// the set is still stored locally). Resolved once, then kept, so drains stay serialised.
+    private let resolveQueue: () -> StrengthOutbox?
+    private var resolved: StrengthOutbox?
+    private var queue: StrengthOutbox? {
+        if resolved == nil { resolved = resolveQueue() }
+        return resolved
+    }
 
-    public init(store: StrengthSessionLogStore, queue: StrengthOutbox?, afterWrite: (() -> Void)? = nil) {
-        self.store = store; self.queue = queue; self.afterWrite = afterWrite
+    public init(store: StrengthSessionLogStore, queue: @escaping () -> StrengthOutbox?) {
+        self.store = store; self.resolveQueue = queue
+    }
+
+    public convenience init(store: StrengthSessionLogStore, queue: StrengthOutbox?) {
+        self.init(store: store, queue: { queue })
+    }
+
+    /// One drain after each write — the hub sees a Watch set as soon as it is reachable.
+    private func afterWrite() {
+        guard let queue else { return }
+        Task { await queue.drainOnce() }
     }
 
     public func bridgeSessionStarted(_ start: StrengthBridgeSessionStart) async {
@@ -26,7 +41,7 @@ public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
                                    startedAt: start.startedAt.ISO8601Format())
         try? store.startSession(s)
         queue?.enqueue(.createSession(StrengthSessionCreate(clientId: s.clientId, date: s.date, startedAt: s.startedAt, sessionId: s.sessionId)))
-        afterWrite?()
+        afterWrite()
     }
 
     public func bridgeSetLogged(_ set: StrengthBridgeSet) async { write(set, edit: false) }
@@ -36,7 +51,7 @@ public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
         let id = clientId.uuidString.lowercased()
         try? store.deleteSet(clientId: id)
         queue?.enqueue(.deleteSet(session: sessionClientId.uuidString.lowercased(), clientId: id))
-        afterWrite?()
+        afterWrite()
     }
 
     /// The Watch ends the session: `ended_at` locally + a complete with NO advance (progression
@@ -46,7 +61,7 @@ public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
         let endedAt = end.endedAt.ISO8601Format()
         try? store.complete(sessionClientId: session, endedAt: endedAt)
         queue?.enqueue(.complete(session: session, StrengthSessionComplete(endedAt: endedAt, advance: [])))
-        afterWrite?()
+        afterWrite()
     }
 
     private func write(_ b: StrengthBridgeSet, edit: Bool) {
@@ -54,7 +69,7 @@ public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
         try? store.upsertSet(s)
         let body = StrengthLogViewModel.body(s)
         queue?.enqueue(edit ? .updateSet(session: s.sessionClientId, body) : .logSet(session: s.sessionClientId, body))
-        afterWrite?()
+        afterWrite()
     }
 
     static func log(_ b: StrengthBridgeSet) -> StrengthSetLog {
