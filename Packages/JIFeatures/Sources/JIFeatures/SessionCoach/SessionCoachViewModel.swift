@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import JICore
+import JICompute
 import JIDesign
 
 /// Live Session Coach view model (W3b-L1, P-session-coach). Oracle: `mobile/src/data/useLiveSession.ts`
@@ -20,9 +21,8 @@ import JIDesign
 /// "not available" wall is the correct, honest state for every real hub connection this wave.
 @Observable @MainActor
 public final class SessionCoachViewModel {
-    public enum CapState: Equatable, Sendable { case unknown, under, approaching, breach, noLimit }
-
-    private nonisolated static let approachingBandBpm = 15
+    /// W-B38-A A-9: the cap rule now lives in `JICompute.SessionCap`; this VM delegates.
+    public typealias CapState = SessionCap.State
 
     /// B-57 W4: the user's settings (optional cap, zones, Avoid Zone 5). Never changed by the app.
     public let settings: GateSettings
@@ -32,7 +32,7 @@ public final class SessionCoachViewModel {
     /// The HR the session stays at or under: the cap and/or the top of Zone 4 when the user
     /// avoids Zone 5. nil = the user chose no limit at all.
     public nonisolated static func limitBpm(_ s: GateSettings) -> Int? {
-        [s.hrCapBpm, s.zone5FloorBpm.map { $0 - 1 }].compactMap { $0 }.min()
+        SessionCap.limitBpm(hrCapBpm: s.hrCapBpm, zone5FloorBpm: s.zone5FloorBpm)
     }
 
     /// `false` when the injected provider never conforms to `LiveSessionProviding` — the sole gate:
@@ -112,14 +112,9 @@ public final class SessionCoachViewModel {
         return max(0, min(1, sample.load / sample.targetLoad))
     }
 
-    /// Port of `deriveHrCapState` (`mobile/src/lib/hrSafety.ts`): `nil` always reads as `.unknown`,
-    /// never a false "under" all-clear. B-57 W4: against the user's own limit; none = `.noLimit`.
+    /// Port of `deriveHrCapState` (`mobile/src/lib/hrSafety.ts`) — delegates to `SessionCap`.
     public nonisolated static func deriveCapState(hrBpm: Int?, limitBpm: Int?) -> CapState {
-        guard let hrBpm else { return .unknown }
-        guard let limitBpm else { return .noLimit }
-        if hrBpm > limitBpm { return .breach }
-        if hrBpm >= limitBpm - approachingBandBpm { return .approaching }
-        return .under
+        SessionCap.state(hrBpm: hrBpm, limitBpm: limitBpm)
     }
 
     public nonisolated static func tone(for state: CapState) -> VerdictTone {
@@ -131,30 +126,13 @@ public final class SessionCoachViewModel {
         }
     }
 
-    public nonisolated static func label(for state: CapState) -> String {
-        switch state {
-        case .unknown: "No live reading"
-        case .noLimit: "No limit"
-        case .under: "Under your limit"
-        case .approaching: "Near your limit"
-        case .breach: "OVER YOUR LIMIT"
-        }
-    }
+    public nonisolated static func label(for state: CapState) -> String { SessionCap.label(for: state) }
 
     /// E15-5 port — every band (including "under") ships one concrete next action, never a bare
-    /// warning.
+    /// warning. Delegates to `SessionCap`.
     public nonisolated static func action(for state: CapState, settings: GateSettings) -> String {
-        let limit = limitBpm(settings).map(String.init) ?? "—"
-        switch state {
-        case .unknown: return "No live heart-rate reading for this session — pace/RPE only."
-        case .noLimit: return "No heart-rate limit set — train by your plan and how you feel."
-        case .under: return "On plan — hold pace."
-        case .approaching: return "Within \(approachingBandBpm) bpm of your \(limit) limit — ease off before you reach it."
-        case .breach:
-            let zone5 = settings.zone5FloorBpm != nil
-                ? " You chose to stay out of Zone 5 (\(settings.zones?.rangeText(5) ?? "—"))." : ""
-            return "Over your \(limit) limit — back off now." + zone5
-        }
+        let zone5 = settings.zone5FloorBpm != nil ? (settings.zones?.rangeText(5) ?? "—") : nil
+        return SessionCap.action(for: state, limitBpm: limitBpm(settings), zone5RangeText: zone5)
     }
 
     private static func describe(_ error: HubError) -> String {

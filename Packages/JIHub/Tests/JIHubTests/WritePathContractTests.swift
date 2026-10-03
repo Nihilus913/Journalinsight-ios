@@ -139,6 +139,17 @@ extension HubClientTests {
             "no body; hub pushes its own stored row to Garmin",
         "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates/import-garmin":
             "no body; hub-side idempotent import, skips templates edited since import",
+        // W-B38-A A-8: the strength log — append-only rows keyed by client UUID (replay = one row).
+        "HubDataProvider+Strength.swift: POST /api/v1/planning/strength-sessions":
+            "create one logged session (client_id unique hub-side)",
+        "HubDataProvider+Strength.swift: POST /api/v1/planning/strength-sessions/\\(session)/sets":
+            "append one set (client_id unique hub-side)",
+        "HubDataProvider+Strength.swift: PUT /api/v1/planning/strength-sessions/\\(session)/sets/\\(clientId)":
+            "keyed edit of one set",
+        "HubDataProvider+Strength.swift: DELETE /api/v1/planning/strength-sessions/\\(session)/sets/\\(clientId)":
+            "one keyed set, only from an explicit user delete",
+        "HubDataProvider+Strength.swift: POST /api/v1/planning/strength-sessions/\\(session)/complete":
+            "explicit advance list only; a null / <=0 kg move is refused before sending (StrengthAdvanceWouldClear), [] moves nothing",
     ]
 
     @Test func everyHubWriteIsReviewed() throws {
