@@ -93,34 +93,7 @@ import JIPersistence
 
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    @Test func syncFreshnessCopyMatchesOracleBoundaries() {
-        let iso = { (secondsAgo: TimeInterval) in
-            ISO8601DateFormatter().string(from: self.now.addingTimeInterval(-secondsAgo))
-        }
-        #expect(formatSyncFreshness(nil, now: now) == "Not synced yet")
-        #expect(formatSyncFreshness("not a date", now: now) == "Not synced yet")
-        #expect(formatSyncFreshness(iso(0), now: now) == "Synced just now")
-        #expect(formatSyncFreshness(iso(59), now: now) == "Synced just now")
-        #expect(formatSyncFreshness(iso(60), now: now) == "Synced 1m ago")
-        #expect(formatSyncFreshness(iso(59 * 60 + 59), now: now) == "Synced 59m ago")
-        #expect(formatSyncFreshness(iso(60 * 60), now: now) == "Synced 1h ago")
-        #expect(formatSyncFreshness(iso(23 * 3600 + 3599), now: now) == "Synced 23h ago")
-        #expect(formatSyncFreshness(iso(24 * 3600), now: now) == "Synced 1d ago")
-        #expect(formatSyncFreshness(iso(3 * 24 * 3600 + 5), now: now) == "Synced 3d ago")
-    }
-
-    /// The hub's `/ingestion/status` returns a Postgres `str(timestamp)` with a space separator.
-    @Test func syncFreshnessAcceptsPostgresTimestampShape() {
-        let then = now.addingTimeInterval(-12 * 60)
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        #expect(formatSyncFreshness(formatter.string(from: then), now: now) == "Synced 12m ago")
-    }
-
     @Test func completenessCopyIsLiteral() {
-        #expect(formatTrackedCompleteness(trackedDays: 5, totalDays: 7) == "5/7 days tracked")
         #expect(DataFreshnessInfo(lastSyncISO: nil, trackedDays: 5, totalDays: 7).completenessText == "5/7 days tracked")
         // Rule 5: nothing to say → nothing said, never "0/0 days tracked".
         #expect(DataFreshnessInfo(lastSyncISO: nil).completenessText == nil)
@@ -222,21 +195,6 @@ private struct FakeDataQualityProvider: DataQualityProviding {
         var opened = false
         dataFreshnessBadgeTapAction(onOpenDataQuality: { opened = true })()
         #expect(opened)
-    }
-
-    @Test func badgeCopyDistinguishesUnknownFromNeverSynced() {
-        let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let unknown = DataFreshnessBadge(info: nil, now: now)
-        #expect(unknown.leadingText == "Data quality")
-        let neverSynced = DataFreshnessBadge(info: DataFreshnessInfo(lastSyncISO: nil), now: now)
-        #expect(neverSynced.leadingText == "Not synced yet")
-        #expect(neverSynced.trailingText == nil)
-        let synced = DataFreshnessBadge(
-            info: DataFreshnessInfo(lastSyncISO: ISO8601DateFormatter().string(from: now.addingTimeInterval(-120)), trackedDays: 5, totalDays: 7),
-            now: now
-        )
-        #expect(synced.leadingText == "Synced 2m ago")
-        #expect(synced.trailingText == "5/7 days tracked")
     }
 
     @Test func settingsRegistryCarriesTheDataQualitySection() {

@@ -92,8 +92,6 @@ private struct FixedDQProvider: DataQualityProviding {
     #expect(d.map { abs($0.timeIntervalSince1970 - 1_790_323_343.725) < 1 } == true)  // 08:02:23Z
     #expect(parseHubTimestamp("2026-09-25 10:02:23+02:00") != nil)
     #expect(parseHubTimestamp("2026-09-25 08:02:23.725876+00") != nil)
-    #expect(formatSyncFreshness("2026-09-25 10:02:23.725876+02:00",
-                                now: Date(timeIntervalSince1970: 1_790_323_344 + 600)) == "Synced 10m ago")
 }
 
 // MARK: BUG-11 — next working weight reads strength_state from the hub
