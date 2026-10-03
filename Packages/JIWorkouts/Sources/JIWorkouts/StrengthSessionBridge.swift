@@ -316,7 +316,11 @@ public final class WatchConnectivityStrengthTransport: NSObject, StrengthBridgeT
 }
 
 extension WatchConnectivityStrengthTransport: WCSessionDelegate {
-    nonisolated public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    nonisolated public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        // A plan delivered while the app was not running is only in `receivedApplicationContext`.
+        guard let data = session.receivedApplicationContext[StrengthBridgeKeys.plan] as? Data else { return }
+        Task { @MainActor [weak self] in self?.onApplicationContext?([StrengthBridgeKeys.plan: data]) }
+    }
 
     #if os(iOS)
     nonisolated public func sessionDidBecomeInactive(_ session: WCSession) {}
