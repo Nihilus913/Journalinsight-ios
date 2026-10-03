@@ -13,13 +13,16 @@ public struct StrengthSessionLog: Sendable, Equatable, Identifiable, Codable {
     public var date: String
     public var startedAt: String
     public var endedAt: String?
+    /// W-B38-B B-2: the Watch's saved `HKWorkout.uuid` (lowercased); nil for a phone-only session.
+    public var hkWorkoutUuid: String?
     public var id: String { clientId }
     public var isComplete: Bool { endedAt != nil }
 
     public init(clientId: String = UUID().uuidString.lowercased(), remoteId: Int? = nil, sessionId: Int? = nil,
-                sessionName: String? = nil, date: String, startedAt: String, endedAt: String? = nil) {
+                sessionName: String? = nil, date: String, startedAt: String, endedAt: String? = nil, hkWorkoutUuid: String? = nil) {
         self.clientId = clientId; self.remoteId = remoteId; self.sessionId = sessionId
         self.sessionName = sessionName; self.date = date; self.startedAt = startedAt; self.endedAt = endedAt
+        self.hkWorkoutUuid = hkWorkoutUuid
     }
 }
 
@@ -85,9 +88,12 @@ public struct StrengthSessionLogStore: Sendable {
         }
     }
 
-    public func complete(sessionClientId: String, endedAt: String) throws {
+    /// `hkWorkoutUuid`: the first one stored wins; nil never clears it.
+    public func complete(sessionClientId: String, endedAt: String, hkWorkoutUuid: String? = nil) throws {
         try db.pool.write { db in
-            try db.execute(sql: "UPDATE strength_session_log SET ended_at = ? WHERE client_id = ?", arguments: [endedAt, sessionClientId])
+            try db.execute(sql: """
+                UPDATE strength_session_log SET ended_at = ?, hk_workout_uuid = COALESCE(hk_workout_uuid, ?) WHERE client_id = ?
+                """, arguments: [endedAt, hkWorkoutUuid, sessionClientId])
         }
     }
 
@@ -151,13 +157,14 @@ public struct StrengthSessionLogStore: Sendable {
                 session_id = COALESCE(excluded.session_id, session_id),
                 session_name = COALESCE(excluded.session_name, session_name),
                 date = excluded.date, started_at = excluded.started_at,
-                ended_at = COALESCE(excluded.ended_at, ended_at)
+                ended_at = COALESCE(excluded.ended_at, ended_at),
+                hk_workout_uuid = COALESCE(hk_workout_uuid, excluded.hk_workout_uuid)
               """
             : "ON CONFLICT(client_id) DO NOTHING"
         try db.execute(sql: """
-            INSERT INTO strength_session_log (client_id, remote_id, session_id, session_name, date, started_at, ended_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?) \(conflict)
-            """, arguments: [s.clientId, s.remoteId, s.sessionId, s.sessionName, s.date, s.startedAt, s.endedAt])
+            INSERT INTO strength_session_log (client_id, remote_id, session_id, session_name, date, started_at, ended_at, hk_workout_uuid)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?) \(conflict)
+            """, arguments: [s.clientId, s.remoteId, s.sessionId, s.sessionName, s.date, s.startedAt, s.endedAt, s.hkWorkoutUuid])
     }
 
     private static func upsertSet(_ db: Database, _ s: StrengthSetLog) throws {
@@ -176,11 +183,12 @@ public struct StrengthSessionLogStore: Sendable {
 
     private static func sessions(_ db: Database, _ clause: String, _ args: StatementArguments) throws -> [StrengthSessionLog] {
         try Row.fetchAll(db, sql: """
-            SELECT client_id, remote_id, session_id, session_name, date, started_at, ended_at
+            SELECT client_id, remote_id, session_id, session_name, date, started_at, ended_at, hk_workout_uuid
             FROM strength_session_log \(clause)
             """, arguments: args).map { r in
             StrengthSessionLog(clientId: r["client_id"], remoteId: r["remote_id"], sessionId: r["session_id"],
-                               sessionName: r["session_name"], date: r["date"], startedAt: r["started_at"], endedAt: r["ended_at"])
+                               sessionName: r["session_name"], date: r["date"], startedAt: r["started_at"], endedAt: r["ended_at"],
+                               hkWorkoutUuid: r["hk_workout_uuid"])
         }
     }
 

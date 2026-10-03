@@ -72,7 +72,8 @@ public final class StrengthHistoryViewModel {
     nonisolated static func local(_ s: StrengthSessionOut) -> (session: StrengthSessionLog, sets: [StrengthSetLog])? {
         guard let cid = s.clientId?.lowercased(), let date = s.date else { return nil }
         let session = StrengthSessionLog(clientId: cid, remoteId: s.sessionLogId, sessionId: s.sessionId, date: String(date.prefix(10)),
-                                         startedAt: s.startedAt ?? date, endedAt: s.endedAt)
+                                         startedAt: s.startedAt ?? date, endedAt: s.endedAt,
+                                         hkWorkoutUuid: s.hkWorkoutUuid?.lowercased())
         let sets = (s.sets ?? []).compactMap { x -> StrengthSetLog? in
             guard let xid = x.clientId?.lowercased() else { return nil }
             return StrengthSetLog(clientId: xid, sessionClientId: cid, exerciseKey: x.exerciseKey, exerciseId: x.exerciseId,

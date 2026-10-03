@@ -64,8 +64,13 @@ public struct StrengthAdvance: Codable, Sendable, Equatable {
 public struct StrengthSessionComplete: Codable, Sendable, Equatable {
     public var endedAt: String
     public var advance: [StrengthAdvance]
-    public init(endedAt: String, advance: [StrengthAdvance]) { self.endedAt = endedAt; self.advance = advance }
-    enum CodingKeys: String, CodingKey { case endedAt = "ended_at", advance }
+    /// W-B38-B B-2: the Watch's saved `HKWorkout.uuid` (lowercased) → `plan.strength_session.hk_workout_uuid`.
+    /// nil = key omitted (a phone-logged session has no workout; the hub keeps the first one it got).
+    public var hkWorkoutUuid: String?
+    public init(endedAt: String, advance: [StrengthAdvance], hkWorkoutUuid: String? = nil) {
+        self.endedAt = endedAt; self.advance = advance; self.hkWorkoutUuid = hkWorkoutUuid
+    }
+    enum CodingKeys: String, CodingKey { case endedAt = "ended_at", advance, hkWorkoutUuid = "hk_workout_uuid" }
 }
 
 /// A hub-side set (history, last-sets). Snake-case wire keys arrive camelCased by `JSON.decoder`.
@@ -100,12 +105,13 @@ public struct StrengthSessionOut: Codable, Sendable, Equatable {
     public var date: String?
     public var startedAt: String?
     public var endedAt: String?
+    public var hkWorkoutUuid: String?
     public var sets: [StrengthSetOut]?
 
     public init(sessionLogId: Int?, clientId: String?, sessionId: Int? = nil, date: String?, startedAt: String?,
-                endedAt: String? = nil, sets: [StrengthSetOut]? = nil) {
+                endedAt: String? = nil, hkWorkoutUuid: String? = nil, sets: [StrengthSetOut]? = nil) {
         self.sessionLogId = sessionLogId; self.clientId = clientId; self.sessionId = sessionId; self.date = date
-        self.startedAt = startedAt; self.endedAt = endedAt; self.sets = sets
+        self.startedAt = startedAt; self.endedAt = endedAt; self.hkWorkoutUuid = hkWorkoutUuid; self.sets = sets
     }
 }
 

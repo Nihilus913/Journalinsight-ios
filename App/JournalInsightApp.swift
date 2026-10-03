@@ -60,6 +60,15 @@ struct JournalInsightApp: App {
             } catch { fatalError("AppEnvironment init failed: \(error)") }
         }()
         _env = State(initialValue: builtEnv)
+        // W-B38-B B-8: the Watch's mirrored strength session must find its handler even when
+        // HealthKit launches the app in the background for it — so it is installed here, not in a view task.
+        if AppLaunchMode.current == .app {
+            let prefs = builtEnv.prefs
+            StrengthMirrorCoordinator.shared.install(
+                prefs: builtEnv.prefs,
+                provider: { [weak builtEnv] in (builtEnv?.hubProvider ?? builtEnv?.providerStore?.provider) as? any TrainingProviding },
+                settings: { GateSettingsStore(prefs: prefs).load() })
+        }
         _theme = State(initialValue: AppThemeModel(prefs: builtEnv.prefs))
 
         let scheduler = OutboxRetryScheduler(

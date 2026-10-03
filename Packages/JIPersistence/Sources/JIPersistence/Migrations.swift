@@ -195,6 +195,10 @@ enum Migrations {
             }
             try db.create(index: "strength_set_log_session", on: "strength_set_log", columns: ["session_client_id"], ifNotExists: true)
         }
+        // W-B38-B B-2: the Watch's saved HKWorkout uuid on the session (hub: plan.strength_session.hk_workout_uuid).
+        m.registerMigration("v5b_strength_hk_workout") { db in
+            try db.alter(table: "strength_session_log") { t in t.add(column: "hk_workout_uuid", .text) }
+        }
         return m
     }
 }

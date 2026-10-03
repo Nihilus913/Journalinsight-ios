@@ -46,6 +46,9 @@ targets:
       - App
       - Widgets/Sources/LiveActivityController.swift
       - Widgets/Sources/LiveActivityCapPolicy.swift
+      # W-B38-B B-7: the strength-session Live Activity — attributes + controller in both targets.
+      - Widgets/Sources/StrengthSessionActivityAttributes.swift
+      - Widgets/Sources/StrengthSessionActivityController.swift
     info:
       path: App/Info.plist
       properties:
@@ -115,6 +118,11 @@ targets:
         WKApplication: true
         WKCompanionAppBundleIdentifier: toby913.JournalInsight
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # W-B38-B B-1: the Watch runs the strength workout (HKWorkoutSession keeps running with the
+        # screen down) and mirrors it to the phone; it reads live HR and saves the HKWorkout.
+        WKBackgroundModes: [workout-processing]
+        NSHealthShareUsageDescription: "JournalInsight reads your live heart rate during a strength session to show it against your heart-rate limit."
+        NSHealthUpdateUsageDescription: "JournalInsight saves your strength session to Health as a Traditional Strength Training workout."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight.watchapp
@@ -125,6 +133,9 @@ targets:
       - package: JICore
       - package: JIDesign
       - package: JISnapshot
+      - package: JIWorkouts # W-B38-B B-1: strength session controller + phone bridge
+      - package: JICompute # W-B38-B: SetTimer, LastSetDefaults, SessionCap
+      - package: JIPersistence # W-B38-B B-1 (card): local set log on the Watch
   Widgets:
     type: app-extension
     platform: iOS

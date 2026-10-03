@@ -70,6 +70,9 @@ public nonisolated enum SettingsRoot {
                   kind: .push(title: "Haptics & notifications", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
                   sectionIds: ["w8.haptics"]),
             .init(id: "reminders", group: .phone, kind: .inline, sectionIds: ["l2.reminders"]),
+            // W-B38-B B-9: the plate calculator's bar + plate pairs.
+            .init(id: "plates", group: .phone, kind: .push(title: "Plates & bar", systemImage: "scalemass", placeholder: nil),
+                  sectionIds: [PlateInventorySection.sectionId]),
             .init(id: "about", group: .app, kind: .inline, sectionIds: ["l4.version"]),
         ]
         #if DEBUG

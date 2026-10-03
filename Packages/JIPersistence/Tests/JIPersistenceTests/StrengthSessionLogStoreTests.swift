@@ -23,7 +23,7 @@ import Testing
         let (s, x) = try db.pool.read { db in
             (try db.columns(in: "strength_session_log").map(\.name), try db.columns(in: "strength_set_log").map(\.name))
         }
-        #expect(s == ["id", "client_id", "remote_id", "session_id", "session_name", "date", "started_at", "ended_at"])
+        #expect(s == ["id", "client_id", "remote_id", "session_id", "session_name", "date", "started_at", "ended_at", "hk_workout_uuid"])   // + v5b (B-2)
         #expect(x == ["id", "client_id", "session_client_id", "exercise_key", "exercise_id", "set_index", "kind",
                       "reps", "weight_kg", "duration_s", "rpe", "performed_at"])
     }
@@ -67,6 +67,18 @@ import Testing
         #expect(try store.openSession(date: "2026-10-03") == nil)
         let s = try #require(try store.session(clientId: "s-1"))
         #expect(s.remoteId == 41 && s.isComplete)
+    }
+
+    /// W-B38-B B-2: the Watch's saved HKWorkout uuid is kept on the session; first one wins.
+    @Test func completeKeepsTheFirstHKWorkoutUUID() throws {
+        try store.startSession(session())
+        try store.complete(sessionClientId: "s-1", endedAt: "2026-10-03T08:00:00Z", hkWorkoutUuid: "aaaa")
+        try store.complete(sessionClientId: "s-1", endedAt: "2026-10-03T09:00:00Z", hkWorkoutUuid: "bbbb")
+        try store.complete(sessionClientId: "s-1", endedAt: "2026-10-03T09:00:00Z")
+        let s = try #require(try store.session(clientId: "s-1"))
+        #expect(s.hkWorkoutUuid == "aaaa")
+        try store.mergeFromHub([(StrengthSessionLog(clientId: "s-1", date: "2026-10-03", startedAt: "2026-10-03T07:00:00Z"), [])])
+        #expect(try store.session(clientId: "s-1")?.hkWorkoutUuid == "aaaa")   // a hub row without it never clears it
     }
 
     @Test func historyIsNewestFirstWithinTheRange() throws {

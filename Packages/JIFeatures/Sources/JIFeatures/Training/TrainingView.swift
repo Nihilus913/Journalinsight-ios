@@ -2,6 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 import JIPersistence
+import JIWorkouts
 
 /// Training screen (W3a-L3, frozen contract `TrainingView.init(model:)`). Composes the week/day
 /// strips, gate summary, session-coach entry, day detail, and lift steppers — oracle:
@@ -16,6 +17,8 @@ public struct TrainingView: View {
     @State private var showStrengthLog = false
     @Environment(\.strengthLogDeps) private var strengthLogDeps
     @Environment(\.progression) private var progression
+    /// W-B38-B: sends today's training down to the Watch (strength bridge, plan via app context).
+    @Environment(\.strengthWatchPlanSender) private var sendWatchPlan
     /// B-57 W5: "Edit week" pushes the TrainingWeek screen, where the weekday assignment
     /// (B-45 (c) / B-52 outbox) now lives.
     @State private var showWeek = false
@@ -93,14 +96,12 @@ public struct TrainingView: View {
         .onAppear { model.screenAppeared() }
         .task(id: model.pendingSessionSync.isEmpty) { await model.watchPendingSync() }
         .animation(JIMotion.standard, value: model.phase)
-        // W3b-L1 (P-session-coach): `TrainingView.init(model:)` is a frozen contract and
-        // `TrainingViewModel` (not this lane's file) has no accessor onto its private hub
-        // provider, so this pushes with `provider: nil` — which resolves to the same "not
-        // available" state a real `HubDataProvider` cast would produce today anyway (it
-        // deliberately never conforms to `LiveSessionProviding` — see JICore's doc comment).
-        // Wiring the real provider through is a follow-up once `TrainingViewModel` exposes one.
+        // W-B38-B B-8: the live source is the Watch's mirrored strength session
+        // (`MirroredSessionFeed`, fed by the App's mirroring handler + strength bridge). Where no
+        // Watch can mirror (`isAvailable` false) the coach keeps its honest "not available" wall.
         .navigationDestination(isPresented: $showSessionCoach) {
-            SessionCoachView(model: SessionCoachViewModel(provider: nil, settings: gateSettings))
+            SessionCoachView(model: SessionCoachViewModel(
+                live: MirroredSessionFeed.shared.isAvailable ? MirroredSessionFeed.shared : nil, settings: gateSettings))
         }
         // W-B38-A A-10: the entry offers "Log sets" next to the coach (only when the app wired the
         // on-disk strength log; previews / tests keep the coach-only tap).
@@ -108,6 +109,8 @@ public struct TrainingView: View {
             Button("Log sets") { openStrengthLog() }
             Button("Live coach") { showSessionCoach = true }
         }
+        // W-B38-B: today's selected training goes down to the Watch whenever it (re)loads.
+        .task(id: watchPlanKey) { sendTodayPlanToWatch() }
         .navigationDestination(isPresented: $showStrengthLog) {
             if let strengthLog { StrengthLogView(model: strengthLog, history: strengthHistory) }
         }
@@ -299,6 +302,25 @@ public struct TrainingView: View {
     private var heroDayLabel: String {
         guard model.selectedDate != model.todayDateString, let date = trainingStripDate(model.selectedDate) else { return "Today" }
         return date.formatted(Date.FormatStyle(timeZone: trainingStripCalendar.timeZone).weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    /// W-B38-B: changes when today's training (session or its exercises / next weights) changes.
+    private var watchPlanKey: String {
+        guard model.selectedDate == model.todayDateString, let s = model.plannedSessionForSelectedDay else { return "none" }
+        return "\(model.todayDateString)|\(s.id)|\(model.exercises.count)|\(progression?.lifts.count ?? 0)"
+    }
+
+    /// W-B38-B: the Watch's plan = the logger's prefill for today (A-10 `strengthLogLifts`) + last sets.
+    private func sendTodayPlanToWatch() {
+        guard let sendWatchPlan, model.selectedDate == model.todayDateString, let session = model.plannedSessionForSelectedDay else { return }
+        let lifts = strengthLogLifts(exercises: model.exercises, session: session, progressions: progression?.lifts ?? [])
+        guard !lifts.isEmpty else { return }
+        let today = model.todayDateString
+        let store = strengthLogDeps.map { StrengthSessionLogStore(db: $0.db) }
+        var last: [String: [StrengthSetLog]] = [:]
+        for lift in lifts { last[lift.exerciseKey] = (try? store?.lastSets(exerciseKey: lift.exerciseKey, before: today)) ?? nil }
+        sendWatchPlan(StrengthWatchPlanBuilder.plan(date: today, planSessionId: session.id, title: session.name, lifts: lifts,
+                                                    lastSets: last, settings: gateSettings, restS: 90))
     }
 
     /// W-B38-A A-10: the logger over the selected training (its exercises + progression's next

@@ -52,6 +52,7 @@ public struct SessionCoachView: View {
                 Text(sessionCoachIntro(model.settings))
                     .jiFont(.footnote).foregroundStyle(theme.color(.muted))
                 if model.capable { capableCard } else { notAvailableCard }
+                if let feed = model.mirrored, feed.isMirroring { MirroredSetsCard(feed: feed) }
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
         }
@@ -135,7 +136,12 @@ public struct SessionCoachView: View {
                 } else {
                     Text("Waiting for a live reading…").jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
-                if let error = model.error {
+                if let feed = model.mirrored, !feed.isMirroring {
+                    // B-8: the Watch session is not running (yet) — say how to start it, not "feed lost".
+                    Text(MirroredSessionFeed.FeedError.notMirroring.errorDescription ?? "")
+                        .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("session-coach-start-on-watch")
+                } else if let error = model.error {
                     Text("⚠ Live feed lost — reading frozen, not live (\(error))")
                         .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.reduced))
                         .accessibilityIdentifier("session-coach-stale-banner")
