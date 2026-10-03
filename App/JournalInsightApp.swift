@@ -53,6 +53,8 @@ struct JournalInsightApp: App {
         let builtEnv: AppEnvironment = {
             do {
                 let e = try AppEnvironment()
+                // W-FIX12 F12-4: a unit-test host never boots (no Keychain read, no hub connection).
+                guard AppLaunchMode.current == .app else { return e }
                 do { try e.boot() } catch { e.needsConnection = true }
                 return e
             } catch { fatalError("AppEnvironment init failed: \(error)") }
@@ -75,73 +77,82 @@ struct JournalInsightApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
-                // W-FIX2 BUG-15: system / Light / Dark from Appearance, set as the window override
-                // (`.unspecified` = follow the device). Not `.preferredColorScheme`: once forced, its
-                // nil does not reliably hand the window back to the system.
-                .onChange(of: theme.mode, initial: true) { _, _ in theme.applyToWindows() }
-                .tint(theme.accent)
-                .dynamicTypeSize(theme.dynamicTypeRange)
-                .onOpenURL { url in
-                    guard let link = DeepLink.parse(url) else { return }
-                    pendingDeepLink = link
-                }
-                .task {
-                    // W2c-L4: a tapped notification (LocalVerdictFloor's 05:10 floor reminder)
-                    // lands on the SAME `pendingDeepLink` seam `.onOpenURL` uses above, so
-                    // RootTabView's single `.onChange`/`.onAppear` pair (see its doc comment)
-                    // handles both sources identically — no second navigation path to keep in sync.
-                    notificationDelegate.onDeepLink = { link in pendingDeepLink = link }
-                    #if DEBUG
-                    // W-FIX3 fixer C-h: `-JISeedRMSSD <ms>` — the simulator's live-record RMSSD writer.
-                    await DebugRmssdSeeder.seedIfRequested()
-                    #endif
-                    UNUserNotificationCenter.current().delegate = notificationDelegate
-                    // W-B47 (L2), same affordance as B-46's `-no-healthkit` above it in
-                    // `AppEnvironment.boot()`: `-no-push` suppresses the cold-start notification
-                    // prompt. The build host has no Simulator UI, so a system alert on top of
-                    // Today cannot be dismissed and every scripted screenshot of a live-hub run
-                    // would be taken through it.
-                    guard !CommandLine.arguments.contains("-no-push") else { return }
-                    do {
-                        _ = try await UNUserNotificationCenter.current()
-                            .requestAuthorization(options: [.alert, .sound, .badge])
-                        try await LocalVerdictFloor.schedule()
-                    } catch {
-                        // Authorization denied or scheduling failed — the floor reminder is a
-                        // nudge, not a data path; the app must keep working without it.
-                    }
-                    // W7-L2 (P-apns-push): re-register this device's APNs token on every cold
-                    // launch, reusing the single authorization request above rather than prompting
-                    // again. The provider is resolved lazily because `env.providerStore` doesn't
-                    // exist until a hub connection does (first run shows the Connection sheet).
-                    // Registration is additive to ntfy and never fatal — a Simulator launch simply
-                    // logs `.unavailable` (see `ApnsRegistration`).
-                    ApnsRegistration.shared.providerSource = { [weak env] in
-                        (env?.hubProvider ?? env?.providerStore?.provider) as? any PushTokenProviding  // W-FIX6 fixer: hub-only
-                    }
-                    await ApnsRegistration.shared.registerOnLaunch()
-                }
-                // The single scene-phase site (W7-L4). `initial: true` so a cold launch counts as
-                // the first foreground and the app learns whether the hub is there before the user
-                // has to find out from a blank screen.
-                .onChange(of: scenePhase, initial: true) { _, phase in
-                    if phase == .active {
-                        watchdog = makeWatchdog()
-                        watchdog?.start()
-                        outboxRetry.startForeground()
-                        env.foregroundHealthUpload() // B-65: last night reaches the hub on open
-                        // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
-                        let mirror = GateSettingsMirror(prefs: env.prefs,
-                                                        provider: (env.hubProvider ?? env.providerStore?.provider) as? any TargetsProviding)
-                        Task { @MainActor in await mirror.pushIfPending() }
-                    } else {
-                        watchdog?.stop()
-                        watchdog = nil
-                        outboxRetry.stopForeground()
-                    }
-                }
+            // W-FIX12 F12-4: the AppTests host shows nothing and runs no launch work (see `AppLaunchMode`).
+            if AppLaunchMode.current == .unitTestHost {
+                Color.clear
+            } else {
+                appRoot
+            }
         }
+    }
+
+    @ViewBuilder private var appRoot: some View {
+        RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
+            // W-FIX2 BUG-15: system / Light / Dark from Appearance, set as the window override
+            // (`.unspecified` = follow the device). Not `.preferredColorScheme`: once forced, its
+            // nil does not reliably hand the window back to the system.
+            .onChange(of: theme.mode, initial: true) { _, _ in theme.applyToWindows() }
+            .tint(theme.accent)
+            .dynamicTypeSize(theme.dynamicTypeRange)
+            .onOpenURL { url in
+                guard let link = DeepLink.parse(url) else { return }
+                pendingDeepLink = link
+            }
+            .task {
+                // W2c-L4: a tapped notification (LocalVerdictFloor's 05:10 floor reminder)
+                // lands on the SAME `pendingDeepLink` seam `.onOpenURL` uses above, so
+                // RootTabView's single `.onChange`/`.onAppear` pair (see its doc comment)
+                // handles both sources identically — no second navigation path to keep in sync.
+                notificationDelegate.onDeepLink = { link in pendingDeepLink = link }
+                #if DEBUG
+                // W-FIX3 fixer C-h: `-JISeedRMSSD <ms>` — the simulator's live-record RMSSD writer.
+                await DebugRmssdSeeder.seedIfRequested()
+                #endif
+                UNUserNotificationCenter.current().delegate = notificationDelegate
+                // W-B47 (L2), same affordance as B-46's `-no-healthkit` above it in
+                // `AppEnvironment.boot()`: `-no-push` suppresses the cold-start notification
+                // prompt. The build host has no Simulator UI, so a system alert on top of
+                // Today cannot be dismissed and every scripted screenshot of a live-hub run
+                // would be taken through it.
+                guard !CommandLine.arguments.contains("-no-push") else { return }
+                do {
+                    _ = try await UNUserNotificationCenter.current()
+                        .requestAuthorization(options: [.alert, .sound, .badge])
+                    try await LocalVerdictFloor.schedule()
+                } catch {
+                    // Authorization denied or scheduling failed — the floor reminder is a
+                    // nudge, not a data path; the app must keep working without it.
+                }
+                // W7-L2 (P-apns-push): re-register this device's APNs token on every cold
+                // launch, reusing the single authorization request above rather than prompting
+                // again. The provider is resolved lazily because `env.providerStore` doesn't
+                // exist until a hub connection does (first run shows the Connection sheet).
+                // Registration is additive to ntfy and never fatal — a Simulator launch simply
+                // logs `.unavailable` (see `ApnsRegistration`).
+                ApnsRegistration.shared.providerSource = { [weak env] in
+                    (env?.hubProvider ?? env?.providerStore?.provider) as? any PushTokenProviding  // W-FIX6 fixer: hub-only
+                }
+                await ApnsRegistration.shared.registerOnLaunch()
+            }
+            // The single scene-phase site (W7-L4). `initial: true` so a cold launch counts as
+            // the first foreground and the app learns whether the hub is there before the user
+            // has to find out from a blank screen.
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                if phase == .active {
+                    watchdog = makeWatchdog()
+                    watchdog?.start()
+                    outboxRetry.startForeground()
+                    env.foregroundHealthUpload() // B-65: last night reaches the hub on open
+                    // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
+                    let mirror = GateSettingsMirror(prefs: env.prefs,
+                                                    provider: (env.hubProvider ?? env.providerStore?.provider) as? any TargetsProviding)
+                    Task { @MainActor in await mirror.pushIfPending() }
+                } else {
+                    watchdog?.stop()
+                    watchdog = nil
+                    outboxRetry.stopForeground()
+                }
+            }
     }
 
     /// Builds a watchdog over the CURRENT provider, with the outbox recovery drain hooked to its

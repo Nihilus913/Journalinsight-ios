@@ -35,3 +35,16 @@ import JIHub
     #expect(AppEnvironment.launchArgumentConfig(["app", "-hub-token", "tok"]) == nil)
     #expect(AppEnvironment.launchArgumentConfig(["app", "-hub-url"]) == nil)
 }
+
+// MARK: - W-FIX12 F12-4: the unit-test host launches inert
+
+/// "test runner hung before establishing connection": the AppTests host app ran the WHOLE launch
+/// (Keychain read + hub connection, RootTabView's loads, the notification prompt, the watchdog,
+/// the Health upload) on the main actor while xctest waited to connect. A unit-test host now
+/// launches inert; the real app and the XCUITest-launched app (no xctest config in its
+/// environment) are unchanged.
+@Test func unitTestHostLaunchesInert() {
+    #expect(AppLaunchMode.of(environment: ["XCTestConfigurationFilePath": "/x.xctestconfiguration"]) == .unitTestHost)
+    #expect(AppLaunchMode.of(environment: [:]) == .app)
+    #expect(AppLaunchMode.current == .unitTestHost)   // this very process is the AppTests host
+}

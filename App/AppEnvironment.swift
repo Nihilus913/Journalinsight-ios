@@ -635,3 +635,23 @@ struct HealthDailyTotalsAdapter: HealthDailyTotalsProviding {
         return rows
     }
 }
+
+/// W-FIX12 F12-4 — root cause of "test runner hung before establishing connection": the AppTests
+/// host app (TEST_HOST = JournalInsight.app) ran the WHOLE launch — `AppEnvironment.boot()` read the
+/// Keychain and connected to the sim's saved hub (~80 refused connections per run), RootTabView
+/// started every model load, the `.task` asked for notification permission and registered APNs,
+/// and the `.active` phase started the watchdog, the outbox retry and the Health upload — all on
+/// the main actor while xctest waited for the host to finish launching. On a busy simulator that
+/// launch outran the runner's connect window. A unit-test host (xctest's configuration in the
+/// environment) now launches inert: no boot, no RootTabView, no launch tasks. AppTests build
+/// their own `AppEnvironment` (in-memory) and never needed the live shell. XCUITest launches the
+/// app as a separate process without that variable, so it gets the real launch.
+enum AppLaunchMode: Equatable {
+    case app, unitTestHost
+
+    static func of(environment: [String: String]) -> AppLaunchMode {
+        environment["XCTestConfigurationFilePath"] == nil ? .app : .unitTestHost
+    }
+
+    static var current: AppLaunchMode { of(environment: ProcessInfo.processInfo.environment) }
+}
