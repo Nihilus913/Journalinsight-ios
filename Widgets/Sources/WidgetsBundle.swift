@@ -11,5 +11,6 @@ struct WidgetsBundle: WidgetBundle {
         GateWidget()
         KpiWidget()
         VerdictLiveActivity()
+        StrengthSessionActivityWidget()   // W-B38-B B-7
     }
 }
