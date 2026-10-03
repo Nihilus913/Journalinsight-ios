@@ -41,6 +41,7 @@ public nonisolated enum GateLaunch {
     }
 
     /// The device's local calendar day — the gate follows the user's midnight, not the hub's.
+    // DayKey exception (D1): user's wall clock — takes the caller's `Calendar` (tests inject one).
     public static func localDay(_ date: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)

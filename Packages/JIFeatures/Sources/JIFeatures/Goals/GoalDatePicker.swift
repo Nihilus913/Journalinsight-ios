@@ -1,4 +1,5 @@
 import SwiftUI
+import JICore
 import JIDesign
 
 /// W4-L3, mirrors `mobile/src/components/goals/GoalDatePicker.tsx`'s controlled string-or-nil
@@ -11,18 +12,12 @@ public struct GoalDatePicker: View {
 
     public init(value: Binding<String?>) { self._value = value }
 
-    private static let formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.calendar = Calendar(identifier: .iso8601)
-        f.timeZone = TimeZone(identifier: "UTC")
-        return f
-    }()
-
+    /// W-KEYS K3 (scout risk 5): the picker shows the device's calendar, so the stored day goes
+    /// through the phone-zone `DayKey` both ways (a UTC midnight showed the day before west of UTC).
     private var selection: Binding<Date> {
         Binding(
-            get: { value.flatMap(Self.formatter.date(from:)) ?? Date() },
-            set: { value = Self.formatter.string(from: $0) }
+            get: { goalDatePickerDate(value) ?? Date() },
+            set: { value = goalDatePickerISO($0) }
         )
     }
 
@@ -41,4 +36,14 @@ public struct GoalDatePicker: View {
             }
         }
     }
+}
+
+/// `yyyy-MM-dd` → the phone-zone midnight the `DatePicker` shows as that day; nil when unreadable.
+nonisolated func goalDatePickerDate(_ iso: String?, in zone: TimeZone = DayKey.zone) -> Date? {
+    iso.flatMap { DayKey(iso: $0) }?.startDate(in: zone)
+}
+
+/// The picked instant → its phone-zone day.
+nonisolated func goalDatePickerISO(_ date: Date, in zone: TimeZone = DayKey.zone) -> String {
+    DayKey(date: date, in: zone).iso
 }

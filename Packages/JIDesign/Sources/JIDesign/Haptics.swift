@@ -138,11 +138,13 @@ public final class JIHapticDispatcher {
         fire(.verdictReveal(tone))
     }
 
+#if DEBUG
     /// Test-only: `__resetHapticsPrefsForTests` + the reveal dedupe.
     public func resetForTests() {
         prefs = .default
         lastRevealKey = nil
     }
+#endif
 
     private func playFallback(_ fallback: JIHapticFallback) {
         switch fallback {

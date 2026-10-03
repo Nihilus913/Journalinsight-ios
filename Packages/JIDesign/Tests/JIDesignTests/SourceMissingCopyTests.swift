@@ -7,18 +7,6 @@ import Testing
 // assertion holds independent of SwiftUI's view lifecycle. Non-isolated on purpose, like
 // GaugeMathTests — these builders are declared `nonisolated`.
 
-@Test func statChipSourceMissingAnnouncesSharedCopy() {
-    let label = statChipAccessibilityLabel(label: "HRV", numeral: "—", unit: "ms", showsUnit: false, sourceMissing: true)
-    #expect(label == "HRV Not from the current source")
-    #expect(!label.contains("ms")) // never a dangling unit
-    #expect(label != "HRV —") // never the bare dash alone
-}
-
-@Test func statChipPresentValueStillAnnouncesNumeralAndUnit() {
-    let label = statChipAccessibilityLabel(label: "HRV", numeral: "42", unit: "ms", showsUnit: true, sourceMissing: false)
-    #expect(label == "HRV 42 ms")
-}
-
 @Test func readinessGaugeSourceMissingAnnouncesSharedCopy() {
     let label = readinessAccessibilityLabel(score: nil, sourceMissing: true)
     #expect(label == "Readiness Not from the current source")

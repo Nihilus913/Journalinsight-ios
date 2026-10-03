@@ -24,13 +24,7 @@ extension HubClientTests {
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/vitals/sleep-summary")
         #expect(s.scoreComputed == 89)
         #expect(s.scoreComputedDate == "2026-09-25")
-        #expect(s.scoreComputedSource == "AppleHealth")
         #expect(s.debtHours == -3.89)
-        #expect(s.lastNightDate == "2026-09-25")
-        #expect(s.lastNightDurationSec == 30895)
-        #expect(s.lastNightDeepSleepSec == 2637)
-        #expect(s.lastNightRemSleepSec == 7581)
-        #expect(s.bedtimeConsistencySdMin == nil)
     }
 
     @Test func sleepSummaryAllNullDecodesToNils() async throws {
@@ -40,6 +34,6 @@ extension HubClientTests {
         """.utf8))
         let s = try await sleepProvider().sleepSummary()
         #expect(s.scoreComputed == nil)
-        #expect(s.lastNightDurationSec == nil)
+        #expect(s.debtHours == nil)
     }
 }

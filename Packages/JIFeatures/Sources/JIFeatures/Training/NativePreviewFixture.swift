@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import Foundation
 import JICore
 
@@ -14,3 +16,4 @@ import JICore
 func l5Fixture<T: Decodable>(_ type: T.Type, _ json: String) -> T? {
     try? JSON.decoder.decode(T.self, from: Data(json.utf8))
 }
+#endif

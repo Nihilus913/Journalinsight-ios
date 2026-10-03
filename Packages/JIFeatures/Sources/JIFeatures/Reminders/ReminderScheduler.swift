@@ -328,6 +328,7 @@ public struct ReminderScheduler {
     public func isDenied() async -> Bool { await center.authorizationStatus() == .denied }
 
     /// Device-local YYYY-MM-DD (RN `todayISO()`; UI-layer wall clock, deliberately not JICompute).
+    // DayKey exception (D1): user's wall clock — notification triggers fire on the device calendar.
     public nonisolated static func todayISO(now: Date = Date()) -> String {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)

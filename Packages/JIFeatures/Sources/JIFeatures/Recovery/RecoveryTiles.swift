@@ -35,12 +35,14 @@ public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryT
         newest(days, f).flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0 : nil }
     }
     func item(_ id: String) -> JISquareItem {
-        let (label, symbol, reading, unit, decimals): (String, String, (value: Double, date: String)?, String?, Int) = switch id {
-        case "hrv": ("HRV", "waveform.path.ecg", night { KpiMetrics.nightlyHrvMs($0) }, "ms", 0)
-        case "sleep": ("Sleep", "moon", night { $0.sleepDurationSec.map { ($0 / 3600 * 10).rounded() / 10 } }, "h", 1)
-        case "rhr": ("Resting HR", "heart", night { $0.rhrBpm }, "bpm", 0)
-        default: ("Load", "bolt", night { KpiMetrics.honestAcwr($0.acwr) }, nil, 2)   // BUG-12: stale Load = "—"
+        let (label, reading, unit, decimals): (String, (value: Double, date: String)?, String?, Int) = switch id {
+        case "hrv": ("HRV", night { KpiMetrics.nightlyHrvMs($0) }, "ms", 0)
+        case "sleep": ("Sleep", night { $0.sleepDurationSec.map { ($0 / 3600 * 10).rounded() / 10 } }, "h", 1)
+        case "rhr": ("Resting HR", night { $0.rhrBpm }, "bpm", 0)
+        default: ("Load", night { KpiMetrics.honestAcwr($0.acwr) }, nil, 2)   // BUG-12: stale Load = "—"
         }
+        // W-KEYS D2r (Toby D2): the icon is the descriptor's ("load" → acwr through the one alias map).
+        let symbol = KpiMetricId(normalizing: id).map { KpiMetrics.def($0).symbol } ?? "square"
         let value = reading?.value
         // W1: a real value carries no status word (the normal is W3); missing = "— No data".
         return JISquareItem(id: id, label: label, systemImage: symbol, tint: metricTintRole(id), value: value, decimals: decimals,
@@ -65,7 +67,9 @@ public nonisolated func recoveryHrvNights(days: [RecoveryDay]) -> [NormalBarPoin
 public nonisolated enum RecoveryCardMetric: String, CaseIterable, Sendable, Equatable {
     case hrv, rhr, sleep
     public var title: String { switch self { case .hrv: "Overnight HRV"; case .rhr: "Resting HR"; case .sleep: "Sleep" } }
-    public var symbol: String { switch self { case .hrv: "waveform.path.ecg"; case .rhr: "heart.fill"; case .sleep: "moon.fill" } }
+    /// W-KEYS D2r (Toby D2): the descriptor's one symbol per metric (was `heart.fill` / `moon.fill`).
+    public var symbol: String { KpiMetrics.def(metric).symbol }
+    public var metric: KpiMetricId { switch self { case .hrv: .hrv; case .rhr: .rhr; case .sleep: .sleep } }
     public var unit: String { switch self { case .hrv: "ms RMSSD"; case .rhr: "bpm"; case .sleep: "score" } }
     public var decimals: Int { 0 }
     /// The square id the card's tap opens (`openKpiDetail`).

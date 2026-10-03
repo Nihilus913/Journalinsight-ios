@@ -133,7 +133,7 @@ private func settingsModel(sync: (@MainActor () async throws -> Void)?, now: Dat
 private func q(_ source: String, _ dso: Int, _ metric: String, _ composite: Double) -> QualityScoreEntry {
     QualityScoreEntry(source: source, dsoKey: dso, metric: metric, metricLabel: metric, composite: composite,
                       subScores: QualitySubScores(freshness: nil, rangeValidity: nil, trust: nil),
-                      weightsUsed: [:], componentsAvailable: [], componentsMissing: [])
+                      componentsAvailable: [])
 }
 
 @Test func dataQualityFamiliesGroupSourcesIntoTheBoardsThreeRows() {

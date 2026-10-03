@@ -125,6 +125,7 @@ public struct MealDetailSheet: View {
     }
 }
 
+#if DEBUG
 /// §8.5 registry entry "Meal detail".
 struct MealDetailNativePreview: View {
     var body: some View {
@@ -132,3 +133,4 @@ struct MealDetailNativePreview: View {
             .jiTheme(.native)
     }
 }
+#endif

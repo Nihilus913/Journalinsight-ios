@@ -105,8 +105,8 @@ private func entry(_ id: Int64, _ date: String, mood: String? = nil) -> Entry {
 
 @Test func dataQualitySourceSummaryTakesTheWorstStatePerSource() {
     func f(_ source: String, _ metric: String, _ state: FreshnessState, stale: Int? = nil) -> FreshnessEntry {
-        FreshnessEntry(source: source, dsoKey: 2, metric: metric, metricLabel: metric, state: state, lastDate: nil,
-                       firstDate: nil, daysStale: stale, cadenceDays: nil, coverageChecked: true, gaps: nil,
+        FreshnessEntry(source: source, dsoKey: 2, metric: metric, metricLabel: metric, state: state,
+                       daysStale: stale, coverageChecked: true, gaps: nil,
                        gapCount: nil, totalMissingDays: nil)
     }
     let rows = [f("GarminAPI", "steps", .green), f("GarminAPI", "activity", .red, stale: 19),

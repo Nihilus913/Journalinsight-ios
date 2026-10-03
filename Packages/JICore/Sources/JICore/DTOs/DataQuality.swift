@@ -37,25 +37,18 @@ public struct QualityScoreEntry: Codable, Sendable, Equatable, Identifiable {
     /// weights sum to 1 (`app/ingestion/quality_score.py`).
     public var composite: Double
     public var subScores: QualitySubScores
-    /// Per-row renormalized weights actually used for `composite` — only the keys present in
-    /// `componentsAvailable`.
-    public var weightsUsed: [String: Double]
     public var componentsAvailable: [String]
-    /// Always includes `"provenance"`.
-    public var componentsMissing: [String]
 
     /// The join key `data-quality.tsx` pairs a quality row with its freshness detail on.
     public var id: String { DataQualityReport.joinKey(source: source, metric: metric) }
 
     public init(
         source: String, dsoKey: Int, metric: String, metricLabel: String, composite: Double,
-        subScores: QualitySubScores, weightsUsed: [String: Double],
-        componentsAvailable: [String], componentsMissing: [String]
+        subScores: QualitySubScores, componentsAvailable: [String]
     ) {
         self.source = source; self.dsoKey = dsoKey; self.metric = metric
         self.metricLabel = metricLabel; self.composite = composite; self.subScores = subScores
-        self.weightsUsed = weightsUsed; self.componentsAvailable = componentsAvailable
-        self.componentsMissing = componentsMissing
+        self.componentsAvailable = componentsAvailable
     }
 }
 
@@ -82,10 +75,7 @@ public struct FreshnessEntry: Codable, Sendable, Equatable, Identifiable {
     public var metric: String
     public var metricLabel: String
     public var state: FreshnessState
-    public var lastDate: String?
-    public var firstDate: String?
     public var daysStale: Int?
-    public var cadenceDays: Int?
     /// False for sparse-by-design metrics (activity, vo2max) — `gaps`/`gapCount`/
     /// `totalMissingDays` are nil there; `state`/`daysStale` still apply (`get_freshness`'s own
     /// doc comment in `app/ingestion/router.py`).
@@ -98,12 +88,12 @@ public struct FreshnessEntry: Codable, Sendable, Equatable, Identifiable {
 
     public init(
         source: String, dsoKey: Int, metric: String, metricLabel: String, state: FreshnessState,
-        lastDate: String?, firstDate: String?, daysStale: Int?, cadenceDays: Int?,
+        daysStale: Int?,
         coverageChecked: Bool, gaps: [FreshnessGap]?, gapCount: Int?, totalMissingDays: Int?
     ) {
         self.source = source; self.dsoKey = dsoKey; self.metric = metric
-        self.metricLabel = metricLabel; self.state = state; self.lastDate = lastDate
-        self.firstDate = firstDate; self.daysStale = daysStale; self.cadenceDays = cadenceDays
+        self.metricLabel = metricLabel; self.state = state
+        self.daysStale = daysStale
         self.coverageChecked = coverageChecked; self.gaps = gaps; self.gapCount = gapCount
         self.totalMissingDays = totalMissingDays
     }
@@ -129,8 +119,7 @@ public struct SourceTrustEntry: Codable, Sendable, Equatable, Identifiable {
 }
 
 /// `GET /api/v1/ingestion/quality-score` envelope (`QualityScoreResponse`, `app/ingestion/
-/// router.py:306`). The response's top-level `weights` map is deliberately not decoded — the
-/// screen reads the per-row renormalized `weightsUsed` instead, same as the oracle.
+/// router.py:306`). The response's top-level `weights` map is deliberately not decoded.
 public struct QualityScoreResponse: Codable, Sendable, Equatable {
     public var generatedAt: String
     public var provenanceGap: String

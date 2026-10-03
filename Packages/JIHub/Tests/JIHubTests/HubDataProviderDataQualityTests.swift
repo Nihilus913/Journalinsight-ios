@@ -57,7 +57,6 @@ extension HubClientTests {
 
         for row in report.qualityScore {
             #expect(row.composite >= 0 && row.composite <= 1)
-            #expect(row.componentsMissing.contains("provenance"))
         }
         for row in report.freshness {
             if row.coverageChecked {
@@ -93,7 +92,6 @@ extension HubClientTests {
         let response: QualityScoreResponse = try await dataQualityProvider().client.get(Self.qualityPath)
         #expect(response.qualityScore.count == 1)
         #expect(response.qualityScore[0].dsoKey == 2)
-        #expect(response.qualityScore[0].weightsUsed["trust"] == 0.4)
         // Nullable sub-score stays nil, never 0 (rule 5).
         #expect(response.qualityScore[0].subScores.rangeValidity == nil)
         #expect(StubURLProtocol.lastRequest?.url?.path == Self.qualityPath)

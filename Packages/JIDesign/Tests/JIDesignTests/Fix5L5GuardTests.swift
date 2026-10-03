@@ -39,9 +39,7 @@ struct Fix5L5GuardTests {
     }
 
     @Test @MainActor func s3ComponentsRender() {
-        expectRenders("StatChip", height: 120) { StatChip(label: "HRV", value: 25, unit: "ms", points: [24, 26, 25]) }
         expectRenders("TrendRow", height: 60) { TrendRow(name: "Resting HR", recent: 58, baseline: 60, unit: "bpm", tint: .red) }
-        expectRenders("SleepCard", height: 140) { SleepCard(durationSec: 7 * 3600, score: 82) }
         expectRenders("DriverBars", height: 160) { DriverBars(drivers: [DriverBar(id: "a", label: "Sleep", value: 0.7, word: "In your normal")]) }
         expectRenders("SkeletonBlock", height: 40) { SkeletonBlock(height: 16) }
     }

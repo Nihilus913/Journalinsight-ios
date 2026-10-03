@@ -24,9 +24,7 @@ public struct BackloadSleepEntryDTO: Codable, Sendable, Equatable {
     public var syncId: String
     public var start: String
     public var end: String
-    public var asleepSec: Double
     public var deepSec: Double
-    public var lightSec: Double
     public var remSec: Double
     public var awakeSec: Double
     /// v2: fine-grained stage intervals (empty when Garmin has none — pre-≈2026-04-15 days).
@@ -34,24 +32,22 @@ public struct BackloadSleepEntryDTO: Codable, Sendable, Equatable {
     /// v4 (B-30): the hub row's `updated_at` as epoch seconds, written as `HKMetadataKeySyncVersion`
     /// so a corrected hub value replaces the sample already in Health. Absent on the wire = nil.
     public var version: Int?
-    public init(syncId: String, start: String, end: String, asleepSec: Double, deepSec: Double, lightSec: Double, remSec: Double, awakeSec: Double, stages: [BackloadSleepStageDTO] = [], version: Int? = nil) {
+    public init(syncId: String, start: String, end: String, deepSec: Double, remSec: Double, awakeSec: Double, stages: [BackloadSleepStageDTO] = [], version: Int? = nil) {
         self.syncId = syncId; self.start = start; self.end = end
-        self.asleepSec = asleepSec; self.deepSec = deepSec; self.lightSec = lightSec; self.remSec = remSec; self.awakeSec = awakeSec
+        self.deepSec = deepSec; self.remSec = remSec; self.awakeSec = awakeSec
         self.stages = stages
         self.version = version
     }
 
     // Custom decode: `stages` defaults to `[]` when the key is absent, so a pre-v2 fixture (or a
     // hub response for a day outside the dense-series window) still decodes cleanly.
-    enum CodingKeys: String, CodingKey { case syncId, start, end, asleepSec, deepSec, lightSec, remSec, awakeSec, stages, version }
+    enum CodingKeys: String, CodingKey { case syncId, start, end, deepSec, remSec, awakeSec, stages, version }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         syncId = try c.decode(String.self, forKey: .syncId)
         start = try c.decode(String.self, forKey: .start)
         end = try c.decode(String.self, forKey: .end)
-        asleepSec = try c.decode(Double.self, forKey: .asleepSec)
         deepSec = try c.decode(Double.self, forKey: .deepSec)
-        lightSec = try c.decode(Double.self, forKey: .lightSec)
         remSec = try c.decode(Double.self, forKey: .remSec)
         awakeSec = try c.decode(Double.self, forKey: .awakeSec)
         stages = try c.decodeIfPresent([BackloadSleepStageDTO].self, forKey: .stages) ?? []

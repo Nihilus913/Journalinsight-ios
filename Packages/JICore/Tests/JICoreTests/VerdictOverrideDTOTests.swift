@@ -39,9 +39,9 @@ private let morningBase = #"""
     let s = try #require(m.gateSignals)
     #expect(s.map(\.key) == ["sleep", "hrv", "rhr", "sleep_h"])
     #expect(s[0] == GateSignal(key: "sleep", label: "Sleep", value: 74, unit: "", threshold: 70,
-                               direction: .min, scaleMin: 0, scaleMax: 100, status: .pass, note: nil))
+                               direction: .min, status: .pass, note: nil))
     #expect(s[1].status == .amber && s[1].value == 24.5 && s[1].note == "HRV 24.5 — under 27")
-    #expect(s[2].value == nil && s[2].status == .missing && s[2].direction == .max && s[2].scaleMin == 40)
+    #expect(s[2].value == nil && s[2].status == .missing && s[2].direction == .max)
     #expect(s[3].threshold == 6.0 && s[3].unit == "h")
     #expect(m.verdictOverride == VerdictOverride(date: "2026-09-23", choice: .full, reason: "Feel good despite metrics",
                                                  session: "Full Upper", createdAt: "2026-09-23T06:01:00+02:00"))

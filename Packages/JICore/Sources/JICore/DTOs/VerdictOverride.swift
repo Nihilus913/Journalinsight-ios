@@ -18,8 +18,6 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     /// nil when the hub has no threshold for the night (e.g. a missing-HRV signal sends `threshold: null`).
     public var threshold: Double?
     public var direction: GateSignalDirection
-    public var scaleMin: Double
-    public var scaleMax: Double
     public var status: GateSignalStatus
     public var note: String?
     /// W-SSOT-1 SS-4: the hub's own band for this signal (`band_lo`/`band_hi`) and how it was
@@ -38,13 +36,12 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
 
     public init(
         key: String, label: String, value: Double?, unit: String, threshold: Double?,
-        direction: GateSignalDirection, scaleMin: Double, scaleMax: Double,
+        direction: GateSignalDirection,
         status: GateSignalStatus, note: String? = nil,
         bandLo: Double? = nil, bandHi: Double? = nil, bandMethod: String? = nil
     ) {
         self.key = key; self.label = label; self.value = value; self.unit = unit
         self.threshold = threshold; self.direction = direction
-        self.scaleMin = scaleMin; self.scaleMax = scaleMax
         self.status = status; self.note = note
         self.bandLo = bandLo; self.bandHi = bandHi; self.bandMethod = bandMethod
     }

@@ -27,10 +27,9 @@ public nonisolated enum GoalsBoardInputs {
         guard let iso, iso.count >= 10 else { return "" }
         let day = String(iso.prefix(10))
         if day == today { return " · today" }
+        guard let date = DayKey(iso: day)?.startDate(in: .gmt) else { return "" }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "en_GB"); f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = "yyyy-MM-dd"
-        guard let date = f.date(from: day) else { return "" }
+        f.locale = Locale(identifier: "en_GB"); f.timeZone = .gmt
         f.dateFormat = "d MMM"
         return " · " + f.string(from: date)
     }

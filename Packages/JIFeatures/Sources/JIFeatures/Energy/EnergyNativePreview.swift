@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import SwiftUI
 import JICore
 import JICompute
@@ -45,3 +47,4 @@ struct EnergyNativePreview: View {
             .jiTheme(.native)
     }
 }
+#endif

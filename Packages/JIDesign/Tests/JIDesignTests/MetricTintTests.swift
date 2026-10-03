@@ -13,6 +13,9 @@ import Testing
     ("protein", .protein), ("Protein", .protein),
     ("carbs", .carbs), ("Carbohydrates", .carbs),
     ("fat", .fat), ("Fat", .fat),
+    // W-KEYS D3r: every alias `KpiMetricId(normalizing:)` owns lands on the same role.
+    ("restinghr", .rhr), ("sleepscore", .sleep), ("trainingload", .load), ("training_load", .load),
+    ("calories", .kcal), ("carbohydrates", .carbs),
 ])
 func theContractMetricsCarryTheirOwnRole(id: String, role: JIColorRole) {
     #expect(metricTintRole(id) == role)

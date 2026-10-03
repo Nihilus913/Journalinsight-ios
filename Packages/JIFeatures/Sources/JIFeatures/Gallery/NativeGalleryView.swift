@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import SwiftUI
 import JIDesign
 
@@ -197,3 +199,4 @@ private struct OptionalColorScheme: ViewModifier {
         if let scheme { content.environment(\.colorScheme, scheme) } else { content }
     }
 }
+#endif

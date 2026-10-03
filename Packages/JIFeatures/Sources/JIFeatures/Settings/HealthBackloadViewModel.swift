@@ -86,9 +86,8 @@ public final class HealthBackloadViewModel {
     }
 
     public var defaultRange: BackloadRange {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "Europe/Zurich") ?? .current
-        let from = cal.date(from: DateComponents(year: 2025, month: 5, day: 27)) ?? now()
+        let zurich = TimeZone(identifier: "Europe/Zurich") ?? .current
+        let from = DayKey(iso: "2025-05-27")?.startDate(in: zurich) ?? now()
         return BackloadRange(from: from, to: now())
     }
 

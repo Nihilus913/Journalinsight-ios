@@ -85,7 +85,7 @@ public final class ProgressionService {
     private let today: () -> String
 
     public init(provider: (any TrainingProviding)?, cache: OfflineCache, strengthStore: StrengthStateStore = StrengthStateStore(),
-                prefs: PrefStore?, today: @escaping () -> String = { String(Date().ISO8601Format().prefix(10)) }) {
+                prefs: PrefStore?, today: @escaping () -> String = { DayKey.today(now: Date()).iso }) {
         self.provider = provider; self.cache = cache; self.strengthStore = strengthStore; self.prefs = prefs; self.today = today
     }
 
