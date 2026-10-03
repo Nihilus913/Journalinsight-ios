@@ -35,13 +35,6 @@ import Testing
             #expect(!row.metricLabel.isEmpty)
             #expect(row.composite >= 0)
             #expect(row.composite <= 1)
-            // E14-3 — provenance carries no sub-score anywhere; every row must say so
-            // explicitly rather than silently omitting it.
-            #expect(row.componentsMissing.contains("provenance"))
-            // A component the hub says is available must carry a real weight for this row.
-            for component in row.componentsAvailable {
-                #expect(row.weightsUsed[component] != nil, "\(row.id) claims \(component) without a weight")
-            }
         }
     }
 

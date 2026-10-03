@@ -8,8 +8,8 @@ import JIPersistence
 // HealthTraining docs/audits/2026-09-25-regression-bugs.md).
 
 private func fresh(_ source: String, _ dso: Int, _ metric: String, _ state: FreshnessState, _ days: Int?) -> FreshnessEntry {
-    FreshnessEntry(source: source, dsoKey: dso, metric: metric, metricLabel: metric, state: state, lastDate: nil,
-                   firstDate: nil, daysStale: days, cadenceDays: 1, coverageChecked: true, gaps: nil,
+    FreshnessEntry(source: source, dsoKey: dso, metric: metric, metricLabel: metric, state: state,
+                   daysStale: days, coverageChecked: true, gaps: nil,
                    gapCount: nil, totalMissingDays: nil)
 }
 

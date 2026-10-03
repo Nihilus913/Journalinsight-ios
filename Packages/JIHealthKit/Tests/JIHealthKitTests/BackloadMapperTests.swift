@@ -7,7 +7,7 @@ import JIHub
     @Test func mapsAllSixKinds() {
         let dto = BackloadResponseDTO(
             from: "2025-06-01", to: "2025-06-01", source: "garmin_api",
-            sleep: [.init(syncId: "sleep:2025-06-01", start: "2025-06-01T22:30:00+02:00", end: "2025-06-02T06:45:00+02:00", asleepSec: 24300, deepSec: 5400, lightSec: 14400, remSec: 4500, awakeSec: 600)],
+            sleep: [.init(syncId: "sleep:2025-06-01", start: "2025-06-01T22:30:00+02:00", end: "2025-06-02T06:45:00+02:00", deepSec: 5400, remSec: 4500, awakeSec: 600)],
             rhr: [.init(syncId: "rhr:2025-06-01", date: "2025-06-01", bpm: 52.0)],
             steps: [.init(syncId: "steps:2025-06-01", date: "2025-06-01", count: 8421.0)],
             energy: [.init(syncId: "energy:2025-06-01", date: "2025-06-01", activeKcal: 512.0, basalKcal: 1750.0)],
@@ -80,7 +80,7 @@ import JIHub
     // MARK: - v2
 
     @Test func sleepWithoutStagesStillMapsToGenericAsleepSpec() {
-        let entry = BackloadSleepEntryDTO(syncId: "sleep:2026-06-01", start: "2026-06-01T22:30:00+02:00", end: "2026-06-02T06:45:00+02:00", asleepSec: 24300, deepSec: 5400, lightSec: 14400, remSec: 4500, awakeSec: 600, stages: [])
+        let entry = BackloadSleepEntryDTO(syncId: "sleep:2026-06-01", start: "2026-06-01T22:30:00+02:00", end: "2026-06-02T06:45:00+02:00", deepSec: 5400, remSec: 4500, awakeSec: 600, stages: [])
         let specs = BackloadMapper.mapSleep(entry)
         #expect(specs.count == 1)
         guard case .sleep(let s) = specs[0] else { Issue.record("expected .sleep"); return }
@@ -90,7 +90,7 @@ import JIHub
     @Test func sleepWithStagesEmitsDeletePlusStagedSpecInsteadOfGenericAsleep() {
         let entry = BackloadSleepEntryDTO(
             syncId: "sleep:2026-06-01", start: "2026-06-01T22:30:00+02:00", end: "2026-06-02T06:45:00+02:00",
-            asleepSec: 24300, deepSec: 5400, lightSec: 14400, remSec: 4500, awakeSec: 600,
+            deepSec: 5400, remSec: 4500, awakeSec: 600,
             stages: [
                 .init(stage: .light, start: "2026-06-01T22:30:00+02:00", end: "2026-06-02T00:00:00+02:00"),
                 .init(stage: .deep, start: "2026-06-02T00:00:00+02:00", end: "2026-06-02T01:30:00+02:00"),
@@ -199,7 +199,7 @@ import JIHub
     @Test func dailyRespWrittenAtSleepMidpointWhenNoDenseSamplesExist() {
         let dto = BackloadResponseDTO(
             from: "2026-06-01", to: "2026-06-01", source: "garmin_api",
-            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 0, lightSec: 0, remSec: 0, awakeSec: 800)],
+            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", deepSec: 0, remSec: 0, awakeSec: 800)],
             rhr: [], steps: [], energy: [], vo2max: [], workouts: [],
             dailyResp: [.init(syncId: "resp:2026-06-01", date: "2026-06-01", wakingAvg: 15.0, sleepAvg: 12.0)])
         let specs = BackloadMapper.map(dto)
@@ -215,7 +215,7 @@ import JIHub
     @Test func dailySpo2ConvertsPercentToFractionAndUsesSleepMidpoint() {
         let dto = BackloadResponseDTO(
             from: "2026-06-01", to: "2026-06-01", source: "garmin_api",
-            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 0, lightSec: 0, remSec: 0, awakeSec: 800)],
+            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", deepSec: 0, remSec: 0, awakeSec: 800)],
             rhr: [], steps: [], energy: [], vo2max: [], workouts: [],
             dailySpo2: [.init(syncId: "spo2:2026-06-01", date: "2026-06-01", sleepAvg: 95.0)])
         let specs = BackloadMapper.map(dto)
@@ -237,7 +237,7 @@ import JIHub
     @Test func mapFullV2ResponseProducesEveryKind() {
         let dto = BackloadResponseDTO(
             from: "2026-06-01", to: "2026-06-01", source: "garmin_api",
-            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 5000, lightSec: 15000, remSec: 4000, awakeSec: 800,
+            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", deepSec: 5000, remSec: 4000, awakeSec: 800,
                           stages: [.init(stage: .light, start: "2026-06-01T22:00:00+02:00", end: "2026-06-01T23:00:00+02:00")])],
             rhr: [.init(syncId: "rhr:2026-06-01", date: "2026-06-01", bpm: 50)],
             steps: [.init(syncId: "steps:2026-06-01", date: "2026-06-01", count: 9000)],
@@ -272,7 +272,7 @@ import JIHub
         let v = 1789729180
         let dto = BackloadResponseDTO(
             from: "2026-06-01", to: "2026-06-01", source: "garmin_api",
-            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 5000, lightSec: 15000, remSec: 4000, awakeSec: 800, version: v)],
+            sleep: [.init(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", deepSec: 5000, remSec: 4000, awakeSec: 800, version: v)],
             rhr: [.init(syncId: "rhr:2026-06-01", date: "2026-06-01", bpm: 58, version: v)],
             steps: [.init(syncId: "steps:2026-06-01", date: "2026-06-01", count: 9000, version: v)],
             energy: [.init(syncId: "energy:2026-06-01", date: "2026-06-01", activeKcal: 500, basalKcal: 1700, version: v)],
@@ -295,7 +295,7 @@ import JIHub
 
     @Test func denseSamplesAndStagedSleepCarryTheVersionOrNil() {
         let v = 1789729180
-        let sleep = BackloadSleepEntryDTO(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", asleepSec: 28000, deepSec: 5000, lightSec: 15000, remSec: 4000, awakeSec: 800,
+        let sleep = BackloadSleepEntryDTO(syncId: "sleep:2026-06-01", start: "2026-06-01T22:00:00+02:00", end: "2026-06-02T06:00:00+02:00", deepSec: 5000, remSec: 4000, awakeSec: 800,
                                           stages: [.init(stage: .light, start: "2026-06-01T22:00:00+02:00", end: "2026-06-01T23:00:00+02:00")], version: v)
         guard case .sleepStaged(let staged)? = BackloadMapper.mapSleep(sleep).last else { Issue.record("expected staged"); return }
         #expect(staged.version == v)

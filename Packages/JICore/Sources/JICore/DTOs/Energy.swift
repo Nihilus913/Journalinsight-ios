@@ -24,7 +24,7 @@ public struct EnergyDay: Codable, Sendable, Equatable {
     }
 }
 
-/// `app/nutrition/models.py::EnergyReport`. `tdeeEmpirical`/`goal*`/`energyAvail`/`eaWarning`
+/// `app/nutrition/models.py::EnergyReport`. `tdeeEmpirical`/`goal*`
 /// post-date the synced `nutrition_energy.json` fixture (adaptive-empirical-TDEE addition,
 /// 2026-08-17) — absent keys decode to `nil` under the standard `JSONDecoder`, same as the RN
 /// oracle's optional fields (`useComputedEnergy.ts`'s header comment).
@@ -36,20 +36,18 @@ public struct EnergyReport: Codable, Sendable, Equatable {
     public var complianceWarning: String?
     public var tdeeEmpirical: Double?
     public var goalIntakeKcal, goalProteinG, goalFatG, goalCarbsG: Double?
-    public var energyAvail: Double?
-    public var eaWarning: String?
 
     public init(
         days: [EnergyDay], avgDeficitRaw7d: Double? = nil, avgDeficitCorrected7d: Double? = nil,
         avgDeficitPct7d: Double? = nil, trackingDays: Int, compliant: Bool, complianceWarning: String? = nil,
         tdeeEmpirical: Double? = nil, goalIntakeKcal: Double? = nil, goalProteinG: Double? = nil,
-        goalFatG: Double? = nil, goalCarbsG: Double? = nil, energyAvail: Double? = nil, eaWarning: String? = nil
+        goalFatG: Double? = nil, goalCarbsG: Double? = nil
     ) {
         self.days = days; self.avgDeficitRaw7d = avgDeficitRaw7d; self.avgDeficitCorrected7d = avgDeficitCorrected7d
         self.avgDeficitPct7d = avgDeficitPct7d; self.trackingDays = trackingDays; self.compliant = compliant
         self.complianceWarning = complianceWarning; self.tdeeEmpirical = tdeeEmpirical
         self.goalIntakeKcal = goalIntakeKcal; self.goalProteinG = goalProteinG; self.goalFatG = goalFatG
-        self.goalCarbsG = goalCarbsG; self.energyAvail = energyAvail; self.eaWarning = eaWarning
+        self.goalCarbsG = goalCarbsG
     }
 
     // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
@@ -65,7 +63,7 @@ public struct EnergyReport: Codable, Sendable, Equatable {
         case avgDeficitCorrected7d = "avgDeficitCorrected7D"
         case avgDeficitPct7d = "avgDeficitPct7D"
         case trackingDays, compliant, complianceWarning, tdeeEmpirical
-        case goalIntakeKcal, goalProteinG, goalFatG, goalCarbsG, energyAvail, eaWarning
+        case goalIntakeKcal, goalProteinG, goalFatG, goalCarbsG
     }
 }
 

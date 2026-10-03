@@ -34,7 +34,7 @@ import JIPersistence
 
 private func fxSignal(_ key: String, _ label: String, value: Double?, status: GateSignalStatus, note: String? = nil) -> GateSignal {
     GateSignal(key: key, label: label, value: value, unit: "ms", threshold: 0,
-               direction: .min, scaleMin: 0, scaleMax: 120, status: status, note: note)
+               direction: .min, status: status, note: note)
 }
 
 // signal-normals: the Apple "HRV (7-day)" row takes the recovery score's 28-night normal (the same

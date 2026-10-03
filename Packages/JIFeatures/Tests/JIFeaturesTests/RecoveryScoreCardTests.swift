@@ -14,7 +14,7 @@ private func s1Source(_ relative: String) throws -> String {
 }
 
 private func sig(_ k: String) -> GateSignal {
-    GateSignal(key: k, label: k, value: 1, unit: "", threshold: 1, direction: .min, scaleMin: 0, scaleMax: 1, status: .pass)
+    GateSignal(key: k, label: k, value: 1, unit: "", threshold: 1, direction: .min, status: .pass)
 }
 
 private func result(_ status: RecoveryScoreStatus, score: Int?, nights: Int = 20) -> RecoveryScoreResult {

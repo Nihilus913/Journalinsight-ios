@@ -10,7 +10,7 @@ struct Fix3L3RationaleTests {
     private func s(_ key: String, _ label: String, _ value: Double?, thr: Double, unit: String = "",
                    dir: GateSignalDirection = .min, status: GateSignalStatus, note: String? = nil) -> GateSignal {
         GateSignal(key: key, label: label, value: value, unit: unit, threshold: thr, direction: dir,
-                   scaleMin: 0, scaleMax: 100, status: status, note: note)
+                   status: status, note: note)
     }
 
     private var boardSignals: [GateSignal] {

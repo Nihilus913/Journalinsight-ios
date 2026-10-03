@@ -150,7 +150,7 @@ private func fix11Morning(_ verdict: String) -> MorningResponse {
 
 private func fix11Missing(_ key: String) -> GateSignal {
     GateSignal(key: key, label: key, value: nil, unit: key == "sleep_h" ? "h" : "ms", threshold: 7,
-               direction: .min, scaleMin: 0, scaleMax: 100, status: .missing)
+               direction: .min, status: .missing)
 }
 
 @Test func h1_07_allMissingSaysTheRealReasonInOneSentence() {

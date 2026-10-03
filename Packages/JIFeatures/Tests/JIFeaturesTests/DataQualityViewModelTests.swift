@@ -63,8 +63,7 @@ import JIPersistence
         QualityScoreEntry(
             source: source, dsoKey: 2, metric: metric, metricLabel: metric.capitalized, composite: composite,
             subScores: QualitySubScores(freshness: composite, rangeValidity: nil, trust: nil),
-            weightsUsed: ["freshness": 1], componentsAvailable: ["freshness"],
-            componentsMissing: ["range_validity", "trust", "provenance"]
+            componentsAvailable: ["freshness"]
         )
     }
 
@@ -80,7 +79,7 @@ import JIPersistence
     @Test func freshnessByKeyJoinsOnSourceAndMetric() {
         let fresh = FreshnessEntry(
             source: "GarminAPI", dsoKey: 2, metric: "sleep", metricLabel: "Sleep", state: .amber,
-            lastDate: nil, firstDate: nil, daysStale: 3, cadenceDays: 1, coverageChecked: true,
+            daysStale: 3, coverageChecked: true,
             gaps: [], gapCount: 0, totalMissingDays: 0
         )
         let byKey = dataQualityFreshnessByKey([fresh])

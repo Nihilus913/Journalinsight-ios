@@ -42,7 +42,6 @@ func fixture(_ name: String) throws -> Data {
 @Test func decodesMorning() throws {
     let m = try JSON.decoder.decode(MorningResponse.self, from: fixture("planning_morning"))
     #expect(m.carbWatchFloor > 0)
-    #expect(m.hrvSeries.allSatisfy { $0.date.count == 10 })
 }
 
 @Test func decodesMorningVerdictRecoverySyncHealth() throws {
@@ -143,8 +142,6 @@ func verdictPartsMatchesRN(input: String?, word: String, session: String, tone: 
     #expect(r.avgDeficitPct7d == 9.3)
     #expect(r.tdeeEmpirical == 2810.0)
     #expect(r.goalIntakeKcal == 2200.0)
-    #expect(r.energyAvail == 31.4)
-    #expect(r.eaWarning == "low")
 }
 
 /// B-48 guardrail #2 — the shipped hub-contract fixtures themselves (not a hand-written body)
