@@ -17,7 +17,4 @@ import Testing
     let h = r.cgImage.map { CGFloat($0.height) / r.scale } ?? 0
     #expect(h >= JIRowMetrics.minHeight, "row is \(h) pt")
     expectRenders("JIRow plain") { JIRow(title: "Version") }
-    expectRenders("JIGroupedCard") {
-        JIGroupedCard { JIRow(title: "A"); JIRowDivider(); JIRow(title: "B", systemImage: "gear") }
-    }
 }

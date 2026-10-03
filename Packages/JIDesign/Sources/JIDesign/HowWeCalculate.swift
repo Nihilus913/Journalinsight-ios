@@ -7,10 +7,6 @@ public nonisolated struct HowWeCalculateStep: Sendable, Equatable, Identifiable 
     public init(title: String, body: String) { self.title = title; self.body = body }
 }
 
-public nonisolated func howWeCalculateStepAccessibilityLabel(index: Int, count: Int, step: HowWeCalculateStep) -> String {
-    "Step \(index + 1) of \(count). \(step.title). \(step.body)"
-}
-
 public struct HowWeCalculate: View {
     let title: String, steps: [HowWeCalculateStep], note: String?
     @Environment(\.jiTheme) private var theme
@@ -34,7 +30,7 @@ public struct HowWeCalculate: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(howWeCalculateStepAccessibilityLabel(index: i, count: steps.count, step: step))
+                        .accessibilityLabel("Step \(i + 1) of \(steps.count). \(step.title). \(step.body)")
                         if i < steps.count - 1 { Divider().overlay(theme.color(.hairlineNested)) }
                     }
                 }
@@ -44,27 +40,5 @@ public struct HowWeCalculate: View {
                 Text(note).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-}
-
-/// The "How we calculate this ›" row; pushes the explainer (needs an enclosing NavigationStack).
-public struct HowWeCalculateLink: View {
-    let linkTitle: String, title: String, steps: [HowWeCalculateStep], note: String?
-    @Environment(\.jiTheme) private var theme
-    public init(_ linkTitle: String = "How we calculate this", title: String, steps: [HowWeCalculateStep], note: String? = nil) {
-        self.linkTitle = linkTitle; self.title = title; self.steps = steps; self.note = note
-    }
-    public var body: some View {
-        NavigationLink {
-            ScrollView { HowWeCalculate(title: title, steps: steps, note: note).padding(20) }
-                .background(theme.color(.bg))
-                .navigationTitle(title)
-        } label: {
-            Text("\(linkTitle) ›").jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.info))
-                .frame(minHeight: 44, alignment: .leading)
-        }
-        .buttonStyle(.pressableScale)
-        .accessibilityLabel(linkTitle)
-        .accessibilityIdentifier("how-we-calculate-link")
     }
 }
