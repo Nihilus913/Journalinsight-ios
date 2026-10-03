@@ -101,10 +101,11 @@ public final class StrengthOutbox {
         return try? outbox.enqueue(kind: Self.kind, payload: write)
     }
 
-    /// One in-order pass; serialised (a second caller awaits the running pass).
+    /// One in-order pass; serialised — a caller arriving mid-pass waits for it, then runs its own
+    /// pass (so a row it just enqueued is never left behind by a pass that started before it).
     @discardableResult
     public func drainOnce() async -> [Int64: StrengthWriteOutcome] {
-        if let inFlight { return await inFlight.value }
+        while let running = inFlight { _ = await running.value }
         let pass = Task { @MainActor [self] in
             defer { self.inFlight = nil }
             return await self.drainPass()
