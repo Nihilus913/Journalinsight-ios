@@ -70,15 +70,40 @@ import Testing
         #expect(p.completion.isDone)          // the lead part (the lift) — NEXT's "Done ·" line
     }
 
-    @Test func aPhoneOnlyRunFillsAPartTheHubHasOpen() throws {
+    /// W-B49C R-5 (B-85): the hub judges a Z2 part by its zone share; a phone-only workout carries no
+    /// HR, so it never fills a hub-open Z2 part on kind alone — it shows as other activity until the
+    /// hub has it.
+    @Test func aPhoneOnlyRunNoLongerFillsAHubOpenZ2Part() throws {
+        let z2Open = HubCompletion(sessionType: "z2", owed: true,
+                                   parts: [.init(part: "cardio", done: false, activityIds: [])], status: "open", credited: false)
+        let run = Self.w(.cardio, "Outdoor Run", min: 43, hub: nil)
+        let p = SessionCompletion.progress(sessionLabel: "Long Z2", workouts: [run], hub: z2Open)
+        #expect(p.parts.map(\.part) == [.steadyCardio])
+        #expect(!p.parts[0].isDone && p.parts[0].workout == nil && !p.anyDone)
+        #expect(p.completion == .otherActivity(run))
+        #expect(SessionCompletion.resolve(planned: .cardio, workouts: [run], hub: z2Open) == .otherActivity(run))
+    }
+
+    @Test func aPhoneOnlyRunNoLongerFillsTheZ2AddOnOfAStrengthDay() throws {
         let wed = try #require(Self.decoded()["2026-09-30"])
         let lift = Self.w(.strength, "Traditional strength training", min: 50, hub: 9_100_002)
         let run = Self.w(.cardio, "Outdoor Run", min: 35, hub: nil, at: 3600)
         let p = SessionCompletion.progress(sessionLabel: nil, workouts: [lift, run], hub: wed)
-        #expect(p.isComplete)
-        // …but a hub row the hub already judged never re-opens as done by the app's own rule.
+        #expect(p.isPartial && !p.isComplete)
+        #expect(p.parts[1].workout == nil)
+        // A hub row the hub already judged never re-opens as done by the app's own rule either.
         let hubRun = Self.w(.cardio, "Walking", min: 35, hub: 9_100_009, at: 3600)
         #expect(SessionCompletion.progress(sessionLabel: nil, workouts: [lift, hubRun], hub: wed).isPartial)
+    }
+
+    @Test func aPhoneOnlyLiftStillFillsAHubOpenStrengthPart() throws {
+        let open = HubCompletion(sessionType: "strength", owed: true,
+                                 parts: [.init(part: "strength", done: false, activityIds: []),
+                                         .init(part: "cardio", done: false, activityIds: [])], status: "open", credited: false)
+        let lift = Self.w(.strength, "Traditional strength training", min: 50, hub: nil)
+        let p = SessionCompletion.progress(sessionLabel: nil, workouts: [lift], hub: open)
+        #expect(p.parts[0].workout == lift && p.isPartial)
+        #expect(p.completion.isDone)
     }
 
     @Test func hubDoneWithoutAWorkoutStillCountsThePart() throws {
