@@ -88,6 +88,8 @@ public final class TodayViewModel {
     /// `RootTabView`). `TodayGrid` degrades gracefully to an unpersisted default order when nil.
     private let prefs: PrefStore?
     private let now: () -> Date
+    /// W-KEYS K2: the day's zone — the phone's (D1); injectable for tests.
+    private let zone: () -> TimeZone
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
                                exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason",
                                planWeek: "today.planWeek", hubLastSync: "today.hubLastSync")
@@ -171,10 +173,12 @@ public final class TodayViewModel {
     public init(provider: any HealthDataProvider, verdictProvider: (any HealthDataProvider)? = nil, cache: OfflineCache,
                 prefs: PrefStore? = nil, now: @escaping () -> Date = Date.init,
                 uploadRecord: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
-                healthFeed: HealthDailyTotalsFeed = .shared) {
+                healthFeed: HealthDailyTotalsFeed = .shared,
+                zone: @escaping () -> TimeZone = { DayKey.zone }) {
         self.fuelHealth = HealthTotalsSource(feed: healthFeed)
         self.provider = provider; self.verdictProvider = verdictProvider ?? provider
         self.cache = cache; self.prefs = prefs; self.now = now; self.uploadRecord = uploadRecord
+        self.zone = zone
     }
 
     /// W-FIX5 W5-4: the queue "Your week"'s weekday writes go through (B-52, the same on-disk
@@ -202,7 +206,7 @@ public final class TodayViewModel {
         ScreenState.resolve(phase: phase, neverSynced: neverSyncedObserved, verdictDate: morning?.verdictDate, todayDateString: todayDateString, lastError: lastError)
     }
 
-    private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { DayKey.today(now: now(), in: zone()).iso }
 
     public var verdict: VerdictParts { verdictParts(morning?.verdict) }
 

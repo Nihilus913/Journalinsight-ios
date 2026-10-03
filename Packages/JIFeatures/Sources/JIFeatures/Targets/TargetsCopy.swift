@@ -356,11 +356,8 @@ public nonisolated enum TargetsRows {
     }
 }
 
-nonisolated private func isoDay(_ iso: String) -> Date? {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-    return f.date(from: String(iso.prefix(10)))
-}
+/// UTC midnight of the day (the labels below format in UTC too).
+nonisolated private func isoDay(_ iso: String) -> Date? { DayKey(iso: iso)?.startDate(in: .gmt) }
 
 /// "31 Oct 2026" from "2026-10-31"; nil when unreadable.
 nonisolated func targetsLongDate(_ iso: String) -> String? {

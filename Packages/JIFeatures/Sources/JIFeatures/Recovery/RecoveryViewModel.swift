@@ -72,7 +72,7 @@ public final class RecoveryViewModel {
     }
 
     private var latestDate: String? { days.map(\.date).max() }
-    private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { DayKey.today(now: now()).iso }
 
     /// Newest day's readiness score — `nil` when no day has a non-nil score, never coerced to `0`
     /// (rule 5), and `nil` once that night is older than 36 h (W-FIX1 BUG-05: a stale night is never
@@ -169,7 +169,7 @@ public extension RecoveryViewModel {
         let lastNight = Date()
         model.days = (0..<7).map { i in
             RecoveryDay(
-                date: String(lastNight.addingTimeInterval(Double(i - 6) * 86_400).ISO8601Format().prefix(10)),
+                date: DayKey.today(now: lastNight).adding(days: i - 6).iso,
                 sleepScore: [78, 81, 74, 88, 83, 79, 85][i],
                 sleepDurationSec: [25_200, 26_400, 23_400, 28_200, 27_000, 25_800, 27_600][i],
                 rhrBpm: [54, 53, 55, 52, 53, 54, 52][i],

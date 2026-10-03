@@ -33,14 +33,6 @@ public nonisolated func kpiCatalogueExtras(health: [HealthDailyTotals], today: S
     return [square("fibre", "Fibre", "leaf", \.fiberG), square("sugar", "Sugar", "drop", \.sugarG)]
 }
 
-private nonisolated func kpiSymbol(_ id: KpiMetricId) -> String {
-    switch id {
-    case .hrv: "waveform.path.ecg"; case .rhr: "heart"; case .sleep: "moon"; case .bodyBattery: "battery.75percent"
-    case .readiness: "gauge.medium"; case .acwr: "bolt"; case .weight: "scalemass"; case .steps: "figure.walk"
-    case .kcal: "flame"; case .protein: "fork.knife"; case .carbs: "leaf"; case .fat: "drop"
-    }
-}
-
 /// W-FIX1 BUG-05: a KPI square's value and the day it was read on, so a square never presents an
 /// older reading (Sep 12's RHR, yesterday's calories) as today's.
 public nonisolated struct KpiReading: Sendable, Equatable {
@@ -75,13 +67,13 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
         let def = KpiMetrics.def(id)
         let reading = kpiHealthFirstReading(id, hub: value(id), health: health)
         if id == .acwr, reading == nil, let load {
-            return JISquareItem(id: id.rawValue, label: kpiLoadMinutesDef.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
+            return JISquareItem(id: id.rawValue, label: kpiLoadMinutesDef.label, systemImage: def.symbol, tint: metricTintRole(id.rawValue),
                                 value: load.minutes.rounded(), decimals: 0, unit: recoveryLoadUnit,
                                 goalText: load.caption, status: nil, badge: badge)
         }
         let caption = [goalCaption(id, reading?.value), kpiAsOfLabel(valueDate: reading?.date, today: today)]
             .compactMap { $0 }.joined(separator: " · ")
-        return JISquareItem(id: id.rawValue, label: def.label, systemImage: kpiSymbol(id), tint: metricTintRole(id.rawValue),
+        return JISquareItem(id: id.rawValue, label: def.label, systemImage: def.symbol, tint: metricTintRole(id.rawValue),
                             value: reading?.value, decimals: def.decimals, unit: def.unit.isEmpty ? nil : def.unit,
                             goalText: caption.isEmpty ? nil : caption,
                             status: reading == nil ? .missing(.noData) : nil, badge: badge)

@@ -365,3 +365,8 @@ Toby's checklist (device **"Toby's iPhone"**, iPhone 17 Pro Max):
 
 - `HKMetricSpec.init` gains defaulted `rereadSince: Date?` (+ `previousAnchorKey`): after an anchor bump, a phone that holds the previous version's anchor re-reads from `rereadSince` instead of `firstSyncDays`; fresh installs keep the full window. RMSSD spec = `anchorVersion: 3`, re-read from 2026-09-13 local (DH-6).
 - `JICore.GateAnswer` (+ `gateAnswerLine`) and `MorningResponse.gateAnswer` (`/planning/morning` `gate_answer`, optional); `GateRespondViewModel.seed(_:)`/`autoAnswer`/`answeredLine` — the hub's automatic answer shows as "Answered automatically · <FULL/GATED> from <workout>"; a tap on this device always wins (G-3).
+
+## 16. W-KEYS L1 additions (2026-10-03)
+
+- `JICore.DayKey` (`yyyy-MM-dd`, Hashable/Comparable/Codable/Sendable): the one calendar-day key. Zone = the phone's `TimeZone.current` (Toby D1); every zone-dependent entry point takes `in zone:` for tests. Day arithmetic is calendar-only (no `86_400`).
+- `HubClient.init` gains defaulted `timeZone: @Sendable () -> TimeZone = { .current }`; every request (get/send/post/delete) carries `X-JI-TZ: <IANA id>` (`HubClient.timeZoneHeader`). The hub keys "today" by it per request (HT `app/shared/days.py`), Zurich when absent/invalid.

@@ -71,7 +71,7 @@ public final class EnergyViewModel {
     }
 
     private var latestDate: String? { report?.days.map(\.date).max() }
-    private var todayDateString: String { String(now().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { DayKey.today(now: now()).iso }
 
     /// B-73: the user's own kcal target (GoalsSetup, `goals.macros`) — the dashed line on "This
     /// week" and the Daily log's band. Never the hub goals document (its kcal is a seeded TEMP

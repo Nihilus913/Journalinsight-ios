@@ -318,24 +318,6 @@ public nonisolated struct TodaySummaryCardSpec: Equatable, Sendable {
     public var sparklineEndLabel: String? = nil
 }
 
-/// The SF Symbol per Today KPI — chip ids are `KpiMetricId` raw values. A metric with no bespoke
-/// symbol falls back to the neutral chart glyph rather than an invented one.
-public nonisolated func todayCardIcon(_ kpiId: String) -> String {
-    switch kpiId {
-    case "hrv": "waveform.path.ecg"
-    case "rhr": "heart.fill"
-    case "sleep": "bed.double.fill"
-    case "steps": "figure.walk"
-    case "body_battery": "battery.75percent"
-    case "readiness": "bolt.heart.fill"
-    case "acwr": "dumbbell.fill"
-    case "weight": "scalemass.fill"
-    case "kcal": "flame.fill"
-    case "protein", "carbs", "fat": "fork.knife"
-    default: "chart.line.uptrend.xyaxis"
-    }
-}
-
 /// W-B47 INTEGRATE SEAM (one line): L1 lands `metricTintRole(_:)` in `JIDesign/MetricTint.swift`.
 /// Until the two lane branches merge, every Today card takes the neutral info tint; integrate
 /// replaces this function's single body line with `metricTintRole(kpiId)` and nothing else moves.
@@ -363,7 +345,8 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
     // W-DATA fixer R9: a minutes Load (`todayChipsWithLoad`) is whole minutes, not ACWR's 2 dp.
     let value = todayCardValueText(chip.value, kpiId: chip.unit == recoveryLoadUnit ? nil : chip.id, sourceMissing: chip.sourceMissing)
     return TodaySummaryCardSpec(
-        icon: todayCardIcon(chip.id),
+        // W-KEYS D2r (Toby D2): the descriptor's one symbol per metric; a non-KPI chip keeps the neutral glyph.
+        icon: KpiMetricId(normalizing: chip.id).map { KpiMetrics.def($0).symbol } ?? "chart.line.uptrend.xyaxis",
         tintRole: todayCardTintRole(chip.id),
         title: chip.label,
         value: value,

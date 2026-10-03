@@ -11,6 +11,33 @@ import Foundation
 public nonisolated enum KpiMetricId: String, CaseIterable, Codable, Sendable, Hashable, Identifiable {
     case hrv, rhr, sleep, bodyBattery = "body_battery", readiness, acwr, weight, steps, kcal, protein, carbs, fat
     public var id: String { rawValue }
+
+    /// W-KEYS D1r (audit P8): the ONE alias map. A wire id (`acwr`, `body_battery`), a hub key
+    /// (`sleep_score`, `resting_hr`, `training_load`) or a display label (`Load (ACWR)`,
+    /// `Resting HR`, `Carbohydrates`) all land on the same metric — so a tint, an icon or a label
+    /// can never disagree between two screens. Case, spaces and a trailing parenthetical are
+    /// ignored; `nil` for anything that is not a KPI (fibre, sugar, "").
+    public init?(normalizing raw: String) {
+        let key = KpiMetricId.normalizedKey(raw)
+        if let id = KpiMetricId(rawValue: key) { self = id; return }
+        guard let id = KpiMetricId.aliases[key] else { return nil }
+        self = id
+    }
+
+    /// Ex `JIDesign/MetricTint.swift:19-28`'s alias cases (W-KEYS D3r moved them here).
+    static let aliases: [String: KpiMetricId] = [
+        "sleepscore": .sleep, "sleep_score": .sleep,
+        "restinghr": .rhr, "resting_hr": .rhr,
+        "load": .acwr, "trainingload": .acwr, "training_load": .acwr,
+        "calories": .kcal, "carbohydrates": .carbs,
+    ]
+
+    /// Lowercased, separator-free, without a human label's trailing "(…)" suffix.
+    static func normalizedKey(_ raw: String) -> String {
+        let lowered = raw.lowercased()
+        let head = lowered.split(separator: "(", omittingEmptySubsequences: false).first.map(String.init) ?? lowered
+        return head.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "")
+    }
 }
 
 public nonisolated enum KpiSource: Sendable, Equatable { case recovery, nutritionDaily, gate }
@@ -18,6 +45,12 @@ public nonisolated enum KpiSource: Sendable, Equatable { case recovery, nutritio
 public nonisolated struct KpiMetricDef: Sendable, Equatable {
     public let id: KpiMetricId
     public let label: String
+    /// W-KEYS D1r: the square/tile title (Today grid, EditToday, My KPIs registry) — "RHR", "Load".
+    public let shortLabel: String
+    /// W-KEYS D1r (Toby D2, 2026-10-03): the metric's ONE SF Symbol, read by every screen
+    /// (Today grid, EditToday, My KPIs, Trends, Recovery) — sleep `moon`, readiness `gauge.medium`,
+    /// load `bolt`, RHR `heart`, carbs `leaf`, fat `drop`.
+    public let symbol: String
     public let unit: String
     public let decimals: Int
     public let source: KpiSource
@@ -33,18 +66,18 @@ public nonisolated struct KpiMetricDef: Sendable, Equatable {
 /// defaults new decls to `@MainActor`, CONTEXT-IOS-FOUNDATION.md §3).
 public nonisolated enum KpiMetrics {
     public static let all: [KpiMetricDef] = [
-        KpiMetricDef(id: .hrv, label: "HRV", unit: "ms", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
-        KpiMetricDef(id: .rhr, label: "Resting HR", unit: "bpm", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
-        KpiMetricDef(id: .sleep, label: "Sleep score", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: ["sleep_score_7d"]),
-        KpiMetricDef(id: .bodyBattery, label: "Body battery", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
-        KpiMetricDef(id: .readiness, label: "Readiness", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
-        KpiMetricDef(id: .acwr, label: "Training load (ACWR)", unit: "", decimals: 2, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: ["acwr"]),
-        KpiMetricDef(id: .weight, label: "Weight", unit: "kg", decimals: 1, source: .gate, maxLiveWindowDays: 90, targetMetricKeys: []),
-        KpiMetricDef(id: .steps, label: "Steps", unit: "", decimals: 0, source: .gate, maxLiveWindowDays: 90, targetMetricKeys: []),
-        KpiMetricDef(id: .kcal, label: "Calories", unit: "kcal", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: ["avg_kcal_7d"]),
-        KpiMetricDef(id: .protein, label: "Protein", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: ["avg_protein_7d"]),
-        KpiMetricDef(id: .carbs, label: "Carbs", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: []),
-        KpiMetricDef(id: .fat, label: "Fat", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .hrv, label: "HRV", shortLabel: "HRV", symbol: "waveform.path.ecg", unit: "ms", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .rhr, label: "Resting HR", shortLabel: "RHR", symbol: "heart", unit: "bpm", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .sleep, label: "Sleep score", shortLabel: "Sleep", symbol: "moon", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: ["sleep_score_7d"]),
+        KpiMetricDef(id: .bodyBattery, label: "Body battery", shortLabel: "Body Battery", symbol: "battery.75percent", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .readiness, label: "Readiness", shortLabel: "Readiness", symbol: "gauge.medium", unit: "", decimals: 0, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .acwr, label: "Training load (ACWR)", shortLabel: "Load", symbol: "bolt", unit: "", decimals: 2, source: .recovery, maxLiveWindowDays: 365, targetMetricKeys: ["acwr"]),
+        KpiMetricDef(id: .weight, label: "Weight", shortLabel: "Weight", symbol: "scalemass", unit: "kg", decimals: 1, source: .gate, maxLiveWindowDays: 90, targetMetricKeys: []),
+        KpiMetricDef(id: .steps, label: "Steps", shortLabel: "Steps", symbol: "figure.walk", unit: "", decimals: 0, source: .gate, maxLiveWindowDays: 90, targetMetricKeys: []),
+        KpiMetricDef(id: .kcal, label: "Calories", shortLabel: "Calories", symbol: "flame", unit: "kcal", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: ["avg_kcal_7d"]),
+        KpiMetricDef(id: .protein, label: "Protein", shortLabel: "Protein", symbol: "fork.knife", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: ["avg_protein_7d"]),
+        KpiMetricDef(id: .carbs, label: "Carbs", shortLabel: "Carbs", symbol: "leaf", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: []),
+        KpiMetricDef(id: .fat, label: "Fat", shortLabel: "Fat", symbol: "drop", unit: "g", decimals: 0, source: .nutritionDaily, maxLiveWindowDays: 365, targetMetricKeys: []),
     ]
 
     public static func def(_ id: KpiMetricId) -> KpiMetricDef {

@@ -204,12 +204,7 @@ public nonisolated func scheduledSession(on iso: String, planSessions: [PlanSess
 }
 
 /// W-SSOT-1 SS-7: the Monday (ISO date) of `iso`'s week — the `start` `/planning/week` takes.
-/// Pure date arithmetic in UTC (no `Calendar.current`); nil for a malformed date.
+/// Pure calendar arithmetic via `DayKey` (no `Calendar.current`); nil for a malformed date.
 public nonisolated func planWeekStart(_ iso: String) -> String? {
-    let f = DateFormatter()
-    f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
-    f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-    guard let d = f.date(from: iso), let cal = f.calendar else { return nil }
-    let back = planWeekday(fromCalendarWeekday: cal.component(.weekday, from: d))
-    return cal.date(byAdding: .day, value: -back, to: d).map { f.string(from: $0) }
+    DayKey(iso: iso)?.mondayOfWeek.iso
 }

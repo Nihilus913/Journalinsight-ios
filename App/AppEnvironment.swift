@@ -504,20 +504,12 @@ final class AppEnvironment {
     /// before). Older = left out, never an old number shown as this morning's.
     static func glanceLatestReadings(today: TodayViewModel?, asOf day: String) -> [String: Double] {
         guard let hit = KpiMetrics.latest(for: .rhr, recovery: today?.recovery ?? [], nutrition: [], dailyRows: [], gateAverages: nil),
-              let asOf = isoFormatter.date(from: String(day.prefix(10))),
-              let floor = Calendar(identifier: .gregorian).date(byAdding: .day, value: -1, to: asOf),
-              hit.date >= isoFormatter.string(from: floor) else { return [:] }
+              let asOf = DayKey(iso: day),
+              hit.date >= asOf.adding(days: -1).iso else { return [:] }
         return ["rhr": hit.value]
     }
 
-    private static let isoFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
-    static func isoDay(_ date: Date) -> String { String(date.ISO8601Format().prefix(10)) }
+    static func isoDay(_ date: Date) -> String { DayKey.today(now: date).iso }
 
     private func publishSnapshot(today: TodayViewModel?, recovery: RecoveryViewModel?) {
         // W-FIX6 F6-11: Decide's own headline (word, session, tone) — never the hub's raw word.

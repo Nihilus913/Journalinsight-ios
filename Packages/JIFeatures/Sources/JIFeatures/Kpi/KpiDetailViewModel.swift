@@ -139,7 +139,7 @@ public final class KpiDetailViewModel {
     /// "as of Sep 21" when the headline number is not from today; nil when it is (or when the
     /// value is the weight average, which has no single day).
     public var asOfLabel: String? { kpiAsOfLabel(valueDate: latest?.date, today: todayDateString) }
-    private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { DayKey.today(now: Date()).iso }
     public var history: [(date: String, value: Double?)] {
         if showsLoadMinutes { return kpiLoadHistory(days: loadDays, today: loadToday) }
         // W-FIX11 H2-04: "Apple Watch" metrics count Apple nights only.

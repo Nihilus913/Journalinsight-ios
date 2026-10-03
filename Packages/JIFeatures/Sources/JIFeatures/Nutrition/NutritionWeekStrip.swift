@@ -65,17 +65,10 @@ public struct NutritionWeekStrip: View {
     /// pure — a plain function so it stays independently testable, mirroring `StatChip`'s label
     /// builders (JIDesign).
     static func weekdayLabel(_ isoDate: String) -> String {
-        guard let date = NutritionWeekStrip.dayFormatter.date(from: isoDate) else { return isoDate }
+        // The phone-zone midnight of that day, so the device-zone weekday label names that day.
+        guard let date = DayKey(iso: isoDate)?.startDate else { return isoDate }
         return date.formatted(.dateTime.weekday(.abbreviated))
     }
-
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .iso8601)
-        f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
 }
 
 /// W-FIX8 M-2: the week strip's legend.
