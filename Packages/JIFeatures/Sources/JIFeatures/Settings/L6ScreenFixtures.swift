@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import Foundation
 import SwiftUI
 import UserNotifications
@@ -275,3 +277,4 @@ enum L6Fixtures {
         )
     }
 }
+#endif
