@@ -85,14 +85,12 @@ public struct TrainingView: View {
         .onAppear { model.screenAppeared() }
         .task(id: model.pendingSessionSync.isEmpty) { await model.watchPendingSync() }
         .animation(JIMotion.standard, value: model.phase)
-        // W3b-L1 (P-session-coach): `TrainingView.init(model:)` is a frozen contract and
-        // `TrainingViewModel` (not this lane's file) has no accessor onto its private hub
-        // provider, so this pushes with `provider: nil` — which resolves to the same "not
-        // available" state a real `HubDataProvider` cast would produce today anyway (it
-        // deliberately never conforms to `LiveSessionProviding` — see JICore's doc comment).
-        // Wiring the real provider through is a follow-up once `TrainingViewModel` exposes one.
+        // W-B38-B B-8: the live source is the Watch's mirrored strength session
+        // (`MirroredSessionFeed`, fed by the App's mirroring handler + strength bridge). Where no
+        // Watch can mirror (`isAvailable` false) the coach keeps its honest "not available" wall.
         .navigationDestination(isPresented: $showSessionCoach) {
-            SessionCoachView(model: SessionCoachViewModel(provider: nil, settings: gateSettings))
+            SessionCoachView(model: SessionCoachViewModel(
+                live: MirroredSessionFeed.shared.isAvailable ? MirroredSessionFeed.shared : nil, settings: gateSettings))
         }
         #if canImport(WorkoutKit)
         .sheet(isPresented: $showSendToWatch) {

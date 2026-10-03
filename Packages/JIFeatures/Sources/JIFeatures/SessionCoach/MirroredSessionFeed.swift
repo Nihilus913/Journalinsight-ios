@@ -23,6 +23,10 @@ public final class MirroredSessionFeed: LiveSessionProviding {
     public static let shared = MirroredSessionFeed()
     public nonisolated static let hrStaleAfter: TimeInterval = 15
 
+    /// Set by the App at boot when this device can receive a mirrored Watch workout (HealthKit
+    /// available + the mirroring handler installed). false (tests, previews, iPad) = the coach keeps
+    /// its honest "not available" wall instead of waiting for a Watch that can never mirror.
+    public var isAvailable = false
     public private(set) var isMirroring = false
     public private(set) var startedAt: Date?
     public private(set) var sessionClientId: UUID?
