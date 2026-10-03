@@ -24,9 +24,9 @@ struct PlateCalculatorViewModelTests {
     }
 
     @Test func emptyBarAndLighterThanTheBar() {
-        #expect(PlateCalculatorViewModel(totalKg: 20, inventory: .standard).outcome == .barOnly)
-        #expect(PlateCalculatorViewModel(totalKg: 20, inventory: .standard).perSideText == "Just the bar")
-        #expect(PlateCalculatorViewModel(totalKg: 15, inventory: .standard).outcome == .notLoadable)
+        #expect(PlateCalculatorViewModel(totalKg: 20, inventory: .default).outcome == .barOnly)
+        #expect(PlateCalculatorViewModel(totalKg: 20, inventory: .default).perSideText == "Just the bar")
+        #expect(PlateCalculatorViewModel(totalKg: 15, inventory: .default).outcome == .notLoadable)
     }
 
     @Test func noInventoryMeansNoCalculator() {
@@ -38,9 +38,10 @@ struct PlateCalculatorViewModelTests {
 
     @Test func inventoryDefaultsToStandardAndPersistsEdits() throws {
         let prefs = try store()
-        #expect(PlateInventoryStore.load(from: prefs) == .standard)
-        #expect(PlateInventory.standard.barKg == PlateMath.defaultBarKg)
-        #expect(PlateInventory.standard.pairs == PlateMath.defaultPairs)
+        #expect(PlateInventoryStore.load(from: prefs) == .default)
+        #expect(PlateInventoryStore.key == PlateInventory.prefKey)   // one inventory with the A-10 logger
+        #expect(PlateInventory.default.barKg == PlateMath.defaultBarKg)
+        #expect(PlateInventory.default.pairs == PlateMath.defaultPairs)
 
         let model = PlateInventoryViewModel(prefs: prefs)
         model.setCount(2, for: 1.25)

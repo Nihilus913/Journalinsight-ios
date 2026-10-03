@@ -58,8 +58,13 @@ public nonisolated enum ExerciseLibrary {
 
     static let categoryEquipment: [String: String] = ["PUSH_UP": "Bodyweight", "PLANK": "Bodyweight", "PULL_UP": "Bar"]
 
+    /// Muscles come from W-B38-A's `StrengthMuscles` (the logger's preview) when it knows the
+    /// exercise, so the library and the logger name the same targets.
     public static func preview(for option: ExerciseOption) -> ExercisePreview {
-        if let known = described[option.key] { return known }
+        if var known = described[option.key] {
+            if let muscles = StrengthMuscles.targets(for: option.key), !muscles.isEmpty { known.muscles = muscles }
+            return known
+        }
         let muscles = categoryMuscles[option.garminCategory] ?? []
         let core = muscles.first == "Core"
         return ExercisePreview(systemImage: core ? "figure.core.training" : "figure.strengthtraining.traditional",

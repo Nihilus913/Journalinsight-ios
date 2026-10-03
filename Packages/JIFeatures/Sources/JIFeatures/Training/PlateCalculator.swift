@@ -3,38 +3,31 @@ import Observation
 import JICompute
 import JIPersistence
 
-/// W-B38-B B-9 — the user's bar + plate pairs (Settings › Plates & bar). First launch = the
-/// standard set + Toby's 1.25 / 2.5 kg microplates (decision 2026-10-03, `PlateMath.defaultPairs`);
-/// an emptied inventory means "no calculator" (scout §4 q2).
-public nonisolated struct PlateInventory: Codable, Equatable, Sendable {
-    public var barKg: Double
-    /// One element per PAIR owned (a repeated size = more pairs of it).
-    public var pairs: [Double]
+/// W-B38-B B-9 — the plate calculator over W-B38-A's `PlateInventory` (`StrengthLogViewModel.swift`:
+/// first launch = standard plates + the 1.25 / 2.5 kg microplates; an emptied inventory = no
+/// calculator, scout §4 q2). ONE inventory, ONE pref key: the logger and Settings › Plates & bar
+/// read and write the same `PlateInventory.prefKey`.
+public extension PlateInventory {
+    var canCalculate: Bool { barKg > 0 && !pairs.isEmpty }
 
-    public init(barKg: Double, pairs: [Double]) { self.barKg = barKg; self.pairs = pairs }
-
-    public static let standard = PlateInventory(barKg: PlateMath.defaultBarKg, pairs: PlateMath.defaultPairs)
-
-    public var canCalculate: Bool { barKg > 0 && !pairs.isEmpty }
-
-    public struct SizeRow: Equatable, Sendable, Identifiable {
+    struct SizeRow: Equatable, Sendable, Identifiable {
         public let kg: Double
         public let pairs: Int
         public var id: Double { kg }
     }
 
     /// Distinct plate sizes heaviest first, with how many pairs of each.
-    public var sizeRows: [SizeRow] {
+    var sizeRows: [SizeRow] {
         Dictionary(grouping: pairs, by: { $0 }).map { SizeRow(kg: $0.key, pairs: $0.value.count) }.sorted { $0.kg > $1.kg }
     }
 }
 
 public nonisolated enum PlateInventoryStore {
-    public static let key = "strength.plates.v1"
+    public static var key: String { PlateInventory.prefKey }
 
-    /// The saved inventory; the standard set when nothing (or nothing readable) is saved.
+    /// The saved inventory; the default set when nothing (or nothing readable) is saved.
     public static func load(from prefs: PrefStore) -> PlateInventory {
-        ((try? prefs.get(key, as: PlateInventory.self)) ?? nil) ?? .standard
+        ((try? prefs.get(key, as: PlateInventory.self)) ?? nil) ?? .default
     }
 
     public static func save(_ inventory: PlateInventory, to prefs: PrefStore) throws { try prefs.set(key, inventory) }
@@ -111,7 +104,7 @@ public final class PlateInventoryViewModel {
     }
 
     public func resetToStandard() {
-        inventory = .standard
+        inventory = .default
         persist()
     }
 

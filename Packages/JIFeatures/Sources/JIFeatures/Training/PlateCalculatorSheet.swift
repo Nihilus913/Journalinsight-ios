@@ -48,5 +48,5 @@ public struct PlateCalculatorSheet: View {
 }
 
 #Preview("Plates · 52.5") {
-    PlateCalculatorSheet(model: PlateCalculatorViewModel(totalKg: 52.5, inventory: .standard))
+    PlateCalculatorSheet(model: PlateCalculatorViewModel(totalKg: 52.5, inventory: .default))
 }
