@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import JICore
 import JICompute
 import JIPersistence
@@ -105,4 +106,9 @@ public extension MirroredSessionFeed {
         }
         return state
     }
+}
+
+/// The App's plan-down hook (`StrengthMirrorCoordinator.sendPlan`); nil in previews / tests.
+public extension EnvironmentValues {
+    @Entry var strengthWatchPlanSender: ((StrengthWatchPlan) -> Void)? = nil
 }
