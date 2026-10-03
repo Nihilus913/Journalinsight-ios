@@ -20,12 +20,20 @@
 	<string>2.1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>JournalInsight reads your live heart rate during a strength session to show it against your heart-rate limit.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>JournalInsight saves your strength session to Health as a Traditional Strength Training workout.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>WKApplication</key>
 	<true/>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>toby913.JournalInsight</string>
 </dict>
