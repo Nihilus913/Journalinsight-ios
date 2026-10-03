@@ -30,7 +30,7 @@ import Testing
 
 @Test func anInvertedHubBandIsNoBand() {
     var s = GateSignal(key: "hrv", label: "HRV", value: 40, unit: "ms", threshold: 30, direction: .min,
-                       scaleMin: 0, scaleMax: 80, status: .pass)
+                       status: .pass)
     s.bandLo = 52; s.bandHi = 41
     #expect(s.hubBand == nil)
 }

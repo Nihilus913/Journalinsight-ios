@@ -216,6 +216,7 @@ public struct TrendsView: View {
     }
 }
 
+#if DEBUG
 /// §8.5 registry entry "Trends" — fixed series, no hub.
 struct TrendsNativePreview: View {
     private static let recovery: [RecoveryDay] = (0..<28).map { i in
@@ -228,3 +229,4 @@ struct TrendsNativePreview: View {
             .environment(\.jiOffscreenRender, true)
     }
 }
+#endif

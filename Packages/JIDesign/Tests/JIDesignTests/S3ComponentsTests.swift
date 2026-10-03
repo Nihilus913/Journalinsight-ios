@@ -44,7 +44,7 @@ struct S3ComponentsTests {
     @Test func s3ComponentsUseTheTypeTokensNotRawFonts() throws {
         let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Sources/JIDesign")
-        let files = ["StatChip", "SummaryCard", "TrendRow", "StalenessBanner", "SleepCard", "DriverBars", "SignalRow", "SkeletonBlock"]
+        let files = ["SummaryCard", "TrendRow", "StalenessBanner", "DriverBars", "SignalRow", "SkeletonBlock"]
         let raw = try #require(try? NSRegularExpression(pattern: #"\.font\(\.(caption2?|footnote|body|subheadline|headline|title[23]?)[.)]"#))
         for file in files {
             let text = try String(contentsOf: sources.appendingPathComponent("\(file).swift"), encoding: .utf8)
@@ -66,8 +66,6 @@ struct S3ComponentsTests {
     }
 
     @Test @MainActor func tintedSleepCardAndSignalSlotRender() {
-        expectRenders("SleepCard tinted", height: 140) { SleepCard(durationSec: 7 * 3600 + 24 * 60, score: 82, tinted: true) }
-        expectRenders("SleepCard missing", height: 140) { SleepCard(durationSec: nil, score: nil) }
         expectRenders("SignalRow calibrating slot", height: 80) { SignalRow(label: "Resting HR", value: 62, unit: "bpm", status: .missing(.calibrating)) }
         expectRenders("DriverBars worded", height: 160) {
             DriverBars(drivers: [DriverBar(id: "a", label: "Sleep", value: 0.7, word: "In your normal", tint: .sleep),

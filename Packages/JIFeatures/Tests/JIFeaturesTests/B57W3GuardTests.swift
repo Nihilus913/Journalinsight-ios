@@ -18,7 +18,7 @@ private func b57w3Source(_ relative: String) throws -> String {
 private func b57w3Signal(_ key: String, _ label: String, value: Double?, status: GateSignalStatus,
                          threshold: Double = 27, direction: GateSignalDirection = .min) -> GateSignal {
     GateSignal(key: key, label: label, value: value, unit: key == "sleep_h" ? "h" : "ms", threshold: threshold,
-               direction: direction, scaleMin: 0, scaleMax: 100, status: status)
+               direction: direction, status: status)
 }
 
 struct B57W3GuardTests {

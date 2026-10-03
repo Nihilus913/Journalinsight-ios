@@ -61,17 +61,3 @@ public struct JIRowDivider: View {
             .accessibilityHidden(true)
     }
 }
-
-/// W-GUI S2 — the grouped-list card: a level-1 `Surface` with 6 pt vertical / 16 pt horizontal
-/// padding (report §4.5: rows carry their own 12). Rows go inside, `JIRowDivider` between them.
-public struct JIGroupedCard<Content: View>: View {
-    private let content: Content
-    public init(@ViewBuilder content: () -> Content) { self.content = content() }
-    public var body: some View {
-        Surface(level: 1, padding: 0) {
-            VStack(spacing: 0) { content }
-                .padding(.vertical, 6)
-                .padding(.horizontal, JISpacing.s4)
-        }
-    }
-}

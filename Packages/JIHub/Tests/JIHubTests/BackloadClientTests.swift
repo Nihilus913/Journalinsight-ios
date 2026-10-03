@@ -56,7 +56,7 @@ extension HubClientTests {
         #expect(dto.from == "2025-06-01")
         #expect(dto.source == "garmin_api")
         #expect(dto.sleep.first?.syncId == "sleep:2025-06-01")
-        #expect(dto.sleep.first?.asleepSec == 24300)
+        #expect(dto.sleep.first?.deepSec == 5400)
         #expect(dto.rhr.first?.bpm == 52.0)
         #expect(dto.steps.first?.count == 8421.0)
         #expect(dto.energy.first?.activeKcal == 512.0)

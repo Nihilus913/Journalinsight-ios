@@ -66,7 +66,7 @@ struct HubSnapshotGlanceTests {
     }
 
     static func sig(_ key: String, _ status: GateSignalStatus, note: String? = nil, label: String = "HRV") -> GateSignal {
-        GateSignal(key: key, label: label, value: 25, unit: "ms", threshold: 27, direction: .min, scaleMin: 0, scaleMax: 80, status: status, note: note)
+        GateSignal(key: key, label: label, value: 25, unit: "ms", threshold: 27, direction: .min, status: status, note: note)
     }
 
     @Test func reasonPrefersRedThenAmber() {
@@ -138,7 +138,7 @@ struct HubSnapshotGlanceTests {
 
     @Test func glanceSignalsAlwaysThreeInOrder() {
         let out = GlanceSignals.make(
-            gateSignals: [GateSignal(key: "sleep_h", label: "Sleep time", value: 7.4, unit: "h", threshold: 7, direction: .min, scaleMin: 0, scaleMax: 10, status: .pass),
+            gateSignals: [GateSignal(key: "sleep_h", label: "Sleep time", value: 7.4, unit: "h", threshold: 7, direction: .min, status: .pass),
                           Self.sig("hrv", .amber)],
             hrvNormal: 27...30, rhrNormal: nil, sleepGoalH: 7)
         #expect(out.map(\.key) == ["hrv", "sleep_h", "rhr"])

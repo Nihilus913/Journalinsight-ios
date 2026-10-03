@@ -8,10 +8,9 @@ import JIPersistence
 /// W-B57b L2 — Decide shows the why (gate-signal arcs) and writes a verdict override; the Coach
 /// step is an overlay on Day; the weekly respond card lives on the gate rationale screen.
 @Suite struct DecideWhyOverrideTests {
-    private func signal(_ key: String, _ value: Double?, thr: Double, dir: GateSignalDirection = .min,
-                        min: Double = 0, max: Double = 100, status: GateSignalStatus) -> GateSignal {
+    private func signal(_ key: String, _ value: Double?, thr: Double, dir: GateSignalDirection = .min, status: GateSignalStatus) -> GateSignal {
         GateSignal(key: key, label: key, value: value, unit: "", threshold: thr, direction: dir,
-                   scaleMin: min, scaleMax: max, status: status)
+                   status: status)
     }
 
     // MARK: arcs
@@ -25,16 +24,16 @@ import JIPersistence
 
     @Test func valueTextNeverRendersAZeroForMissing() {
         #expect(gateSignalValueText(signal("sleep", nil, thr: 70, status: .missing)) == "—")
-        #expect(gateSignalValueText(signal("hrv", 24, thr: 27, max: 80, status: .amber)) == "24")
-        #expect(gateSignalValueText(signal("sleep_h", 5.83, thr: 6, max: 10, status: .amber)) == "5.8")
+        #expect(gateSignalValueText(signal("hrv", 24, thr: 27, status: .amber)) == "24")
+        #expect(gateSignalValueText(signal("sleep_h", 5.83, thr: 6, status: .amber)) == "5.8")
     }
 
     @Test func accessibilityLabelSaysStatusAndThreshold() {
         let s = GateSignal(key: "hrv", label: "HRV", value: 24, unit: "ms", threshold: 27, direction: .min,
-                           scaleMin: 0, scaleMax: 80, status: .amber)
+                           status: .amber)
         #expect(gateSignalAccessibilityLabel(s) == "HRV 24 ms, amber, threshold 27")
         let m = GateSignal(key: "sleep", label: "Sleep", value: nil, unit: "", threshold: 70, direction: .min,
-                           scaleMin: 0, scaleMax: 100, status: .missing)
+                           status: .missing)
         #expect(gateSignalAccessibilityLabel(m) == "Sleep, not synced yet, threshold 70")
     }
 
@@ -101,7 +100,7 @@ import JIPersistence
 
     @Test func contextArcIsMutedNeverGreenAndShowsItsValueAndNote() {
         let s = GateSignal(key: "hrv_day", label: "HRV (day)", value: 31, unit: "ms", threshold: 0, direction: .min,
-                           scaleMin: 0, scaleMax: 80, status: .context, note: "weekday — dosed")
+                           status: .context, note: "weekday — dosed")
         #expect(gateSignalColorRole(.context) == .muted)
         #expect(gateSignalColorRole(.context) != .go)
         #expect(gateSignalValueText(s) == "31")
@@ -111,15 +110,15 @@ import JIPersistence
 
     @Test func noteIsShownOnlyForContextArcs() {
         let amber = GateSignal(key: "hrv", label: "HRV", value: 24, unit: "ms", threshold: 27, direction: .min,
-                               scaleMin: 0, scaleMax: 80, status: .amber, note: "hrv 24 — under 27")
+                               status: .amber, note: "hrv 24 — under 27")
         #expect(gateSignalNoteText(amber) == nil)
     }
 
     @Test func contextArcDoesNotCountTowardPassOrAmberTallies() {
         let signals = [
-            signal("hrv", 40, thr: 35, max: 80, status: .pass),
-            signal("sleep_h", 6.5, thr: 7, max: 10, status: .amber),
-            signal("hrv_day", 31, thr: 0, max: 80, status: .context),
+            signal("hrv", 40, thr: 35, status: .pass),
+            signal("sleep_h", 6.5, thr: 7, status: .amber),
+            signal("hrv_day", 31, thr: 0, status: .context),
         ]
         let gating = signals.filter(gateSignalIsGating)
         #expect(gating.map(\.key) == ["hrv", "sleep_h"])

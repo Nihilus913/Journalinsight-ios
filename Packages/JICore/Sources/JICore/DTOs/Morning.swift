@@ -1,26 +1,9 @@
 import Foundation
 
-public struct TodayActivity: Codable, Sendable, Equatable {
-    public var name, type: String?
-    public var durationSec, avgHr, maxHr: Int?
-    public var teAerobic: Double?
-}
-public struct Experiment: Codable, Sendable, Equatable {
-    public var count, target: Int
-    public var executionScore: Double?
-    public var wantsCompletePrompt: Bool?
-}
-public struct HrvPoint: Codable, Sendable, Equatable {
-    public var date: String
-    public var hrvWeeklyAvg, rhrBpm: Double?
-}
 public struct MorningResponse: Codable, Sendable, Equatable {
-    public var todayActivities: [TodayActivity]
     public var verdict, verdictDate: String?
-    public var experiment: Experiment?
     public var carbs3dAvg: Double?
     public var carbWatchFloor: Double
-    public var hrvSeries: [HrvPoint]
     /// B-45 / W-B46 Contract (L3 adds these to `GET /api/v1/planning/morning`). OPTIONAL on
     /// purpose: `verdict`/`verdict_date` come from a JSONL log that `scripts/morning_go.py`
     /// writes, so a day the script did not run serves yesterday's verdict verbatim. `isStale`
@@ -46,9 +29,9 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     // Adding one case obliges us to list every stored property, so the rest are bare cases whose
     // default raw value already equals what the strategy produces.
     enum CodingKeys: String, CodingKey {
-        case todayActivities, verdict, verdictDate, experiment
+        case verdict, verdictDate
         case carbs3dAvg = "carbs3DAvg"
-        case carbWatchFloor, hrvSeries, isStale, sessionForToday
+        case carbWatchFloor, isStale, sessionForToday
         case gateSignals, verdictOverride, gateAnswer
     }
 }

@@ -48,8 +48,7 @@ struct TodayDataFix2Tests {
         RecoveryDay(date: "2026-09-25", sleepScore: 69, sleepDurationSec: 30895, rhrBpm: 81, acwr: 0, hrvWeeklyAvg: 27, hrvRmssdMs: 20.68),
         RecoveryDay(date: "2026-09-24", sleepScore: 79, sleepDurationSec: 26641, rhrBpm: 82, acwr: 0, hrvWeeklyAvg: 28, hrvRmssdMs: 20.71),
     ]
-    static let summary = SleepSummary(scoreComputed: 89, scoreComputedDate: "2026-09-25", scoreComputedSource: "AppleHealth",
-                                      lastNightDate: "2026-09-25", lastNightDurationSec: 30895, lastNightSource: "AppleHealth")
+    static let summary = SleepSummary(scoreComputed: 89, scoreComputedDate: "2026-09-25")
 
     private func vm(_ provider: any HealthDataProvider, uploads: UserDefaults? = nil) throws -> TodayViewModel {
         TodayViewModel(provider: provider, cache: OfflineCache(db: try AppDatabase.inMemory()),

@@ -8,37 +8,6 @@ import JIDesign
 /// B-42 (W-B46 L2) — the Today hero's insight lead, the ring rules and the Trends card's compute.
 @Suite struct TodayHeroTrendsTests {
 
-    // MARK: - insightLine: the verdict word is said once, and tinted
-
-    @Test func aPlainSentenceKeepsTheVerdictWordAsItsLead() {
-        let line = insightLine(word: "GO", sentence: "On track for PROGRESS — hold the current intake.")
-        #expect(line.lead == "GO")
-        #expect(line.rest == " — On track for PROGRESS — hold the current intake.")
-    }
-
-    @Test func theSentencesOwnVerdictOpeningIsStrippedSoTheWordIsNeverSaidTwice() {
-        let colon = insightLine(word: "GO", sentence: "Verdict: GO — Full Upper.")
-        #expect(colon.lead == "GO")
-        #expect(colon.rest == " — Full Upper.")
-        #expect(!colon.rest.contains("Verdict"))
-
-        let isForm = insightLine(word: "REDUCED", sentence: "Verdict is REDUCED (deload dose) — keep loads light.")
-        #expect(isForm.lead == "REDUCED")
-        #expect(isForm.rest == " (deload dose) — keep loads light.")   // a parenthetical joins without the dash
-    }
-
-    @Test func anEmptySentenceLeavesTheLeadStandingAlone() {
-        let line = insightLine(word: "—", sentence: "")
-        #expect(line.lead == "—")
-        #expect(line.rest.isEmpty)
-    }
-
-    @Test func aHeroRingSpeaksItsValueOrSaysThereIsNone() {
-        #expect(heroRingAccessibilityLabel(label: "Readiness", value: 72) == "Readiness 72")
-        #expect(heroRingAccessibilityLabel(label: "Load", value: 1.04, decimals: 2) == "Load 1.04")
-        #expect(heroRingAccessibilityLabel(label: "Sleep", value: nil) == "Sleep, no data yet")
-    }
-
     // MARK: - §4b: only bounded metrics get a ring
 
     @Test func onlyBoundedKpisGetARingBaselineRelativeOnesStayNumbers() {
@@ -117,11 +86,7 @@ import JIDesign
 
     // MARK: - render smoke
 
-    @Test @MainActor func theHeroAndTheTrendsCardRender() {
-        _ = VerdictHeroView(verdict: verdictParts("GO — Full Upper"), readiness: 72, readinessMissing: false,
-                            sleepScore: 81, load: 1.04, insight: "Verdict: GO — Full Upper.").body
-        _ = VerdictHeroView(verdict: verdictParts(nil), readiness: nil, readinessMissing: true,
-                            sleepScore: nil, load: nil, insight: InsightSentence.noVerdictCopy).body
+    @Test @MainActor func theTrendsCardRenders() {
         // B-57 W1: the Trends card became the full Trends screen (TrendsView).
         _ = TrendsView(recovery: recovery([48, 50, 52]), daily: [], averages: nil).body
         _ = TrendsNativePreview().body

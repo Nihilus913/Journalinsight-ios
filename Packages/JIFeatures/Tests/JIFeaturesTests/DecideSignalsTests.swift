@@ -9,7 +9,7 @@ import JIDesign
 struct DecideSignalsTests {
     private func s(_ key: String, _ value: Double?, thr: Double, unit: String = "", status: GateSignalStatus, note: String? = nil) -> GateSignal {
         GateSignal(key: key, label: key.uppercased(), value: value, unit: unit, threshold: thr, direction: .min,
-                   scaleMin: 0, scaleMax: 100, status: status, note: note)
+                   status: status, note: note)
     }
 
     @Test func hubStatusBecomesAWord() {

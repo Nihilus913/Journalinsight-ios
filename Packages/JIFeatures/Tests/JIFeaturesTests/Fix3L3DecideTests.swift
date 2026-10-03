@@ -10,7 +10,7 @@ struct Fix3L3DecideTests {
     private func s(_ key: String, _ label: String, _ value: Double?, thr: Double, unit: String = "",
                    dir: GateSignalDirection = .min, status: GateSignalStatus, note: String? = nil) -> GateSignal {
         GateSignal(key: key, label: label, value: value, unit: unit, threshold: thr, direction: dir,
-                   scaleMin: 0, scaleMax: 100, status: status, note: note)
+                   status: status, note: note)
     }
 
     /// 28 nights of RMSSD around 28.5 ms, plus last night (the one being judged, 24 ms).

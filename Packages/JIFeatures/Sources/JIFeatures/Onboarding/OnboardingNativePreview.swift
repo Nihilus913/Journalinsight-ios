@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import SwiftUI
 
 /// §8.5 registry: one entry per onboarding board (`3 Plan & train/08–11`).
@@ -11,3 +13,4 @@ struct OnboardingNativePreview: View {
         }
     }
 }
+#endif
