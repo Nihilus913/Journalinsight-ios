@@ -8,9 +8,9 @@ let package = Package(
     // package — WorkoutKit stays iOS/watchOS-only and is `#if canImport`-guarded in the sources.
     platforms: [.iOS(.v27), .watchOS(.v27), .macOS(.v27)],
     products: [.library(name: "JIWorkouts", targets: ["JIWorkouts"])],
-    dependencies: [.package(path: "../JICore")],
+    dependencies: [.package(path: "../JICore"), .package(path: "../JICompute")], // W-B38-B: SetTimer / LastSetDefaults / SessionCap for the Watch logger
     targets: [
-        .target(name: "JIWorkouts", dependencies: ["JICore"], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
-        .testTarget(name: "JIWorkoutsTests", dependencies: ["JIWorkouts", "JICore"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .target(name: "JIWorkouts", dependencies: ["JICore", "JICompute"], swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
+        .testTarget(name: "JIWorkoutsTests", dependencies: ["JIWorkouts", "JICore", "JICompute"], swiftSettings: [.enableUpcomingFeature("NonisolatedNonsendingByDefault")]),
     ]
 )
