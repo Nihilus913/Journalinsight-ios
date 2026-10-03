@@ -46,6 +46,9 @@ targets:
       - App
       - Widgets/Sources/LiveActivityController.swift
       - Widgets/Sources/LiveActivityCapPolicy.swift
+      # W-B38-B B-7: the strength-session Live Activity — attributes + controller in both targets.
+      - Widgets/Sources/StrengthSessionActivityAttributes.swift
+      - Widgets/Sources/StrengthSessionActivityController.swift
     info:
       path: App/Info.plist
       properties:
