@@ -256,8 +256,12 @@ public nonisolated let kpiDetailFreshDays = 2
 
 /// `hubCalibrating`: the hub says this metric's normal is still calibrating — no direction then.
 /// `valueDate` / `today` (yyyy-MM-dd): an old reading ("Up" on a 16-day-old Readiness) gets none.
+/// W-FIX12 F12-3: `normalSet` = whether the screen's 28-day row has a normal (`kpiDetailNormal`).
+/// `false` = that row says "— Calibrating", so the headline names no direction either (Sleep
+/// said "Down" over a Calibrating row). nil = the caller shows no such row (previews).
 public nonisolated func kpiDetailStatus(history: [(date: String, value: Double?)], value: Double?,
                                         unit: String, decimals: Int, hubCalibrating: Bool = false,
+                                        normalSet: Bool? = nil,
                                         valueDate: String? = nil, today: String? = nil) -> KpiDetailStatus {
     guard let value, value.isFinite else {
         return KpiDetailStatus(word: "— \(JIMissingReason.noData.rawValue)", symbolName: "minus",
@@ -269,7 +273,7 @@ public nonisolated func kpiDetailStatus(history: [(date: String, value: Double?)
                                role: .muted)
     }
     let window = history.sorted { $0.date < $1.date }.suffix(trendBaselineDays).compactMap(\.value)
-    if hubCalibrating {
+    if hubCalibrating || normalSet == false {
         return KpiDetailStatus(word: "— \(JIMissingReason.calibrating.rawValue)", symbolName: "minus",
                                detail: "Your normal is still being learned — no direction until it is set.", role: .muted)
     }

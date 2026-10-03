@@ -72,6 +72,7 @@ public struct KpiDetailView: View {
                 label: model.def.label,
                 status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals,
                                         hubCalibrating: model.calibrationCaption != nil,
+                                        normalSet: kpiNormal.normal != nil,   // W-FIX12 F12-3: the 28-day row's own rule
                                         valueDate: model.showsLoadMinutes ? nil : model.latest?.date,
                                         today: RecoveryInsightService.localDayKey(Date())),
                 asOf: model.asOfLabel,
