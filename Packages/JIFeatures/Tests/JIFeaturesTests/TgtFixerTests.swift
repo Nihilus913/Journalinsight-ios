@@ -68,7 +68,7 @@ import JIPersistence
     func ids(_ g: SettingsRootGroup) -> [String] { SettingsRoot.rows.filter { $0.group == g }.map(\.id) }
     #expect(ids(.connection) == ["hub", "health"])
     #expect(ids(.today) == ["home", "targets"])
-    #expect(ids(.phone) == ["appearance", "haptics", "reminders"])
+    #expect(ids(.phone) == ["appearance", "haptics", "reminders", "plates"])   // W-B38-B B-9: + Plates & bar
     #expect(ids(.app).first == "about")
     #if DEBUG
     #expect(ids(.app) == ["about", "developer"])

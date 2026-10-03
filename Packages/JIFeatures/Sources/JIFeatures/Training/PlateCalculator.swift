@@ -64,13 +64,13 @@ public final class PlateCalculatorViewModel {
         return side.isEmpty ? .barOnly : .plates(side)
     }
 
-    public var headline: String { "\(kgText(totalKg)) kg on a \(kgText(inventory.barKg)) kg bar" }
+    public var headline: String { "\(plateKgText(totalKg)) kg on a \(plateKgText(inventory.barKg)) kg bar" }
 
     public var perSideText: String {
         switch outcome {
-        case .plates(let side): side.map(kgText).joined(separator: " + ") + " kg each side"
+        case .plates(let side): side.map(plateKgText).joined(separator: " + ") + " kg each side"
         case .barOnly: "Just the bar"
-        case .notLoadable: "\(kgText(totalKg)) kg is not loadable with your plates"
+        case .notLoadable: "\(plateKgText(totalKg)) kg is not loadable with your plates"
         case .noInventory: "Add your plates in Settings › Plates & bar"
         }
     }
@@ -98,13 +98,13 @@ public final class PlateInventoryViewModel {
 
     /// Adds a new plate size (one pair); ignores non-positive or unreadable input.
     @discardableResult public func addSize(text: String) -> Bool {
-        guard let kg = parseKg(text), kg > 0 else { return false }
+        guard let kg = plateParseKg(text), kg > 0 else { return false }
         setCount((inventory.sizeRows.first { $0.kg == kg }?.pairs ?? 0) + 1, for: kg)
         return true
     }
 
     public func setBar(text: String) {
-        guard let kg = parseKg(text), kg > 0 else { barError = "Enter the bar's weight in kg."; return }
+        guard let kg = plateParseKg(text), kg > 0 else { barError = "Enter the bar's weight in kg."; return }
         barError = nil
         inventory.barKg = kg
         persist()
@@ -121,14 +121,14 @@ public final class PlateInventoryViewModel {
     }
 }
 
-nonisolated func parseKg(_ text: String) -> Double? {
+nonisolated func plateParseKg(_ text: String) -> Double? {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
     guard let v = Double(t), v.isFinite else { return nil }
     return v
 }
 
 /// 52.5 → "52.5", 20 → "20", 1.25 → "1.25".
-nonisolated func kgText(_ kg: Double) -> String {
+nonisolated func plateKgText(_ kg: Double) -> String {
     if kg == kg.rounded() { return String(Int(kg)) }
     var s = String(format: "%.2f", kg)
     while s.hasSuffix("0") { s.removeLast() }
