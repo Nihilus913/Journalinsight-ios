@@ -174,6 +174,8 @@ struct RootTabView: View {
     @State private var gateRespondModel: GateRespondViewModel?
     // B-37 (P-workouts): Training's "Send to Watch" sheet model; provider-scoped like the tab models.
     @State private var sendToWatchModel: SendToWatchViewModel?
+    /// W-B38-A A-10: the on-disk strength log + this hub provider, for Training's "Log sets".
+    @State private var strengthLogDeps: StrengthLogDeps?
     @State private var recoveryModel: RecoveryViewModel?
     /// B-57 W3: one recovery insight per provider (the gate's inputs → the on-device score and the
     /// Apple-night normals); reset with the provider revision, like `todayModel`.
@@ -583,6 +585,7 @@ struct RootTabView: View {
         nutritionModel = nil
         trainingModel = nil
         sendToWatchModel = nil
+        strengthLogDeps = nil
     }
 
     /// Per-tab placeholder for the chrome-only `TabView`. `Color.clear.allowsHitTesting(false)`
@@ -1080,6 +1083,7 @@ struct RootTabView: View {
                     TrainingView(model: trainingModel)
                         .environment(\.sendToWatchModel, sendToWatchModel)
                         .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
+                        .environment(\.strengthLogDeps, strengthLogDeps)   // W-B38-A A-10
                 } else {
                     ProgressView()
                         .task {
@@ -1096,6 +1100,8 @@ struct RootTabView: View {
                                 now: Date.init
                             )
                             sendToWatchModel = makeSendToWatchModel()
+                            // W-B38-A A-10: `try?` — no on-disk store only hides "Log sets".
+                            strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs) }
                         }
                 }
             } else {
