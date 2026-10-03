@@ -105,7 +105,9 @@ public nonisolated enum SessionCompletion: Sendable, Equatable {
 
     /// W-SSOT-1 SS-2: the hub's `completion` when present (its plan + its rule decide the parts and
     /// everything the hub holds), else the label rule. A phone-only workout (not on the hub yet —
-    /// `hubActivityId == nil`) can still fill a part the hub has open, by the app's own `accepts`.
+    /// `hubActivityId == nil`) can still fill a strength or interval part the hub has open, by the
+    /// app's own `accepts` — never a Z2 part (W-B49C R-5: the hub judges Z2 by its zone share and the
+    /// phone's workout has no HR; it shows as other activity until the hub has it).
     public static func progress(sessionLabel: String?, workouts: [TodayWorkout], hub: HubCompletion?) -> SessionProgress {
         guard let hub else { return progress(sessionLabel: sessionLabel, workouts: workouts) }
         return progress(hub: hub, workouts: workouts)
@@ -128,8 +130,9 @@ public nonisolated enum SessionCompletion: Sendable, Equatable {
                 used.insert(hit); statuses[i].workout = sorted[hit]
             }
         }
-        // Hub-open parts: only a phone-only workout may fill them (the hub already judged its own rows).
-        for (i, (part, hp)) in hubParts.enumerated() where !hp.done {
+        // Hub-open parts: only a phone-only workout may fill them (the hub already judged its own rows),
+        // and never a Z2 part — W-B49C R-5 (B-85): Z2 is done by zone share, which only the hub knows.
+        for (i, (part, hp)) in hubParts.enumerated() where !hp.done && part != .steadyCardio {
             let hit = sorted.indices
                 .filter { !used.contains($0) && sorted[$0].hubActivityId == nil && part.accepts(sorted[$0]) }
                 .max { sorted[$0].durationMinutes < sorted[$1].durationMinutes }

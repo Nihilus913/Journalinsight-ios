@@ -5,35 +5,10 @@
 public struct SleepSummary: Codable, Sendable, Equatable {
     public var scoreComputed: Double?
     public var scoreComputedDate: String?
-    public var scoreComputedSource: String?
     public var debtHours: Double?
-    public var debtBaselineHours: Double?
-    public var debtDate: String?
-    public var debtSource: String?
-    public var bedtimeConsistencySdMin: Double?
-    public var bedtimeConsistencyNights: Int?
-    public var bedtimeConsistencySources: [String]?
-    public var lastNightDate: String?
-    public var lastNightDurationSec: Double?
-    public var lastNightDeepSleepSec: Double?
-    public var lastNightLightSleepSec: Double?
-    public var lastNightRemSleepSec: Double?
-    public var lastNightSource: String?
 
-    public init(
-        scoreComputed: Double? = nil, scoreComputedDate: String? = nil, scoreComputedSource: String? = nil,
-        debtHours: Double? = nil, debtBaselineHours: Double? = nil, debtDate: String? = nil, debtSource: String? = nil,
-        bedtimeConsistencySdMin: Double? = nil, bedtimeConsistencyNights: Int? = nil, bedtimeConsistencySources: [String]? = nil,
-        lastNightDate: String? = nil, lastNightDurationSec: Double? = nil, lastNightDeepSleepSec: Double? = nil,
-        lastNightLightSleepSec: Double? = nil, lastNightRemSleepSec: Double? = nil, lastNightSource: String? = nil
-    ) {
-        self.scoreComputed = scoreComputed; self.scoreComputedDate = scoreComputedDate; self.scoreComputedSource = scoreComputedSource
-        self.debtHours = debtHours; self.debtBaselineHours = debtBaselineHours; self.debtDate = debtDate; self.debtSource = debtSource
-        self.bedtimeConsistencySdMin = bedtimeConsistencySdMin; self.bedtimeConsistencyNights = bedtimeConsistencyNights
-        self.bedtimeConsistencySources = bedtimeConsistencySources
-        self.lastNightDate = lastNightDate; self.lastNightDurationSec = lastNightDurationSec
-        self.lastNightDeepSleepSec = lastNightDeepSleepSec; self.lastNightLightSleepSec = lastNightLightSleepSec
-        self.lastNightRemSleepSec = lastNightRemSleepSec; self.lastNightSource = lastNightSource
+    public init(scoreComputed: Double? = nil, scoreComputedDate: String? = nil, debtHours: Double? = nil) {
+        self.scoreComputed = scoreComputed; self.scoreComputedDate = scoreComputedDate; self.debtHours = debtHours
     }
 }
 

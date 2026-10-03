@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import SwiftUI
 import JIDesign
 
@@ -106,3 +108,4 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Home & widgets") { L6Fixtures.homeWidgets() },
     ]
 }
+#endif

@@ -92,7 +92,6 @@ private func fix6Source(_ relative: String) throws -> String {
 @Test func f65HowJiLinksAreChevronRows() throws {
     for file in ["Sources/JIFeatures/GateRationale/GateRationaleView.swift", "Sources/JIFeatures/Onboarding/OnboardingSteps.swift"] {
         let body = try fix6Source(file)
-        #expect(!body.contains("HowWeCalculateLink("), "\(file) still draws a text link")
         #expect(body.contains("JIHowWeCalculateRow("), "\(file) draws the chevron row")
     }
 }

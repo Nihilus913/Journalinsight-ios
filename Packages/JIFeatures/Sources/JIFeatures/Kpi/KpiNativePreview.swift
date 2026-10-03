@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import SwiftUI
 import JICore
 import JIDesign
@@ -103,3 +105,4 @@ struct KpiDetailNativePreview: View {
 /// Exposed as constants so a host test can assert them without rendering SwiftUI.
 nonisolated let kpiDetailPreviewAlertHeader = "Alert"
 nonisolated let kpiDetailPreviewThresholdSentence = kpiThresholdSentence(metricLabel: "HRV", operator: "<")
+#endif

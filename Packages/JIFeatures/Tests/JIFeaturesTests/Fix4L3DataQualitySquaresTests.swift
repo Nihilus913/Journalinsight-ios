@@ -9,8 +9,8 @@ import JIDesign
 
 private func fresh(_ source: String, _ dso: Int, _ metric: String, _ state: FreshnessState, _ days: Int?,
                    coverage: Bool = true) -> FreshnessEntry {
-    FreshnessEntry(source: source, dsoKey: dso, metric: metric, metricLabel: metric, state: state, lastDate: nil,
-                   firstDate: nil, daysStale: days, cadenceDays: 1, coverageChecked: coverage, gaps: nil,
+    FreshnessEntry(source: source, dsoKey: dso, metric: metric, metricLabel: metric, state: state,
+                   daysStale: days, coverageChecked: coverage, gaps: nil,
                    gapCount: nil, totalMissingDays: nil)
 }
 

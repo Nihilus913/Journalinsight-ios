@@ -474,7 +474,7 @@ public struct TodayView: View {
                                   override: currentOverride, verdictReason: model.verdictReason, today: model.verdictDate)
     }
 
-    private var todayDateString: String { String(Date().ISO8601Format().prefix(10)) }
+    private var todayDateString: String { DayKey.today(now: Date()).iso }
 
     private var loading: some View {
         Surface(level: 1, padding: 20) {

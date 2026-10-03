@@ -63,3 +63,48 @@ private func decodeJSON<T: Decodable>(_ json: String, as type: T.Type) -> T {
 @Test func targetTextNilWhenMetricHasNoRule() {
     #expect(KpiMetrics.targetText(for: .rhr, targets: [KpiTarget(targetId: 1, metric: "acwr", operator: ">", threshold: 1.3)]) == nil)
 }
+
+// MARK: - W-KEYS D1r: one KPI descriptor (label, short label, icon) + one alias map
+
+/// Every wire id and every display label the screens pass around lands on one `KpiMetricId` —
+/// the aliases `JIDesign/MetricTint.swift` used to keep on its own.
+@Test(arguments: [
+    ("hrv", KpiMetricId.hrv), ("HRV", .hrv),
+    ("rhr", .rhr), ("restinghr", .rhr), ("resting_hr", .rhr), ("Resting HR", .rhr),
+    ("sleep", .sleep), ("sleepscore", .sleep), ("sleep_score", .sleep), ("Sleep score", .sleep), ("SLEEP SCORE", .sleep),
+    ("acwr", .acwr), ("load", .acwr), ("trainingload", .acwr), ("training_load", .acwr), ("Load (ACWR)", .acwr),
+    ("kcal", .kcal), ("calories", .kcal), ("Calories", .kcal),
+    ("carbs", .carbs), ("carbohydrates", .carbs), ("Carbohydrates", .carbs),
+    ("body_battery", .bodyBattery), ("  Steps ", .steps), ("protein", .protein), ("fat", .fat),
+    ("weight", .weight), ("readiness", .readiness),
+])
+func everyAliasNormalizes(alias: String, id: KpiMetricId) {
+    #expect(KpiMetricId(normalizing: alias) == id)
+}
+
+@Test func everyRawValueNormalizesToItself() {
+    for id in KpiMetricId.allCases { #expect(KpiMetricId(normalizing: id.rawValue) == id) }
+}
+
+@Test(arguments: ["", "fibre", "sugar", "not_a_metric", "zzz"])
+func unknownIdsDoNotNormalize(alias: String) {
+    #expect(KpiMetricId(normalizing: alias) == nil)
+}
+
+@Test func everyMetricHasAShortLabelAndASymbol() {
+    for id in KpiMetricId.allCases {
+        #expect(!KpiMetrics.def(id).symbol.isEmpty, Comment(rawValue: id.rawValue))
+        #expect(!KpiMetrics.def(id).shortLabel.isEmpty, Comment(rawValue: id.rawValue))
+    }
+}
+
+/// Toby D2 (2026-10-03): one icon per metric, and the set he named.
+@Test func theDescriptorCarriesTobysIconSet() {
+    #expect(KpiMetrics.def(.sleep).symbol == "moon")
+    #expect(KpiMetrics.def(.readiness).symbol == "gauge.medium")
+    #expect(KpiMetrics.def(.acwr).symbol == "bolt")
+    #expect(KpiMetrics.def(.rhr).symbol == "heart")
+    #expect(KpiMetrics.def(.carbs).symbol == "leaf")
+    #expect(KpiMetrics.def(.fat).symbol == "drop")
+    #expect(Set(KpiMetricId.allCases.map { KpiMetrics.def($0).symbol }).count == KpiMetricId.allCases.count)
+}

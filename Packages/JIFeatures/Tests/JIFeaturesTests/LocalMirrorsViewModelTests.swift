@@ -86,7 +86,6 @@ private func fixtureModel(db: AppDatabase) async throws -> LocalMirrorsViewModel
     for recommendation in [GateRecommendation.progress, .maintain, .reduce, .insufficientData] {
         let model = GateRespondViewModel(recommendation: recommendation, provider: MockDataProvider(), outbox: Outbox(db: db), decisionLog: DecisionLogStore(db: db))
         _ = GateRespondCard(model: model).body
-        _ = VerdictHeroView(verdict: verdictParts("GO — Upper"), readiness: 72, readinessMissing: false, gateRespondModel: model).body
     }
 }
 

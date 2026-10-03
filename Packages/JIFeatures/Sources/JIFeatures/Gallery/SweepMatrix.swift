@@ -1,3 +1,5 @@
+// W-DEAD-2 D2-9: gallery/preview support — compiled into Debug only, never the installed app.
+#if DEBUG
 import Foundation
 
 /// §8.5 one cell of the screenshot sweep. Sizes are points (portrait unless the name says
@@ -42,3 +44,4 @@ public nonisolated enum SweepMatrix {
         ]
     }
 }
+#endif

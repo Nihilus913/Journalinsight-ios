@@ -43,6 +43,7 @@ public struct KeychainStore: SecretStore {
     }
 }
 
+#if DEBUG
 public final class InMemorySecretStore: SecretStore, @unchecked Sendable { // @unchecked: lock-guarded dictionary
     private let lock = NSLock(); private var items: [String: Data] = [:]
     public init() {}
@@ -50,3 +51,4 @@ public final class InMemorySecretStore: SecretStore, @unchecked Sendable { // @u
     public func write(_ key: String, _ data: Data) throws { lock.withLock { items[key] = data } }
     public func delete(_ key: String) throws { lock.withLock { items[key] = nil } }
 }
+#endif

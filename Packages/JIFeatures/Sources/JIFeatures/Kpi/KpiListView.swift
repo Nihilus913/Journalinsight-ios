@@ -102,7 +102,7 @@ struct KpiCatalogueGrids: View {
         let doc = targetsModel?.document ?? targets
         ForEach(KpiCatalogueGroup.allCases, id: \.self) { group in
             let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
-                                          today: String(Date().ISO8601Format().prefix(10)),
+                                          today: DayKey.today(now: Date()).iso,
                                           goalCaption: { kpiListGoalCaption($0, value: $1, targets: doc) ?? nutritionGoals.caption(for: $0, value: $1) },
                                           load: recoveryInsight?.loadReading, health: model.healthTotals)
             if !items.isEmpty {

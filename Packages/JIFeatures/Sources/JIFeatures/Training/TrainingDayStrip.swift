@@ -67,7 +67,7 @@ public struct TrainingDayStrip: View {
     let onSelect: (String) -> Void
     @Environment(\.jiTheme) private var theme
 
-    public init(daily: [DailyKpiRow], selectedDate: String, today: String = String(Date().ISO8601Format().prefix(10)), onSelect: @escaping (String) -> Void) {
+    public init(daily: [DailyKpiRow], selectedDate: String, today: String = DayKey.today(now: Date()).iso, onSelect: @escaping (String) -> Void) {
         self.daily = daily; self.selectedDate = selectedDate; self.today = today; self.onSelect = onSelect
     }
 

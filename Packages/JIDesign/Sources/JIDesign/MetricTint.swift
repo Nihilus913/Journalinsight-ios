@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 
 /// B-47 — the metric → colour-role map every Today/KPI surface tints its numeral with, after
 /// Apple Fitness's Summary screen (`docs/design/references/2026-09-22-apple-fitness-summary.png`):
@@ -14,19 +15,23 @@ import Foundation
 ///
 /// Pure + `nonisolated`: it is a lookup, testable off the main actor and callable from
 /// `JIFeatures` (`TodayGrid`) without touching the theme.
+///
+/// W-KEYS D3r (audit P8): the switch is on `KpiMetricId` — the alias map (`Load (ACWR)`, `sleep_score`,
+/// `Resting HR`, `Carbohydrates` …) lives once, in `KpiMetricId(normalizing:)`, not here.
 public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
-    switch normalizedMetricKey(kpiId) {
-    case "hrv": .hrv   // W-FIX2 BUG-31: `.info` is the accent now
-    case "rhr", "restinghr", "resting_hr": .rhr   // W-GUI F4: coral, not `.danger`
-    case "sleep", "sleepscore", "sleep_score": .sleep
-    case "steps": .steps   // W-GUI F4: primary text; `.go` only with a goal (see hasGoal:)
-    case "load", "acwr", "trainingload", "training_load": .load   // W-GUI F4: violet, not `.reduced`
+    guard let id = KpiMetricId(normalizing: kpiId) else { return .text }
+    return switch id {
+    case .hrv: .hrv   // W-FIX2 BUG-31: `.info` is the accent now
+    case .rhr: .rhr   // W-GUI F4: coral, not `.danger`
+    case .sleep: .sleep
+    case .steps: .steps   // W-GUI F4: primary text; `.go` only with a goal (see hasGoal:)
+    case .acwr: .load   // W-GUI F4: violet, not `.reduced`
     // B-57 W1 r5: the macros carry their own design roles (boards: KpiDetailNutrition, WeeklyPlan).
-    case "kcal", "calories": .kcal
-    case "protein": .protein
-    case "carbs", "carbohydrates": .carbs
-    case "fat": .fat
-    default: .text
+    case .kcal: .kcal
+    case .protein: .protein
+    case .carbs: .carbs
+    case .fat: .fat
+    case .weight, .bodyBattery, .readiness: .text
     }
 }
 
@@ -35,13 +40,4 @@ public nonisolated func metricTintRole(_ kpiId: String) -> JIColorRole {
 public nonisolated func metricTintRole(_ kpiId: String, hasGoal: Bool) -> JIColorRole {
     let role = metricTintRole(kpiId)
     return role == .steps && hasGoal ? .go : role
-}
-
-/// `Load (ACWR)` / `Resting HR` / `sleep_score` all name the same metric — the map keys off a
-/// lowercased, separator-free form so a display label and a wire id land on the same role.
-nonisolated func normalizedMetricKey(_ kpiId: String) -> String {
-    let lowered = kpiId.lowercased()
-    // A trailing parenthetical is a human label's suffix ("Load (ACWR)"), not part of the id.
-    let head = lowered.split(separator: "(").first.map(String.init) ?? lowered
-    return head.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "")
 }

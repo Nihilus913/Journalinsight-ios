@@ -144,12 +144,9 @@ public nonisolated func verdictHeadline(parts: VerdictParts, override: VerdictOv
 /// before morning_go ran) is never "your call for today" — it names its own day.
 public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String) -> String {
     guard let verdictDate, verdictDate != today || isStale == true else { return "YOUR CALL FOR TODAY" }
-    let parse = DateFormatter()
-    parse.calendar = Calendar(identifier: .gregorian); parse.locale = Locale(identifier: "en_US_POSIX")
-    parse.timeZone = TimeZone(identifier: "UTC"); parse.dateFormat = "yyyy-MM-dd"
-    guard let d = parse.date(from: String(verdictDate.prefix(10))) else { return "LAST CALL" }
+    guard let d = DayKey(iso: verdictDate)?.startDate(in: .gmt) else { return "LAST CALL" }
     let out = DateFormatter()
-    out.calendar = parse.calendar; out.locale = parse.locale; out.timeZone = parse.timeZone
+    out.calendar = Calendar(identifier: .gregorian); out.locale = Locale(identifier: "en_US_POSIX"); out.timeZone = .gmt
     out.dateFormat = "EEE, MMM d"
     return "LAST CALL · " + out.string(from: d).uppercased()
 }

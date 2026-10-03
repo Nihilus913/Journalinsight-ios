@@ -269,7 +269,7 @@ private func sample() -> TargetsDocument {
 
 @Test func decideSleepRowSaysGoalOnlyOnceTyped() {
     let s = GateSignal(key: "sleep_h", label: "Sleep time", value: 7.4, unit: "h", threshold: 7, direction: .min,
-                       scaleMin: 0, scaleMax: 10, status: .pass, note: nil)
+                       status: .pass, note: nil)
     let none = decideSignalRowModel(s)
     #expect(none.detail == nil)                                  // D2: no goal word
     let typed = decideSignalRowModel(s, sleepGoalH: 7.5)

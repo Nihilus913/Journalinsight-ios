@@ -4,7 +4,22 @@ import JICore
 public struct HubClient: Sendable {
     public let config: ConnectionConfig
     private let session: URLSession
-    public init(config: ConnectionConfig, session: URLSession = HubClient.makeDefaultSession()) { self.config = config; self.session = session }
+    /// The zone sent as `X-JI-TZ` on every request (W-KEYS K5, Toby D1): the hub keys "today" by
+    /// the phone's zone. Read per request, so a travel zone change applies without a relaunch.
+    private let timeZone: @Sendable () -> TimeZone
+    public static let timeZoneHeader = "X-JI-TZ"
+
+    public init(config: ConnectionConfig, session: URLSession = HubClient.makeDefaultSession(),
+                timeZone: @escaping @Sendable () -> TimeZone = { .current }) {
+        self.config = config; self.session = session; self.timeZone = timeZone
+    }
+
+    /// Headers every hub request carries: bearer, JSON accept, the phone's zone.
+    private func applyCommonHeaders(_ req: inout URLRequest) {
+        req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue(timeZone().identifier, forHTTPHeaderField: Self.timeZoneHeader)
+    }
 
     /// Ephemeral session: hub responses (sensitive health data) and the bearer auth header
     /// must never be written to CFNetwork's on-disk Cache.db (SEC-1). Callers that pass an
@@ -22,8 +37,7 @@ public struct HubClient: Sendable {
         if !query.isEmpty { comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) } }
         var req = URLRequest(url: comps.url!)
         req.timeoutInterval = 15
-        req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        applyCommonHeaders(&req)
         let (data, resp): (Data, URLResponse)
         do { (data, resp) = try await session.data(for: req) } catch { throw HubError.network(error.localizedDescription) }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
@@ -55,8 +69,7 @@ public struct HubClient: Sendable {
         var req = URLRequest(url: config.baseURL.appending(path: path))
         req.httpMethod = method
         req.timeoutInterval = 15
-        req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        applyCommonHeaders(&req)
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             do { req.httpBody = try JSONEncoder().encode(body) } catch { throw HubError.decoding("\(path): encode \(error)") }
@@ -79,8 +92,7 @@ public struct HubClient: Sendable {
         var req = URLRequest(url: comps.url!)
         req.httpMethod = "DELETE"
         req.timeoutInterval = 15
-        req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        applyCommonHeaders(&req)
         let (data, resp): (Data, URLResponse)
         do { (data, resp) = try await session.data(for: req) } catch { throw HubError.network(error.localizedDescription) }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0

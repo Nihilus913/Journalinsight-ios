@@ -144,8 +144,7 @@ private func decideViewSource() -> URL {
         morning: morning("GO — Day 3 Full Upper + Z2 60min"))
     #expect(!s.contains("REDUCE") && !s.contains("GO"))
     #expect(s.hasPrefix("Day 3 Full Upper + Z2 60min. This week (under-fueling): "))
-    let line = insightLine(word: verdictUserWord(verdictParts("GO — x")), sentence: s)
-    #expect(line.lead == "Full")
+    #expect(verdictUserWord(verdictParts("GO — x")) == "Full")
 }
 
 @Test func bug27_noRawHubWordInAnyInsightBranch() {

@@ -41,11 +41,8 @@ public nonisolated enum GoalsBoard {
     static let kcalPerKg = 7700.0
     static let minTrackingDays = 4
 
-    private static func day(_ iso: String) -> Date? {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: String(iso.prefix(10)))
-    }
+    /// UTC midnight of the day (paired with the UTC `short` label below).
+    private static func day(_ iso: String) -> Date? { DayKey(iso: iso)?.startDate(in: .gmt) }
 
     private static func short(_ date: Date) -> String {
         let f = DateFormatter()
@@ -215,7 +212,7 @@ public struct GoalsView: View {
         self.now = now
     }
 
-    private var todayString: String { String(now().ISO8601Format().prefix(10)) }
+    private var todayString: String { DayKey.today(now: now()).iso }
 
     private var hero: GoalsHero? {
         GoalsBoard.hero(goals: board?.goals, latestKg: board?.latestKg, avgDeficit7d: board?.avgDeficit7d,
