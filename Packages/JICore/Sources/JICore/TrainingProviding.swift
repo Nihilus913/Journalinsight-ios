@@ -31,20 +31,21 @@ public protocol TrainingProviding: Sendable {
     func planWeek(start: String) async throws -> PlanWeekOut
 
     // W-B38-A A-8 — the strength log (`/api/v1/planning/strength-sessions`, HT
-    // `app/planning/strength_log.py`). `{id}` is the hub's `session_log_id`. Every write is
+    // `app/planning/strength_log.py`). `{id}` is the session's `client_id` (the uuid the offline phone already knows; the hub
+    // also accepts its numeric `session_log_id`). Every write is
     // idempotent on its `client_id`, so a replayed outbox row never doubles. All defaulted:
     // a provider without the routes throws `StrengthLogUnavailable` (the outbox keeps the row).
 
     /// `POST /strength-sessions`
     func createStrengthSession(_ body: StrengthSessionCreate) async throws -> StrengthSessionOut
     /// `POST /strength-sessions/{id}/sets`
-    func logStrengthSet(sessionLogId: Int, _ body: StrengthSetIn) async throws -> StrengthWriteAck
+    func logStrengthSet(session: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck
     /// `PUT /strength-sessions/{id}/sets/{client_id}` (edit, gap #31)
-    func updateStrengthSet(sessionLogId: Int, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck
+    func updateStrengthSet(session: String, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck
     /// `DELETE /strength-sessions/{id}/sets/{client_id}`
-    func deleteStrengthSet(sessionLogId: Int, clientId: String) async throws
+    func deleteStrengthSet(session: String, clientId: String) async throws
     /// `POST /strength-sessions/{id}/complete` — `advance` = the explicit app-computed moves.
-    func completeStrengthSession(sessionLogId: Int, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut
+    func completeStrengthSession(session: String, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut
     /// `GET /strength-sessions?from&to` (history)
     func strengthSessions(from: String, to: String) async throws -> [StrengthSessionOut]
     /// `GET /strength-sessions/last-sets?exercise_key=` (gap #29)
@@ -65,10 +66,10 @@ public extension TrainingProviding {
     }
 
     func createStrengthSession(_ body: StrengthSessionCreate) async throws -> StrengthSessionOut { throw StrengthLogUnavailable() }
-    func logStrengthSet(sessionLogId: Int, _ body: StrengthSetIn) async throws -> StrengthWriteAck { throw StrengthLogUnavailable() }
-    func updateStrengthSet(sessionLogId: Int, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck { throw StrengthLogUnavailable() }
-    func deleteStrengthSet(sessionLogId: Int, clientId: String) async throws { throw StrengthLogUnavailable() }
-    func completeStrengthSession(sessionLogId: Int, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut { throw StrengthLogUnavailable() }
+    func logStrengthSet(session: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck { throw StrengthLogUnavailable() }
+    func updateStrengthSet(session: String, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck { throw StrengthLogUnavailable() }
+    func deleteStrengthSet(session: String, clientId: String) async throws { throw StrengthLogUnavailable() }
+    func completeStrengthSession(session: String, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut { throw StrengthLogUnavailable() }
     func strengthSessions(from: String, to: String) async throws -> [StrengthSessionOut] { throw StrengthLogUnavailable() }
     func strengthLastSets(exerciseKey: String) async throws -> [StrengthSetOut] { throw StrengthLogUnavailable() }
 }

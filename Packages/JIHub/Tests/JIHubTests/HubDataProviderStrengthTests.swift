@@ -46,13 +46,13 @@ extension HubClientTests {
         StubURLProtocol.methodResponses["PUT /api/v1/planning/strength-sessions/12/sets/s-1"] = (200, Data(#"{"set_log_id": 5}"#.utf8))
         StubURLProtocol.methodResponses["DELETE /api/v1/planning/strength-sessions/12/sets/s-1"] = (204, Data())
         let p = strengthProvider()
-        let ack = try await p.logStrengthSet(sessionLogId: 12, set)
+        let ack = try await p.logStrengthSet(session: "12", set)
         #expect(ack.setLogId == 5)
         let sent = try body(StubURLProtocol.lastRequest)
         #expect(sent["exercise_key"] as? String == "Barbell Bench Press")
         #expect(sent["weight_kg"] as? Double == 52.5 && sent["set_index"] as? Int == 1 && sent["rpe"] as? Double == 8)
-        _ = try await p.updateStrengthSet(sessionLogId: 12, clientId: "s-1", set)
-        try await p.deleteStrengthSet(sessionLogId: 12, clientId: "s-1")
+        _ = try await p.updateStrengthSet(session: "12", clientId: "s-1", set)
+        try await p.deleteStrengthSet(session: "12", clientId: "s-1")
         #expect(StubURLProtocol.log == [
             "POST /api/v1/planning/strength-sessions/12/sets",
             "PUT /api/v1/planning/strength-sessions/12/sets/s-1",
@@ -63,7 +63,7 @@ extension HubClientTests {
     @Test func completeSendsTheExplicitAdvanceList() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.methodResponses["POST /api/v1/planning/strength-sessions/12/complete"] = (200, Data(#"{"session_log_id": 12, "ended_at": "2026-10-03T08:00:00+00:00"}"#.utf8))
-        _ = try await strengthProvider().completeStrengthSession(sessionLogId: 12, StrengthSessionComplete(
+        _ = try await strengthProvider().completeStrengthSession(session: "12", StrengthSessionComplete(
             endedAt: "2026-10-03T08:00:00Z", advance: [StrengthAdvance(exerciseId: 7, currentWeightKg: 55)]))
         let sent = try body(StubURLProtocol.lastRequest)
         let advance = try #require(sent["advance"] as? [[String: Any]])
@@ -75,7 +75,7 @@ extension HubClientTests {
     @Test func completeWithAZeroAdvanceIsRefusedBeforeSending() async throws {
         StubURLProtocol.reset()
         await #expect(throws: StrengthAdvanceWouldClear(exerciseId: 7)) {
-            _ = try await self.strengthProvider().completeStrengthSession(sessionLogId: 12, StrengthSessionComplete(
+            _ = try await self.strengthProvider().completeStrengthSession(session: "12", StrengthSessionComplete(
                 endedAt: "2026-10-03T08:00:00Z", advance: [StrengthAdvance(exerciseId: 7, currentWeightKg: 0)]))
         }
         #expect(StubURLProtocol.log.isEmpty)
@@ -84,7 +84,7 @@ extension HubClientTests {
     @Test func emptyAdvanceIsSentAsAnEmptyList() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.methodResponses["POST /api/v1/planning/strength-sessions/12/complete"] = (200, Data("{}".utf8))
-        _ = try await strengthProvider().completeStrengthSession(sessionLogId: 12, StrengthSessionComplete(endedAt: "2026-10-03T08:00:00Z", advance: []))
+        _ = try await strengthProvider().completeStrengthSession(session: "12", StrengthSessionComplete(endedAt: "2026-10-03T08:00:00Z", advance: []))
         #expect((try body(StubURLProtocol.lastRequest)["advance"] as? [Any])?.isEmpty == true)
     }
 

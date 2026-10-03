@@ -12,23 +12,23 @@ extension HubDataProvider {
         try await client.send("POST", "/api/v1/planning/strength-sessions", body: body)
     }
 
-    public func logStrengthSet(sessionLogId: Int, _ body: StrengthSetIn) async throws -> StrengthWriteAck {
-        try await client.send("POST", "/api/v1/planning/strength-sessions/\(sessionLogId)/sets", body: body)
+    public func logStrengthSet(session: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck {
+        try await client.send("POST", "/api/v1/planning/strength-sessions/\(session)/sets", body: body)
     }
 
-    public func updateStrengthSet(sessionLogId: Int, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck {
-        try await client.send("PUT", "/api/v1/planning/strength-sessions/\(sessionLogId)/sets/\(clientId)", body: body)
+    public func updateStrengthSet(session: String, clientId: String, _ body: StrengthSetIn) async throws -> StrengthWriteAck {
+        try await client.send("PUT", "/api/v1/planning/strength-sessions/\(session)/sets/\(clientId)", body: body)
     }
 
-    public func deleteStrengthSet(sessionLogId: Int, clientId: String) async throws {
-        try await client.delete("/api/v1/planning/strength-sessions/\(sessionLogId)/sets/\(clientId)")
+    public func deleteStrengthSet(session: String, clientId: String) async throws {
+        try await client.delete("/api/v1/planning/strength-sessions/\(session)/sets/\(clientId)")
     }
 
-    public func completeStrengthSession(sessionLogId: Int, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut {
+    public func completeStrengthSession(session: String, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut {
         if let bad = body.advance.first(where: { !($0.currentWeightKg.isFinite && $0.currentWeightKg > 0) }) {
             throw StrengthAdvanceWouldClear(exerciseId: bad.exerciseId)
         }
-        return try await client.send("POST", "/api/v1/planning/strength-sessions/\(sessionLogId)/complete", body: body)
+        return try await client.send("POST", "/api/v1/planning/strength-sessions/\(session)/complete", body: body)
     }
 
     public func strengthSessions(from: String, to: String) async throws -> [StrengthSessionOut] {
