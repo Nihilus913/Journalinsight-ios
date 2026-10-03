@@ -33,8 +33,20 @@ public nonisolated func stalenessBannerText(lastTime: String) -> String {
 }
 
 /// The short clock time every staleness face prints ("07:41" / "7:41 AM" per locale).
-public nonisolated func jiShortTime(_ date: Date) -> String {
-    date.formatted(date: .omitted, time: .shortened)
+/// W-FIX12 F12-2: the ONE clock formatter — the sync pill (`syncedPillText`) prints through it too,
+/// so offline and synced faces never disagree for the same instant. Root cause of "9:00" vs
+/// "09:00": `Date.FormatStyle(time: .shortened)` drops the hour's leading zero in en_GB / de_DE
+/// ("9:00") while the locale's short time style is "09:00" (the pill hand-formatted "%02d:%02d").
+/// This reads the locale's own short time style; the calendar carries locale and time zone
+/// (nil locale = the device's).
+public nonisolated func jiShortTime(_ date: Date, calendar: Calendar = .autoupdatingCurrent) -> String {
+    let f = DateFormatter()
+    f.locale = calendar.locale ?? .autoupdatingCurrent
+    f.calendar = calendar
+    f.timeZone = calendar.timeZone
+    f.dateStyle = .none
+    f.timeStyle = .short
+    return f.string(from: date)
 }
 
 /// Mockup 57's title-row pill: amber dot + "Offline · last 07:41". Amber is a STATUS use of
@@ -46,7 +58,7 @@ public struct OfflinePill: View {
     @Environment(\.jiSyncedAt) private var syncedAt
     public init(fetchedAt: Date?, now: Date = Date()) { self.fetchedAt = fetchedAt; self.now = now }
 
-    private var lastTime: String? { offlinePillLastDate(syncedAt: syncedAt, fetchedAt: fetchedAt).map(jiShortTime) }
+    private var lastTime: String? { offlinePillLastDate(syncedAt: syncedAt, fetchedAt: fetchedAt).map { jiShortTime($0) } }
 
     public var body: some View {
         HStack(spacing: JISpacing.s1 + 2) {
