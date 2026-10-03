@@ -100,16 +100,17 @@ public nonisolated enum GoalsBoard {
     }
 
     public static func targets(goals: Goals?, macros: MacroGoals?, yesterdayKcal: Double?, yesterdayProteinG: Double?,
-                               yesterdaySteps: Double?, week: TrainingWeekSummary? = nil) -> [GoalsTargetRow] {
+                               yesterdaySteps: Double?, week: TrainingWeekSummary? = nil,
+                               kcalSuffix: String = "", proteinSuffix: String = "", stepsSuffix: String = "") -> [GoalsTargetRow] {
         let missing = "— \(JIMissingReason.noData.rawValue)"
         let noGoal = "No goal set"
         let kcalGoal = macros?.targetKcal, proteinGoal = macros?.proteinG
         var rows: [GoalsTargetRow] = [
             GoalsTargetRow(title: "Calories", subtitle: int(kcalGoal).map { "goal \($0) a day" } ?? MacroGoals.setGoalCopy,
-                           value: int(yesterdayKcal).map { "\($0) kcal" } ?? missing,
+                           value: int(yesterdayKcal).map { "\($0) kcal\(kcalSuffix)" } ?? missing,
                            status: status(yesterdayKcal, goal: kcalGoal, floorOnly: false)),
             GoalsTargetRow(title: "Protein", subtitle: int(proteinGoal).map { "goal \($0) g a day" } ?? MacroGoals.setGoalCopy,
-                           value: int(yesterdayProteinG).map { "\($0) g" } ?? missing,
+                           value: int(yesterdayProteinG).map { "\($0) g\(proteinSuffix)" } ?? missing,
                            status: status(yesterdayProteinG, goal: proteinGoal, floorOnly: true)),
             trainingPlanRow(week),
         ]
@@ -118,7 +119,7 @@ public nonisolated enum GoalsBoard {
         }
         let stepsGoal = goals?.stepsDaily.map(Double.init)
         rows.append(GoalsTargetRow(title: "Daily steps", subtitle: int(stepsGoal).map { "goal \($0) a day" } ?? noGoal,
-                                   value: int(yesterdaySteps) ?? missing,
+                                   value: int(yesterdaySteps).map { "\($0)\(stepsSuffix)" } ?? missing,
                                    status: status(yesterdaySteps, goal: stepsGoal, floorOnly: true)))
         return rows
     }
@@ -144,6 +145,9 @@ public nonisolated func goalsFromTargets(_ doc: TargetsDocument?, hub: Goals?) -
 }
 
 /// W-FIX2 BUG-41: what More → Goals shows, gathered by the shell from the models it already loads.
+/// W-FIX12 F12-1 (H2-23): the `yesterday*` values are each metric's LATEST reading (the builder
+/// `GoalsBoardInputs.build`), each with the day it was taken (`*Date`, ISO) so the board says
+/// "79.5 kg · 29 Sep" instead of a blank the moment yesterday has no row.
 public nonisolated struct GoalsBoardInput: Sendable, Equatable {
     public var goals: Goals?
     public var latestKg: Double?
@@ -152,10 +156,36 @@ public nonisolated struct GoalsBoardInput: Sendable, Equatable {
     public var yesterdayKcal: Double?
     public var yesterdayProteinG: Double?
     public var yesterdaySteps: Double?
+    /// W-FIX12 F12-1: the day of each reading (nil/"" = no single day, e.g. the gate's 7-day weight average).
+    public var latestKgDate: String?
+    public var kcalDate: String?
+    public var proteinDate: String?
+    public var stepsDate: String?
+    /// The local day the board calls "today" (nil = dates are never named "today").
+    public var today: String?
     public init(goals: Goals?, latestKg: Double?, avgDeficit7d: Double?, trackingDays: Int,
-                yesterdayKcal: Double?, yesterdayProteinG: Double?, yesterdaySteps: Double?) {
+                yesterdayKcal: Double?, yesterdayProteinG: Double?, yesterdaySteps: Double?,
+                latestKgDate: String? = nil, kcalDate: String? = nil, proteinDate: String? = nil, stepsDate: String? = nil,
+                today: String? = nil) {
         self.goals = goals; self.latestKg = latestKg; self.avgDeficit7d = avgDeficit7d; self.trackingDays = trackingDays
         self.yesterdayKcal = yesterdayKcal; self.yesterdayProteinG = yesterdayProteinG; self.yesterdaySteps = yesterdaySteps
+        self.latestKgDate = latestKgDate; self.kcalDate = kcalDate; self.proteinDate = proteinDate; self.stepsDate = stepsDate
+        self.today = today
+    }
+
+    /// W-FIX12 F12-1: "79.5 kg · 29 Sep" — the latest weigh-in with its day; nil without one.
+    public var latestWeightText: String? {
+        guard let kg = latestKg, kg.isFinite, kg > 0 else { return nil }
+        return String(format: "%.1f kg", kg) + GoalsBoardInputs.dateSuffix(latestKgDate, today: today)
+    }
+
+    /// The supporting rows, each value dated ("1,619 kcal · 30 Sep").
+    public func targetRows(macros: MacroGoals?, week: TrainingWeekSummary? = nil) -> [GoalsTargetRow] {
+        GoalsBoard.targets(goals: goals, macros: macros, yesterdayKcal: yesterdayKcal, yesterdayProteinG: yesterdayProteinG,
+                           yesterdaySteps: yesterdaySteps, week: week,
+                           kcalSuffix: GoalsBoardInputs.dateSuffix(kcalDate, today: today),
+                           proteinSuffix: GoalsBoardInputs.dateSuffix(proteinDate, today: today),
+                           stepsSuffix: GoalsBoardInputs.dateSuffix(stepsDate, today: today))
     }
 }
 
@@ -215,9 +245,9 @@ public struct GoalsView: View {
                 }
                 JISectionHeader("Supporting goals · yours")
                 Surface(level: 1, padding: 0) {
-                    let rows = GoalsBoard.targets(goals: board?.goals, macros: nutritionGoals.macros, yesterdayKcal: board?.yesterdayKcal,
-                                                  yesterdayProteinG: board?.yesterdayProteinG, yesterdaySteps: board?.yesterdaySteps,
-                                                  week: week)
+                    let rows = board?.targetRows(macros: nutritionGoals.macros, week: week)
+                        ?? GoalsBoard.targets(goals: nil, macros: nutritionGoals.macros, yesterdayKcal: nil,
+                                              yesterdayProteinG: nil, yesterdaySteps: nil, week: week)
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             if index > 0 { JIRowDivider().padding(.leading, 0) }
@@ -294,6 +324,11 @@ public struct GoalsView: View {
                 Text(board?.latestKg.map { String(format: "%.1f", $0) } ?? hero.startText.replacingOccurrences(of: " kg", with: ""))
                     .jiNumeral(.numeralLarge, weight: .heavy, tint: .text)
                 Text("→ \(hero.targetText) kg").jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
+            }
+            // W-FIX12 F12-1 (H2-23): the big number is the latest weigh-in — say which day it is.
+            if let latest = board?.latestWeightText {
+                Text("latest \(latest)").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("goals-hero-latest")
             }
             // W-GUI M4 (mockup 39): start → latest → goal as a bar; no bar without the three numbers.
             if let f = goalsProgressFraction(startText: hero.startText, latestKg: board?.latestKg, targetText: hero.targetText) {

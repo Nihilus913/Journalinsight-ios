@@ -913,22 +913,18 @@ struct RootTabView: View {
     }
 
     /// W-FIX2 BUG-41: the Goals board's inputs, from the models More already loads.
+    /// W-FIX12 F12-1 (H2-23): each metric's LATEST reading with its date (`GoalsBoardInputs`) —
+    /// no more yesterday-only lookups that went blank when yesterday had no row.
     private var moreGoalsBoard: GoalsBoardInput? {
         guard let energyModel, energyModel.goals != nil || energyModel.hasLiveResult || savedGoals != nil || targetsModel != nil else { return nil }
         let gate = todayModel?.gate
-        let yesterday = String(Calendar.current.date(byAdding: .day, value: -1, to: Date())!.ISO8601Format().prefix(10))
-        let nutrition = nutritionModel?.week.first { $0.date == yesterday }
-        let energyDay = energyModel.report?.days.first { $0.date == yesterday }
-        let stepsRow = gate?.daily.first { $0.date == yesterday }
-        return GoalsBoardInput(
+        return GoalsBoardInputs.build(
             goals: goalsFromTargets(targetsModel?.storedDocument, hub: goalsShown(hub: energyModel.goals, saved: savedGoals)),
-            latestKg: KpiMetrics.latest(for: .weight, recovery: [], nutrition: [], dailyRows: gate?.daily ?? [], gateAverages: gate?.averages)?.value,
+            dailyRows: gate?.daily ?? [], gateAverages: gate?.averages,
+            nutrition: nutritionModel?.week ?? [], energyDays: energyModel.report?.days ?? [],
             avgDeficit7d: energyModel.report?.avgDeficitCorrected7d,
             trackingDays: energyModel.report?.trackingDays ?? 0,
-            yesterdayKcal: nutrition?.kcalConsumed ?? energyDay?.kcalConsumed,
-            yesterdayProteinG: nutrition?.proteinG,
-            yesterdaySteps: stepsRow?.values["steps"] ?? nil
-        )
+            today: energyTodayISO())
     }
 
     private func loadMoreSummaries() async {
