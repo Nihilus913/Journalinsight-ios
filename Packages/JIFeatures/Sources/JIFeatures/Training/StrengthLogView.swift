@@ -13,6 +13,8 @@ public struct StrengthLogView: View {
     @State private var editing: StrengthSetLog?
     @State private var showPlates = false
     @State private var showHistory = false
+    /// W-B38-B B-10: the exercise library, whose pick adds an exercise to this session.
+    @State private var showLibrary = false
     private let theme = JITheme.native
 
     public init(model: StrengthLogViewModel, history: StrengthHistoryViewModel? = nil) {
@@ -46,6 +48,8 @@ public struct StrengthLogView: View {
         .navigationTitle(model.sessionName ?? "Log sets")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                Button { showLibrary = true } label: { Label("Add exercise", systemImage: "plus") }
+                    .accessibilityIdentifier("strength-log-add-exercise")
                 Button { showPlates = true } label: { Label("Plates", systemImage: "circle.grid.2x1") }
                     .accessibilityIdentifier("strength-log-plates")
                 if history != nil {
@@ -61,6 +65,9 @@ public struct StrengthLogView: View {
             } onDelete: { model.deleteSet(set) }
         }
         .sheet(isPresented: $showPlates) { StrengthPlatesSheet(inventory: model.plates) { model.savePlates($0) } }
+        .navigationDestination(isPresented: $showLibrary) {
+            ExerciseLibraryView(model: ExerciseLibraryViewModel(options: WorkoutExerciseCatalogue.known) { model.addExercise($0) })
+        }
         .navigationDestination(isPresented: $showHistory) {
             if let history { StrengthHistoryView(model: history) }
         }
@@ -140,6 +147,7 @@ struct StrengthExerciseCard: View {
     @State private var seconds = 0
     @State private var rpe: Double?
     @State private var primed = false
+    @State private var showCalculator = false   // W-B38-B B-9
     private let theme = JITheme.native
 
     var body: some View {
@@ -207,8 +215,18 @@ struct StrengthExerciseCard: View {
                 VStack(alignment: .leading, spacing: JISpacing.s2) { fields(timed: timed) }
             }
             if !timed {
-                Text(StrengthFormat.plates(model.plates(for: parsedKg))).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                    .accessibilityIdentifier("strength-plates-\(card.lift.exerciseKey)")
+                // W-B38-B B-9: the per-side line opens the plate calculator sheet for this weight.
+                Button { if parsedKg != nil { showCalculator = true } } label: {
+                    Label(StrengthFormat.plates(model.plates(for: parsedKg)), systemImage: "circle.grid.2x1")
+                        .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                }
+                .buttonStyle(.plain)
+                .disabled(parsedKg == nil)
+                .accessibilityHint("Shows the plates for each side")
+                .accessibilityIdentifier("strength-plates-\(card.lift.exerciseKey)")
+                .sheet(isPresented: $showCalculator) {
+                    if let kg = parsedKg { PlateCalculatorSheet(model: PlateCalculatorViewModel(totalKg: kg, inventory: model.plates)) }
+                }
             }
             HStack {
                 Menu {

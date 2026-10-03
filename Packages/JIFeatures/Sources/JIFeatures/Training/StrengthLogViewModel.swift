@@ -165,6 +165,18 @@ public final class StrengthLogViewModel {
         recomputeDefaults()
     }
 
+    // MARK: library (W-B38-B B-10)
+
+    /// Adds an exercise picked in the exercise library to this session (once). It carries no plan
+    /// target — no weight is invented; defaults come from its last time, if any.
+    public func addExercise(_ option: ExerciseOption) {
+        guard !cards.contains(where: { $0.lift.exerciseKey == option.key }) else { return }
+        let lift = StrengthLogLift(exerciseId: nil, exerciseKey: option.key, sets: nil, repsTarget: nil, currentKg: nil, stepKg: nil, nextKg: nil)
+        let last = (try? store.lastSets(exerciseKey: option.key, before: today())) ?? []
+        cards.append(Card(lift: lift, sets: [], defaults: LastSetDefaults.resolve(sessionSets: [], planKg: nil, planReps: nil, lastSessionSets: []), lastTime: last))
+        reloadSets()
+    }
+
     // MARK: sets
 
     /// Logs one set of `exerciseKey`. A reps set needs reps > 0, a timed set a duration > 0

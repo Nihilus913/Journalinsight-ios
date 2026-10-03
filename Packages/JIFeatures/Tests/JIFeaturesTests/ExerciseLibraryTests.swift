@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JIPersistence
 @testable import JIFeatures
 
 /// W-B38-B B-10 — the exercise library browses the ONE catalogue (`WorkoutExerciseCatalogue`)
@@ -59,5 +60,22 @@ struct ExerciseLibraryTests {
         model.pick(model.entries[1])
         #expect(picked == [WorkoutExerciseCatalogue.known[1].key])
         #expect(model.lastPicked == WorkoutExerciseCatalogue.known[1].key)
+    }
+}
+
+/// B-10 exit: a library pick adds the exercise to the running logger session (once).
+@MainActor
+struct ExerciseLibraryPickTests {
+    @Test func pickAddsTheExerciseToTheLoggerOnce() throws {
+        let store = StrengthSessionLogStore(db: try AppDatabase.inMemory())
+        let log = StrengthLogViewModel(lifts: [], sessionId: nil, sessionName: nil, store: store, outbox: nil, provider: nil,
+                                       prefs: nil, today: { "2026-10-05" })
+        let library = ExerciseLibraryViewModel(options: WorkoutExerciseCatalogue.known) { log.addExercise($0) }
+        let plank = try #require(library.entries.first { $0.option.key == "Plank" })
+        library.pick(plank)
+        library.pick(plank)
+        #expect(log.cards.map(\.lift.exerciseKey) == ["Plank"])
+        #expect(log.cards.first?.lift.nextKg == nil)   // no invented weight for a library extra
+        #expect(log.logSet(exerciseKey: "Plank", weightKg: nil, reps: 30) != nil)
     }
 }
