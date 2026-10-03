@@ -37,29 +37,31 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
         let pts = daily.map { (date: $0.date, value: $0.values[key] ?? nil) }
         return (trendAverage(pts, days: trendRecentDays), pts)
     }
-    func card(_ id: String, _ group: TrendsFilter, _ name: String, _ symbol: String, _ s: Series, unit: String?, decimals: Int = 0) -> TrendsCardModel {
+    func card(_ id: String, _ group: TrendsFilter, _ name: String, _ s: Series, unit: String?, decimals: Int = 0) -> TrendsCardModel {
         // B-57 W3: the band is the normal of the series the card averages; under 14 values it
         // stays "Calibrating" (a value) or "No data" (none).
         let normal = KpiNormal.make(points: s.points, today: today).normal
         // W-FIX11 H1-13: a nutrition mean over fewer than 7 logged days says how many it has.
         let logged = s.points.sorted { $0.date < $1.date }.suffix(trendRecentDays).compactMap(\.value).count
         let note = group == .nutrition && s.value != nil && logged < trendRecentDays ? "\(logged) of \(trendRecentDays) days logged" : nil
+        // W-KEYS D2r (Toby D2): the icon is the descriptor's, through the one alias map ("load" → acwr).
+        let symbol = KpiMetricId(normalizing: id).map { KpiMetrics.def($0).symbol } ?? "chart.line.uptrend.xyaxis"
         return TrendsCardModel(id: id, group: group, name: name, systemImage: symbol, unit: unit, decimals: decimals, value: s.value,
                                tint: metricTintRole(id), status: KpiNormal.status(value: s.value, normal: normal), normal: normal,
                                asOf: note)
     }
     /// W-FIX6 F6-8: an ACWR the hub really sent keeps the card; else the gate-input minutes.
     func loadCard() -> TrendsCardModel {
-        let acwr = card("load", .recovery, "Load", "bolt", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
+        let acwr = card("load", .recovery, "Load", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
         guard acwr.value == nil, let load else { return acwr }
-        return TrendsCardModel(id: "load", group: .recovery, name: "Load", systemImage: "bolt", unit: recoveryLoadUnit, decimals: 0,
+        return TrendsCardModel(id: "load", group: .recovery, name: "Load", systemImage: acwr.systemImage, unit: recoveryLoadUnit, decimals: 0,
                                value: load.minutes.rounded(), tint: metricTintRole("load"),
                                status: KpiNormal.status(value: load.minutes, normal: load.normal), normal: load.normal)
     }
     /// W-FIX6 F6-9: weigh-ins are sparse — with none in the last 7 days the card shows the last one
     /// with its date (the Today square's rule), never "No data" while a weight exists.
     func weightCard() -> TrendsCardModel {
-        var c = card("weight", .body, "Weight", "scalemass", day("weight_kg"), unit: "kg", decimals: 1)
+        var c = card("weight", .body, "Weight", day("weight_kg"), unit: "kg", decimals: 1)
         guard c.value == nil,
               let last = daily.filter({ ($0.values["weight_kg"] ?? nil)?.isFinite == true }).max(by: { $0.date < $1.date }),
               let kg = last.values["weight_kg"] ?? nil else { return c }
@@ -72,20 +74,20 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
     }
     return [
         // W-FIX1 BUG-06: nightly HRV only, never the hub's 7-day `hrv_weekly_avg` mix.
-        card("hrv", .recovery, "HRV", "waveform.path.ecg", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms"),
-        card("rhr", .recovery, "Resting HR", "heart", rec(\.rhrBpm), unit: "bpm"),
-        card("sleep", .recovery, "Sleep", "moon", rec { $0.sleepDurationSec.map { $0 / 3600 } }, unit: "h", decimals: 1),
+        card("hrv", .recovery, "HRV", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms"),
+        card("rhr", .recovery, "Resting HR", rec(\.rhrBpm), unit: "bpm"),
+        card("sleep", .recovery, "Sleep", rec { $0.sleepDurationSec.map { $0 / 3600 } }, unit: "h", decimals: 1),
         // W-FIX1 BUG-12: an ACWR of 0.00 is the hub's invented ratio (no load source) → "—".
         loadCard(),
         // W-FIX1 BUG-04/BUG-32: the macros are the mean of the last 7 daily rows (`gate.daily`),
         // the same value KpiDetail's "Last 7 days" shows — not the hub's `avg_*_7d`, which is
         // computed over the whole `window_days` (28 here), and carbs/fat are no longer "No data".
-        card("kcal", .nutrition, "Calories", "flame", day("kcal_consumed"), unit: "kcal"),
-        card("protein", .nutrition, "Protein", "fork.knife", day("protein_g"), unit: "g"),
-        card("carbs", .nutrition, "Carbs", "leaf", day("carbs_g"), unit: "g"),
-        card("fat", .nutrition, "Fat", "drop", day("fat_g"), unit: "g"),
+        card("kcal", .nutrition, "Calories", day("kcal_consumed"), unit: "kcal"),
+        card("protein", .nutrition, "Protein", day("protein_g"), unit: "g"),
+        card("carbs", .nutrition, "Carbs", day("carbs_g"), unit: "g"),
+        card("fat", .nutrition, "Fat", day("fat_g"), unit: "g"),
         weightCard(),
-        card("steps", .body, "Steps", "figure.walk", day("steps"), unit: nil),
+        card("steps", .body, "Steps", day("steps"), unit: nil),
     ]
 }
 

@@ -32,55 +32,26 @@ public nonisolated enum TodayTileRegistry {
     /// `KpiMetricId` raw values, so a tap lands on the same KPI). Tests pin this against a live VM.
     /// W-FIX3 C-a: then every other KPI My KPIs can tick (`optInIds`, hidden until picked), so the
     /// two screens can never disagree — every `KpiMetricId` is a possible Today square.
-    public static let ids: [String] = ["hrv", "rhr", "sleep", "steps", "acwr", "protein", "kcal", "weight"] + optInIds
+    /// W-KEYS D2r: the squares as metrics; `ids` is derived from them (no string list of its own).
+    public static let metrics: [KpiMetricId] = [.hrv, .rhr, .sleep, .steps, .acwr, .protein, .kcal, .weight] + optInMetrics
+    public static let ids: [String] = metrics.map(\.rawValue)
     /// Squares added in W-FIX3; a stored set that predates them gets them hidden, never pushed on Today.
-    public static let optInIds: [String] = ["body_battery", "readiness", "carbs", "fat"]
+    public static let optInMetrics: [KpiMetricId] = [.bodyBattery, .readiness, .carbs, .fat]
+    public static let optInIds: [String] = optInMetrics.map(\.rawValue)
 
-    /// RN `TODAY_TILE_LABELS` — `TodayChip.label` for each id.
+    /// RN `TODAY_TILE_LABELS` — `TodayChip.label` for each id. W-KEYS D2r: `KpiMetricDef.shortLabel`.
     public static func label(for id: String) -> String {
-        switch id {
-        case "hrv": "HRV"
-        case "rhr": "RHR"
-        case "sleep": "Sleep"
-        case "steps": "Steps"
-        case "acwr": "Load"
-        case "protein": "Protein"
-        case "kcal": "Calories"
-        case "weight": "Weight"
-        case "body_battery": "Body Battery"
-        case "readiness": "Readiness"
-        case "carbs": "Carbs"
-        case "fat": "Fat"
-        default: id
-        }
+        KpiMetricId(rawValue: id).map { KpiMetrics.def($0).shortLabel } ?? id
     }
 
-    /// Decimals the square prints (board: Weight 80.2 kg; ACWR is a two-place ratio).
+    /// Decimals the square prints (board: Weight 80.2 kg; ACWR is a two-place ratio) — the KPI's own.
     public static func decimals(for id: String) -> Int {
-        switch id {
-        case "weight": 1
-        case "acwr": 2
-        default: 0
-        }
+        KpiMetricId(rawValue: id).map { KpiMetrics.def($0).decimals } ?? 0
     }
 
-    /// B-57 W1: the square's icon (board EditToday).
+    /// B-57 W1: the square's icon (board EditToday). W-KEYS D2r: the descriptor's one symbol.
     public static func systemImage(for id: String) -> String {
-        switch id {
-        case "hrv": "waveform.path.ecg"
-        case "rhr": "heart"
-        case "sleep": "moon"
-        case "steps": "figure.walk"
-        case "acwr": "bolt"
-        case "protein": "fork.knife"
-        case "kcal": "flame"
-        case "weight": "scalemass"
-        case "body_battery": "battery.75percent"
-        case "readiness": "gauge.medium"
-        case "carbs": "leaf"
-        case "fat": "drop"
-        default: "square"
-        }
+        KpiMetricId(rawValue: id).map { KpiMetrics.def($0).symbol } ?? "square"
     }
 }
 
