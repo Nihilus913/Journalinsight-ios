@@ -35,6 +35,23 @@ import JICore
         #expect(StubURLProtocol.lastRequest?.url?.query == "window_days=28")
     }
 
+    /// W-KEYS K5 (D1): every app → hub request names the phone's zone so the hub keys "today" by it.
+    @Test func sendsTimeZoneHeader() async throws {
+        let auckland = HubClient(config: ConnectionConfig(baseURL: URL(string: "http://hub.test:8000")!, token: "t0k"),
+                                 session: StubURLProtocol.session(),
+                                 timeZone: { TimeZone(identifier: "Pacific/Auckland")! })
+        StubURLProtocol.responses["/api/v1/ingestion/status"] = (200, Data("{\"last_sync\":null}".utf8))
+        let _: SyncStatus = try await auckland.get("/api/v1/ingestion/status")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-JI-TZ") == "Pacific/Auckland")
+        let _: SyncStatus = try await auckland.post("/api/v1/ingestion/status", body: ["a": 1])
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-JI-TZ") == "Pacific/Auckland")
+        try await auckland.delete("/api/v1/ingestion/status")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-JI-TZ") == "Pacific/Auckland")
+        // default: the phone's current zone
+        let _: SyncStatus = try await client().get("/api/v1/ingestion/status")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-JI-TZ") == TimeZone.current.identifier)
+    }
+
     @Test func configRoundTripsThroughSecretStore() throws {
         let store = ConnectionConfigStore(secrets: InMemorySecretStore())
         #expect(try store.load() == nil)
