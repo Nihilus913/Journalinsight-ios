@@ -54,13 +54,15 @@ public final class StrengthBridgeStoreSink: StrengthSessionLogSink {
         afterWrite()
     }
 
-    /// The Watch ends the session: `ended_at` locally + a complete with NO advance (progression
-    /// is the phone logger's explicit choice, A-3; a Watch session never moves targets by itself).
+    /// The Watch ends the session: `ended_at` + the saved HKWorkout uuid locally, and a complete
+    /// carrying that uuid (B-2 → `plan.strength_session.hk_workout_uuid`) with NO advance
+    /// (progression is the phone logger's explicit choice, A-3; a Watch session never moves targets).
     public func bridgeSessionEnded(_ end: StrengthBridgeSessionEnd) async {
         let session = end.sessionClientId.uuidString.lowercased()
         let endedAt = end.endedAt.ISO8601Format()
-        try? store.complete(sessionClientId: session, endedAt: endedAt)
-        queue?.enqueue(.complete(session: session, StrengthSessionComplete(endedAt: endedAt, advance: [])))
+        let workout = end.hkWorkoutUUID?.uuidString.lowercased()
+        try? store.complete(sessionClientId: session, endedAt: endedAt, hkWorkoutUuid: workout)
+        queue?.enqueue(.complete(session: session, StrengthSessionComplete(endedAt: endedAt, advance: [], hkWorkoutUuid: workout)))
         afterWrite()
     }
 

@@ -39,6 +39,25 @@ struct StrengthBridgeWiringTests {
         #expect(try store.sets(sessionClientId: sid).isEmpty)
     }
 
+    /// W-B38-B B-2 (fixer): the Watch's saved HKWorkout uuid reaches the local log AND the hub
+    /// complete (`plan.strength_session.hk_workout_uuid`), lowercased like every client id.
+    @Test func sessionEndCarriesTheHKWorkoutUUIDToStoreAndHub() async throws {
+        let db = try AppDatabase.inMemory()
+        let store = StrengthSessionLogStore(db: db)
+        let hub = StrengthFakeHub()
+        let queue = StrengthOutbox(outbox: Outbox(db: db), provider: hub)
+        let sink = StrengthBridgeStoreSink(store: store, queue: queue)
+        let session = UUID(), workout = UUID()
+        await sink.bridgeSessionStarted(StrengthBridgeSessionStart(sessionClientId: session, planSessionId: 4, date: "2026-10-05", startedAt: t0))
+        await sink.bridgeSessionEnded(StrengthBridgeSessionEnd(sessionClientId: session, endedAt: t0 + 3600, hkWorkoutUUID: workout))
+        let sid = session.uuidString.lowercased()
+        #expect(try store.session(clientId: sid)?.hkWorkoutUuid == workout.uuidString.lowercased())
+        await queue.drainOnce()
+        #expect(hub.completes.count == 1)
+        #expect(hub.completes.first?.1.hkWorkoutUuid == workout.uuidString.lowercased())
+        #expect(hub.completes.first?.1.advance == [])
+    }
+
     @Test func planDownCarriesPrefillAndTheUsersLimit() {
         let lifts = [
             StrengthLogLift(exerciseId: 11, exerciseKey: "Barbell Bench Press", sets: 3, repsTarget: "8", currentKg: 50, stepKg: 2.5, nextKg: 52.5),

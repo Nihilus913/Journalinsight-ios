@@ -81,6 +81,17 @@ extension HubClientTests {
         #expect(StubURLProtocol.log.isEmpty)
     }
 
+    /// W-B38-B B-2: the Watch's HKWorkout uuid rides the complete; absent = key omitted.
+    @Test func completeCarriesTheHKWorkoutUUIDOnlyWhenSet() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.methodResponses["POST /api/v1/planning/strength-sessions/12/complete"] = (200, Data("{}".utf8))
+        _ = try await strengthProvider().completeStrengthSession(session: "12", StrengthSessionComplete(
+            endedAt: "2026-10-03T08:00:00Z", advance: [], hkWorkoutUuid: "5f0c0c7e-0000-4000-8000-000000000001"))
+        #expect(try body(StubURLProtocol.lastRequest)["hk_workout_uuid"] as? String == "5f0c0c7e-0000-4000-8000-000000000001")
+        _ = try await strengthProvider().completeStrengthSession(session: "12", StrengthSessionComplete(endedAt: "2026-10-03T08:00:00Z", advance: []))
+        #expect(try body(StubURLProtocol.lastRequest)["hk_workout_uuid"] == nil)
+    }
+
     @Test func emptyAdvanceIsSentAsAnEmptyList() async throws {
         StubURLProtocol.reset()
         StubURLProtocol.methodResponses["POST /api/v1/planning/strength-sessions/12/complete"] = (200, Data("{}".utf8))
