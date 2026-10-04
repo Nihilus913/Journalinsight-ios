@@ -168,7 +168,11 @@ final class AppEnvironment {
         activeBaseURL = config.baseURL
         let hubClient = HubClient(config: config)
         activeHubClient = hubClient
-        let provider = HubDataProvider(client: hubClient)
+        // B-44 Option B: the trigger + overlay first (no-op unless enabled; ON in Release), fed the
+        // hub WITHOUT the overlay (shadow log's hub column, upload target); then the hub provider
+        // every screen reads, whose verdict is the on-device one when the phone has it.
+        OnDeviceVerdictWiring.install(hub: HubDataProvider(client: hubClient))
+        let provider = HubDataProvider(client: hubClient, verdictOverlay: OnDeviceVerdictWiring.overlay)
         hubProvider = provider
         let store: ProviderStore
         if let existing = providerStore { existing.provider = provider; store = existing } else { store = ProviderStore(provider: provider); providerStore = store }
@@ -176,8 +180,6 @@ final class AppEnvironment {
         // connection's hub provider and re-apply the persisted choice. Release builds always
         // land on the hub — see `JIFeatures.ProviderSwitch.install`.
         ProviderSelection.install(store: store, hub: provider, prefs: prefs)
-        // W-ONDEVICE O-9: the on-device verdict trigger (no-op unless enabled; Release never).
-        OnDeviceVerdictWiring.install(hub: provider)
         // W5b-L1 (P-data-quality) close-out wiring: the Data Quality screen (Settings row + the
         // Today freshness-badge tap) reads its provider from this seam; nil = honest "not wired".
         DataQualityAccess.shared.install(provider)

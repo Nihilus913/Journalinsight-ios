@@ -129,6 +129,9 @@ extension HubClientTests {
         "HubDataProvider+VerdictOverride.swift: DELETE /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+TrainingBreak.swift: PUT /api/v1/planning/training-break": "the one open break (W-B91 user toggle)",
         "HubDataProvider+Push.swift: POST /api/v1/planning/push-token": "upsert this device's token",
+        // B-44 Option B: the phone's morning verdict, upserted per date beside the hub's own.
+        "HubDataProvider+OnDeviceVerdict.swift: POST /api/v1/planning/ondevice-verdict":
+            "one day's on-device verdict (required date + non-empty verdict); never touches plan.morning_verdict",
         // W-B40 X-1 (XC half): the workout library's writes — see HubDataProviderWorkoutsTests.
         "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates":
             "create one template; a segment-less draft is refused before sending (WorkoutTemplateWouldClear)",
