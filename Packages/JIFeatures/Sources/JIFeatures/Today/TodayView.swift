@@ -182,6 +182,15 @@ public struct TodayView: View {
         }
         JISectionHeader("Next")
         nextCard
+        // W-FIX13 F-8 (B-71): after Go / Adjust the gate arcs stay — the same rows Decide showed.
+        if let arcs = dayGateArcSignals(morningState: model.morningState, gateSignals: model.morning?.gateSignals) {
+            JISectionHeader("What drove it")
+            Surface(level: 1, padding: 0) {
+                DecideSignalsSection(signals: arcs, normals: decideSignalNormals(recovery: model.recovery))
+                    .padding(.horizontal, JISpacing.s4).padding(.vertical, JISpacing.s2)
+            }
+            .accessibilityIdentifier("today.day.gateArcs")
+        }
         HStack(alignment: .firstTextBaseline) {
             JISectionHeader(dayFuelTitle(asOf: dayFuel(daily: model.gate?.daily ?? [], today: todayDateString).asOf))
             Spacer(minLength: JISpacing.s2)

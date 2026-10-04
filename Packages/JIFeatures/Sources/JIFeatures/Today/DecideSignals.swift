@@ -170,6 +170,15 @@ public nonisolated func decideRecoveryNormals(hrv: PersonalNormalResult?, rhr: P
 }
 
 /// Decide's "Why" block: one SignalRow per hub signal; tapping opens the gate rationale.
+/// W-FIX13 F-8 (B-71): the arcs the Day shows once the call is answered (Coach / Day) — the same
+/// rows Decide's "What drove it" showed, so the why stays for the rest of the day. nil in Decide
+/// (it shows its own) and when the hub sent no signals.
+public nonisolated func dayGateArcSignals(morningState: TodayMorningState, gateSignals: [GateSignal]?) -> [GateSignal]? {
+    guard morningState != .decide, let gateSignals else { return nil }
+    let arcs = RecoveryScoreCard.visibleSignals(gateSignals)
+    return arcs.isEmpty ? nil : arcs
+}
+
 public struct DecideSignalsSection: View {
     let signals: [GateSignal]
     let normals: [String: ClosedRange<Double>]
