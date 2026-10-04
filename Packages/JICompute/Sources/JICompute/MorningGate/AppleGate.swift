@@ -35,7 +35,7 @@ public nonisolated struct AppleNight: Hashable, Sendable {
 
 /// One gate-signal arc (the hub's `gate_signals` row). The optional tail is present only on the
 /// rows Python adds it to (hrv: calibrating / nights / band; recovery: calibrating / nights).
-public nonisolated struct GateSignal: Hashable, Sendable {
+public nonisolated struct AppleGateSignal: Hashable, Sendable {
     public var key: String
     public var label: String
     public var value: Double?
@@ -127,7 +127,7 @@ public nonisolated enum AppleGate {
     }
 
     /// `_recovery_signal(r)`.
-    public static func recoverySignal(_ r: RecoveryScoreResult?, lowScore: Int = RecoveryScore.lowScore) -> GateSignal {
+    public static func recoverySignal(_ r: RecoveryScoreResult?, lowScore: Int = RecoveryScore.lowScore) -> AppleGateSignal {
         let st: String, note: String, val: Double?
         if r == nil || r?.status == .missing {
             st = "missing"; note = "No reading last night"; val = nil
@@ -142,20 +142,20 @@ public nonisolated enum AppleGate {
             let score = r?.score
             st = "pass"; note = "Recovery \(score.map(String.init) ?? "None")"; val = score.map(Double.init)
         }
-        return GateSignal(key: "recovery", label: "Recovery score", value: val, unit: "", threshold: Double(lowScore),
+        return AppleGateSignal(key: "recovery", label: "Recovery score", value: val, unit: "", threshold: Double(lowScore),
                           direction: "min", scaleMin: 0, scaleMax: 100, status: st, note: note,
                           calibrating: r?.status == .calibrating, nights: r?.nights, nightsNeeded: PersonalNormal.minN)
     }
 
     /// `night_context.context_signals(rhr, sleep_score)` — rows only for values that exist.
-    public static func contextSignals(rhr: Double?, sleepScore: Double?) -> [GateSignal] {
-        var out: [GateSignal] = []
+    public static func contextSignals(rhr: Double?, sleepScore: Double?) -> [AppleGateSignal] {
+        var out: [AppleGateSignal] = []
         if let rhr {
-            out.append(GateSignal(key: "rhr", label: "RHR", value: rhr, unit: "bpm", threshold: nil, direction: "max",
+            out.append(AppleGateSignal(key: "rhr", label: "RHR", value: rhr, unit: "bpm", threshold: nil, direction: "max",
                                   scaleMin: 40, scaleMax: 90, status: "context", note: "RHR \(g(rhr)) bpm — context only"))
         }
         if let sleepScore {
-            out.append(GateSignal(key: "sleep", label: "Sleep score", value: sleepScore, unit: "", threshold: nil,
+            out.append(AppleGateSignal(key: "sleep", label: "Sleep score", value: sleepScore, unit: "", threshold: nil,
                                   direction: "min", scaleMin: 0, scaleMax: 100, status: "context",
                                   note: "sleep score \(g(sleepScore)) — context only"))
         }
@@ -164,7 +164,7 @@ public nonisolated enum AppleGate {
 
     /// `gate_signals(m, targets)` for an Apple night (`_apple_signals` + the recovery row);
     /// empty for a Garmin night (that branch is display-only on the hub and not ported here).
-    public static func gateSignals(_ m: MorningVitals, recovery: RecoverySignalInput, sleepGoalH: Double?) -> [GateSignal] {
+    public static func gateSignals(_ m: MorningVitals, recovery: RecoverySignalInput, sleepGoalH: Double?) -> [AppleGateSignal] {
         guard let night = m.apple else { return [] }
         let b = night.hrvBand
         let val = b.rollingLn.map { pyRound(Foundation.exp($0)) }
@@ -174,7 +174,7 @@ public nonisolated enum AppleGate {
             // W-CAL C-4: a calibrating night still carries tonight's value (status stays missing).
             shown = pythonRound(t, 1)
         }
-        var out = [GateSignal(key: "hrv", label: "HRV (7-day)", value: shown, unit: "ms", threshold: thr.map(Double.init),
+        var out = [AppleGateSignal(key: "hrv", label: "HRV (7-day)", value: shown, unit: "ms", threshold: thr.map(Double.init),
                               direction: "min", scaleMin: 0, scaleMax: 120, status: b.status.rawValue, note: b.note,
                               calibrating: b.calibrating, nights: b.nBaseline, nightsNeeded: HrvBand.baselineNights,
                               bandLo: b.lowerLn.map { pyRound(Foundation.exp($0)) },
@@ -198,7 +198,7 @@ public nonisolated enum AppleGate {
         } else {
             st = "missing"; note = "no watch data last night"
         }
-        out.append(GateSignal(key: "sleep_h", label: "Sleep time", value: dur, unit: "h",
+        out.append(AppleGateSignal(key: "sleep_h", label: "Sleep time", value: dur, unit: "h",
                               threshold: scored ? sleepGoalH : appleMinSleepH, direction: "min",
                               scaleMin: 0, scaleMax: 10, status: st, note: note))
         let d = night.hrvDay
@@ -209,7 +209,7 @@ public nonisolated enum AppleGate {
         } else {
             dayNote = "no daytime readings yesterday — context only"
         }
-        out.append(GateSignal(key: "hrv_day", label: "Daytime HRV", value: d?.value, unit: "ms", threshold: d?.baseline,
+        out.append(AppleGateSignal(key: "hrv_day", label: "Daytime HRV", value: d?.value, unit: "ms", threshold: d?.baseline,
                               direction: "min", scaleMin: 0, scaleMax: 120, status: "context", note: dayNote))
         out += contextSignals(rhr: night.contextRhr, sleepScore: night.contextSleepScore)
         if case .attached(let r) = recovery { out.append(recoverySignal(r)) }
