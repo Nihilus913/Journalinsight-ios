@@ -24,6 +24,11 @@ struct B43RestAlertSimTests {
         let status = await center.notificationSettings().authorizationStatus
         try #require(status == .authorized || status == .provisional,
                      "simulator has not allowed notifications for the app (status \(status.rawValue)) — answer the prompt once")
+        // Direct add first: surface the centre's own error when it refuses the request.
+        let probe = RestEndAlert.request(phase: .resting, endsAt: Date().addingTimeInterval(90), exercise: "probe", now: Date())
+        do { try await center.add(probe) } catch { Issue.record("UNUserNotificationCenter.add refused the request: \(error)") }
+        center.removePendingNotificationRequests(withIdentifiers: [RestEndAlert.identifier])
+
         let alert = RestEndAlert.live
         alert.cancel()
         await alert.flush()
