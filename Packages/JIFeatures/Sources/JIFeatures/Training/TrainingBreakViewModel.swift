@@ -28,7 +28,7 @@ public final class TrainingBreakViewModel {
     }
 
     public func load() async {
-        do { state = try await provider.trainingBreak(); errorMessage = nil } catch { errorMessage = "\(error)" }
+        do { state = try await provider.trainingBreak(); errorMessage = nil } catch { errorMessage = "Hub unreachable — the break can't be read right now" }
     }
 
     /// On = a break from `since` (nil = the hub's today); off = the break ends today.
@@ -39,8 +39,16 @@ public final class TrainingBreakViewModel {
             state = try await provider.setTrainingBreak(paused: paused, since: since)
             errorMessage = nil
         } catch {
-            errorMessage = "Could not update the break: \(error)"
+            errorMessage = "Could not update the break — \(trainingBreakErrorText(error))"
         }
+    }
+}
+
+nonisolated func trainingBreakErrorText(_ error: Error) -> String {
+    switch error as? HubError {
+    case .network?: return "hub unreachable"
+    case .http(_, let detail?)?: return detail
+    default: return "the hub said no"
     }
 }
 
