@@ -87,7 +87,7 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
 @Test @MainActor func syncNowAndHapticsLiveBehindTheirRootRows() {
     #expect(SettingsRoot.rows.first { $0.id == "hub" }?.sectionIds.contains(SyncNowSection.sectionId) == true)
     #expect(SettingsRoot.rows.first { $0.id == "haptics" }?.sectionIds == [HapticsSection.sectionId])
-    #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences"])
+    #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences", TrainingBreakSection.sectionId])   // W-B91
 }
 
 /// W-TGT L3: Gate thresholds is gone from Settings (merged into Targets, spec §4).
