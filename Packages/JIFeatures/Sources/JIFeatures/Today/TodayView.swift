@@ -47,6 +47,9 @@ public struct TodayView: View {
     }
     /// B-57 W5 DEV-10: the user's zones and cap for the cardio line (optional, never a default).
     @Environment(\.gateSettings) private var gateSettings
+    /// W-B102 C-4 (BP-23a): the data-triggered check-in card (nil model / no live rule → absent).
+    @Environment(\.checkInPrompt) private var checkInPrompt
+    @Environment(\.openCheckIn) private var openCheckIn
 
     public init(model: TodayViewModel, onOpenConnection: @escaping () -> Void, onSelectKpi: @escaping (String) -> Void = { _ in },
                 onOpenTrends: (() -> Void)? = nil,
@@ -186,6 +189,10 @@ public struct TodayView: View {
                                override: currentOverride, progress: progress, session: session) {
                 showMorningReview = true
             }
+        }
+        if let checkInPrompt, let prompt = checkInPrompt.livePrompt {
+            CheckInPromptCard(prompt: prompt, onCheckIn: { openCheckIn?() },
+                              onNotToday: { checkInPrompt.snoozeToday(prompt.day) })
         }
         JISectionHeader("Next")
         nextCard

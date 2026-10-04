@@ -7,6 +7,8 @@ import Foundation
 enum DeepLink: Hashable, Sendable {
     case gate
     case kpiDetail(metric: String)
+    /// W-B102 C-5 (BP-23a): `ji://checkin[?trigger=<rule>]` — the data-triggered check-in.
+    case checkIn(trigger: String?)
 
     static func parse(_ url: URL) -> DeepLink? {
         guard let scheme = url.scheme?.lowercased(), scheme == "ji" || scheme == "journalinsight" else { return nil }
@@ -19,6 +21,9 @@ enum DeepLink: Hashable, Sendable {
         switch identifier {
         case "gate":
             return .gate
+        case "checkin":
+            let trigger = components.queryItems?.first(where: { $0.name == "trigger" })?.value
+            return .checkIn(trigger: (trigger?.isEmpty ?? true) ? nil : trigger)
         case "kpi-detail":
             guard let metric = components.queryItems?.first(where: { $0.name == "metric" })?.value, !metric.isEmpty else { return nil }
             return .kpiDetail(metric: metric)
@@ -45,7 +50,7 @@ enum RootRoute: Hashable, Sendable {
 
     static func destination(for link: DeepLink) -> RootRoute? {
         switch link {
-        case .gate: nil
+        case .gate, .checkIn: nil
         case .kpiDetail(let metric): .kpiDetail(metric: metric)
         }
     }

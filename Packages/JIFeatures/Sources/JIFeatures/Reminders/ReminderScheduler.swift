@@ -268,6 +268,9 @@ public struct ReminderScheduler {
         return due
     }
 
+    /// W-B102 C-6: drops today's pending data-triggered check-in (`CheckInNotification`).
+    public func cancelDataCheckIn() { center.removePendingRequests(withIdentifiers: [CheckInNotification.identifier]) }
+
     public func cancelHrCapCheck() { center.removePendingRequests(withIdentifiers: [ReminderKind.hrCapCheck.identifier]) }
 
     /// The pending re-check's due date (yyyy-MM-dd), nil = off.

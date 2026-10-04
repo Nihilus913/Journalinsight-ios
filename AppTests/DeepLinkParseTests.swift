@@ -34,3 +34,11 @@ import Foundation
 @Test func pathShapedGateParses() {
     #expect(DeepLink.parse(URL(string: "ji:///gate")!) == .gate)
 }
+
+// W-B102 C-5: the data-triggered check-in's notification URL.
+@Test func checkInParsesWithAndWithoutTrigger() {
+    #expect(DeepLink.parse(URL(string: "ji://checkin?trigger=amber2")!) == .checkIn(trigger: "amber2"))
+    #expect(DeepLink.parse(URL(string: "journalinsight://checkin")!) == .checkIn(trigger: nil))
+    #expect(DeepLink.parse(URL(string: "ji://checkin?trigger=")!) == .checkIn(trigger: nil))
+    #expect(RootRoute.destination(for: .checkIn(trigger: "amber2")) == nil)
+}
