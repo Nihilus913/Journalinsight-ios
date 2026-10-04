@@ -47,6 +47,8 @@ public nonisolated struct DecideSignalRowModel: Identifiable, Equatable, Sendabl
 }
 
 /// The hub's per-signal verdict in words. A nil value is always "No data" (never a pass).
+/// W-CAL C-4: a VALUE the hub has not judged yet (`missing` = its baseline is still calibrating) is
+/// "Calibrating" beside the value — "No data" only when the value itself is null.
 public nonisolated func decideSignalStatus(_ s: GateSignal) -> JISignalStatus {
     guard s.value != nil else { return .missing(.noData) }
     switch s.status {
@@ -54,8 +56,16 @@ public nonisolated func decideSignalStatus(_ s: GateSignal) -> JISignalStatus {
     case .amber: return .watch
     case .red: return .redFlag
     case .context: return .contextOnly
-    case .missing: return .missing(.noData)
+    case .missing: return .missing(.calibrating)
     }
+}
+
+/// W-CAL C-4: the row's value and its status word on one line — "27.7 ms · calibrating",
+/// "31 ms · clear"; a null value is "No data".
+public nonisolated func decideSignalValueLine(_ m: DecideSignalRowModel) -> String {
+    guard let v = m.value, v.isFinite else { return JIMissingReason.noData.rawValue }
+    let value = [decideCompactNumber(v), m.unit.isEmpty ? nil : m.unit].compactMap { $0 }.joined(separator: " ")
+    return "\(value) · \(m.status.word.lowercased())"
 }
 
 /// W-FIX3 BUG-30 (board 01): the board's names — "Resting HR", "Overnight HRV", "Daytime HRV",
@@ -105,6 +115,9 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         detail = "no overnight value yet"
     } else if let band = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
         shownNormal = band; detail = nil
+    } else if s.status == .missing, let note = s.note, !note.isEmpty {
+        // W-CAL C-4: the hub says why it has no band yet ("… 15 Apple + 13 Garmin nights").
+        detail = note
     } else {
         detail = "your normal — \(JIMissingReason.calibrating.rawValue)"
     }
