@@ -55,6 +55,15 @@ final class ApnsRegistration {
     /// by `retryPendingRegistration()` on every foreground until the hub takes it.
     private(set) var pendingRegistration: PushTokenRegistration?
 
+    /// B-21: the latest device registration built from an APNs device token (sent or pending). The
+    /// hub upserts on the device `token`, so a push-to-start token can only ride along with one —
+    /// a start token that arrives later re-POSTs a copy of this with the new field set.
+    private(set) var lastRegistration: PushTokenRegistration?
+
+    /// B-21: the latest ActivityKit push-to-start token (lowercase hex) for the verdict Live
+    /// Activity, from `LiveActivityStartRegistration`. Held until a device token exists to carry it.
+    private(set) var liveActivityStartToken: String?
+
     private let logger = Logger(subsystem: "toby913.JournalInsight", category: "apns")
 
     init() {}
@@ -112,8 +121,12 @@ final class ApnsRegistration {
     /// Pure: the exact body the W7 card's push contract fixes — `token`, `platform`,
     /// `environment`, `app_version`. `ApnsRegistrationTests` encodes this and compares it to a
     /// literal copy of the contract, byte for byte.
+    ///
+    /// B-21: `liveActivityStartToken` (already hex) adds the optional `live_activity_start_token`
+    /// key; `nil` omits it, so the W7 body is unchanged byte for byte.
     static func registration(
         deviceToken: Data,
+        liveActivityStartToken: String? = nil,
         environment: PushEnvironment = ApnsRegistration.currentEnvironment,
         appVersion: String = ApnsRegistration.appVersion()
     ) -> PushTokenRegistration {
@@ -121,7 +134,8 @@ final class ApnsRegistration {
             token: hexToken(from: deviceToken),
             platform: .ios,
             environment: environment,
-            appVersion: appVersion
+            appVersion: appVersion,
+            liveActivityStartToken: liveActivityStartToken
         )
     }
 
@@ -168,7 +182,25 @@ final class ApnsRegistration {
     /// hub per the push contract. A failure is logged and surfaced in `state`; it never throws into
     /// the delegate callback and never blocks anything else.
     func receive(deviceToken: Data) async {
-        await submit(Self.registration(deviceToken: deviceToken))
+        await submit(Self.registration(deviceToken: deviceToken, liveActivityStartToken: liveActivityStartToken))
+    }
+
+    /// B-21: `Activity<VerdictActivityAttributes>.pushToStartTokenUpdates` yielded a (new) token.
+    /// Hex-encodes it and re-POSTs the device registration with `live_activity_start_token` set,
+    /// through the same `submit` path — so a failed POST lands in `pendingRegistration` and is
+    /// retried on the next foreground exactly like a device token. Before any device token exists
+    /// (Simulator, APNs slow) the start token is only held; `receive(deviceToken:)` carries it.
+    /// An unchanged token is a no-op (ActivityKit re-yields the current token on every launch).
+    func receive(liveActivityStartToken data: Data) async {
+        let hex = Self.hexToken(from: data)
+        guard !hex.isEmpty, hex != liveActivityStartToken else { return }
+        liveActivityStartToken = hex
+        guard var registration = pendingRegistration ?? lastRegistration else {
+            logger.notice("Live Activity: push-to-start token held until the APNs device token arrives")
+            return
+        }
+        registration.liveActivityStartToken = hex
+        await submit(registration)
     }
 
     /// W-B54 (B54-2): re-POSTs a registration that has not reached the hub yet. Called from the
@@ -181,6 +213,7 @@ final class ApnsRegistration {
     }
 
     private func submit(_ registration: PushTokenRegistration) async {
+        lastRegistration = registration
         guard let provider = providerSource?() else {
             pendingRegistration = registration
             state = .unavailable(reason: "no hub provider to register the push token with")
