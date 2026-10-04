@@ -139,6 +139,11 @@ public struct CheckInStore: Sendable {
         }
     }
 
+    /// W-B102: the newest check-in day (`date` is not vaulted, so no cipher round-trip), nil = none.
+    public func latestDate() throws -> String? {
+        try db.pool.read { conn in try String.fetchOne(conn, sql: "SELECT MAX(date) FROM mind_checkin") }
+    }
+
     /// Most recent `days` check-ins, newest first.
     public func recent(_ days: Int) throws -> [CheckIn] {
         try db.pool.read { conn in

@@ -129,7 +129,24 @@ public final class RemindersViewModel {
         if hrCapBpm == nil { scheduler.cancelHrCapCheck() }   // no cap: nothing to re-check
         hrCapCheckDue = await scheduler.hrCapCheckDue()
         permissionDenied = await scheduler.isDenied()
+        loadDataCheckIn()
         loaded = true
+    }
+
+    // MARK: data-triggered check-in (W-B102 C-6, BP-23a)
+
+    /// Same pref `CheckInPromptModel` reads (default on).
+    public private(set) var dataCheckInEnabled: Bool = true
+
+    public func loadDataCheckIn() {
+        dataCheckInEnabled = ((try? prefs.get(CheckInPromptModel.enabledKey, as: Bool.self)) ?? nil) ?? true
+    }
+
+    /// Off cancels a pending prompt at once; on takes effect at the next Today refresh.
+    public func setDataCheckInEnabled(_ on: Bool) {
+        try? prefs.set(CheckInPromptModel.enabledKey, on)
+        dataCheckInEnabled = on
+        if !on { scheduler.cancelDataCheckIn() }
     }
 
     // MARK: daily

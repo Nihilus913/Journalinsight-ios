@@ -12,6 +12,10 @@ import JIDesign
 /// disclaimer here — that lives on the Mind screen itself (oracle parity).
 public struct CheckInSheet: View {
     @Bindable var model: MindViewModel
+    /// W-B102 C-4: the data-triggered prompt that opened the sheet (nil = opened from Mind, no strip).
+    let prompt: CheckInPrompt?
+    /// Called after a successful save (the App clears the Today card).
+    let onSaved: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var mood: JIPersistence.Mood?
@@ -24,13 +28,19 @@ public struct CheckInSheet: View {
     @State private var appetite: Int?
     @State private var saving = false
 
-    public init(model: MindViewModel) { self.model = model }
+    public init(model: MindViewModel, prompt: CheckInPrompt? = nil, onSaved: (() -> Void)? = nil) {
+        self.model = model; self.prompt = prompt; self.onSaved = onSaved
+    }
+
+    /// W-B102: true when the "Why this prompt" strip renders.
+    var showsWhy: Bool { prompt != nil }
 
     private var canSave: Bool { stress != nil && energy != nil }
 
     public var body: some View {
         NavigationStack {
             Form {
+                if let prompt { CheckInWhySection(prompt: prompt) }
                 Section("How's your mood?") {
                     Picker("Mood", selection: $mood) {
                         Text("—").tag(JIPersistence.Mood?.none)
@@ -124,6 +134,6 @@ public struct CheckInSheet: View {
         )
         let ok = await model.upsertCheckin(payload)
         saving = false
-        if ok { dismiss() }
+        if ok { onSaved?(); dismiss() }
     }
 }

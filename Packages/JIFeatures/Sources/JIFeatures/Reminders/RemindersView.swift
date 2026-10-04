@@ -50,6 +50,7 @@ public struct RemindersView: View {
                     }
                 }
             }
+            DataCheckInSection(model: model)   // W-B102 C-6
             RemindersSafetySection(model: model)
             RemindersMedicationSection(model: model)
             WorkoutRemindersSection(model: model)
