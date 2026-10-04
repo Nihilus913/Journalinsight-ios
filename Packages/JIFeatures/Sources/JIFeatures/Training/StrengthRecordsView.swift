@@ -154,7 +154,10 @@ struct StrengthLiftDetailView: View {
                     chart(lift)
                 }
                 HStack(spacing: 14) {
-                    Label("PR = beats every earlier session", systemImage: "circle.fill").labelStyle(.titleAndIcon)
+                    HStack(spacing: 4) {
+                        Image(systemName: "circle.fill").font(.system(size: 7)).foregroundStyle(theme.color(.go))
+                        Text("PR = beats every earlier session")
+                    }
                     Text("dashed = your best")
                 }
                 .jiFont(.micro).foregroundStyle(theme.color(.muted))
