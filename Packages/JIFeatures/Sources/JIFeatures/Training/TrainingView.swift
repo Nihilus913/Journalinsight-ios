@@ -24,6 +24,8 @@ public struct TrainingView: View {
     @State private var showWeek = false
     /// W-B40 L3 (B-82): day-first — a tap on a day of the week strip opens that day's preview.
     @State private var dayPreview: TrainingDayRef?
+    /// B-95 (BP-26): the pushed Time in zone screen (W / M / 6M).
+    @State private var zoneTime: ZoneTimeModel?
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -115,6 +117,16 @@ public struct TrainingView: View {
         #if canImport(WorkoutKit)
         .sheet(isPresented: $showSendToWatch) {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
+        }
+        #endif
+        .navigationDestination(item: $zoneTime) { ZoneTimeChartView(model: $0) }
+        #if DEBUG
+        // B-95 dev affordance: `-zone-time <W|M|6M>` pushes Time in zone at that range (sim screenshots).
+        .task {
+            guard let i = CommandLine.arguments.firstIndex(of: "-zone-time"), i + 1 < CommandLine.arguments.count,
+                  let span = ZoneTimeSpan(rawValue: CommandLine.arguments[i + 1]) else { return }
+            try? await Task.sleep(for: .seconds(2))
+            zoneTime = model.makeZoneTimeModel(span: span)
         }
         #endif
         .navigationDestination(isPresented: $showWeek) { PlannerView(model: model, strengthLogDeps: strengthLogDeps, sendWatchPlan: sendWatchPlan) }
@@ -266,6 +278,16 @@ public struct TrainingView: View {
             Text(trainingProgressionCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
+            // B-95 (BP-26): time in zone over weeks and months, next to the zones it is binned with.
+            JISectionHeader("Zones · over time")
+            Surface(level: 1, padding: 0) {
+                Button { zoneTime = model.makeZoneTimeModel() } label: {
+                    JIChevronRow(title: "Time in zone", value: "W · M · 6M", systemImage: "chart.bar.fill")
+                        .padding(.horizontal, JISpacing.s4).padding(.vertical, JIChevronRowMetrics.verticalPadding)
+                }
+                .buttonStyle(.plain)
+            }
+            .accessibilityIdentifier("training-zone-time")
             // W-GUI TR1 (mockup 04, plan §B): zones are the user's input (W-FIX5: read from their settings).
             JISectionHeader("Zones · your input")
             Surface(level: 1, padding: 0) {

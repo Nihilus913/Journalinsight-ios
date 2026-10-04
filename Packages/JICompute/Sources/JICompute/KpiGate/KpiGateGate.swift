@@ -304,16 +304,23 @@ nonisolated func derivedValueForMessage(_ derived: DerivedMetrics, _ metric: Str
 ///   - kpiTargets: rule rows (metric, operator, threshold, thresholdHi,
 ///     description). The FIRST rule that fires with a REDUCE or MAINTAIN
 ///     description wins and returns immediately.
+///   - paused: B-110 — the user's "I'm on a break" toggle is on. Every `acwr`
+///     rule is skipped (the ratio is "not rated" while Paused), so no
+///     "REDUCE: overreaching" / "MAINTAIN: undertraining" / PROGRESS-zone
+///     verdict; nutrition + sleep rules still apply. Same rule as the hub's
+///     `evaluate_kpi_gates(paused=)`. Default `false` = the golden behaviour.
 public nonisolated func evaluateKpiGates(
     _ metricsRows: [KpiMetricRow],
     _ kpiTargets: [KpiRule],
-    config: KpiConfig = defaultKpiConfig
+    config: KpiConfig = defaultKpiConfig,
+    paused: Bool = false
 ) -> GateResult {
     let derived = computeDerivedMetrics(metricsRows)
     var triggered: [String] = []
 
     for target in kpiTargets {
         let metric = target.metric
+        if paused && metric == "acwr" { continue }
         let op = target.operator
         let threshold = safeFloat(target.threshold)
         let thresholdHi = safeFloat(target.thresholdHi)
@@ -369,7 +376,8 @@ public nonisolated func isTrackedDay(_ row: KpiMetricRow,
 public nonisolated func evaluateGate(
     _ metrics: [KpiMetricRow],
     _ kpiTargets: [KpiRule],
-    config: KpiConfig = defaultKpiConfig
+    config: KpiConfig = defaultKpiConfig,
+    paused: Bool = false
 ) -> GateDecision {
     let trackedDays = metrics.reduce(into: 0) { $0 += isTrackedDay($1, config: config) ? 1 : 0 }
     let totalDays = metrics.count
@@ -379,7 +387,7 @@ public nonisolated func evaluateGate(
                             suggestions: [], trackedDays: trackedDays, totalDays: totalDays)
     }
 
-    let gate = evaluateKpiGates(metrics, kpiTargets, config: config)
+    let gate = evaluateKpiGates(metrics, kpiTargets, config: config, paused: paused)
     return GateDecision(recommendation: GateDecisionRecommendation(gate.recommendation),
                         triggeredRules: gate.triggeredRules, suggestions: gate.suggestions,
                         trackedDays: trackedDays, totalDays: totalDays)
