@@ -56,3 +56,45 @@ extension DecideSignalsTests {
         #expect(decideSessionRowText(sessionForToday: nil, verdict: verdictParts("GO")) == ("Today's session", "— No data"))
     }
 }
+
+/// W-CAL C-4: a night the hub has a VALUE for is never "No data" — while the baseline calibrates the
+/// row shows the value with "Calibrating" (and the hub's band once it has one). "No data" = null value.
+extension DecideSignalsTests {
+    @Test func valueWhileCalibratingShowsTheValueNotNoData() {
+        let sig = s("hrv", 27.7, thr: 0, unit: "ms", status: .missing, note: "HRV baseline calibrating — 15 Apple + 13 Garmin nights")
+        #expect(decideSignalStatus(sig) == .missing(.calibrating))
+        let m = decideSignalRowModel(sig)
+        #expect(m.value == 27.7)
+        #expect(m.status == .missing(.calibrating))
+        #expect(m.status.word == "Calibrating")
+        #expect(m.detail == "HRV baseline calibrating — 15 Apple + 13 Garmin nights")
+        #expect(decideSignalValueLine(m) == "27.7 ms · calibrating")
+    }
+
+    @Test func valueWhileCalibratingWithoutNoteSaysCalibrating() {
+        let m = decideSignalRowModel(s("rhr", 60, thr: 0, unit: "bpm", status: .missing))
+        #expect(m.status == .missing(.calibrating))
+        #expect(m.detail == "your normal — Calibrating")
+        #expect(decideSignalValueLine(m) == "60 bpm · calibrating")
+    }
+
+    @Test func calibratingValueKeepsTheHubBandWhenServed() {
+        var sig = s("hrv", 27.7, thr: 0, unit: "ms", status: .missing)
+        sig.bandLo = 25; sig.bandHi = 33
+        let m = decideSignalRowModel(sig)
+        #expect(m.status == .missing(.calibrating))
+        #expect(m.normal == 25...33)
+    }
+
+    @Test func nullValueIsStillNoData() {
+        let m = decideSignalRowModel(s("hrv", nil, thr: 0, unit: "ms", status: .missing, note: "HRV baseline calibrating — 3/28 Apple nights"))
+        #expect(m.status == .missing(.noData))
+        #expect(m.detail == "no overnight value yet")
+        #expect(decideSignalValueLine(m) == "No data")
+    }
+
+    @Test func passingValueLineCarriesTheStatusWord() {
+        let m = decideSignalRowModel(s("hrv", 31, thr: 27, unit: "ms", status: .pass))
+        #expect(decideSignalValueLine(m) == "31 ms · clear")
+    }
+}
