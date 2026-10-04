@@ -52,6 +52,23 @@ import JICore
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-JI-TZ") == TimeZone.current.identifier)
     }
 
+    /// W-FIX13 F-2: travel — the header follows a zone change between two requests (no relaunch),
+    /// on PUT too, and the default is `DayKey.zone` (the one zone the app's days use).
+    @Test func timeZoneHeaderFollowsTravelPerRequest() async throws {
+        final class Box: @unchecked Sendable { var zone = TimeZone(identifier: "Asia/Tokyo")! }
+        let box = Box()
+        let travelling = HubClient(config: ConnectionConfig(baseURL: URL(string: "http://hub.test:8000")!, token: "t0k"),
+                                   session: StubURLProtocol.session(), timeZone: { box.zone })
+        StubURLProtocol.responses["/api/v1/ingestion/status"] = (200, Data("{\"last_sync\":null}".utf8))
+        let _: SyncStatus = try await travelling.get("/api/v1/ingestion/status")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: HubClient.timeZoneHeader) == "Asia/Tokyo")
+        box.zone = TimeZone(identifier: "America/New_York")!
+        let _: SyncStatus = try await travelling.send("PUT", "/api/v1/ingestion/status", body: ["a": 1])
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: HubClient.timeZoneHeader) == "America/New_York")
+        let _: SyncStatus = try await client().get("/api/v1/ingestion/status")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: HubClient.timeZoneHeader) == DayKey.zone.identifier)
+    }
+
     @Test func configRoundTripsThroughSecretStore() throws {
         let store = ConnectionConfigStore(secrets: InMemorySecretStore())
         #expect(try store.load() == nil)
