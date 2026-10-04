@@ -39,6 +39,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Planned training sessions go into your calendar as all-day events. JournalInsight only adds events; it never reads your calendar.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, resting and active energy and workouts, plus the food totals (energy, protein, carbs, fat) your food app writes to Health. It uses them for your readiness gate, KPIs and energy balance. Watch data is sent to your own hub; JI never writes food.</string>
 	<key>NSHealthUpdateUsageDescription</key>
