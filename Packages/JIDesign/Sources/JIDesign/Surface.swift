@@ -90,10 +90,14 @@ public struct Surface<Content: View>: View {
     public var body: some View {
         let r = recipe
         content.padding(padding)
-            .background { fill(r).clipShape(shape) }
+            // Shadows are cast by the card shape only: on the whole view they also drew under every
+            // glyph (radius-0 hairline = faux bold, blurred shadow = soft text; Toby 2026-10-04).
+            .background {
+                fill(r).clipShape(shape)
+                    .shadow(color: .black.opacity(r.hairlineOpacity), radius: 0, y: 1)
+                    .shadow(color: .black.opacity(r.shadowOpacity), radius: r.shadowRadius, y: r.shadowY)
+            }
             .overlay { shape.strokeBorder(rim(r), lineWidth: r.rimWidth) }
-            .shadow(color: .black.opacity(r.hairlineOpacity), radius: 0, y: 1)
-            .shadow(color: .black.opacity(r.shadowOpacity), radius: r.shadowRadius, y: r.shadowY)
     }
 
     @ViewBuilder private func fill(_ r: JISurfaceRecipe) -> some View {
