@@ -46,3 +46,49 @@ import Testing
     let feelJSON = try JSONSerialization.jsonObject(with: feelData) as? [String: Any]
     #expect(feelJSON?["feel_score"] as? Int == 5)
 }
+
+/// W-B29 R-2 — the write-path fixtures of record (`planning_gate_respond.json` /
+/// `planning_feel.json`, `{request, response}` captured from a throwaway hub by
+/// `capture_hub_fixtures.py --writes`) decode through the DTOs, and the mock serves them.
+private struct WriteFixture<Request: Decodable, Response: Decodable> {
+    let request: Request
+    let response: Response
+}
+
+/// Request bodies carry explicit snake_case `CodingKeys` (plain `JSONDecoder`, the `Outbox`
+/// format); responses decode through `JSON.decoder` exactly as `HubClient` does.
+private func loadWriteFixture<Req: Decodable, Res: Decodable>(_ name: String, _: Req.Type, _: Res.Type) throws -> WriteFixture<Req, Res> {
+    let url = try #require(MockDataProvider.fixtureURL(named: name), "missing fixture \(name)")
+    let doc = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+    let request = try JSONSerialization.data(withJSONObject: try #require(doc["request"]))
+    let response = try JSONSerialization.data(withJSONObject: try #require(doc["response"]))
+    return WriteFixture(request: try JSONDecoder().decode(Req.self, from: request),
+                        response: try JSON.decoder.decode(Res.self, from: response))
+}
+
+@Test func testFixtureRoundTrip() throws {
+    let respond = try loadWriteFixture("planning_gate_respond", GateRespondBody.self, GateRespondResult.self)
+    #expect(respond.request.choice == .skip)
+    #expect(respond.request.windowDays == 7)
+    #expect(respond.response.logId != nil)
+    #expect(respond.response.pdfRequested == false)   // hub rule: choice N → no PDF
+    let reencoded = try JSONDecoder().decode(GateRespondBody.self, from: JSONEncoder().encode(respond.request))
+    #expect(reencoded == respond.request)
+
+    let feel = try loadWriteFixture("planning_feel", FeelBody.self, FeelResult.self)
+    #expect(feel.request.feelScore == 3)
+    #expect(feel.request.date == "2026-10-04")
+    #expect(feel.response.feelId > 0)
+}
+
+@Test func mockServesTheWriteFixtureResponses() async throws {
+    let respond = try loadWriteFixture("planning_gate_respond", GateRespondBody.self, GateRespondResult.self)
+    let feel = try loadWriteFixture("planning_feel", FeelBody.self, FeelResult.self)
+    let mock = MockDataProvider()
+    let skip = try await mock.respondGate(choice: .skip, overrideReason: "", windowDays: 7)
+    #expect(skip == respond.response)
+    let yes = try await mock.respondGate(choice: .yes, overrideReason: "", windowDays: 7)
+    #expect(yes.logId == respond.response.logId)
+    #expect(yes.pdfRequested == true)   // hub rule: y/override → PDF
+    #expect(try await mock.logFeel(feelScore: 3, notes: "", date: nil) == feel.response)
+}
