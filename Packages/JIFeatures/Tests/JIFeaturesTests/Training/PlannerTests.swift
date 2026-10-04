@@ -293,3 +293,92 @@ private func mondayPreview() -> TrainingDayPreview {
     #expect(trainingHeroTemplateId(day: TrainingDayPreview(weekday: 6, date: "", isToday: false, entries: [])) == nil)
     #expect(trainingHeroTemplateId(day: nil) == nil)
 }
+
+// MARK: - PL-7: drag a workout onto a day = assign; between days = move
+
+private func plannerSpine() -> [WeekSpineEntry] {
+    trainingDaySpine(strength: weekSpine(planSessions: Array(plannerSessions.prefix(4)), exercises: plannerExercises()), sessions: plannerSessions)
+}
+
+@Test func dragPayloadRoundTrips() {
+    #expect(PlannerDragItem(ref: "t1").payload == "planner|t1")
+    #expect(PlannerDragItem(ref: "s1", fromWeekday: 0).payload == "planner|s1|0")
+    #expect(PlannerDragItem(payload: "planner|s1|0") == PlannerDragItem(ref: "s1", fromWeekday: 0))
+    #expect(PlannerDragItem(payload: "planner|t12") == PlannerDragItem(ref: "t12"))
+    #expect(PlannerDragItem(payload: "hello") == nil)
+    #expect(PlannerDragItem(payload: "planner|x1") == nil)
+    #expect(PlannerDragItem(payload: "planner|t1|9") == nil)
+}
+
+@Test func droppingAnUnassignedTemplateOnTheEmptySundayAssignsIt() {
+    var lib = plannerLibrary
+    lib[0].weekdays = []   // PL-10: Long Run Zone 2 stays in ALL WORKOUTS, on no day
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t1"), toWeekday: 6, spine: plannerSpine(), templates: lib)
+            == [.templateWeekdays(lib[0], [6])])
+}
+
+@Test func droppingASessionFromAllWorkoutsOrFromADayMovesItsOneWeekday() {
+    #expect(plannerDropWrites(PlannerDragItem(ref: "s4"), toWeekday: 6, spine: plannerSpine(), templates: plannerLibrary)
+            == [.sessionWeekday(id: 4, name: "Day 4 Full Upper", weekday: 6)])
+    #expect(plannerDropWrites(PlannerDragItem(ref: "s1", fromWeekday: 0), toWeekday: 6, spine: plannerSpine(), templates: plannerLibrary)
+            == [.sessionWeekday(id: 1, name: "Day 1 Full Upper", weekday: 6)])
+}
+
+@Test func draggingATemplateBetweenDaysMovesThatDayOnly() {
+    // Norwegian 4×4 is on Tue + Sat; dragged from Tue to Sun → Sat + Sun.
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t3", fromWeekday: 1), toWeekday: 6, spine: plannerSpine(), templates: plannerLibrary)
+            == [.templateWeekdays(plannerLibrary[2], [5, 6])])
+    // From ALL WORKOUTS it is added (both days stay).
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t3"), toWeekday: 6, spine: plannerSpine(), templates: plannerLibrary)
+            == [.templateWeekdays(plannerLibrary[2], [1, 5, 6])])
+}
+
+@Test func droppingWhereItAlreadyIsWritesNothing() {
+    #expect(plannerDropWrites(PlannerDragItem(ref: "s1", fromWeekday: 0), toWeekday: 0, spine: plannerSpine(), templates: plannerLibrary).isEmpty)
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t2"), toWeekday: 0, spine: plannerSpine(), templates: plannerLibrary).isEmpty)
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t3", fromWeekday: 1), toWeekday: 1, spine: plannerSpine(), templates: plannerLibrary).isEmpty)
+    // Unknown rows (not in the plan / library) write nothing.
+    #expect(plannerDropWrites(PlannerDragItem(ref: "s99"), toWeekday: 0, spine: plannerSpine(), templates: plannerLibrary).isEmpty)
+    #expect(plannerDropWrites(PlannerDragItem(ref: "t99"), toWeekday: 0, spine: plannerSpine(), templates: plannerLibrary).isEmpty)
+}
+
+@Test @MainActor func droppingLongRunOnSundayWritesTheTemplateAndShowsAtOnce() async throws {
+    var lib = plannerLibrary
+    lib[0].weekdays = []
+    let hub = PlannerHub(templates: lib)
+    let vm = makePlannerVM(hub, cache: OfflineCache(db: try AppDatabase.inMemory()), outbox: Outbox(db: try AppDatabase.inMemory()))
+    await vm.load()
+    #expect(vm.dayPreview(weekday: 6).entries.allSatisfy { $0.title != "Long Run Zone 2" })
+
+    let result = await vm.drop(PlannerDragItem(ref: "t1").payload, onDay: 6)
+
+    #expect(result == .saved)
+    #expect(hub.workouts.writes == ["PUT 1"])
+    #expect(hub.workouts.lastDraft?.weekdays == [6])
+    #expect(vm.dayPreview(weekday: 6).entries.map(\.title).contains("Long Run Zone 2"))
+    #expect(vm.plannerWorkouts.first { $0.ref == "t1" }?.weekdays == [6])
+}
+
+@Test @MainActor func draggingASessionBetweenDaysOfflineQueuesTheSameWeekdayWrite() async throws {
+    let hub = PlannerHub()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let vm = makePlannerVM(hub, cache: OfflineCache(db: try AppDatabase.inMemory()), outbox: outbox)
+    await vm.load()
+    hub.offline = true
+
+    let result = await vm.drop(PlannerDragItem(ref: "s1", fromWeekday: 0).payload, onDay: 6)
+
+    #expect(result == .queued)
+    #expect(hub.weekdayCalls.isEmpty)
+    #expect(try outbox.pending().count == 1)
+    #expect(vm.dayPreview(weekday: 6).entries.map(\.title).contains("Day 1 Full Upper"))
+    #expect(!vm.dayPreview(weekday: 0).entries.map(\.title).contains("Day 1 Full Upper"))
+}
+
+@Test @MainActor func aForeignPayloadIsRefusedWithoutAWrite() async throws {
+    let hub = PlannerHub()
+    let vm = makePlannerVM(hub, cache: OfflineCache(db: try AppDatabase.inMemory()), outbox: Outbox(db: try AppDatabase.inMemory()))
+    await vm.load()
+    if case .refused = await vm.drop("https://example.com", onDay: 6) {} else { Issue.record("a foreign drop must be refused") }
+    #expect(hub.weekdayCalls.isEmpty && hub.workouts.writes.isEmpty)
+}

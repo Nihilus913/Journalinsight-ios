@@ -208,11 +208,32 @@ public struct PlannerView: View {
         }
     }
 
-    /// One workout on a day — its own line. (PL-7 makes it draggable to another day.)
+    /// One workout on a day — its own line, draggable to another day (PL-7: a move).
     @ViewBuilder private func entryLine(_ entry: TrainingDayPreview.Entry, weekday: Int) -> some View {
-        Text(entry.title).jiFont(.body).foregroundStyle(theme.color(.text))
+        let line = Text(entry.title).jiFont(.body).foregroundStyle(theme.color(.text))
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("planner-day-\(weekday)-entry-\(entry.id)")
+        if entry.choice != nil, let item = PlannerDragItem(payload: PlannerDragItem(ref: entry.id, fromWeekday: weekday).payload) {
+            line.draggable(item.payload) { dragPreview(entry.title) }
+        } else {
+            line
+        }
+    }
+
+    private func dragPreview(_ title: String) -> some View {
+        Text(title).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+            .padding(.horizontal, JISpacing.s3).padding(.vertical, JISpacing.s2)
+            .background(Capsule().fill(theme.color(.info).opacity(0.25)))
+    }
+
+    /// PL-7: a Planner row dropped on a day — assign (from ALL WORKOUTS) or move (from a day).
+    private func drop(_ payloads: [String], on weekday: Int) -> Bool {
+        guard let payload = payloads.first, PlannerDragItem(payload: payload) != nil else { return false }
+        Task {
+            let result = await model.drop(payload, onDay: weekday)
+            notice = trainingDayPickNotice(result)
+        }
+        return true
     }
 
     private func dayRow(_ day: TrainingWeekDay) -> some View {
@@ -223,6 +244,10 @@ public struct PlannerView: View {
             JIChevronRow { rowLabel(day, entries: entries, pending: pending) }
         }
         .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: 10).fill(theme.color(.info).opacity(dropTarget == day.weekday ? 0.18 : 0)))
+        .dropDestination(for: String.self) { items, _ in drop(items, on: day.weekday) } isTargeted: { over in
+            if over { dropTarget = day.weekday } else if dropTarget == day.weekday { dropTarget = nil }
+        }
         .accessibilityElement(children: .combine).accessibilityLabel(label)
         .accessibilityHint("Shows \(planWeekdayNames[day.weekday])'s session")
         .accessibilityIdentifier("training-week-row-\(day.weekday)")
@@ -313,6 +338,7 @@ public struct PlannerView: View {
         .accessibilityElement(children: .combine)
         .accessibilityHint(row.editable ? "Opens the editor" : "Shows the lifts")
         .accessibilityIdentifier(row.templateId.map { "workouts-row-\($0)" } ?? "planner-row-\(row.ref)")
+        .modifier(PlannerDraggable(payload: PlannerDragItem(payload: PlannerDragItem(ref: row.ref).payload)?.payload) { dragPreview(row.name) })
         .contextMenu { rowMenu(row, template: t) }
         // B40-V8: the confirmation hangs off the row being deleted, so its popover points at it.
         .confirmationDialog("Delete \(t?.name ?? row.name)?", isPresented: deleteBinding(for: t), titleVisibility: .visible) {
@@ -356,5 +382,14 @@ public struct PlannerView: View {
         #else
         nil
         #endif
+    }
+}
+
+/// PL-7: a Planner row is draggable only when it names a real plan session / template.
+private struct PlannerDraggable<Preview: View>: ViewModifier {
+    let payload: String?
+    @ViewBuilder let preview: () -> Preview
+    func body(content: Content) -> some View {
+        if let payload { content.draggable(payload) { preview() } } else { content }
     }
 }

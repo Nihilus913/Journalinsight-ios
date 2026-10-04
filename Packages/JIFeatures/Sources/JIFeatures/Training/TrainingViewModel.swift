@@ -544,8 +544,19 @@ public final class TrainingViewModel {
     /// workout through the library's queued template write (Outbox `workout_template`) — so an
     /// unreachable hub queues and the day shows the change at once. A refusal stops the rest.
     public func changeDay(weekday: Int, adding: TrainingDayChoice?, removing: TrainingDayPreview.Entry?) async -> DayChangeResult {
-        let writes = trainingDayWrites(weekday: weekday, adding: adding, removing: removing,
-                                       spine: daySpine, templates: library?.templates ?? [])
+        await apply(trainingDayWrites(weekday: weekday, adding: adding, removing: removing,
+                                      spine: daySpine, templates: library?.templates ?? []))
+    }
+
+    /// W-PLANNER PL-7: a Planner row dropped on day `weekday` (from ALL WORKOUTS = assign, from
+    /// another day = move) — the same `TrainingDayWrite`s as a pick, so the same Outbox-first path.
+    public func drop(_ payload: String, onDay weekday: Int) async -> DayChangeResult {
+        guard let item = PlannerDragItem(payload: payload) else { return .refused("That isn't a workout from the Planner — nothing was changed.") }
+        return await apply(plannerDropWrites(item, toWeekday: weekday, spine: daySpine, templates: library?.templates ?? []))
+    }
+
+    /// Every day write, offline-first; a refusal stops the rest.
+    private func apply(_ writes: [TrainingDayWrite]) async -> DayChangeResult {
         var queued = false
         for write in writes {
             switch write {

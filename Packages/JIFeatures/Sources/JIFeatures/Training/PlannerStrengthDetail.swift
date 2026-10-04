@@ -2,6 +2,7 @@ import SwiftUI
 import JICore
 import JIDesign
 import JIPersistence
+import JIWorkouts
 
 /// The Planner's strength row, as a navigation value (a plan session: id + name + its days).
 public nonisolated struct PlannerStrengthRef: Hashable, Identifiable, Sendable {

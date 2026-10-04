@@ -124,3 +124,50 @@ nonisolated func plannerDayOptions(weekday wd: Int, rows: [PlannerWorkout], spin
                                  kind: .strength, template: t)
     }
 }
+
+// MARK: - PL-7: drag-to-move
+
+/// What is being dragged: a Planner row (`ref`), and — when it was picked up from a day row in
+/// THIS WEEK — the day it leaves. Carried as a plain string (`"planner|t1"`, `"planner|s1|0"`),
+/// so a drop from anywhere else (a URL, text) is never mistaken for a workout.
+public nonisolated struct PlannerDragItem: Sendable, Equatable {
+    public let ref: String
+    public let fromWeekday: Int?
+    public init(ref: String, fromWeekday: Int? = nil) { self.ref = ref; self.fromWeekday = fromWeekday }
+
+    public var payload: String { "planner|\(ref)" + (fromWeekday.map { "|\($0)" } ?? "") }
+
+    public init?(payload: String) {
+        let parts = payload.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 2 || parts.count == 3, parts[0] == "planner",
+              let kind = parts[1].first, kind == "s" || kind == "t", Int(parts[1].dropFirst()) != nil else { return nil }
+        var from: Int?
+        if parts.count == 3 {
+            guard let d = Int(parts[2]), (0...6).contains(d) else { return nil }
+            from = d
+        }
+        self.init(ref: parts[1], fromWeekday: from)
+    }
+
+    var sessionId: Int? { ref.hasPrefix("s") ? Int(ref.dropFirst()) : nil }
+    var templateId: Int? { ref.hasPrefix("t") ? Int(ref.dropFirst()) : nil }
+}
+
+/// The writes a drop on day `wd` makes — the day sheet's own `TrainingDayWrite`s:
+///   • a plan session has ONE weekday: dropping it on a day moves it there (from a day or not);
+///   • a template has many: from ALL WORKOUTS it is added to the day, from a day it leaves that
+///     day for this one (its other days stay).
+/// Dropping where it already is, or an unknown row, writes nothing.
+nonisolated func plannerDropWrites(_ item: PlannerDragItem, toWeekday wd: Int, spine: [WeekSpineEntry], templates: [WorkoutTemplate]) -> [TrainingDayWrite] {
+    guard (0...6).contains(wd) else { return [] }
+    if let sid = item.sessionId {
+        guard let s = spine.first(where: { $0.id == sid }), s.weekday != wd else { return [] }
+        return [.sessionWeekday(id: sid, name: s.name, weekday: wd)]
+    }
+    guard let tid = item.templateId, let t = templates.first(where: { $0.templateId == tid }) else { return [] }
+    let now = Set(t.weekdays)
+    var next = now
+    if let from = item.fromWeekday { next.remove(from) }
+    next.insert(wd)
+    return next == now ? [] : [.templateWeekdays(t, next.sorted())]
+}
