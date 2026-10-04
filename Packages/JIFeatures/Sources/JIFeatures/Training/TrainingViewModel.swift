@@ -90,6 +90,12 @@ public final class TrainingViewModel {
     /// older hub / never fetched: the cardio days then follow the morning-call schedule.
     public private(set) var allPlanSessions: [PlanSessionOut] = []
 
+    /// W-PLANNER PL-3: the hub's unified workout list (`GET /planning/workouts`), cached; nil =
+    /// an older hub (404) or never fetched — the Planner then builds the same rows from the cached
+    /// exercises, plan sessions and templates (`plannerWorkouts`).
+    public private(set) var hubPlannerWorkouts: [PlannerWorkout]?
+    public nonisolated static let plannerCacheKey = "training.plannerWorkouts"
+
     /// B-45 (a): the REAL device day this screen is being looked at on — never the hub's
     /// `verdict_date`, which is whatever day `scripts/morning_go.py` last wrote a verdict on.
     public var todayDate: Date { now() }
@@ -257,6 +263,7 @@ public final class TrainingViewModel {
         // weekday assigned while offline and still sitting in the outbox.
         if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
         if let a = try? cache.get(Self.keys.allPlanSessions, as: [PlanSessionOut].self) { allPlanSessions = a.value }
+        if let w = try? cache.get(Self.plannerCacheKey, as: [PlannerWorkout].self) { hubPlannerWorkouts = w.value }
         if gate != nil { phase = .loaded }
         if gate != nil || morning != nil || !exercises.isEmpty { }
     }
@@ -306,6 +313,7 @@ public final class TrainingViewModel {
         }
         fetchedAt = g.fetchedAt ?? fetchedAt
         await fetchAllPlanSessions()
+        await fetchPlannerWorkouts()
 
         let sectionErrors = [g.error, m.error, e.error].compactMap { $0 }
         let representative = sectionErrors.first { if case .unauthorized = $0 { return true }; return false }
@@ -482,6 +490,26 @@ public final class TrainingViewModel {
         guard let fresh = try? await provider.planSessions() else { return }
         allPlanSessions = Self.mergePendingWeekdays(into: fresh, pending: pendingSessionSync, previous: allPlanSessions)
         try? cache.put(Self.keys.allPlanSessions, allPlanSessions)
+    }
+
+    /// PL-3: refresh the Planner's list. A 404 (old hub) drops to the phone-built rows; an
+    /// unreachable hub keeps what is cached.
+    private func fetchPlannerWorkouts() async {
+        guard let planner = provider as? any PlannerProviding else { return }
+        do {
+            let rows = try await planner.plannerWorkouts()
+            hubPlannerWorkouts = rows
+            try? cache.put(Self.plannerCacheKey, rows)
+        } catch is PlannerWorkoutsUnavailable {
+            hubPlannerWorkouts = nil
+        } catch {}
+    }
+
+    /// PL-3/PL-4: every workout, assigned or not — the hub's list (or the old-hub fallback) with
+    /// this phone's own day changes laid over it, so a pick or a drag shows at once.
+    public var plannerWorkouts: [PlannerWorkout] {
+        plannerWorkoutRows(hub: hubPlannerWorkouts, exercises: exercises, planSessions: allPlanSessions, spine: daySpine,
+                           templates: library?.templates ?? [], libraryLoaded: library?.state == .loaded)
     }
 
     /// What day `weekday` (Mon = 0) holds this week — strength sessions with their lifts, the
