@@ -23,8 +23,12 @@ private final class UncheckedSendableBox<Value>: @unchecked Sendable {
     init(value: Value) { self.value = value }
 }
 
-/// ActivityKit attributes for the verdict Live Activity. Local-start only
-/// (no push-to-start / APNs this wave — see plan risk register).
+/// ActivityKit attributes for the verdict Live Activity. Started locally by
+/// `LiveActivityController.update(from:)` or, since B-21, remotely by the hub's APNs
+/// `liveactivity` push-to-start (`attributes-type: "VerdictActivityAttributes"`,
+/// `attributes: {}`, `content-state` = `ContentState`'s Codable keys, `lastUpdate` as seconds since
+/// the 2001 reference date — ActivityKit's default `Date` decoding). Renaming this type or a
+/// `ContentState` key breaks the hub's push payload (`LiveActivityStartFixtureTests`).
 ///
 /// `nonisolated` because `Activity<T>.request`/`.update`/`.end` run off the
 /// main actor internally; the Widgets target defaults new declarations to
@@ -102,7 +106,8 @@ public final class LiveActivityController {
 
         // W-FIX7 F7-4: a relaunch loses `activity` but not the activity itself — adopt the one
         // already on the Lock Screen (and end any duplicate) instead of requesting a second card.
-        if activity == nil { adoptRunning(moment: moment) }
+        // B-21: also when a push-to-start card appeared beside the one we hold.
+        if needsAdoption() { adoptRunning(moment: moment) }
 
         if let startedAt, let lastUpdateAt,
            LiveActivityCapPolicy.shouldEnd(startedAt: startedAt, lastUpdateAt: lastUpdateAt, now: moment) {
@@ -152,7 +157,7 @@ public final class LiveActivityController {
     /// dismissal. Never STARTS an activity: a done day gets no new card.
     public func finish(from snapshot: HubSnapshot) {
         let moment = now()
-        if activity == nil { adoptRunning(moment: moment) }
+        if needsAdoption() { adoptRunning(moment: moment) }
         guard let activity else { return }
         let state = VerdictActivityAttributes.ContentState(
             verdictWord: snapshot.verdictWord, verdictSession: snapshot.verdictSession, verdictTone: snapshot.verdictTone,
@@ -171,6 +176,13 @@ public final class LiveActivityController {
     /// F7-4: adopt the first active verdict activity ActivityKit still lists; end the extras.
     /// W-FIX7 fixer: ended ("Done") cards from earlier launches — keep today's newest, dismiss the
     /// rest at once (they stacked, one per relaunch), and remember that today already finished.
+    private func needsAdoption() -> Bool {
+        LiveActivityAdoption.needsAdoption(
+            running: Activity<VerdictActivityAttributes>.activities.map { (id: $0.id, isActive: $0.activityState == .active || $0.activityState == .stale) },
+            held: activity?.id
+        )
+    }
+
     private func adoptRunning(moment: Date) {
         let running = Activity<VerdictActivityAttributes>.activities
         let ended = running.filter { $0.activityState == .ended }
@@ -180,12 +192,14 @@ public final class LiveActivityController {
             Task.detached { await box.value.end(nil, dismissalPolicy: .immediate) }
         }
         if endedPlan.dayFinished { finishedDay = moment }
-        let plan = LiveActivityAdoption.plan(running: running.map { (id: $0.id, isActive: $0.activityState == .active || $0.activityState == .stale) })
+        let plan = LiveActivityAdoption.plan(running: running.map { (id: $0.id, isActive: $0.activityState == .active || $0.activityState == .stale) },
+                                             held: activity?.id)
         for extra in running where plan.end.contains(extra.id) {
             let box = UncheckedSendableBox(value: extra)
             Task.detached { await box.value.end(nil, dismissalPolicy: .immediate) }
         }
         guard let id = plan.adopt, let adopted = running.first(where: { $0.id == id }) else { return }
+        if id == activity?.id { return } // B-21: kept the held one — its start/update clocks stay as they are
         activity = adopted
         // Its true start is not kept across launches; its last content update is the best bound.
         let last = adopted.content.state.lastUpdate
