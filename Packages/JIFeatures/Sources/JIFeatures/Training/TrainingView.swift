@@ -119,7 +119,7 @@ public struct TrainingView: View {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
         }
         #endif
-        .navigationDestination(isPresented: $showWeek) { TrainingWeekView(model: model) }
+        .navigationDestination(isPresented: $showWeek) { PlannerView(model: model) }
         .navigationDestination(isPresented: $showLibrary) {
             if let library = model.library { WorkoutLibraryView(model: library, onSendToWatch: librarySendToWatch) }
         }

@@ -159,3 +159,54 @@ func makePlannerVM(_ hub: PlannerHub, cache: OfflineCache, outbox: Outbox) -> Tr
     let more = plannerWorkoutRows(hub: plannerHubRows(), exercises: [], planSessions: [], spine: spine, templates: lib, libraryLoaded: true)
     #expect(more.contains { $0.ref == "t-1" } && !more.contains { $0.ref == "t4" })
 }
+
+// MARK: - PL-4: the Planner's filters and rows
+
+@Test func strengthFilterListsTheFourDaySessions() {
+    let rows = plannerFiltered(plannerHubRows(), .strength, templates: plannerLibrary)
+    #expect(rows.map(\.name) == ["Day 1 Full Upper", "Day 2 Full Upper", "Day 3 Full Upper", "Day 4 Full Upper"])
+}
+
+@Test func strengthFilterAlsoListsATemplateWithAStrengthSegment() {
+    var mixed = plannerTemplate("Gym + Run", id: 9, weekdays: [3])
+    mixed.segments.append(WorkoutSegment(sport: .strength, steps: []))
+    var hub = plannerHubRows()
+    hub.append(PlannerWorkout(ref: "t9", kind: .template, name: "Gym + Run", sport: "running", weekdays: [3], editable: true))
+    let rows = plannerFiltered(hub, .strength, templates: plannerLibrary + [mixed])
+    #expect(rows.map(\.ref) == ["s1", "s2", "s3", "s4", "t9"])
+}
+
+@Test func notOnADayListsDay4AndRunListsTheCardio() {
+    #expect(plannerFiltered(plannerHubRows(), .unassigned, templates: plannerLibrary).map(\.name) == ["Day 4 Full Upper"])
+    let run = plannerFiltered(plannerHubRows(), .run, templates: plannerLibrary)
+    #expect(run.map(\.ref) == ["s5", "s6", "s8", "t1", "t2", "t3", "t4"])
+    #expect(plannerFiltered(plannerHubRows(), .all, templates: plannerLibrary).count == 11)
+}
+
+@Test func noFilterIsEverEmptyWithThisPlanAndNoneSaysNoneInThisFilter() {
+    for f in PlannerFilter.allCases {
+        #expect(!plannerFiltered(plannerHubRows(), f, templates: plannerLibrary).isEmpty, "\(f.rawValue) is empty")
+        #expect(plannerEmptyText(f, hasAny: true) != "None in this filter.")
+    }
+    #expect(PlannerFilter.allCases.map(\.rawValue) == ["All", "Strength", "Run", "Not on a day"])
+}
+
+@Test func rowSubtitlesNameWhatAndWhen() {
+    let rows = plannerHubRows()
+    let day4 = rows.first { $0.ref == "s4" }!, day1 = rows.first { $0.ref == "s1" }!
+    #expect(plannerRowSubtitle(day4, template: nil) == "6 lifts · Not on a day")
+    #expect(plannerRowSubtitle(day1, template: nil) == "6 lifts · Mon")
+    let z2 = rows.first { $0.ref == "t2" }!
+    #expect(plannerRowSubtitle(z2, template: plannerLibrary[1]) == WorkoutFormat.summary(plannerLibrary[1]) + " · Mon")
+    let n44 = rows.first { $0.ref == "t3" }!
+    #expect(plannerRowSubtitle(n44, template: plannerLibrary[2]).hasSuffix(" · Tue, Sat"))
+    #expect(plannerStatement == "Your week, and every workout you can put in it.")
+}
+
+@Test func strengthDetailListsTheSessionsLiftsWithTheNextWeight() {
+    let ref = PlannerStrengthRef(plannerHubRows().first { $0.ref == "s4" }!)
+    #expect(ref.weekdays.isEmpty && ref.sessionId == 4)
+    let lifts = plannerStrengthLifts(ref, exercises: plannerExercises(), progressions: [])
+    #expect(lifts.count == 6 && lifts.allSatisfy { $0.exerciseId.map { (40..<46).contains($0) } ?? false })
+    #expect(plannerLiftLine(lifts[0]) == "Next 40 kg · 3 × 8")
+}

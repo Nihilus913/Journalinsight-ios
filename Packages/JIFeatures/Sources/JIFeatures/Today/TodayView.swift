@@ -240,7 +240,7 @@ public struct TodayView: View {
         }
         .navigationDestination(isPresented: $showWeekReview) {
             if let weekModel {
-                TrainingWeekView(model: weekModel).task { await weekModel.load() }
+                PlannerView(model: weekModel).task { await weekModel.load() }
             } else if let rationaleModel {
                 gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel)
             }

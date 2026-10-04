@@ -149,7 +149,7 @@ enum L6Fixtures {
     static func trainingWeek() -> AnyView {
         guard let db else { return unavailable("Training week") }
         let model = TrainingViewModel(provider: provider, healthProvider: provider, cache: OfflineCache(db: db), now: { today })
-        return AnyView(NavigationStack { TrainingWeekView(model: model) }.task { await model.load() })
+        return AnyView(NavigationStack { PlannerView(model: model) }.task { await model.load() })
     }
 
     static func goalsSetup() -> AnyView {
