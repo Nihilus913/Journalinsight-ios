@@ -200,3 +200,24 @@ struct TrainingHeroCard: View {
         Text(row.load).jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(row.load == "—" ? .muted : .text))
     }
 }
+
+// MARK: - W-PLANNER PL-6: the hero names the whole day
+
+/// "Day 1 Full Upper + Zone 2 40 min" — the hub's planned session first (when known), then every
+/// other workout on that day (the plan's sessions and library templates, as the Planner shows the
+/// day), each name once. nil = nothing known (the hero says "— No data").
+public nonisolated func trainingHeroTitle(day: TrainingDayPreview?, sessionName: String? = nil) -> String? {
+    var names: [String] = []
+    var keys = Set<String>()
+    for name in [sessionName].compactMap({ $0 }) + (day?.entries.map(\.title) ?? []) {
+        let key = trainingNameKey(name)
+        guard !key.isEmpty, !keys.contains(key) else { continue }
+        keys.insert(key); names.append(name)
+    }
+    return names.isEmpty ? nil : names.joined(separator: " + ")
+}
+
+/// The day's first library workout — what Send to Watch preselects (nil = none on that day).
+public nonisolated func trainingHeroTemplateId(day: TrainingDayPreview?) -> Int? {
+    day?.entries.lazy.compactMap { if case .template(let t) = $0 { t.templateId } else { nil } }.first
+}

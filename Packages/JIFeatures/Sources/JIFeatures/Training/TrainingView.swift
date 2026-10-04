@@ -240,7 +240,8 @@ public struct TrainingView: View {
             // Watch and Start session (the live session coach — no separate coach row).
             TrainingHeroCard(
                 dayLabel: heroDayLabel,
-                sessionName: model.plannedSessionForSelectedDay?.name,
+                // W-PLANNER PL-6: the whole day ("Day 1 Full Upper + Zone 2 40 min"), lifts below.
+                sessionName: trainingHeroTitle(day: heroDay, sessionName: model.plannedSessionForSelectedDay?.name),
                 rows: trainingHeroRows(exercises: model.exercises, session: model.plannedSessionForSelectedDay),
                 onSendToWatch: sendToWatchAction,
                 onStart: { if strengthLogDeps == nil { showSessionCoach = true } else { showStartChoice = true } },
@@ -291,6 +292,9 @@ public struct TrainingView: View {
         }
     }
 
+    /// PL-6: the selected day as the Planner shows it (its sessions + library workouts).
+    private var heroDay: TrainingDayPreview? { model.selectedPlanWeekday.map { model.dayPreview(weekday: $0) } }
+
     /// "Today" for the device day, else the selected day's date ("Thu 24 Sep").
     private var heroDayLabel: String {
         guard model.selectedDate != model.todayDateString, let date = trainingStripDate(model.selectedDate) else { return "Today" }
@@ -333,7 +337,12 @@ public struct TrainingView: View {
 
     private var sendToWatchAction: (() -> Void)? {
         #if canImport(WorkoutKit)
-        sendToWatch == nil ? nil : { showSendToWatch = true }
+        // PL-6: the day's library workout is preselected (the user can still change the pick).
+        guard let sendToWatch else { return nil }
+        return {
+            if let id = trainingHeroTemplateId(day: heroDay) { sendToWatch.pickOnly(id) }
+            showSendToWatch = true
+        }
         #else
         nil
         #endif

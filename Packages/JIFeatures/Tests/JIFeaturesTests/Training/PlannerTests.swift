@@ -266,3 +266,30 @@ private func plannerSource(_ relative: String) throws -> String {
     #expect(hub.weekdayCalls.count == 1 && hub.weekdayCalls[0].0 == 4 && hub.weekdayCalls[0].1 == 6)
     #expect(vm.plannerWorkouts.first { $0.ref == "s4" }?.weekdays == [6])
 }
+
+// MARK: - PL-6: the hero names the whole day
+
+private func mondayPreview() -> TrainingDayPreview {
+    let spine = trainingDaySpine(strength: weekSpine(planSessions: Array(plannerSessions.prefix(4)), exercises: plannerExercises()), sessions: plannerSessions)
+    let mon = TrainingWeekDay(weekday: 0, date: "2026-10-05", kind: .strength, sessionName: "Day 1 Full Upper", sessionId: 1, done: nil, isToday: true)
+    return trainingDayPreview(day: mon, spine: spine, exercises: plannerExercises(), templates: plannerLibrary)
+}
+
+@Test func heroTitleNamesTheStrengthSessionAndTheDaysRun() {
+    let p = mondayPreview()
+    #expect(trainingHeroTitle(day: p) == "Day 1 Full Upper + Zone 2 40 min")
+    // The hub's planned session leads and is never named twice.
+    #expect(trainingHeroTitle(day: p, sessionName: "Day 1 Full Upper") == "Day 1 Full Upper + Zone 2 40 min")
+    #expect(trainingHeroTitle(day: p, sessionName: "day 1  full upper") == "day 1  full upper + Zone 2 40 min")
+    // Nothing known → nil (the hero says "— No data", never an invented name).
+    #expect(trainingHeroTitle(day: nil, sessionName: nil) == nil)
+    #expect(trainingHeroTitle(day: nil, sessionName: "Day 2 Full Upper") == "Day 2 Full Upper")
+    let rest = TrainingDayPreview(weekday: 6, date: "2026-10-11", isToday: false, entries: [])
+    #expect(trainingHeroTitle(day: rest) == nil)
+}
+
+@Test func sendToWatchPreselectsTheDaysTemplate() {
+    #expect(trainingHeroTemplateId(day: mondayPreview()) == 2)
+    #expect(trainingHeroTemplateId(day: TrainingDayPreview(weekday: 6, date: "", isToday: false, entries: [])) == nil)
+    #expect(trainingHeroTemplateId(day: nil) == nil)
+}
