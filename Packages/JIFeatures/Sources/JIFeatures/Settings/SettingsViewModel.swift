@@ -34,6 +34,8 @@ public final class SettingsViewModel {
     /// B-57 W1 r5: the goals document source the Weekly plan row seeds from — the same
     /// `EnergyProviding` the Nutrition-tab entry passes. nil = no hub provider (plan uses prefs).
     public let goalsProvider: (any EnergyProviding)?
+    /// W-B91: the "I'm on a break" toggle (Settings › Today). nil = no hub that speaks it → no row.
+    public let trainingBreakModel: TrainingBreakViewModel?
     /// B-57 W1: Today's chips for EditToday's squares (App passes the live Today model's).
     public let todayChips: @MainActor () -> [TodayChip]
     /// Registered sections in render order (by `sortKey`, stable for equal keys).
@@ -68,6 +70,7 @@ public final class SettingsViewModel {
         kpiListModel: KpiListViewModel? = nil,
         makeKpiDetailModel: (@MainActor (KpiMetricId) -> KpiDetailViewModel?)? = nil,
         goalsProvider: (any EnergyProviding)? = nil,
+        trainingBreakModel: TrainingBreakViewModel? = nil,
         todayChips: @escaping @MainActor () -> [TodayChip] = { [] },
         weeklyPlanSchedule: WeeklyPlanViewModel.Schedule? = nil,
         sections: [any SettingsSection] = SettingsRegistry.sections,
@@ -88,6 +91,7 @@ public final class SettingsViewModel {
         self.kpiListModel = kpiListModel
         self.makeKpiDetailModel = makeKpiDetailModel
         self.goalsProvider = goalsProvider
+        self.trainingBreakModel = trainingBreakModel
         self.todayChips = todayChips
         self.weeklyPlanSchedule = weeklyPlanSchedule
         // `sorted` is stable in Swift's stdlib (documented since 5.x), so equal keys keep registry order.

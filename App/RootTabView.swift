@@ -1253,6 +1253,8 @@ struct RootTabView: View {
                                           daytimeHrv: Self.daytimeHrv(todayModel))
             },
             goalsProvider: hub as? any EnergyProviding,
+            // W-B91: Settings › Today "I'm on a break" (Decide's Load row reads Paused while on).
+            trainingBreakModel: (hub as? any TrainingBreakProviding).map { TrainingBreakViewModel(provider: $0) },
             todayChips: { todayModel?.squareChips ?? [] },
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
             weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },

@@ -24,7 +24,7 @@ public nonisolated func gateSignalNoteText(_ s: GateSignal) -> String? {
 
 public nonisolated func gateSignalValueText(_ s: GateSignal) -> String {
     guard let v = s.value else { return "—" }
-    return v.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : 0)))
+    return v.formatted(.number.precision(.fractionLength(s.key == "sleep_h" ? 1 : s.key == "load" ? 2 : 0)))
 }
 
 public nonisolated func gateSignalAccessibilityLabel(_ s: GateSignal) -> String {
@@ -64,7 +64,9 @@ public nonisolated func decideSignalStatus(_ s: GateSignal) -> JISignalStatus {
 /// "31 ms · clear"; a null value is "No data".
 public nonisolated func decideSignalValueLine(_ m: DecideSignalRowModel) -> String {
     guard let v = m.value, v.isFinite else { return JIMissingReason.noData.rawValue }
-    let value = [decideCompactNumber(v), m.unit.isEmpty ? nil : m.unit].compactMap { $0 }.joined(separator: " ")
+    // W-B91: a ratio row (Load, 2 decimals) keeps its precision — "1.84", not "1.8".
+    let number = m.decimals > 1 ? jiNumber(v, m.decimals) : decideCompactNumber(v)
+    let value = [number, m.unit.isEmpty ? nil : m.unit].compactMap { $0 }.joined(separator: " ")
     return "\(value) · \(m.status.word.lowercased())"
 }
 
@@ -98,6 +100,7 @@ nonisolated func decideCompactNumber(_ v: Double?) -> String { v.map { decideCom
 public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRange<Double>? = nil,
                                              recoveryNormal: ClosedRange<Double>? = nil,
                                              sleepGoalH: Double? = nil) -> DecideSignalRowModel {
+    if s.key == "load" { return decideLoadRowModel(s) }
     let decimals = s.key == "sleep_h" ? 1 : 0
     var status = decideSignalStatus(s)
     var shownNormal: ClosedRange<Double>? = nil
@@ -123,6 +126,27 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
     }
     return DecideSignalRowModel(id: s.key, label: decideSignalLabel(s), value: s.value, unit: s.unit, decimals: decimals,
                                 status: status, detail: detail, normal: shownNormal)
+}
+
+/// W-B91 S1 (Bevel gap BP-11): the hub's ACWR context row — the ratio at 2 decimals, the named
+/// status word (an unknown or absent word stays "Context only"), the hub caption as the detail.
+/// Never a personal-normal band: 0.80–1.30 is a population band and the caption says so.
+public nonisolated func decideLoadStatus(_ s: GateSignal) -> JISignalStatus {
+    // W-B91: Paused is the user's own status — it holds even without an ACWR value.
+    if s.loadStatus == "paused" { return .paused }
+    guard s.value != nil else { return .missing(.noData) }
+    switch s.loadStatus {
+    case "maintaining": return .maintaining
+    case "productive": return .productive
+    case "overreaching": return .overreaching
+    default: return .contextOnly
+    }
+}
+
+nonisolated func decideLoadRowModel(_ s: GateSignal) -> DecideSignalRowModel {
+    let note = s.note.flatMap { $0.isEmpty ? nil : $0 }
+    return DecideSignalRowModel(id: s.key, label: "Load", value: s.value, unit: s.unit, decimals: 2,
+                                status: decideLoadStatus(s), detail: note, normal: nil)
 }
 
 /// The nightly normals describe single nights; a hub signal over another window ("HRV (7-day)")

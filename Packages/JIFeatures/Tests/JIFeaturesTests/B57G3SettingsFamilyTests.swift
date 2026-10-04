@@ -88,7 +88,7 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
     #expect(SettingsRoot.rows.first { $0.id == "hub" }?.sectionIds.contains(SyncNowSection.sectionId) == true)
     // W-B96 (B-96, BP-24 mockup): the Calendar export joins Haptics & notifications.
     #expect(SettingsRoot.rows.first { $0.id == "haptics" }?.sectionIds == [HapticsSection.sectionId, CalendarSection.sectionId])
-    #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences"])
+    #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences", TrainingBreakSection.sectionId])   // W-B91
 }
 
 /// W-TGT L3: Gate thresholds is gone from Settings (merged into Targets, spec §4).
