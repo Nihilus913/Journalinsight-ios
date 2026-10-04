@@ -300,3 +300,35 @@ private func expectSameDouble(
         sourceLocation: sourceLocation
     )
 }
+
+// MARK: - W-B67 R-2: the breakdown (Garmin-style "how this score is built")
+
+/// Hub golden (R-1, `app/vitals/sleep_score.py::compute_sleep_score_breakdown`): Toby's Apple night
+/// 2026-10-04 (36200 / 1858 / 11417 / 1109 s) -> 86 = 50.0 + 5.7 + 20.0 + 10.0, shares to 3 dp.
+@Test
+func testBreakdownMatchesHubGolden() throws {
+    let b = try #require(computeSleepScoreBreakdown(durationSec: 36200, deepSec: 1858, remSec: 11417, awakeSec: 1109))
+    #expect(b.total == 86)
+    #expect(b.components.map(\.key) == ["duration", "deep", "rem", "continuity"])
+    #expect(b.components.map(\.points) == [50.0, 5.7, 20.0, 10.0])
+    #expect(b.components.map(\.max) == [50, 20, 20, 10])
+    #expect(b.components.map(\.value) == [36200, 1858, 11417, 1109])
+    #expect(b.components.map(\.share) == [nil, 0.051, 0.315, 0.031])
+    #expect(b.components.map(\.target) == [nil, 0.18, 0.225, nil])
+    #expect(b.components.allSatisfy { !$0.inferred })
+}
+
+/// total == computeSleepScore for every golden input (incl. nil stages), and a missing stage is
+/// credited at 80 % of its weight and flagged `inferred`.
+@Test(arguments: SleepGolden.scoreCases)
+func testBreakdownTotalEqualsScore(_ c: SleepScoreCase) {
+    let b = computeSleepScoreBreakdown(durationSec: c.durationSec, deepSec: c.deepSec, remSec: c.remSec, awakeSec: c.awakeSec)
+    #expect(b?.total == c.expected, "\(c.testDescription)")
+    guard let b else { return }
+    for (comp, arg) in zip(b.components.dropFirst(), [c.deepSec, c.remSec, c.awakeSec]) {
+        #expect(comp.inferred == (arg == nil))
+        if arg == nil { #expect(comp.points == pythonRound(0.8 * Double(comp.max), 1)) }
+        // The formula is exposed, not re-derived: a (pathological) negative stage stays negative.
+        if (arg ?? 0) >= 0 { #expect(comp.points >= 0 && comp.points <= Double(comp.max)) }
+    }
+}
