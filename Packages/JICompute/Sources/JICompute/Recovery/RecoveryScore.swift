@@ -11,14 +11,23 @@ public nonisolated struct RecoverySeriesDay: Hashable, Sendable, Codable {
     /// W-ONDEVICE O-3 (W-CAL C-1): which device the night's HRV came from; nil = untagged / no
     /// HRV. Not scored — the merge sets it, the UI may show it.
     public var source: HrvNightSource?
+    /// W-B103 (B-103, REC-7): sleeping breathing rate (Apple, Garmin fills) and Apple sleeping wrist
+    /// temperature. Scored only with `includeVitals` — breathing penalty-only, wrist temp display-only.
+    public var respBpm, wristTempC: Double?
     public init(date: String, hrvMs: Double? = nil, rhrBpm: Double? = nil, sleepH: Double? = nil,
-                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil, source: HrvNightSource? = nil) {
+                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil, source: HrvNightSource? = nil,
+                respBpm: Double? = nil, wristTempC: Double? = nil) {
         self.date = date; self.hrvMs = hrvMs; self.rhrBpm = rhrBpm; self.sleepH = sleepH
         self.deepH = deepH; self.remH = remH; self.loadMin = loadMin; self.source = source
+        self.respBpm = respBpm; self.wristTempC = wristTempC
     }
 }
 
-public nonisolated enum RecoveryComponentKey: String, Sendable, Hashable, CaseIterable { case hrv, rhr, sleep, load }
+public nonisolated enum RecoveryComponentKey: String, Sendable, Hashable, CaseIterable {
+    case hrv, rhr, sleep, load
+    /// W-B103: emitted only with `includeVitals` — breathing (penalty-only) and wrist temp (display-only).
+    case vitals, temp
+}
 public nonisolated enum RecoveryComponentStatus: String, Sendable, Hashable { case ok, noReading = "no_reading", calibrating, flat }
 public nonisolated enum RecoveryScoreStatus: String, Sendable, Hashable { case ok, calibrating, missing }
 
@@ -123,18 +132,37 @@ public nonisolated enum RecoveryScore {
             else { hrv = nil; src = nil }
             out.append(RecoverySeriesDay(date: date, hrvMs: hrv, rhrBpm: pick(a.rhrBpm, g.rhrBpm),
                                          sleepH: pick(a.sleepH, g.sleepH), deepH: pick(a.deepH, g.deepH),
-                                         remH: pick(a.remH, g.remH), loadMin: a.loadMin, source: src))
+                                         remH: pick(a.remH, g.remH), loadMin: a.loadMin, source: src,
+                                         respBpm: pick(a.respBpm, g.respBpm), wristTempC: a.wristTempC))   // W-B103: temp Apple only
         }
         return out
     }
 
     /// Merge (Apple first, Garmin fills) then score — what the hub's recovery loader does.
     public static func compute(apple: [RecoverySeriesDay], garmin: [RecoverySeriesDay], today: String,
-                               factor: Double? = nil) throws -> RecoveryScoreResult {
-        try compute(days: mergeRecoveryDays(apple: apple, garmin: garmin, factor: factor), today: today)
+                               factor: Double? = nil, includeVitals: Bool = false) throws -> RecoveryScoreResult {
+        try compute(days: mergeRecoveryDays(apple: apple, garmin: garmin, factor: factor), today: today,
+                    includeVitals: includeVitals)
     }
 
-    public static func compute(days: [RecoverySeriesDay], today: String) throws -> RecoveryScoreResult {
+    /// W-B103 (B-103, Bevel REC-7) — port of `_vitals_components`. `vitals`: last night's breathing
+    /// vs its own 28-day normal, PENALTY-ONLY (z = min(0, −(x − median)/sd), clipped at −3). `temp`:
+    /// wrist temp, DISPLAY-ONLY (Toby 2026-10-04: the drift "could be all of the above") — always
+    /// `.calibrating`, z nil, never in the mean. Neither is core: calibrating never blocks the score.
+    private static func vitalsComponents(_ by: [String: RecoverySeriesDay], today: String) throws -> [RecoveryComponent] {
+        let resp = series(by, { $0.respBpm }, { $0 > 0 })
+        let temp = series(by, { $0.wristTempC }, { $0 > 0 })
+        let respX = resp[today]
+        var v = component(.vitals, x: respX, normal: try PersonalNormal.normal(resp, today: today),
+                          count: try PersonalNormal.count(resp, today: today), sign: -1, value: respX)
+        if let z = v.z { v = RecoveryComponent(key: .vitals, status: v.status, value: v.value, z: min(0.0, z), normalN: v.normalN) }
+        let t = RecoveryComponent(key: .temp, status: .calibrating, value: temp[today], z: nil,
+                                  normalN: try PersonalNormal.count(temp, today: today))
+        return [v, t]
+    }
+
+    public static func compute(days: [RecoverySeriesDay], today: String,
+                               includeVitals: Bool = false) throws -> RecoveryScoreResult {
         var by: [String: RecoverySeriesDay] = [:]
         for d in days { by[d.date] = d }                       // a later duplicate wins, like the Python dict
         let hrvLn = series(by, { $0.hrvMs }, { $0 > 0 }).mapValues { Foundation.log($0) }
@@ -192,7 +220,8 @@ public nonisolated enum RecoveryScore {
         let loadC = component(.load, x: loadX, normal: try PersonalNormal.normal(weekly, today: today, minN: loadMinNormalN),
                               count: try PersonalNormal.count(weekly, today: today), sign: -1, value: loadX)
 
-        let comps = [hrv, rhrC, sleepC, loadC]
+        var comps = [hrv, rhrC, sleepC, loadC]
+        if includeVitals { comps += try vitalsComponents(by, today: today) }   // W-B103 flag (default off)
         let core = [hrv, rhrC, sleepC]
         let nights = core.map(\.normalN).min() ?? 0
         let (nStart, nEnd) = try PersonalNormal.window(today: today)
