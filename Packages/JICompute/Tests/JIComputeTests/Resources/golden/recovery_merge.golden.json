@@ -900,7 +900,9 @@
       "normalN": 28
      }
     ]
-   }
+   },
+   "nApple": 28,
+   "nGarmin": 0
   },
   {
    "label": "Garmin only",
@@ -1802,7 +1804,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 28
   },
   {
    "label": "15 Apple + 30 Garmin (mixed)",
@@ -2750,7 +2754,9 @@
       "normalN": 5
      }
     ]
-   }
+   },
+   "nApple": 8,
+   "nGarmin": 20
   },
   {
    "label": "mixed, explicit factor 0.9",
@@ -3698,7 +3704,9 @@
       "normalN": 5
      }
     ]
-   }
+   },
+   "nApple": 8,
+   "nGarmin": 20
   },
   {
    "label": "Apple night without HRV, Garmin HRV fills",
@@ -4781,7 +4789,9 @@
       "normalN": 10
      }
     ]
-   }
+   },
+   "nApple": 13,
+   "nGarmin": 15
   },
   {
    "label": "field-by-field fill (Apple RHR missing)",
@@ -5954,7 +5964,9 @@
       "normalN": 20
      }
     ]
-   }
+   },
+   "nApple": 23,
+   "nGarmin": 5
   },
   {
    "label": "neither has HRV tonight",
@@ -6842,7 +6854,9 @@
       "normalN": 20
      }
     ]
-   }
+   },
+   "nApple": 23,
+   "nGarmin": 0
   },
   {
    "label": "Apple 10 nights alone: calibrating",
@@ -7079,7 +7093,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 3,
+   "nGarmin": 0
   },
   {
    "label": "Apple 10 + Garmin 20: not calibrating",
@@ -7697,7 +7713,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 3,
+   "nGarmin": 20
   },
   {
    "label": "sweep 0",
@@ -8195,7 +8213,9 @@
       "normalN": 3
      }
     ]
-   }
+   },
+   "nApple": 6,
+   "nGarmin": 3
   },
   {
    "label": "sweep 1",
@@ -8412,7 +8432,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 1,
+   "nGarmin": 0
   },
   {
    "label": "sweep 2",
@@ -9212,7 +9234,9 @@
       "normalN": 9
      }
     ]
-   }
+   },
+   "nApple": 12,
+   "nGarmin": 10
   },
   {
    "label": "sweep 3",
@@ -10169,7 +10193,9 @@
       "normalN": 15
      }
     ]
-   }
+   },
+   "nApple": 16,
+   "nGarmin": 9
   },
   {
    "label": "sweep 4",
@@ -10824,7 +10850,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 20
   },
   {
    "label": "sweep 5",
@@ -11248,7 +11276,9 @@
       "normalN": 5
      }
     ]
-   }
+   },
+   "nApple": 3,
+   "nGarmin": 4
   },
   {
    "label": "sweep 6",
@@ -11907,7 +11937,9 @@
       "normalN": 5
      }
     ]
-   }
+   },
+   "nApple": 8,
+   "nGarmin": 6
   },
   {
    "label": "sweep 7",
@@ -12264,7 +12296,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 2,
+   "nGarmin": 3
   },
   {
    "label": "sweep 8",
@@ -12837,7 +12871,9 @@
       "normalN": 8
      }
     ]
-   }
+   },
+   "nApple": 8,
+   "nGarmin": 3
   },
   {
    "label": "sweep 9",
@@ -13445,7 +13481,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 20
   },
   {
    "label": "sweep 10",
@@ -14224,7 +14262,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 22
   },
   {
    "label": "sweep 11",
@@ -15090,7 +15130,9 @@
       "normalN": 13
      }
     ]
-   }
+   },
+   "nApple": 14,
+   "nGarmin": 10
   },
   {
    "label": "sweep 12",
@@ -16047,7 +16089,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 2,
+   "nGarmin": 16
   },
   {
    "label": "sweep 13",
@@ -16631,7 +16675,9 @@
       "normalN": 3
      }
     ]
-   }
+   },
+   "nApple": 3,
+   "nGarmin": 11
   },
   {
    "label": "sweep 14",
@@ -16716,7 +16762,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 0
   },
   {
    "label": "sweep 15",
@@ -17124,7 +17172,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 11
   },
   {
    "label": "sweep 16",
@@ -17426,7 +17476,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 5,
+   "nGarmin": 0
   },
   {
    "label": "sweep 17",
@@ -17492,7 +17544,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 0
   },
   {
    "label": "sweep 18",
@@ -17952,7 +18006,9 @@
       "normalN": 1
      }
     ]
-   }
+   },
+   "nApple": 5,
+   "nGarmin": 3
   },
   {
    "label": "sweep 19",
@@ -18348,7 +18404,9 @@
       "normalN": 6
      }
     ]
-   }
+   },
+   "nApple": 6,
+   "nGarmin": 0
   },
   {
    "label": "sweep 20",
@@ -19325,7 +19383,9 @@
       "normalN": 17
      }
     ]
-   }
+   },
+   "nApple": 14,
+   "nGarmin": 11
   },
   {
    "label": "sweep 21",
@@ -19685,7 +19745,9 @@
       "normalN": 4
      }
     ]
-   }
+   },
+   "nApple": 6,
+   "nGarmin": 0
   },
   {
    "label": "sweep 22",
@@ -20660,7 +20722,9 @@
       "normalN": 1
      }
     ]
-   }
+   },
+   "nApple": 3,
+   "nGarmin": 19
   },
   {
    "label": "sweep 23",
@@ -21264,7 +21328,9 @@
       "normalN": 17
      }
     ]
-   }
+   },
+   "nApple": 12,
+   "nGarmin": 2
   },
   {
    "label": "sweep 24",
@@ -21919,7 +21985,9 @@
       "normalN": 0
      }
     ]
-   }
+   },
+   "nApple": 0,
+   "nGarmin": 20
   },
   {
    "label": "sweep 25",
@@ -22720,7 +22788,9 @@
       "normalN": 8
      }
     ]
-   }
+   },
+   "nApple": 7,
+   "nGarmin": 11
   },
   {
    "label": "sweep 26",
@@ -23080,7 +23150,9 @@
       "normalN": 4
      }
     ]
-   }
+   },
+   "nApple": 8,
+   "nGarmin": 0
   },
   {
    "label": "sweep 27",
@@ -23607,7 +23679,9 @@
       "normalN": 10
      }
     ]
-   }
+   },
+   "nApple": 9,
+   "nGarmin": 2
   },
   {
    "label": "sweep 28",
@@ -24539,7 +24613,9 @@
       "normalN": 12
      }
     ]
-   }
+   },
+   "nApple": 13,
+   "nGarmin": 8
   },
   {
    "label": "sweep 29",
@@ -25385,7 +25461,9 @@
       "normalN": 16
      }
     ]
-   }
+   },
+   "nApple": 14,
+   "nGarmin": 10
   }
  ]
 }

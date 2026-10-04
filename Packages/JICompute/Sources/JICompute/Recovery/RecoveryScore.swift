@@ -43,11 +43,14 @@ public nonisolated struct RecoveryScoreResult: Hashable, Sendable {
     public let components: [RecoveryComponent]
     public let nights: Int
     public let nightsNeeded: Int
+    /// W-CAL C-1: HRV nights in the 28-day normal window by device (display only).
+    public let nApple: Int
+    public let nGarmin: Int
 
     public init(status: RecoveryScoreStatus, score: Int?, raw: Double?, components: [RecoveryComponent],
-                nights: Int, nightsNeeded: Int = PersonalNormal.minN) {
+                nights: Int, nightsNeeded: Int = PersonalNormal.minN, nApple: Int = 0, nGarmin: Int = 0) {
         self.status = status; self.score = score; self.raw = raw; self.components = components
-        self.nights = nights; self.nightsNeeded = nightsNeeded
+        self.nights = nights; self.nightsNeeded = nightsNeeded; self.nApple = nApple; self.nGarmin = nGarmin
     }
 
     public func component(_ key: RecoveryComponentKey) -> RecoveryComponent? { components.first { $0.key == key } }
@@ -192,17 +195,23 @@ public nonisolated enum RecoveryScore {
         let comps = [hrv, rhrC, sleepC, loadC]
         let core = [hrv, rhrC, sleepC]
         let nights = core.map(\.normalN).min() ?? 0
+        let (nStart, nEnd) = try PersonalNormal.window(today: today)
+        let nG = hrvLn.keys.filter { $0 >= nStart && $0 <= nEnd && by[$0]?.source == .garmin }.count
+        let nA = try PersonalNormal.count(hrvLn, today: today) - nG
         if core.contains(where: { $0.status == .calibrating }) {
-            return RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: comps, nights: nights)
+            return RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: comps, nights: nights,
+                                       nApple: nA, nGarmin: nG)
         }
         guard hrv.z != nil else {
-            return RecoveryScoreResult(status: .missing, score: nil, raw: nil, components: comps, nights: nights)
+            return RecoveryScoreResult(status: .missing, score: nil, raw: nil, components: comps, nights: nights,
+                                       nApple: nA, nGarmin: nG)
         }
         let zs = comps.compactMap(\.z)
         var total = 0.0
         for z in zs { total += z }
         let mean = total / Double(zs.count)
         let raw = max(0.0, min(100.0, 50.0 + mean * 50.0 / 3.0))
-        return RecoveryScoreResult(status: .ok, score: roundScore(raw), raw: raw, components: comps, nights: nights)
+        return RecoveryScoreResult(status: .ok, score: roundScore(raw), raw: raw, components: comps, nights: nights,
+                                   nApple: nA, nGarmin: nG)
     }
 }

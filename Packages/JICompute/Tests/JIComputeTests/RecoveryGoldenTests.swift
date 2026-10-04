@@ -133,7 +133,7 @@ func recoveryScoreMatchesPython(_ c: RecoveryScoreCase) throws {
 /// (ground truth `merge_recovery_days` -> `recovery_score` @ cal). 39 cases; recovery.golden.json
 /// above is untouched.
 struct RecoveryMergeCase: GoldenCase, CustomTestStringConvertible {
-    static let allowedKeys: Set<String> = ["label", "apple", "garmin", "factor", "today", "merged", "expected"]
+    static let allowedKeys: Set<String> = ["label", "apple", "garmin", "factor", "today", "merged", "expected", "nApple", "nGarmin"]
     struct Merged: Decodable, Sendable {
         let date: String
         let hrv_ms, rhr_bpm, sleep_h, deep_h, rem_h, load_min: Double?
@@ -145,6 +145,7 @@ struct RecoveryMergeCase: GoldenCase, CustomTestStringConvertible {
     let today: String
     let merged: [Merged]
     let expected: RecoveryScoreCase.Expected
+    let nApple, nGarmin: Int
     var testDescription: String { "\(label) -> \(expected.status)" }
 }
 
@@ -177,6 +178,7 @@ func recoveryMergeMatchesPython(_ c: RecoveryMergeCase) throws {
     #expect(r.score == c.expected.score)
     #expect(recoveryClose(r.raw, c.expected.raw))
     #expect(r.nights == c.expected.nights)
+    #expect(r.nApple == c.nApple && r.nGarmin == c.nGarmin)
     #expect(r.components.map(\.status.rawValue) == c.expected.components.map(\.status))
     for (g, e) in zip(r.components, c.expected.components) {
         #expect(recoveryClose(g.value, e.value) && recoveryClose(g.z, e.z) && g.normalN == e.normalN)
