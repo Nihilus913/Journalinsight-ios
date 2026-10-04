@@ -29,14 +29,26 @@ final class TrainingProofTests: JIUITestCase {
     /// is a nested push; its "Log sets" / "Send to Watch" read deps the stack must still carry.
     func testPL5_plannerDay1LogSets() {
         openLibrary()
-        let day1 = element(idPrefix: "planner-row-s", labelContains: "Day 1")
+        // W-B88: post-073 the Day 1 row is its library template (workouts-row-5, the row id of every
+        // template row); an older hub lists the plan session (planner-row-s1).
+        let post073 = element(idPrefix: "workouts-row-", labelContains: "Day 1")
+        let day1 = post073.waitForExistence(timeout: 10) ? post073 : element(idPrefix: "planner-row-s", labelContains: "Day 1")
         reveal(day1, "Planner row Day 1")
         tap(day1, "Planner row Day 1")
         XCTAssertTrue(el("planner-strength-detail").waitForExistence(timeout: 10), "Day 1 detail did not open")
         let logSets = el("planner-log-sets")
         reveal(logSets, "Day 1 Log sets")
-        XCTAssertTrue(el("planner-send-to-watch").exists, "Day 1 has no Send to Watch")
+        let send = el("planner-send-to-watch")
+        XCTAssertTrue(send.exists, "Day 1 has no Send to Watch")
         shot("PL5-planner-day1-detail")
+        // W-B88 B88-5: Send to Watch = a sheet naming the day's workout with its lifts.
+        tap(send, "Send to Watch")
+        XCTAssertTrue(el("planner-send-sheet-title").waitForExistence(timeout: 10), "Send to Watch sheet did not open")
+        XCTAssertTrue(el("planner-send-sheet-title").label.contains("Day 1"), "sheet title: \(el("planner-send-sheet-title").label)")
+        XCTAssertGreaterThan(app.descendants(matching: .any).matching(identifier: "planner-send-sheet-lift").count, 0, "sheet lists no lifts")
+        shot("PL5-planner-day1-send-to-watch")
+        tapId("planner-send-sheet-close")
+        XCTAssertTrue(el("planner-send-sheet-title").waitForNonExistence(timeout: 10))
         tap(logSets, "Log sets")
         reveal(el("strength-log-add-exercise"), "the set logger after Log sets")
         shot("PL5-planner-day1-log-sets")

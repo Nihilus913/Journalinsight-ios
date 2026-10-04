@@ -64,13 +64,15 @@ public final class SendToWatchViewModel {
         self.calendar = calendar
         self.openSettings = openSettings
         self.date = now()
-        self.templates = seededTemplates
+        self.templates = seededTemplates.filter(sendToWatchCanBuild)
     }
 
     public func load() async {
         state = .loading
         do {
-            templates = try await provider.workoutTemplates()
+            // W-B88: a strength-only template (a strength day, post-073) cannot become a WorkoutKit
+            // plan (`noCardioSegment`) — never listed; strength reaches the Watch from the Planner.
+            templates = try await provider.workoutTemplates().filter(sendToWatchCanBuild)
             selected = selected.intersection(templates.map(\.templateId))
             state = .idle
         } catch {
@@ -139,6 +141,12 @@ public final class SendToWatchViewModel {
         default: "Couldn't send: \(error.localizedDescription)"
         }
     }
+}
+
+/// W-B88: WorkoutKit can run the template — it has a cardio segment (or is a pre-053 row with no
+/// segments, its compat `steps` = one running segment). All-strength = `noCardioSegment`.
+public nonisolated func sendToWatchCanBuild(_ t: WorkoutTemplate) -> Bool {
+    t.segments.isEmpty || t.segments.contains { $0.sport.isCardio }
 }
 
 /// SendToWatch footer. The cap part appears only when the user set a cap.
