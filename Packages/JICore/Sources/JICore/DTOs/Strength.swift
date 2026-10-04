@@ -157,3 +157,40 @@ public struct StrengthAdvanceWouldClear: Error, Sendable, Equatable {
     public let exerciseId: Int
     public init(exerciseId: Int) { self.exerciseId = exerciseId }
 }
+
+// MARK: - B-89 BP-6a `GET /api/v1/training/strength-records` (HT app/training/strength_records.py)
+
+/// One counted set of a lift session (the hub already applied the rep cap + minimum weight).
+public struct StrengthRecordSetOut: Codable, Sendable, Equatable {
+    public var reps: Int?
+    public var weightKg: Double?
+    public init(reps: Int?, weightKg: Double?) { self.reps = reps; self.weightKg = weightKg }
+}
+
+public struct StrengthRecordSessionOut: Codable, Sendable, Equatable {
+    public var date: String
+    public var sets: [StrengthRecordSetOut]
+    public var sources: [String]?
+    public init(date: String, sets: [StrengthRecordSetOut], sources: [String]? = nil) {
+        self.date = date; self.sets = sets; self.sources = sources
+    }
+}
+
+public struct StrengthRecordLiftOut: Codable, Sendable, Equatable {
+    public var lift: String
+    public var perHand: Bool?
+    public var sessions: [StrengthRecordSessionOut]
+    public init(lift: String, perHand: Bool? = nil, sessions: [StrengthRecordSessionOut]) {
+        self.lift = lift; self.perHand = perHand; self.sessions = sessions
+    }
+}
+
+/// The hub's per-lift history (Garmin sets + logged sets). The phone recomputes the records with
+/// `JICompute.OneRepMax`; only `lifts[].sessions[].sets` are read.
+public struct StrengthRecordsOut: Codable, Sendable, Equatable {
+    public var lifts: [StrengthRecordLiftOut]
+    public init(lifts: [StrengthRecordLiftOut]) { self.lifts = lifts }
+}
+
+/// A provider without `GET /training/strength-records` (fixtures, an older hub).
+public struct StrengthRecordsUnavailable: Error, Sendable, Equatable { public init() {} }

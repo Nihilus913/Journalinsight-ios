@@ -13,6 +13,7 @@ public struct StrengthLogView: View {
     @State private var editing: StrengthSetLog?
     @State private var showPlates = false
     @State private var showHistory = false
+    @State private var records: StrengthRecordsViewModel?
     /// W-B38-B B-10: the exercise library, whose pick adds an exercise to this session.
     @State private var showLibrary = false
     private let theme = JITheme.native
@@ -55,6 +56,8 @@ public struct StrengthLogView: View {
                 if history != nil {
                     Button { showHistory = true } label: { Label("History", systemImage: "clock.arrow.circlepath") }
                         .accessibilityIdentifier("strength-log-history")
+                    Button { records = history?.makeRecords() } label: { Label("Records", systemImage: "trophy") }
+                        .accessibilityIdentifier("strength-log-records")
                 }
             }
         }
@@ -71,6 +74,7 @@ public struct StrengthLogView: View {
         .navigationDestination(isPresented: $showHistory) {
             if let history { StrengthHistoryView(model: history) }
         }
+        .navigationDestination(item: $records) { StrengthRecordsView(model: $0) }
     }
 
     private var completeSection: some View {

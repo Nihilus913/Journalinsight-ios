@@ -43,6 +43,11 @@ public final class StrengthHistoryViewModel {
         return ((try? CalendarMath.addDays(to, -days)) ?? to, to)
     }
 
+    /// B-89: the Records screen over the same store, hub and day.
+    public func makeRecords() -> StrengthRecordsViewModel {
+        StrengthRecordsViewModel(store: store, provider: provider, today: today)
+    }
+
     public func load() async {
         readCache()
         guard let provider else { return }
