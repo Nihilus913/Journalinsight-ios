@@ -60,11 +60,12 @@ final class B43RestAlertUITests: JIUITestCase {
         // Background the app and wait for the rest to end (+ a margin for delivery).
         XCUIDevice.shared.press(.home)
         XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 10))
-        sleep(100)
         // The banner is one accessibility element whose label carries app, time, title and body.
+        // A home-screen banner stays only a few seconds, so poll for it over the whole rest
+        // (90 s) instead of sleeping through it.
         let banner = springboard.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS 'Rest over'")).firstMatch
-        if !banner.waitForExistence(timeout: 20) {
+        if !banner.waitForExistence(timeout: 130) {
             let png = XCUIScreen.main.screenshot().pngRepresentation
             let att = XCTAttachment(uniformTypeIdentifier: "public.png", name: "B43-fail-home.png", payload: png, userInfo: nil)
             att.lifetime = .keepAlways
