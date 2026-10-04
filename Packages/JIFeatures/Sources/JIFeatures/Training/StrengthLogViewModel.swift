@@ -4,6 +4,7 @@ import SwiftUI
 import JICore
 import JICompute
 import JIPersistence
+import JIWorkouts
 
 /// W-B38-A A-10 — one exercise of the selected training as the logger prefills it (decision:
 /// "prefilled from the selected training — its exercises, sets, reps, weights").
@@ -119,7 +120,15 @@ public final class StrengthLogViewModel {
     public private(set) var syncNote: String?
     public private(set) var completedAdvance: [StrengthAdvance]?
     public private(set) var error: String?
-    public var timer = SetTimer()
+    public var timer = SetTimer() {
+        // B-43 P1: every countdown change (start, +30 s, Skip/Dismiss, complete) re-plans the rest-end
+        // notification that alerts while the phone is locked / the app is backgrounded.
+        didSet { if timer != oldValue { restAlert?.sync(timer, exercise: restExercise, now: now()) } }
+    }
+    /// B-43 P1: the background rest-end alert (nil in tests / previews that don't check it).
+    @ObservationIgnored public let restAlert: RestEndAlert?
+    /// The exercise of the set that started the running rest (named in the alert body).
+    @ObservationIgnored private var restExercise: String?
     public private(set) var plates: PlateInventory
     public var autoSuggest: Bool {
         didSet { try? prefs?.set(progressionAutoSuggestKey, autoSuggest) }
@@ -142,8 +151,9 @@ public final class StrengthLogViewModel {
 
     public init(lifts: [StrengthLogLift], sessionId: Int?, sessionName: String?, store: StrengthSessionLogStore,
                 outbox: Outbox?, provider: (any TrainingProviding)?, prefs: PrefStore?,
-                today: @escaping () -> String, now: @escaping () -> Date = Date.init,
+                today: @escaping () -> String, now: @escaping () -> Date = Date.init, restAlert: RestEndAlert? = nil,
                 reminders: (any WorkoutSessionReminding)? = nil) {
+        self.restAlert = restAlert
         self.reminders = reminders
         self.sessionId = sessionId; self.sessionName = sessionName; self.store = store; self.provider = provider
         self.prefs = prefs; self.today = today; self.now = now
@@ -237,6 +247,7 @@ public final class StrengthLogViewModel {
         do { try store.upsertSet(set) } catch { self.error = "Could not save the set on this phone."; return nil }
         queue?.enqueue(.logSet(session: session.clientId, Self.body(set)))
         reloadSets()
+        restExercise = exerciseKey
         timer = timer.startingRest(seconds: restSeconds, at: now())
         if let reminders {
             let at = now()

@@ -1035,9 +1035,13 @@ struct RootTabView: View {
         moreMindModel = MindViewModel(
             checkins: CheckInStore(db: db, cipher: cipher),
             eventStore: EventStore(db: db, cipher: cipher),
-            who5Store: Who5Store(db: db, cipher: cipher)
+            who5Store: Who5Store(db: db, cipher: cipher),
+            moodMirror: Self.moodMirror   // B-24 P2: only acts while the Settings toggle is on
         )
     }
+
+    /// B-24 P2: the one mood -> Apple Health (State of Mind) mirror, shared by Mind and Settings.
+    private static let moodMirror = HealthKitMoodMirror()
 
     @ViewBuilder
     private var recoveryTab: some View {
@@ -1294,7 +1298,8 @@ struct RootTabView: View {
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
             weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },
             syncAction: { try await env.syncNow() },
-            calendarExport: calendarExportModel()
+            calendarExport: calendarExportModel(),
+            moodMirror: MoodMirrorSettingsModel(mirror: Self.moodMirror)
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()
@@ -1475,6 +1480,8 @@ struct RootTabView: View {
         if link == .gate { openGate(); return }
         // W-B102 C-5: `ji://checkin` opens the mind check-in (with the live prompt's "why") over Today.
         if case .checkIn = link { selectedTab = .today; showCheckIn = true; return }
+        // B-43 P1: `ji://strength-log` (rest-end alert / Live Activity tap) opens the set logger.
+        if link == .strengthLog { selectedTab = .training; StrengthLoggerOpenRequest.shared.request(); return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)
