@@ -166,7 +166,9 @@ final class AppEnvironment {
             try? cache.clear()
         }
         activeBaseURL = config.baseURL
-        let hubClient = HubClient(config: config)
+        // B-52 p1 (b): every hub GET reads through the offline cache by default (stale-flagged copy
+        // when the hub is unreachable; `/health` and `SectionLoader` reads are excluded).
+        let hubClient = HubClient(config: config, readCache: cache)
         activeHubClient = hubClient
         // B-44 Option B: the trigger + overlay first (no-op unless enabled; ON in Release), fed the
         // hub WITHOUT the overlay (shadow log's hub column, upload target); then the hub provider

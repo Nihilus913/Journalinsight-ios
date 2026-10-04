@@ -41,3 +41,24 @@ public struct OfflineCache: Sendable {
         }
     }
 }
+
+/// B-52 p1 (b): the production read-through store behind every `HubClient.get` (wired in
+/// `AppEnvironment.apply`). Same `cache` table as the section caches, raw response bytes under a
+/// `"hub:GET …"` key (`HubReadKey`) — no collision with a section key, and `clear()` on a re-pointed
+/// hub wipes both together.
+extension OfflineCache: HubReadCache {
+    public func loadRead(_ key: String) -> (data: Data, fetchedAt: Date)? {
+        let row: Row? = try? db.pool.read { db in try Row.fetchOne(db, sql: "SELECT json, fetched_at FROM cache WHERE key = ?", arguments: [key]) }
+        guard let row else { return nil }
+        let raw: String = row["fetched_at"]
+        guard let at = try? Date(raw, strategy: .iso8601) else { return nil }
+        return (row["json"], at)
+    }
+
+    public func storeRead(_ key: String, _ data: Data) {
+        let now = Date().ISO8601Format()
+        try? db.pool.write { db in
+            try db.execute(sql: "INSERT OR REPLACE INTO cache(key, json, fetched_at) VALUES (?, ?, ?)", arguments: [key, data, now])
+        }
+    }
+}
