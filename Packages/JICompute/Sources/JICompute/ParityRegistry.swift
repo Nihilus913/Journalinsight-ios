@@ -123,6 +123,15 @@ public nonisolated enum ParityRegistry {
         ),
     ]
 
+    /// Swift-only: which JICompute type implements a `.computed` metric (W-ONDEVICE O-5). Kept
+    /// apart from `entries` so the notes stay identical to the Python/TS registries.
+    public static let implementations: [String: String] = [
+        "readiness_categorical": "JICompute.ReadinessComposite",
+    ]
+
+    /// The implementing JICompute type for `metric`, or nil when none is ported.
+    public static func implementation(for metric: String) -> String? { implementations[metric] }
+
     /// Return the parity source for `metric`, defaulting to `.hub`.
     public static func source(for metric: String) -> ParitySource {
         entries[metric]?.source ?? defaultSource
