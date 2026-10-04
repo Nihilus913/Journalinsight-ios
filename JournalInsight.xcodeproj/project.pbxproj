@@ -63,6 +63,8 @@
 		92E6B78F43A3B2205E0C8AB1 /* Fix6L1AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9457A6EC4E99D109BB19F494 /* Fix6L1AppTests.swift */; };
 		943A472E2B9E883D80EC57B9 /* Fix5L3AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150113D0217CFC1530B5A031 /* Fix5L3AppTests.swift */; };
 		947A2B60C11BC8A8C3BB666C /* HealthKitUploadSpecsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 094C0C2F19C94D8B96AA2CC2 /* HealthKitUploadSpecsTests.swift */; };
+		94F4F8AEFD8AFF2E9E4C0DF1 /* MoodMirrorSimTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */; };
+		9564A45902C68CA09F4F6E1D /* ProjectMembershipGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1826921157F0A09B5E6C6092 /* ProjectMembershipGuardTests.swift */; };
 		9826D623E6F79EC92B041772 /* MyKpisGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7541113198F7B5C556696963 /* MyKpisGlance.swift */; };
 		9A4BAF9943F4621F5021A550 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2798E1055DC1C38E77A45D /* WatchApp.swift */; };
 		9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA32214326886B2F6938D0AC /* ProviderSelection.swift */; };
@@ -81,6 +83,7 @@
 		BE92D18040C989A85621A932 /* Fix7L1AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B95FD08E32DDCC89D64B00 /* Fix7L1AppTests.swift */; };
 		C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */ = {isa = PBXBuildFile; productRef = 492768B6A5B02BFF4735FCE3 /* JIWorkouts */; };
 		C1629D337970A6C10E143697 /* SelectKpiIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */; };
+		C435E092A52620FEEE195011 /* B24HealthGrantUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0564B2A409EF6A34849857C0 /* B24HealthGrantUITests.swift */; };
 		D159A94FC5CE478EBBD98757 /* VerdictComplicationTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */; };
 		D5DC426F85E7249E0105A699 /* StrengthLogViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E4C7AF960174FE787EC5E0 /* StrengthLogViews.swift */; };
 		D67FD48EBDFAC2DEE1F7F571 /* StrengthSessionActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7137D8EEC232BEDC0997923 /* StrengthSessionActivityAttributes.swift */; };
@@ -172,12 +175,15 @@
 
 /* Begin PBXFileReference section */
 		01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceVerdictWiring.swift; sourceTree = "<group>"; };
+		0564B2A409EF6A34849857C0 /* B24HealthGrantUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B24HealthGrantUITests.swift; sourceTree = "<group>"; };
 		094C0C2F19C94D8B96AA2CC2 /* HealthKitUploadSpecsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitUploadSpecsTests.swift; sourceTree = "<group>"; };
 		099499E819ADFEE663B021CB /* WatchSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotStore.swift; sourceTree = "<group>"; };
 		0FB5DA3ABCBBF1ADE780C358 /* ApnsRegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsRegistrationTests.swift; sourceTree = "<group>"; };
 		116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandlerTests.swift; sourceTree = "<group>"; };
 		1296CF63AE100B901BCE1904 /* VerdictComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplication.swift; sourceTree = "<group>"; };
 		150113D0217CFC1530B5A031 /* Fix5L3AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix5L3AppTests.swift; sourceTree = "<group>"; };
+		1826921157F0A09B5E6C6092 /* ProjectMembershipGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectMembershipGuardTests.swift; sourceTree = "<group>"; };
+		1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodMirrorSimTests.swift; sourceTree = "<group>"; };
 		1B35552968E1A545F6D34B03 /* WatchAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WatchAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
 		251A32F48755A0F1BAB02744 /* StrengthSessionActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSessionActivityController.swift; sourceTree = "<group>"; };
@@ -365,6 +371,7 @@
 		30C85BED710325E19909821C /* AppUITests */ = {
 			isa = PBXGroup;
 			children = (
+				0564B2A409EF6A34849857C0 /* B24HealthGrantUITests.swift */,
 				77793FB1D2752C56C52B4D6C /* Fix9Fix10ScreenTests.swift */,
 				7584AC7835BD23D74891580B /* JIUITestCase.swift */,
 				FB4AF5C04DC4544BFC44D529 /* TrainingProofTests.swift */,
@@ -399,8 +406,10 @@
 				D84B36CD13034CA6AB211274 /* JournalTabTests.swift */,
 				83CDABEC7F1B0141C8246DCB /* LiveActivityStartTests.swift */,
 				D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */,
+				1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */,
 				81E3002B92D368429BB3F69F /* MoreTabTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
+				1826921157F0A09B5E6C6092 /* ProjectMembershipGuardTests.swift */,
 				73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */,
 				C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */,
 				2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */,
@@ -810,6 +819,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C435E092A52620FEEE195011 /* B24HealthGrantUITests.swift in Sources */,
 				5580CAE6353EA2045BAD3DFD /* Fix9Fix10ScreenTests.swift in Sources */,
 				208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */,
 				4FACE29EF46BA01697617F98 /* TrainingProofTests.swift in Sources */,
@@ -857,8 +867,10 @@
 				4A8C198ECF8F30E2FBE584EB /* JournalTabTests.swift in Sources */,
 				E3E511358A125BAD4A7FAAE8 /* LiveActivityStartTests.swift in Sources */,
 				D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */,
+				94F4F8AEFD8AFF2E9E4C0DF1 /* MoodMirrorSimTests.swift in Sources */,
 				E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
+				9564A45902C68CA09F4F6E1D /* ProjectMembershipGuardTests.swift in Sources */,
 				0FECD0C0B4BBA90BF4C6C305 /* ProviderSelectionTests.swift in Sources */,
 				75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */,
 				DE9E66671F547F75585CA4CC /* RootRouteMappingTests.swift in Sources */,
