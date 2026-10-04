@@ -32,6 +32,15 @@ private let nights: [(date: String, value: Double?)] = (1...10).map { i in
     #expect(kpiDetailBlock(metric: .steps, valueText: nil, sleepDuration: nil) == nil)
 }
 
+// W-B67 R-3 fixer: when the hub serves a score breakdown, the old convention block (wrong weights,
+// "Awake — not read") must not render under it — one explanation of the score per screen.
+@Test func sleepConventionBlockHiddenWhenBreakdownShown() {
+    #expect(kpiDetailBlock(metric: .sleep, valueText: "86", sleepDuration: "10 h 04", scoreBreakdownShown: true) == nil)
+    #expect(kpiDetailBlock(metric: .sleep, valueText: "86", sleepDuration: "10 h 04", scoreBreakdownShown: false)?.title == "How the score is built")
+    // other metrics ignore the flag
+    #expect(kpiDetailBlock(metric: .hrv, valueText: "52 ms", sleepDuration: nil, scoreBreakdownShown: true)?.title == "Same wrist, two numbers")
+}
+
 @Test func subtitlesNameTheMethodAndSource() {
     #expect(kpiDetailSubtitle(.hrv) == "RMSSD · Apple Watch · while asleep")
     #expect(kpiDetailSubtitle(.rhr).hasPrefix("Overnight"))
