@@ -76,7 +76,21 @@ public nonisolated struct TrainingWeekSummary: Sendable, Equatable {
     }
 }
 
-nonisolated struct WeekSpineEntry: Equatable { let id: Int?; let name: String; let weekday: Int?; var kind: TrainingWeekDayKind = .strength }
+nonisolated struct WeekSpineEntry: Equatable {
+    let id: Int?; let name: String; let weekday: Int?; var kind: TrainingWeekDayKind = .strength
+    /// PL-8: the workout template this plan session IS (hub `linked_refs`, migration 060); nil = unlinked.
+    var templateId: Int? = nil
+}
+
+/// PL-8: the spine with each session's template link (session id → template id) — by id only.
+nonisolated func plannerLinkingSpine(_ spine: [WeekSpineEntry], links: [Int: Int]) -> [WeekSpineEntry] {
+    guard !links.isEmpty else { return spine }
+    return spine.map { e in
+        var e = e
+        if let id = e.id, let tid = links[id] { e.templateId = tid }
+        return e
+    }
+}
 
 /// W-B40 fixer (B40-V1): what a plan session is, from the hub's `session_type`. Cardio splits into
 /// intervals and long runs by name — the plan table has no finer type.
@@ -125,10 +139,12 @@ nonisolated func weekSpine(planSessions: [PlanSessionOut], exercises: [Exercise]
 /// nil = `otherSessions`.
 public nonisolated func trainingWeekSummary(
     planSessions: [PlanSessionOut], exercises: [Exercise], daily: [DailyKpiRow], today: String,
-    otherSessions: [PlanSessionOut] = [], templates: [WorkoutTemplate] = [], schedule: [PlanSessionOut]? = nil
+    otherSessions: [PlanSessionOut] = [], templates: [WorkoutTemplate] = [], schedule: [PlanSessionOut]? = nil,
+    links: [Int: Int] = [:]
 ) -> TrainingWeekSummary {
-    let spine = weekSpine(planSessions: planSessions, exercises: exercises)
-    let others = trainingDaySpine(strength: [], sessions: otherSessions)
+    let spine = plannerLinkingSpine(weekSpine(planSessions: planSessions, exercises: exercises), links: links)
+    let others = plannerLinkingSpine(trainingDaySpine(strength: [], sessions: otherSessions), links: links)
+    let templateNames = Dictionary(templates.map { ($0.templateId, $0.name) }, uniquingKeysWith: { a, _ in a })
     let linkSpine = spine + others
     let assigned = spine.filter { $0.weekday.map { (0...6).contains($0) } ?? false }.count
     guard let todayWd = try? CalendarMath.isoWeekday(today), let monday = try? CalendarMath.addDays(today, -todayWd) else {
@@ -146,7 +162,7 @@ public nonisolated func trainingWeekSummary(
             name = strength.map(\.name).joined(separator: " + ")
         } else if !others.isEmpty {
             if let c = others.first(where: { $0.weekday == wd && ($0.kind == .interval || $0.kind == .longRun) }) {
-                kind = c.kind; name = c.name
+                kind = c.kind; name = c.templateId.flatMap { templateNames[$0] } ?? c.name   // PL-8: a linked session is its template
             }
         } else if let planned = scheduledSession(on: date, planSessions: schedule ?? otherSessions) {
             if planned.type == .interval { kind = .interval; name = planned.name }
@@ -160,7 +176,9 @@ public nonisolated func trainingWeekSummary(
             case .neutral, .future: done = nil
             }
         }
-        let extras = templates.filter { $0.weekdays.contains(wd) && linkedSession($0, spine: linkSpine) == nil }.map(\.name)
+        // PL-8: a template linked (by id) to a session on THIS day is that session — not an extra.
+        let linkedHere = Set(linkSpine.filter { $0.weekday == wd }.compactMap(\.templateId))
+        let extras = templates.filter { $0.weekdays.contains(wd) && !linkedHere.contains($0.templateId) }.map(\.name)
         days.append(TrainingWeekDay(weekday: wd, date: date, kind: kind, sessionName: name,
                                     sessionId: strength.first?.id, done: done, isToday: date == today, extras: extras))
     }

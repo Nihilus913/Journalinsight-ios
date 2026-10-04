@@ -1,0 +1,13 @@
+[
+  {"ref": "s1", "kind": "plan_session", "name": "Day 1 Full Upper", "sport": "strength", "weekdays": [0], "lift_count": 6, "summary": "6 lifts", "garmin": null, "editable": false},
+  {"ref": "s2", "kind": "plan_session", "name": "Day 2 Full Upper", "sport": "strength", "weekdays": [2], "lift_count": 6, "summary": "6 lifts", "garmin": null, "editable": false},
+  {"ref": "s3", "kind": "plan_session", "name": "Day 3 Full Upper", "sport": "strength", "weekdays": [4], "lift_count": 6, "summary": "6 lifts", "garmin": null, "editable": false},
+  {"ref": "s4", "kind": "plan_session", "name": "Day 4 Full Upper", "sport": "strength", "weekdays": [], "lift_count": 6, "summary": "6 lifts", "garmin": null, "editable": false},
+  {"ref": "s5", "kind": "plan_session", "name": "Interval Run", "sport": "running", "weekdays": [1], "lift_count": 0, "summary": "Cardio", "garmin": null, "editable": false},
+  {"ref": "s6", "kind": "plan_session", "name": "Long Zone 2", "sport": "running", "weekdays": [3], "lift_count": 0, "summary": "Cardio", "garmin": null, "editable": false},
+  {"ref": "s8", "kind": "plan_session", "name": "Interval Run 2", "sport": "running", "weekdays": [5], "lift_count": 0, "summary": "Cardio", "garmin": null, "editable": false},
+  {"ref": "t1", "kind": "template", "name": "Long Run Zone 2", "sport": "running", "weekdays": [6], "lift_count": 0, "summary": "75 min", "garmin": null, "editable": true},
+  {"ref": "t2", "kind": "template", "name": "Zone 2 40 min", "sport": "running", "weekdays": [0], "lift_count": 0, "summary": "40 min", "garmin": {"workout_id": 901, "current": true, "pushed_at": "2026-10-01T07:00:00Z"}, "editable": true},
+  {"ref": "t3", "kind": "template", "name": "Norwegian 4×4", "sport": "running", "weekdays": [1, 5], "lift_count": 0, "summary": "4 × 4 min", "garmin": null, "editable": true},
+  {"ref": "t4", "kind": "template", "name": "Zone 2 60 min", "sport": "running", "weekdays": [2, 4], "lift_count": 0, "summary": "60 min", "garmin": null, "editable": true}
+]
