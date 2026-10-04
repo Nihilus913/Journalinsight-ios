@@ -40,7 +40,9 @@ enum ProviderSelection {
     /// nothing in it (XC `CLAUDE.md` rule 5).
     static func makeAppleWatchProvider() -> HealthKitProvider? {
         guard HKHealthStore.isHealthDataAvailable() else { return nil }
-        return HealthKitProvider(store: RealHealthStoreReader())
+        // W-ONDEVICE O-7: the on-device verdict is wired only when enabled (DEBUG + Developer flag
+        // + engine); otherwise the plain T2 provider with the gate trio OFF.
+        return OnDeviceVerdictWiring.makeProvider()
     }
 
     static func provider(

@@ -10,13 +10,8 @@
 
 /// Python's `statistics.median()`: sort, then the single middle value (odd n)
 /// or the arithmetic mean of the two middle values (even n, float division).
-nonisolated func median(_ values: [Double]) -> Double {
-    let sorted = values.sorted()
-    let n = sorted.count
-    let mid = n / 2
-    if n % 2 == 1 { return sorted[mid] }
-    return (sorted[mid - 1] + sorted[mid]) / 2
-}
+/// W-ONDEVICE O-1: delegates to the one shared primitive `Baseline.median`.
+nonisolated func median(_ values: [Double]) -> Double { Baseline.median(values) }
 
 /// Python's `statistics.quantiles(data, n: n, method: "inclusive")`: the n-1
 /// cut points dividing sorted data into n equal-probability intervals,

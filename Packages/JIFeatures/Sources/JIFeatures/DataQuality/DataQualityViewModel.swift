@@ -131,6 +131,11 @@ public final class DataQualityAccess {
 /// load returns to `.idle` rather than reporting a false error, and a live failure with a cache hit
 /// still renders the carried-over report behind a staleness banner.
 /// B-57 W1 r5: the Data quality board's per-source footer (`5 Settings/07 DataQuality.png`).
+/// F-5: the three reports did not arrive within the screen's wait.
+nonisolated struct DataQualityTimeout: Error {
+    static let message = "The hub didn't answer in time."
+}
+
 public nonisolated let dataQualityProvenanceNote = "Provenance is not scored yet."
 
 @Observable @MainActor
@@ -170,9 +175,22 @@ public final class DataQualityViewModel {
     private let cache: OfflineCache?
     static let cacheKey = "dataQuality"
 
-    public init(provider: any DataQualityProviding, cache: OfflineCache? = nil) {
+    /// F-5 (B-59): the longest the screen waits for the three reports before it says so with a
+    /// Retry — the placeholder never stays up for good.
+    private let timeout: Duration
+
+    public init(provider: any DataQualityProviding, cache: OfflineCache? = nil, timeout: Duration = .seconds(30)) {
         self.provider = provider
         self.cache = cache
+        self.timeout = timeout
+    }
+
+    /// F-5: the load ended in an error card (with Retry).
+    public var isFailed: Bool { if case .error = phase { true } else { false } }
+    public var canRetry: Bool { isFailed }
+    public func retry() async {
+        phase = report == nil ? .loading : phase
+        await fetch()
     }
 
     /// Worst-first rows (oracle `sortedScores`).
@@ -217,7 +235,7 @@ public final class DataQualityViewModel {
 
     private func fetch() async {
         do {
-            let value = try await provider.dataQuality()
+            let value = try await fetchWithTimeout()
             try? cache?.put(Self.cacheKey, value)
             report = value
             fetchedAt = Date()
@@ -230,10 +248,29 @@ public final class DataQualityViewModel {
                 if phase == .loading { phase = .idle }
                 return
             }
+            if error is DataQualityTimeout {
+                phase = report == nil ? .error(DataQualityTimeout.message) : .loaded
+                return
+            }
             let hubError = (error as? HubError) ?? .decoding("\(error)")
             lastError = hubError
             if case .network = hubError { hubReachable = false } else { hubReachable = true }
             phase = report == nil ? .error(Self.describe(hubError)) : .loaded
+        }
+    }
+
+    private func fetchWithTimeout() async throws -> DataQualityReport {
+        let provider = self.provider
+        let timeout = self.timeout
+        return try await withThrowingTaskGroup(of: DataQualityReport.self) { group in
+            group.addTask { try await provider.dataQuality() }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw DataQualityTimeout()
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw DataQualityTimeout() }
+            return first
         }
     }
 

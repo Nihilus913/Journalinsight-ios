@@ -45,24 +45,36 @@ public final class PlateCalculatorViewModel {
 
     public let totalKg: Double
     public let inventory: PlateInventory
+    /// F-3c: `.dumbbell` = `totalKg` is one dumbbell (per hand), no bar.
+    public let load: StrengthLoad
 
-    public init(totalKg: Double, inventory: PlateInventory) {
+    public init(totalKg: Double, inventory: PlateInventory, load: StrengthLoad = .barbell) {
         self.totalKg = totalKg
         self.inventory = inventory
+        self.load = load
     }
 
     public var outcome: Outcome {
         guard inventory.canCalculate else { return .noInventory }
-        guard let side = PlateMath.perSide(totalKg: totalKg, barKg: inventory.barKg, pairs: inventory.pairs) else { return .notLoadable }
+        let side = switch load {
+        case .barbell: PlateMath.perSide(totalKg: totalKg, barKg: inventory.barKg, pairs: inventory.pairs)
+        case .dumbbell: PlateMath.perSideDumbbell(perHandKg: totalKg, pairs: inventory.pairs)
+        }
+        guard let side else { return .notLoadable }
         return side.isEmpty ? .barOnly : .plates(side)
     }
 
-    public var headline: String { "\(plateKgText(totalKg)) kg on a \(plateKgText(inventory.barKg)) kg bar" }
+    public var headline: String {
+        switch load {
+        case .barbell: "\(plateKgText(totalKg)) kg on a \(plateKgText(inventory.barKg)) kg bar"
+        case .dumbbell: "\(plateKgText(totalKg)) kg per dumbbell"
+        }
+    }
 
     public var perSideText: String {
         switch outcome {
-        case .plates(let side): side.map(plateKgText).joined(separator: " + ") + " kg each side"
-        case .barOnly: "Just the bar"
+        case .plates(let side): side.map(plateKgText).joined(separator: " + ") + (load == .dumbbell ? " kg each side of each dumbbell" : " kg each side")
+        case .barOnly: load == .dumbbell ? "Just the handle" : "Just the bar"
         case .notLoadable: "\(plateKgText(totalKg)) kg is not loadable with your plates"
         case .noInventory: "Add your plates in Settings › Plates & bar"
         }

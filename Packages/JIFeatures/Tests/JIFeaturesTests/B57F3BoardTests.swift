@@ -8,7 +8,7 @@ import JIPersistence
 // Every value a card shows is derived here from existing stores; a missing input is "—" plus a
 // reason word, never a zero.
 
-private let zurich = JournalCalendarZurich.calendar
+private let zurich = DayKey.calendar()
 private func day(_ iso: String, hour: Int = 12) -> Date {
     let p = iso.split(separator: "-").compactMap { Int($0) }
     return zurich.date(from: DateComponents(year: p[0], month: p[1], day: p[2], hour: hour))!

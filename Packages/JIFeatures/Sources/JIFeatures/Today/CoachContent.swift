@@ -53,10 +53,7 @@ public nonisolated enum CoachContentBuilder {
 
     /// "30 Sep" for a hub day key; nil when unreadable.
     private static func dayLabel(_ iso: String, _ locale: Locale) -> String? {
-        let p = iso.prefix(10).split(separator: "-").compactMap { Int($0) }
-        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
-        guard p.count == 3, let d = utc.date(from: DateComponents(year: p[0], month: p[1], day: p[2])) else { return nil }
-        return d.formatted(Date.FormatStyle(locale: locale, timeZone: utc.timeZone).day().month(.abbreviated))
+        DayKey(iso: iso)?.formatted(Date.FormatStyle(locale: locale).day().month(.abbreviated))
     }
 
     private static func change(morning: MorningResponse?, gate: GateResponse?, override: VerdictOverride?) -> String {

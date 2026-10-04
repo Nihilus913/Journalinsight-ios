@@ -1,7 +1,6 @@
 {
   "carb_watch_floor": 120,
   "carbs_3d_avg": 165.46666666666667,
-  "experiment": null,
   "hrv_series": [
     {
       "date": "2026-09-05",
@@ -39,7 +38,6 @@
       "rhr_bpm": 66
     }
   ],
-  "today_activities": [],
   "verdict": "GO \u2014 Norwegian 4x4 intervals",
   "verdict_date": "2026-09-12"
 }

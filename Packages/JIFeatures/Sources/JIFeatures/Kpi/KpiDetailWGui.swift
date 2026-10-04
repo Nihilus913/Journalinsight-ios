@@ -60,8 +60,11 @@ public nonisolated struct KpiDetailBlock: Equatable, Sendable {
 /// built" with the convention caption; components "— not read" until Health carries them.
 /// W-FIX5 fixer: `deepRem` = last night's deep + REM (`kpiDetailDeepRemText`); `sdnn` = the gate's
 /// daytime HRV (Apple's SDNN, context only). nil = "— not read" (never invented).
+/// W-B67 R-3 fixer: `scoreBreakdownShown` = the hub's "How this score is built" section is on screen;
+/// the Sleep convention block is then nil — one explanation of the score per screen, never two.
 public nonisolated func kpiDetailBlock(metric: KpiMetricId, valueText: String?, sleepDuration: String?,
-                                       deepRem: String? = nil, sdnn: String? = nil) -> KpiDetailBlock? {
+                                       deepRem: String? = nil, sdnn: String? = nil,
+                                       scoreBreakdownShown: Bool = false) -> KpiDetailBlock? {
     switch metric {
     case .hrv:
         return KpiDetailBlock(title: "Same wrist, two numbers", rows: [
@@ -74,6 +77,7 @@ public nonisolated func kpiDetailBlock(metric: KpiMetricId, valueText: String?, 
             ("Daytime heart rate", "context only · not part of the call", "—"),
         ], caption: "A drift over weeks is worth a look with your clinician; a single night is not. JI does not interpret heart rhythm.")
     case .sleep:
+        if scoreBreakdownShown { return nil }
         return KpiDetailBlock(title: "How the score is built", rows: [
             ("Duration", "of your goal · 50 %", sleepDuration ?? "— not read"),
             ("Deep + REM", "20 %", deepRem ?? "— not read"),

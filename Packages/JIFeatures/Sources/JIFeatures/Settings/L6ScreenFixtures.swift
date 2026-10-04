@@ -28,7 +28,7 @@ enum L6Fixtures {
 
     static var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
-        c.timeZone = TimeZone(identifier: "UTC")!
+        c.timeZone = TimeZone(identifier: "UTC")! // fixed screenshot fixture, not a day key (F-1)
         c.locale = Locale(identifier: "en_US")
         return c
     }

@@ -21,7 +21,7 @@ public nonisolated enum PersonalNormal {
     public static let windowDays = 7
     public static let normalDays = 28
     public static let minN = 14
-    public static let madScale = 1.4826
+    public static let madScale = Baseline.madScale
 
     /// The 28 days before the 7-day window: today−34 … today−7, inclusive.
     public static func window(today: String) throws -> (start: String, end: String) {
@@ -45,9 +45,8 @@ public nonisolated enum PersonalNormal {
     public static func normal(_ series: [String: Double], today: String, minN: Int = PersonalNormal.minN) throws -> PersonalNormalResult? {
         let vals = try values(series, today: today)
         guard !vals.isEmpty, vals.count >= minN else { return nil }
-        let med = median(vals)
-        let sd = median(vals.map { abs($0 - med) }) * madScale
-        return PersonalNormalResult(median: med, low: med - sd, high: med + sd, sd: sd, n: vals.count)
+        let b = Baseline.medianMAD(vals)          // O-1: the shared primitive (madScale is the same 1.4826)
+        return PersonalNormalResult(median: b.median, low: b.median - b.sd, high: b.median + b.sd, sd: b.sd, n: vals.count)
     }
 
     /// Mean of the finite values in today−6 … today, or nil when there are none.

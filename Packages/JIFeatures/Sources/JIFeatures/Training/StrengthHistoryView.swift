@@ -60,9 +60,7 @@ public struct StrengthHistoryView: View {
 
     /// "2026-10-03" → "Sat 3 Oct" (fixed en_US_POSIX parse, the user's locale for display).
     static func dateTitle(_ iso: String) -> String {
-        let p = DateFormatter(); p.locale = Locale(identifier: "en_US_POSIX"); p.timeZone = TimeZone(identifier: "UTC"); p.dateFormat = "yyyy-MM-dd"
-        guard let d = p.date(from: iso) else { return iso }
-        let f = DateFormatter(); f.timeZone = TimeZone(identifier: "UTC"); f.setLocalizedDateFormatFromTemplate("EEE d MMM")
-        return f.string(from: d)
+        guard iso.count == 10, let day = DayKey(iso: iso) else { return iso } // W-FIX13 F-1
+        return day.string(template: "EEE d MMM")
     }
 }

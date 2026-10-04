@@ -21,13 +21,9 @@ private struct DataQualitySectionRows: View {
     var body: some View {
         SettingsRowGroup {
             NavigationLink {
-                // Built at push time, not at row-render time, so the installed provider (and a
-                // reconnection that replaced it) is the one the screen reads.
-                if let model = DataQualityAccess.shared.makeViewModel() {
-                    DataQualityView(model: model)
-                } else {
-                    DataQualityUnavailableView()
-                }
+                // F-5 (B-59): the screen owns its model (`@State`), so this row's badge update
+                // re-rendering the link can no longer swap in an idle model mid-load.
+                DataQualityScreen()
             } label: {
                 SettingsLinkLabel(title: "Data quality", subtitle: settingsDataSubtitles["Data quality"] ?? "", systemImage: "checkmark.shield",
                                   badge: settingsDataQualityBadge(stale: stale))

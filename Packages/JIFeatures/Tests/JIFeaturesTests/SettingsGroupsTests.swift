@@ -104,7 +104,7 @@ private struct UnassignedSection: SettingsSection {
     #if DEBUG
     #expect(SettingsGroupId.allCases.contains { $0.rawValue == "developer" })
     #expect(ids.contains(ProviderSection.sectionId))
-    #expect(GroupSettingsView.sections(in: .developer).map(\.id) == [ProviderSection.sectionId])
+    #expect(GroupSettingsView.sections(in: .developer).map(\.id) == [ProviderSection.sectionId, OnDeviceVerdictSection.sectionId])
     #expect(SettingsGroupId.developer.title == "Developer")
     #expect(SettingsGroupId.developer.systemImage == "hammer")
     #else

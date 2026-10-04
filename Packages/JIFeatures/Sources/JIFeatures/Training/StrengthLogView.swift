@@ -130,10 +130,10 @@ nonisolated enum StrengthFormat {
         return parts.joined(separator: " · ")
     }
 
-    static func plates(_ plates: [Double]?) -> String {
+    static func plates(_ plates: [Double]?, load: StrengthLoad = .barbell) -> String {
         guard let plates else { return "Not reachable with your plates" }
-        if plates.isEmpty { return "Empty bar" }
-        return "Per side: " + plates.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }.joined(separator: " + ")
+        if plates.isEmpty { return load == .dumbbell ? "Empty handle" : "Empty bar" }
+        return (load == .dumbbell ? "Per dumbbell side: " : "Per side: ") + plates.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }.joined(separator: " + ")
     }
 }
 
@@ -217,7 +217,7 @@ struct StrengthExerciseCard: View {
             if !timed {
                 // W-B38-B B-9: the per-side line opens the plate calculator sheet for this weight.
                 Button { if parsedKg != nil { showCalculator = true } } label: {
-                    Label(StrengthFormat.plates(model.plates(for: parsedKg)), systemImage: "circle.grid.2x1")
+                    Label(StrengthFormat.plates(model.plates(for: parsedKg, exerciseKey: card.lift.exerciseKey), load: StrengthLoad.of(card.lift.exerciseKey)), systemImage: "circle.grid.2x1")
                         .jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
                 .buttonStyle(.plain)
@@ -225,7 +225,7 @@ struct StrengthExerciseCard: View {
                 .accessibilityHint("Shows the plates for each side")
                 .accessibilityIdentifier("strength-plates-\(card.lift.exerciseKey)")
                 .sheet(isPresented: $showCalculator) {
-                    if let kg = parsedKg { PlateCalculatorSheet(model: PlateCalculatorViewModel(totalKg: kg, inventory: model.plates)) }
+                    if let kg = parsedKg { PlateCalculatorSheet(model: PlateCalculatorViewModel(totalKg: kg, inventory: model.plates, load: StrengthLoad.of(card.lift.exerciseKey))) }
                 }
             }
             HStack {

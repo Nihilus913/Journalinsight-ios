@@ -61,6 +61,8 @@ public nonisolated enum StrengthWriteOutcome: Sendable, Equatable {
 @MainActor
 public final class StrengthOutbox {
     public nonisolated static let kind = "strength"
+    /// F-3a: posted (main actor) after every drain pass, by whichever `StrengthOutbox` ran it.
+    public nonisolated static let didDrain = Notification.Name("JI.StrengthOutbox.didDrain")
 
     private let outbox: Outbox
     private let provider: any TrainingProviding
@@ -114,7 +116,9 @@ public final class StrengthOutbox {
         while let running = Self.inFlight { _ = await running.value }
         let pass = Task { @MainActor [self] in
             defer { Self.inFlight = nil }
-            return await self.drainPass()
+            let results = await self.drainPass()
+            NotificationCenter.default.post(name: Self.didDrain, object: nil)
+            return results
         }
         Self.inFlight = pass
         return await pass.value
