@@ -37,6 +37,8 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Today adjust") { L4Screens.todayAdjust() },
         // W-B65 LC — Decide on an Apple Watch night (hrv band, 7 h sleep, daytime-HRV context arc)
         ScreenEntry(name: "Today decide Apple") { L4Screens.todayDecideApple() },
+        // W-DECIDE-HYBRID H-4 — Decide after the call (Strain: today vs the call's max)
+        ScreenEntry(name: "Today decide after call") { L4Screens.todayDecideAfterCall() },
 
         // MARK: W-B46 L2 — B-42 Today components
         ScreenEntry(name: "Trends") { AnyView(TrendsNativePreview()) },   // B-57 W1: full screen (was "Trends card")

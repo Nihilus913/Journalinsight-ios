@@ -625,7 +625,9 @@ nonisolated public let fix6Morning20260928JSON = """
 
 let fixtureMorningJSON = """
 {"today_activities":[],"verdict":"MODIFIED (HRV low) — Easy Z2 30–40 min","verdict_date":"2026-09-21","carb_watch_floor":180,"carbs_3d_avg":214,
- "session_for_today":"Full Upper",
+ "session_for_today":"Full Upper","verdict_computed_at":"2026-09-21T05:10:00+02:00",
+ "strain":{"status":"ok","loaded_days":43,"min_loaded_days":19,"window_days":120,"ceiling":6.03,"usual_low":30,"usual_high":55,
+  "yesterday":{"date":"2026-09-20","value":47,"sessions":[{"name":"Outdoor Run","minutes":48}]},"today":{"date":"2026-09-21","value":12}},
  "gate_signals":[
   {"key":"sleep","label":"Sleep","value":81,"unit":"","threshold":70,"direction":"min","scale_min":0,"scale_max":100,"status":"pass","note":null},
   {"key":"hrv","label":"HRV","value":24,"unit":"ms","threshold":27,"direction":"min","scale_min":0,"scale_max":80,"status":"amber","note":"hrv 24 — under 27"},
@@ -636,6 +638,11 @@ let fixtureMorningJSON = """
  {"date":"2026-09-19","hrv_weekly_avg":51,"rhr_bpm":53},{"date":"2026-09-20","hrv_weekly_avg":49,"rhr_bpm":54},
  {"date":"2026-09-21","hrv_weekly_avg":52,"rhr_bpm":52}]}
 """
+
+/// W-DECIDE-HYBRID H-4: the same morning after the call (Go saved) — the Strain card's after state.
+let fixtureMorningAfterCallJSON = fixtureMorningJSON.replacingOccurrences(
+    of: "\"session_for_today\":\"Full Upper\",",
+    with: "\"session_for_today\":\"Full Upper\",\"verdict_override\":{\"date\":\"2026-09-21\",\"choice\":\"accept\",\"reason\":null,\"session\":\"Easy Z2 30–40 min\",\"created_at\":\"2026-09-21T07:45:00+02:00\"},")
 
 /// B-65: an Apple Watch night — the hub's three Apple arcs (`hrv` 7-day band, `sleep_h` floor —
 /// the user's own; this fixture's night was judged against 7.0 h —

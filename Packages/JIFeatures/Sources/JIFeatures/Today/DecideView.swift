@@ -142,8 +142,11 @@ public nonisolated func verdictHeadline(parts: VerdictParts, override: VerdictOv
 
 /// W-FIX6 F6-11: the hero's kicker. A call from another day (a cache, or the hub's `is_stale`
 /// before morning_go ran) is never "your call for today" — it names its own day.
-public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String) -> String {
-    guard let verdictDate, verdictDate != today || isStale == true else { return "YOUR CALL FOR TODAY" }
+/// W-DECIDE-HYBRID H-1: with the hub's call time, "YOUR CALL FOR TODAY · 05:10".
+public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String, callTime: String? = nil) -> String {
+    guard let verdictDate, verdictDate != today || isStale == true else {
+        return callTime.map { "YOUR CALL FOR TODAY · \($0)" } ?? "YOUR CALL FOR TODAY"
+    }
     guard let d = DayKey(iso: verdictDate)?.startDate(in: .gmt) else { return "LAST CALL" }
     let out = DateFormatter()
     out.calendar = Calendar(identifier: .gregorian); out.locale = Locale(identifier: "en_US_POSIX"); out.timeZone = .gmt
@@ -193,13 +196,43 @@ nonisolated let decideSessionLiftKeywords = ["upper", "lower", "full body", "str
 /// squeezing three texts into one line and clipping them.
 public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
 
-/// W-FIX4 PF-01: in the app Go / Adjust are pinned to the bottom of Decide, above the floating tab
-/// bar (the screens live in a layer behind the chrome-only `TabView`, so the bar is not in their
-/// safe area); the sweep (`jiOffscreenRender`) keeps them inline at the end of the card.
-public nonisolated func decideActionsPinned(offscreen: Bool) -> Bool { !offscreen }
+/// W-DECIDE-HYBRID H-1 (Toby 2026-10-04): Go with this / Adjust live INSIDE the top card — the bar
+/// pinned above the tab bar (W-FIX4 PF-01) is gone; the whole screen scrolls. The scroll keeps this
+/// room under its last row for the floating tab bar (the screens live behind the chrome-only
+/// `TabView`, so the bar is not in their safe area).
+public nonisolated func decideScrollBottomClearance(_ width: JIWidthClass) -> CGFloat { tabBarBottomClearance(width) }
 
-/// W-FIX4 PF-01: the room the pinned Go / Adjust bar keeps under itself for the floating tab bar.
-public nonisolated func decideActionBarBottomClearance(_ width: JIWidthClass) -> CGFloat { tabBarBottomClearance(width) }
+/// W-DECIDE-HYBRID H-1: the primary button's words (mockup BP-10-11-hybrid).
+public nonisolated let decideGoTitle = "Go with this"
+
+/// W-DECIDE-HYBRID H-1/H-2: the hub's call time (`verdict_computed_at`) as the phone's "05:10";
+/// nil when the hub sent none (an older hub) or it is unreadable.
+public nonisolated func decideCallTime(_ iso: String?, timeZone: TimeZone = .current) -> String? {
+    guard let date = parseHubTimestamp(iso) else { return nil }
+    let f = DateFormatter()
+    f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = timeZone
+    f.dateFormat = "HH:mm"
+    return f.string(from: date)
+}
+
+/// W-DECIDE-HYBRID H-2: the "What drove it" header's right side — the rows are the values the
+/// gate used when it made the call (stored with the verdict), never live values.
+public nonisolated func decideDroveItCaption(callTime: String?) -> String? {
+    callTime.map { "values at \($0)" }
+}
+
+/// W-DECIDE-HYBRID H-2: the rows "What drove it" shows — exactly the call's stored gate signals
+/// (minus the recovery arc, which is its own row). Nothing on the phone (tonight's nights, a fresh
+/// HealthKit read) replaces a value: the frozen inputs of the call.
+public nonisolated func decideDroveItSignals(_ gateSignals: [GateSignal]?) -> [GateSignal]? {
+    gateSignals.map { RecoveryScoreCard.visibleSignals($0) }
+}
+
+/// W-DECIDE-HYBRID H-1: the top card's lift hint under the session ("Bench 50 kg ↑").
+public nonisolated func decideHeroLiftHint(_ lift: (kg: String, caption: String?)?) -> String? {
+    guard let lift else { return nil }
+    return lift.caption == nil ? lift.kg : "\(lift.kg) ↑"
+}
 
 /// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
 public nonisolated let decideGoForeground = Color.black
@@ -306,6 +339,12 @@ public struct DecideView: View {
     let heldReason: String?
     /// W-SSOT-2 S2-3: the served `/planning/week` (`TodayViewModel.planWeek`); nil = not served.
     let planWeek: PlanWeekOut?
+    /// W-DECIDE-HYBRID H-1: the page name drawn as the screen's title ("Today").
+    let pageName: String
+    /// W-DECIDE-HYBRID H-1/H-2: the hub's call time (`verdict_computed_at`); nil = not sent.
+    let callComputedAt: String?
+    /// W-DECIDE-HYBRID H-3/H-4: the Strain card's numbers; nil = not sent.
+    let strain: MorningStrain?
     @State private var showAdjust = false
     @State private var showGateConfig = false
     @Environment(\.gateConfigModel) private var gateConfigModel
@@ -322,14 +361,17 @@ public struct DecideView: View {
                 verdictDate: String?, sessionForToday: String?, override: VerdictOverride?,
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
                 banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, isStale: Bool? = nil,
-                heldReason: String? = nil, planWeek: PlanWeekOut? = nil, onAdvance: @escaping () -> Void) {
+                heldReason: String? = nil, planWeek: PlanWeekOut? = nil, pageName: String = "Today",
+                callComputedAt: String? = nil, strain: MorningStrain? = nil, onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
         self.calibrationNights = calibrationNights; self.isStale = isStale; self.heldReason = heldReason
-        self.planWeek = planWeek
+        self.planWeek = planWeek; self.pageName = pageName; self.callComputedAt = callComputedAt; self.strain = strain
     }
+
+    private var callTime: String? { decideCallTime(callComputedAt) }
 
     private var shown: VerdictParts { effectiveVerdictParts(parts: verdict, override: override) }
     private var wasCaption: String? { override == nil ? nil : effectiveVerdict(parts: verdict, override: override).wasCaption }
@@ -380,7 +422,7 @@ public struct DecideView: View {
     private func decideButtons(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, stacked: Bool) -> some View {
         // W-FIX3 BUG-30 (board 01): black "Go" on the green button, never white.
         // W-GUI F9 (report §4.5): the ONE primary button — accent fill, black label (BUG-30 kept).
-        Button { go() } label: { Text("Go").foregroundStyle(decideGoForeground).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
+        Button { go() } label: { Text(decideGoTitle).foregroundStyle(decideGoForeground).lineLimit(1).fixedSize().frame(maxWidth: .infinity) }
             .buttonStyle(.jiPrimary)
             .disabled(!actions.go || submitting)
             .accessibilityIdentifier("today.decide.go")
@@ -410,31 +452,21 @@ public struct DecideView: View {
         }
     }
 
-    /// W-FIX4 PF-01: Decide is its own screen — the card scrolls, Go / Adjust stay pinned above the
-    /// floating tab bar (forced gate and first-of-day alike, both schemes, every type size).
+    /// W-DECIDE-HYBRID H-1 (mockup BP-10-11-hybrid, right phone): the "Today" title + date + Synced
+    /// pill, the top card with Go with this / Adjust inside it, the Strain card, then "What drove it"
+    /// — one scroll, nothing pinned above the tab bar.
     public var body: some View {
         let actions = decideActions(verdict: verdict, syncing: syncing)
         let showsAdjust = actions.adjust && overrideModel != nil && verdictDate != nil
-        let pinned = decideActionsPinned(offscreen: offscreen)
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                header
                 if let banner { banner }
-                card(actions: actions, showsAdjust: showsAdjust, inlineActions: !pinned)
+                card(actions: actions, showsAdjust: showsAdjust)
             }
-            .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
+            .padding(.horizontal, 20).padding(.top, 8)
+            .padding(.bottom, 32 + (offscreen ? 0 : decideScrollBottomClearance(sizeClass == .regular ? .regular : .compact)))
             .readableColumn()
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if pinned {
-                VStack(spacing: 8) { actionRows(actions: actions, showsAdjust: showsAdjust) }
-                    .padding(.horizontal, 20).padding(.top, 12)
-                    .readableColumn()
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 12 + decideActionBarBottomClearance(sizeClass == .regular ? .regular : .compact))
-                    .background { JIPageGround().opacity(0.92) }   // W-GUI T1: the ground, not a flat bar
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("today.decide.actions")
-            }
         }
         .sheet(isPresented: $showAdjust) { adjustSheet }
         // Advance only when the write actually settled (`.logged` or `.queued`) — never on `.failed`.
@@ -446,26 +478,44 @@ public struct DecideView: View {
     /// W-GUI T1 (mockup 01): the tinted hero — date + pill, verdict, session, the one human why,
     /// the readiness ring with its honest reason — then "What drove it" as its own grouped card
     /// with the signal rows and "How the morning call works", and the RMSSD / SDNN footnote once.
+    /// W-DECIDE-HYBRID H-1: the large page title, the date and the Synced pill above the card.
+    /// r4 AX3: side by side while both fit whole; otherwise the pill drops under the date.
+    private var header: some View {
+        let dateText = Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+            .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(pageName).font(.largeTitle.weight(.bold)).foregroundStyle(theme.color(.text))
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("today.decide.title")
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    dateText.fixedSize()
+                    Spacer()
+                    SyncedPill(date: syncedAt, now: now).fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    dateText.fixedSize(horizontal: false, vertical: true)
+                    SyncedPill(date: syncedAt, now: now).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// The first lift's next weight for today's session (nil beside rest / cardio / a done session).
+    private func sessionLift(_ row: (title: String, detail: String), completion: SessionCompletion) -> (kg: String, caption: String?)? {
+        completion.isDone ? nil : decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
+                                                         lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
+    }
+
     @ViewBuilder
-    private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool, inlineActions: Bool) -> some View {
+    private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool) -> some View {
+        let sessionRow = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
+        let completion = TodayWorkoutsModel.shared.completion(sessionLabel: sessionRow.detail)
+        let lift = sessionLift(sessionRow, completion: completion)
         Surface(level: 1, padding: JISpacing.cardPadding, tint: decideHeroTintRole(tone: shown.tone, syncing: syncing).map { theme.color($0) }) {
             VStack(alignment: .leading, spacing: 12) {
-                // r4 AX3: side by side while both fit whole; otherwise the pill drops under the date
-                // (never squeezed into a one-character-per-line column).
-                let dateText = Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))
-                    .jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.muted))
-                ViewThatFits(in: .horizontal) {
-                    HStack {
-                        dateText.fixedSize()
-                        Spacer()
-                        SyncedPill(date: syncedAt, now: now).fixedSize()
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        dateText.fixedSize(horizontal: false, vertical: true)
-                        SyncedPill(date: syncedAt, now: now).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Text(decideCallHeader(verdictDate: verdictDate, isStale: isStale, today: RecoveryInsightService.localDayKey(now))).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                Text(decideCallHeader(verdictDate: verdictDate, isStale: isStale, today: RecoveryInsightService.localDayKey(now),
+                                      callTime: callTime)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                 // AX sizes: the ring drops under the words (side by side it squeezed the verdict to one
                 // character per line); below AX it sits beside them as in mockup 01.
                 let heroLayout = typeSize.isAccessibilitySize
@@ -486,6 +536,11 @@ public struct DecideView: View {
                             Text(shown.session).jiFont(.cardTitle, weight: .bold).foregroundStyle(theme.color(.text))
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("today.verdict.session")
+                        }
+                        if !syncing, let hint = decideHeroLiftHint(lift) {
+                            Text(hint).jiFont(.subheadline, weight: .semibold)
+                                .foregroundStyle(theme.color(lift?.caption == nil ? .muted : .go))
+                                .accessibilityIdentifier("today.decide.heroLift")
                         }
                     }
                     if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
@@ -520,17 +575,27 @@ public struct DecideView: View {
                         EmptyView()
                     }
                 }
-                if inlineActions { actionRows(actions: actions, showsAdjust: showsAdjust) }
+                actionRows(actions: actions, showsAdjust: showsAdjust)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         if !syncing {
-            JISectionHeader("What drove it")
+            // W-DECIDE-HYBRID H-3/H-4: yesterday vs your usual before the call; today vs the call's max after.
+            DecideStrainCard(state: decideStrainState(strain: strain, override: override, verdict: verdict))
+            HStack(alignment: .firstTextBaseline) {
+                JISectionHeader("What drove it")
+                Spacer(minLength: 8)
+                if let caption = decideDroveItCaption(callTime: callTime) {
+                    Text(caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("today.decide.valuesAt")
+                }
+            }
             Surface(level: 1, padding: 0) {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let gateSignals {
+                    if let signals = decideDroveItSignals(gateSignals) {
                         // B-57 W3: the gate's `recovery` signal is the score row below, not a second SignalRow.
-                        DecideSignalsSection(signals: RecoveryScoreCard.visibleSignals(gateSignals), normals: normals)
+                        // W-DECIDE-HYBRID H-2: the call's stored values, frozen at the call time.
+                        DecideSignalsSection(signals: signals, normals: normals)
                             .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
                     }
                     // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
@@ -538,16 +603,12 @@ public struct DecideView: View {
                     RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))
                         .padding(.horizontal, JISpacing.s4)
                     JIRowDivider().padding(.leading, JISpacing.s4)
-                    let row = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
                     // B-57 W5 C4 (board 1/01): the first lift's next weight at the right, "↑ Bench up" when due.
                     // W-FIX5 W5-3: no weight beside a Rest call; stacked at accessibility sizes.
                     // W-FIX7 F7-1: a matching Apple Health workout today = done (no weight to lift any more).
-                    let completion = TodayWorkoutsModel.shared.completion(sessionLabel: row.detail)
-                    let lift = completion.isDone ? nil : decideSessionLiftShown(verdict: shown, sessionDetail: row.detail,
-                                                      lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
                     Button { openDay() } label: {
-                        JIChevronRow { sessionRowLabel(row, lift: lift, completion: completion) }
+                        JIChevronRow { sessionRowLabel(sessionRow, lift: lift, completion: completion) }
                         .padding(.horizontal, JISpacing.s4)
                     }
                     .task { if !offscreen { await progression?.refreshIfNeeded() } }

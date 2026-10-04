@@ -1311,7 +1311,10 @@ struct RootTabView: View {
                            // W-FIX10 R-04: the hub's own count of real Apple HRV nights (DH-4) when it sent one.
                            calibrationNights: recoveryInsight?.calibration.map { $0.component("hrv")?.nights ?? $0.nights }
                                ?? model.recovery.filter { KpiMetrics.nightlyHrvMs($0) != nil }.count,
-                           planWeek: model.planWeek) { answerGate(model) }
+                           planWeek: model.planWeek,
+                           pageName: loadTodayPageName(prefs: model.tileOrderStore),
+                           callComputedAt: model.morning?.verdictComputedAt,
+                           strain: model.morning?.strain) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
                     // W-UITEST G-3: Decide's "Why" rows open the rationale, whose foot carries the
                     // weekly answer ("Answered automatically · …") — both were inert here.

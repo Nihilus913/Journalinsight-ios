@@ -68,17 +68,14 @@ struct B57W3GuardTests {
         #expect(kpiDetailShowsLineTrend(.fat) == false)
     }
 
-    // MARK: PF-01 — Decide's Go / Adjust pinned above the floating tab bar
+    // MARK: PF-01 — superseded by W-DECIDE-HYBRID H-1: no bar pinned above the tab bar
 
-    @Test func pf01_decideActionsSitAboveTheTabBar() throws {
-        #expect(decideActionsPinned(offscreen: false))
-        #expect(decideActionBarBottomClearance(.compact) == tabBarBottomClearance(.compact))
-        #expect(decideActionBarBottomClearance(.compact) > 0)
+    @Test func pf01_decideActionsSitInTheScrollAboveTheTabBar() throws {
+        #expect(decideScrollBottomClearance(.compact) == tabBarBottomClearance(.compact))
         #expect(decideButtonRoles(showsAdjust: true) == [.primary, .secondary])
         let body = try b57w3Source("Sources/JIFeatures/Today/DecideView.swift")
-        #expect(body.contains(".safeAreaInset(edge: .bottom"))
-        #expect(body.contains("decideActionBarBottomClearance("))
-        #expect(body.contains("\"today.decide.actions\""))
+        #expect(!body.contains(".safeAreaInset(edge: .bottom"))
+        #expect(!body.contains("\"today.decide.actions\""))
     }
 
     // MARK: PF-04 — one sync-pill rule (newer of hub sync / HealthKit upload) on the touched screens

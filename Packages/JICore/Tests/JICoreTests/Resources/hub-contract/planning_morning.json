@@ -38,6 +38,30 @@
       "rhr_bpm": 66
     }
   ],
-  "verdict": "GO \u2014 Norwegian 4x4 intervals",
-  "verdict_date": "2026-09-12"
+  "verdict": "GO — Norwegian 4x4 intervals",
+  "verdict_date": "2026-09-12",
+  "verdict_computed_at": "2026-09-12T05:10:00+02:00",
+  "strain": {
+    "status": "ok",
+    "loaded_days": 43,
+    "min_loaded_days": 19,
+    "window_days": 120,
+    "ceiling": 6.0332,
+    "usual_low": 19,
+    "usual_high": 49,
+    "yesterday": {
+      "date": "2026-09-11",
+      "value": 47.0,
+      "sessions": [
+        {
+          "name": "Outdoor Run",
+          "minutes": 48
+        }
+      ]
+    },
+    "today": {
+      "date": "2026-09-12",
+      "value": 12.0
+    }
+  }
 }

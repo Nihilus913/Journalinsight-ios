@@ -20,6 +20,13 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     /// W-B49B G-3 — today's session-gate answer (automatic or manual); nil = unanswered or a hub
     /// that predates the field.
     public var gateAnswer: GateAnswer?
+    /// W-DECIDE-HYBRID H-2 — when the hub made the call (`plan.morning_verdict.computed_at`, ISO
+    /// 8601): Decide's "YOUR CALL FOR TODAY · 05:10" and "values at 05:10". nil from an older hub.
+    public var verdictComputedAt: String?
+    /// W-DECIDE-HYBRID H-3/H-4 — the Strain card's numbers (HT `app/vitals/strain.py`). nil from an
+    /// older hub or when the hub could not read the load. The card's "max today" is NOT here: it
+    /// follows the decided call (`DecideStrainCeiling`).
+    public var strain: MorningStrain?
 
     // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
     // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
@@ -33,7 +40,44 @@ public struct MorningResponse: Codable, Sendable, Equatable {
         case carbs3dAvg = "carbs3DAvg"
         case carbWatchFloor, isStale, sessionForToday
         case gateSignals, verdictOverride, gateAnswer
+        case verdictComputedAt, strain
     }
+}
+
+/// W-DECIDE-HYBRID: daily Strain 0–100 (HT `app/vitals/strain.py`): yesterday's and today-so-far
+/// strain against the usual range (middle 50 % of loaded days over `windowDays`). While
+/// `status == "calibrating"` every number is nil (fewer than `minLoadedDays` loaded days).
+public struct MorningStrain: Codable, Sendable, Equatable {
+    public struct Day: Codable, Sendable, Equatable {
+        public var date: String
+        public var value: Double?
+        public var sessions: [Session]?
+        public init(date: String, value: Double?, sessions: [Session]? = nil) {
+            self.date = date; self.value = value; self.sessions = sessions
+        }
+    }
+    public struct Session: Codable, Sendable, Equatable {
+        public var name: String
+        public var minutes: Int
+        public init(name: String, minutes: Int) { self.name = name; self.minutes = minutes }
+    }
+    public var status: String
+    public var loadedDays: Int
+    public var minLoadedDays: Int
+    public var windowDays: Int
+    public var ceiling: Double?
+    public var usualLow: Double?
+    public var usualHigh: Double?
+    public var yesterday: Day
+    public var today: Day
+
+    public init(status: String, loadedDays: Int, minLoadedDays: Int = 19, windowDays: Int = 120, ceiling: Double? = nil,
+                usualLow: Double?, usualHigh: Double?, yesterday: Day, today: Day) {
+        self.status = status; self.loadedDays = loadedDays; self.minLoadedDays = minLoadedDays; self.windowDays = windowDays
+        self.ceiling = ceiling; self.usualLow = usualLow; self.usualHigh = usualHigh; self.yesterday = yesterday; self.today = today
+    }
+
+    public var isCalibrating: Bool { status != "ok" }
 }
 public struct MorningVerdict: Codable, Sendable, Equatable {
     public var date, verdict: String
