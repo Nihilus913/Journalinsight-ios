@@ -52,8 +52,19 @@ final class B43RestAlertUITests: JIUITestCase {
         XCUIDevice.shared.press(.home)
         XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 10))
         sleep(100)
-        let banner = springboard.staticTexts["Rest over 💪"].firstMatch
-        XCTAssertTrue(banner.waitForExistence(timeout: 20), "no 'Rest over' notification on the home screen")
+        // The banner is one accessibility element whose label carries app, time, title and body.
+        let banner = springboard.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'Rest over'")).firstMatch
+        if !banner.waitForExistence(timeout: 20) {
+            let png = XCUIScreen.main.screenshot().pngRepresentation
+            let att = XCTAttachment(uniformTypeIdentifier: "public.png", name: "B43-fail-home.png", payload: png, userInfo: nil)
+            att.lifetime = .keepAlways
+            add(att)
+            if let dir = shotsDir { try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("B43-fail-home.png")) }
+            print("B43 springboard tree:\n\(springboard.debugDescription.prefix(6000))")
+            XCTFail("no 'Rest over' notification on the home screen")
+            return
+        }
         let png = XCUIScreen.main.screenshot().pngRepresentation
         let att = XCTAttachment(uniformTypeIdentifier: "public.png", name: "B43-2-rest-over-banner.png", payload: png, userInfo: nil)
         att.lifetime = .keepAlways
