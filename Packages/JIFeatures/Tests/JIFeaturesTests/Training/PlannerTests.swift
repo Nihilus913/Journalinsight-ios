@@ -239,9 +239,20 @@ private func plannerSource(_ relative: String) throws -> String {
 
 @Test func trainingTodayAndTheToolbarAllOpenThePlanner() throws {
     let training = try plannerSource("Training/TrainingView.swift")
-    #expect(training.contains("navigationDestination(isPresented: $showWeek) { PlannerView(model: model) }"))
+    // Verifier PL-5: both ways in hand the Planner the set logger + Watch sender (a pushed
+    // destination does not inherit the presenter's environment).
+    #expect(training.contains("navigationDestination(isPresented: $showWeek) { PlannerView(model: model, strengthLogDeps: strengthLogDeps, sendWatchPlan: sendWatchPlan) }"))
     #expect(training.contains("Button { showWeek = true } label: { Image(systemName: \"figure.run.square.stack\") }"))
-    #expect(try plannerSource("Today/TodayView.swift").contains("PlannerView(model: weekModel)"))
+    #expect(try plannerSource("Today/TodayView.swift").contains("PlannerView(model: weekModel, strengthLogDeps: strengthLogDeps, sendWatchPlan: sendWatchPlan)"))
+}
+
+/// Verifier PL-4/PL-5: Day 1's detail (a nested push) gets Log sets + Send to Watch — the Planner
+/// re-injects both on its own push; the ALL WORKOUTS container keeps its rows' ids.
+@Test func thePlannersStrengthDetailIsHandedItsLogAndWatchDeps() throws {
+    let planner = try plannerSource("Training/PlannerView.swift")
+    #expect(planner.contains(".environment(\\.strengthLogDeps, strengthLogDepsIn ?? envStrengthLogDeps)"))
+    #expect(planner.contains(".environment(\\.strengthWatchPlanSender, sendWatchPlanIn ?? envSendWatchPlan)"))
+    #expect(planner.contains(".accessibilityElement(children: .contain)\n            .accessibilityIdentifier(\"workouts-list\")"))
 }
 
 @Test func thePickerListsThePlannersRowsInTheSameOrder() {

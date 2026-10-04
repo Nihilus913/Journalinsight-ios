@@ -117,7 +117,7 @@ public struct TrainingView: View {
             if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
         }
         #endif
-        .navigationDestination(isPresented: $showWeek) { PlannerView(model: model) }
+        .navigationDestination(isPresented: $showWeek) { PlannerView(model: model, strengthLogDeps: strengthLogDeps, sendWatchPlan: sendWatchPlan) }
         .sheet(item: $dayPreview) { ref in
             TrainingDaySheet(model: model, weekday: ref.weekday, initialRoute: Self.launchArgumentDayRoute())
         }

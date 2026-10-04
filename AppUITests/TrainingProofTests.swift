@@ -25,6 +25,23 @@ final class TrainingProofTests: JIUITestCase {
         XCTAssertTrue(el("workouts-list").waitForExistence(timeout: 15), "Planner did not open")
     }
 
+    /// W-PLANNER PL-5 (verifier fix): Training → Planner → Day 1 → Log sets. The strength detail
+    /// is a nested push; its "Log sets" / "Send to Watch" read deps the stack must still carry.
+    func testPL5_plannerDay1LogSets() {
+        openLibrary()
+        let day1 = element(idPrefix: "planner-row-s", labelContains: "Day 1")
+        reveal(day1, "Planner row Day 1")
+        tap(day1, "Planner row Day 1")
+        XCTAssertTrue(el("planner-strength-detail").waitForExistence(timeout: 10), "Day 1 detail did not open")
+        let logSets = el("planner-log-sets")
+        reveal(logSets, "Day 1 Log sets")
+        XCTAssertTrue(el("planner-send-to-watch").exists, "Day 1 has no Send to Watch")
+        shot("PL5-planner-day1-detail")
+        tap(logSets, "Log sets")
+        reveal(el("strength-log-add-exercise"), "the set logger after Log sets")
+        shot("PL5-planner-day1-log-sets")
+    }
+
     /// B40-V5: change a day in the day sheet → the hero follows without a relaunch.
     /// The verify-r2 repro: Tuesday's plan session "Interval Run" (s5) becomes the plan's
     /// "Long Zone 2" (s6); the hero must say Long Zone 2, not the old session or "— No data".

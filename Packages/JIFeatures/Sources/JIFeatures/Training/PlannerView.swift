@@ -1,6 +1,7 @@
 import SwiftUI
 import JICore
 import JIDesign
+import JIWorkouts
 
 public nonisolated func trainingWeekStatusText(_ s: TrainingWeekSummary) -> String {
     guard s.planTotal > 0 else { return "No plan yet" }
@@ -42,6 +43,15 @@ public struct PlannerView: View {
     @State private var notice: (text: String, isError: Bool)?
     @State private var dropTarget: Int?
     @Environment(\.gateSettings) private var gateSettings
+    /// W-PLANNER fixer (PL-4/PL-5): the strength detail's "Log sets" / "Send to Watch" deps. A
+    /// pushed destination does not inherit the presenter's environment, so the presenter hands
+    /// them in (`init`) and this view re-injects them on its own nested push; the environment
+    /// (the app's stack-level values) is the fallback.
+    @Environment(\.strengthLogDeps) private var envStrengthLogDeps
+    @Environment(\.strengthWatchPlanSender) private var envSendWatchPlan
+    @Environment(\.progression) private var progression
+    private let strengthLogDepsIn: StrengthLogDeps?
+    private let sendWatchPlanIn: ((StrengthWatchPlan) -> Void)?
     #if canImport(WorkoutKit)
     @Environment(\.sendToWatchModel) private var sendToWatch
     @State private var showSendToWatch = false
@@ -55,7 +65,9 @@ public struct PlannerView: View {
         var id: String { template.map { "t\($0.templateId)" } ?? "new" }
     }
 
-    public init(model: TrainingViewModel) { self.model = model }
+    public init(model: TrainingViewModel, strengthLogDeps: StrengthLogDeps? = nil, sendWatchPlan: ((StrengthWatchPlan) -> Void)? = nil) {
+        self.model = model; self.strengthLogDepsIn = strengthLogDeps; self.sendWatchPlanIn = sendWatchPlan
+    }
 
     private var summary: TrainingWeekSummary { model.weekSummary }
     private var templates: [WorkoutTemplate] { model.library?.templates ?? [] }
@@ -138,7 +150,12 @@ public struct PlannerView: View {
         #if canImport(WorkoutKit)
         .sheet(isPresented: $showSendToWatch) { if let sendToWatch { SendToWatchSheet(model: sendToWatch) } }
         #endif
-        .navigationDestination(item: $strengthDetail) { row in PlannerStrengthDetail(model: model, ref: row) }
+        .navigationDestination(item: $strengthDetail) { row in
+            PlannerStrengthDetail(model: model, ref: row)
+                .environment(\.strengthLogDeps, strengthLogDepsIn ?? envStrengthLogDeps)
+                .environment(\.strengthWatchPlanSender, sendWatchPlanIn ?? envSendWatchPlan)
+                .environment(\.progression, progression)
+        }
     }
 
     // MARK: summary + week
@@ -308,6 +325,9 @@ public struct PlannerView: View {
                 }
                 .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
             }
+            // A container keeps its rows' own ids (workouts-row-<id> / planner-row-<ref>) — an id
+            // on a plain Surface is inherited by every row inside it (verifier PL-4).
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("workouts-list")
         }
     }
