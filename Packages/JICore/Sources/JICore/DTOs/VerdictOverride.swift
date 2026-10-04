@@ -25,6 +25,9 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     public var bandLo: Double?
     public var bandHi: Double?
     public var bandMethod: String?
+    /// W-B91 S1 (key "load" only): the hub's named ACWR status — "maintaining" | "productive" |
+    /// "overreaching" | "paused" (HT `app/vitals/load_status.py`). Absent from an older hub.
+    public var loadStatus: String?
 
     public var id: String { key }
 
