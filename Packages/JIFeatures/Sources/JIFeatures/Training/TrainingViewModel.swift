@@ -173,6 +173,21 @@ public final class TrainingViewModel {
 
     public var todayDateString: String { DayKey.today(now: now()).iso }
 
+    /// W-B92 C-5: the Planner's Month view over this screen's provider (hub calendar route), the
+    /// phone's planned snapshots (same database as the cache) and the plan as the offline answer.
+    public func makeMonthModel() -> TrainingMonthModel {
+        let now = self.now
+        return TrainingMonthModel(
+            provider: provider as? any TrainingCalendarProviding,
+            store: PlannedSnapshotStore(db: cache.database),
+            today: { DayKey.today(now: now()).iso },
+            fallback: { [weak self] iso, _ in
+                let s = scheduledSession(on: iso, planSessions: self?.planSessions)
+                return TrainingCalendarPlanned(name: s?.name ?? "Rest", type: s?.type.rawValue ?? "rest",
+                                               prescription: s?.name, source: "plan")
+            })
+    }
+
     /// B-57 W5: this week, from the rows on screen (updates with every optimistic assignment).
     /// W-FIX7 F7-1: today's day is done when Apple Health holds a matching workout today.
     public var weekSummary: TrainingWeekSummary {

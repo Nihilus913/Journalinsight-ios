@@ -42,6 +42,9 @@ public struct PlannerView: View {
     @State private var pendingDelete: WorkoutTemplate?
     @State private var notice: (text: String, isError: Bool)?
     @State private var dropTarget: Int?
+    /// W-B92 C-5: Week (the PL-4 week + all workouts) | Month (the Training Calendar, BP-1).
+    @State private var scope: PlannerScope = .week
+    @State private var monthModel: TrainingMonthModel?
     @Environment(\.gateSettings) private var gateSettings
     /// W-PLANNER fixer (PL-4/PL-5): the strength detail's "Log sets" / "Send to Watch" deps. A
     /// pushed destination does not inherit the presenter's environment, so the presenter hands
@@ -78,6 +81,10 @@ public struct PlannerView: View {
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 0) {
+                scopePicker
+                if scope == .month {
+                    monthSection
+                } else {
                 Text(plannerStatement)
                     .jiFont(.subheadline).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
@@ -100,6 +107,7 @@ public struct PlannerView: View {
                 }
                 allWorkoutsHeader
                 allWorkoutsCard
+                }
             }
             .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
             .readableColumn()
@@ -155,6 +163,27 @@ public struct PlannerView: View {
                 .environment(\.strengthLogDeps, strengthLogDepsIn ?? envStrengthLogDeps)
                 .environment(\.strengthWatchPlanSender, sendWatchPlanIn ?? envSendWatchPlan)
                 .environment(\.progression, progression)
+        }
+    }
+
+    // MARK: W-B92 C-5 — Week | Month
+
+    private var scopePicker: some View {
+        Picker("View", selection: $scope) {
+            ForEach(PlannerScope.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, JISpacing.s4).padding(.bottom, JISpacing.s3)
+        .accessibilityIdentifier("planner-scope")
+    }
+
+    /// Past days open a read-only record (Q2); today / future days the day sheet (Change day).
+    @ViewBuilder private var monthSection: some View {
+        if let monthModel {
+            TrainingMonthView(model: monthModel) { wd in dayPreview = TrainingDayRef(weekday: wd) }
+        } else {
+            ProgressView().frame(maxWidth: .infinity).padding(.vertical, JISpacing.s4)
+                .onAppear { monthModel = model.makeMonthModel() }
         }
     }
 
@@ -416,4 +445,9 @@ private struct PlannerDraggable<Preview: View>: ViewModifier {
     func body(content: Content) -> some View {
         if let payload { content.draggable(payload) { preview() } } else { content }
     }
+}
+
+/// W-B92 C-5: the Planner's two views.
+enum PlannerScope: String, CaseIterable, Hashable {
+    case week = "Week", month = "Month"
 }
