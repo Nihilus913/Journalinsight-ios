@@ -83,6 +83,31 @@ public protocol JIHapticFallbackPlayer: AnyObject {
     func play(_ fallback: JIHapticFallback)
 }
 
+/// The gap scheduler between the two pulses of a `.double` fallback (B-53): runs `body` after
+/// `gapMs` milliseconds. A closure wrapper, not a `Clock` generic, so `JIHapticDispatcher` stays
+/// non-generic and no call site changes.
+public struct JIHapticGap {
+    public let schedule: @MainActor (_ gapMs: Int, _ body: @escaping @MainActor () -> Void) -> Void
+    public init(schedule: @escaping @MainActor (_ gapMs: Int, _ body: @escaping @MainActor () -> Void) -> Void) {
+        self.schedule = schedule
+    }
+
+    /// The app default: a MainActor task that sleeps `gapMs` of wall time, then fires.
+    public static var wallClock: JIHapticGap {
+        JIHapticGap { gapMs, body in
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(gapMs))
+                body()
+            }
+        }
+    }
+
+#if DEBUG
+    /// Test-only: fires `body` inline — no wall time, so the two pulses are deterministic.
+    public static var immediate: JIHapticGap { JIHapticGap { _, body in body() } }
+#endif
+}
+
 /// The one internal fire point every vocabulary cue routes through (`haptics.ts` `fire`).
 /// `prefs` is the RN module-level cache (`isHapticsEnabledSync` / `isHapticsIntensitySync`):
 /// defaults OPEN (enabled, 100) until `HapticsPrefsStore.warm(from:)` (JIFeatures) loads the
@@ -102,6 +127,9 @@ public final class JIHapticDispatcher {
     /// Verdict-reveal dedupe: the last verdict key the reveal haptic fired for (RN
     /// `verdictRevealed(prev, next)` over the persisted snapshot; in-process here).
     public private(set) var lastRevealKey: String?
+    /// How a `.double` fallback waits between its two pulses (B-53). `.wallClock` for the app;
+    /// tests inject `.immediate` so the two-pulse assertions never race wall time.
+    public var gap: JIHapticGap = .wallClock
 
     public init(player: (any JIHapticPlayer)? = nil, fallback: (any JIHapticFallbackPlayer)? = nil) {
         self.player = player ?? JIHapticDispatcher.defaultPlayer()
@@ -152,10 +180,7 @@ public final class JIHapticDispatcher {
             // RN's fallback closure: two gapped calls, the marker logged once up front.
             self.fallback.play(pulse)
             let second = self.fallback
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(gapMs))
-                second.play(pulse)
-            }
+            gap.schedule(gapMs) { second.play(pulse) }
         default:
             self.fallback.play(fallback)
         }

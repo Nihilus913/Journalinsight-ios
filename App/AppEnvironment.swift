@@ -8,6 +8,7 @@ import JIPersistence
 import JIFeatures
 import JISnapshot
 import JICompute
+import JIDesign
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
