@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import JournalInsight
+import JIWorkouts
 
 // W2c-L4 exit criterion: "tap routes to the gate". `NtfyDeepLink.deepLink(fromUserInfo:)` is the
 // pure seam a `UNNotificationResponse` tap (LocalVerdictFloor's own reminder, or any future
@@ -36,4 +37,11 @@ import Foundation
 @Test func nonStringUrlValueReturnsNil() {
     let userInfo: [AnyHashable: Any] = ["url": 42]
     #expect(NtfyDeepLink.deepLink(fromUserInfo: userInfo) == nil)
+}
+
+// B-43 P1: a tapped rest-end alert (`RestEndAlert` payload) routes to the set logger.
+@Test func restEndAlertPayloadRoutesToStrengthLog() {
+    let request = RestEndAlert.request(phase: .resting, endsAt: Date(timeIntervalSince1970: 100), exercise: "Bench", now: Date(timeIntervalSince1970: 10))
+    #expect(NtfyDeepLink.deepLink(fromUserInfo: request.content.userInfo) == .strengthLog)
+    #expect(ApnsPayloadRouter.resolve(userInfo: request.content.userInfo) == .strengthLog)
 }
