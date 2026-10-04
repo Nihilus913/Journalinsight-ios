@@ -69,6 +69,11 @@ public final class RealHealthStore: HealthStoreWriting, @unchecked Sendable {
         return out
     }
 
+    /// B-24: internal so the State of Mind read-back (`StateOfMindWriter.swift`) reuses it.
+    func readSamples(sampleType: HKSampleType, start: Date, end: Date) async throws -> [HKSample] {
+        try await query(sampleType: sampleType, start: start, end: end)
+    }
+
     private func query(sampleType: HKSampleType, start: Date, end: Date) async throws -> [HKSample] {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
         return try await withCheckedThrowingContinuation { continuation in
