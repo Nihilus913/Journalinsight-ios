@@ -3,6 +3,7 @@ import HealthKit
 import JICore
 import JIFeatures
 import JIHealthKit
+import JIHub
 import JIPersistence
 import UIKit
 import UserNotifications
@@ -12,10 +13,11 @@ import UserNotifications
 /// this file only binds it to HealthKit, `UNUserNotificationCenter`, `BGTaskScheduler` and the
 /// protected-data notification.
 ///
-/// OFF unless BOTH hold: a DEBUG build with the Developer flag on (NO Release switch in this wave —
-/// Release stays `.hub` until the 14-day dual run, O-10/B-44), and a compute engine is wired
-/// (`engine`, the L1 JICompute adapter). With either missing nothing here runs and the hub stays
-/// the only verdict.
+/// B-44 Option B (Toby 2026-10-04): ON in Release (every morning from 2026-10-05) whenever a
+/// compute engine is wired (`engine`, the L1 JICompute adapter); DEBUG builds keep the Developer
+/// flag. Baselines come from Apple nights only (no hub seed, O-8 off). The gate and Decide read
+/// the on-device verdict through `overlay` (`OnDeviceVerdictOverlay`); each morning's verdict is
+/// uploaded to the hub (`OnDeviceVerdictUploadQueue`) and logged beside the hub's (O-10).
 @MainActor
 enum OnDeviceVerdictWiring {
     /// Same key as the Developer toggle (`JIFeatures.OnDeviceVerdictSection.enabledKey`).
@@ -25,12 +27,12 @@ enum OnDeviceVerdictWiring {
     /// `OnDeviceVerdictComputing` seam (`JIComputeVerdictEngine`, JIHealthKit).
     nonisolated static var engine: (any OnDeviceVerdictComputing)? { JIComputeVerdictEngine() }
 
-    /// DEBUG + Developer flag + an engine. Release: always false.
+    /// Release: an engine is wired (B-44 Option B). DEBUG: + the Developer flag.
     nonisolated static var isEnabled: Bool {
         #if DEBUG
         return engine != nil && UserDefaults.standard.bool(forKey: enabledKey)
         #else
-        return false
+        return engine != nil
         #endif
     }
 
@@ -49,33 +51,67 @@ enum OnDeviceVerdictWiring {
 
     private static var runner: OnDeviceVerdictRunner?
     private static var provider: HealthKitProvider?
+    /// B-44: the current connection's hub (no overlay) — the upload target, re-pointed on reconnect.
+    private static var currentHub: HubDataProvider?
+    /// B-44: what `HubDataProvider` lays over its verdict (nil when disabled).
+    private(set) static var overlay: (any MorningVerdictOverlay)?
     private static var unlockObserver: (any NSObjectProtocol)?
 
-    /// Builds the runner once (enabled builds only). `hub` = the current hub provider (shadow
-    /// column + one-time seed); nil without a hub.
-    static func install(hub: (any HealthDataProvider)?) {
+    /// Builds the runner + overlay once (enabled builds only). `hub` = the current hub provider
+    /// WITHOUT the overlay (the shadow log's hub column + the upload target); nil without a hub.
+    static func install(hub: HubDataProvider?) {
+        currentHub = hub
         guard isEnabled, runner == nil else { return }
         let provider = makeProvider()
         self.provider = provider
-        // O-10: each computed morning is logged next to the hub's verdict (dual run).
+        // O-10: each computed morning is logged next to the hub's verdict (dual run), and
+        // B-44: uploaded to the hub (Outbox) so both sit side by side in the DB.
         let shadow = ShadowLogWriter.make(hub: hub)
+        let upload = OnDeviceVerdictUploadQueue.make(hub: { await MainActor.run { OnDeviceVerdictWiring.currentHub } })
+        let onResult: ShadowLogWriter.Write = { day, result, computedAt in
+            await shadow?(day, result, computedAt)
+            await upload?(day, result, computedAt)
+        }
+        let compute: OnDeviceVerdictOverlay.Compute = { day in try await OnDeviceVerdictWiring.compute(provider: provider, day: day) }
         runner = OnDeviceVerdictRunner(
-            compute: { day in try await provider.onDeviceVerdict(day: day) },
+            compute: compute,
             notifier: LocalVerdictNotifier(),
             memory: UserDefaultsVerdictMemory(),
-            onResult: { day, result, computedAt in await shadow?(day, result, computedAt) }
+            onResult: onResult
         )
+        overlay = OnDeviceVerdictOverlay(startDay: overlayStartDay, today: { provider.todayKey },
+                                         compute: compute, onResult: onResult)
         unlockObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
         ) { _ in
             Task { @MainActor in _ = await OnDeviceVerdictWiring.runner?.protectedDataBecameAvailable() }
         }
-        if let hub, let baseline = baselineStore() {
-            Task.detached(priority: .utility) {
-                _ = try? await OnDeviceSeed.run(hub: { try await hub.recovery(windowDays: $0) }, store: baseline, today: provider.todayKey)
-            }
-        }
+        // B-44 decision (3): NO hub seed (O-8 off) — the phone calibrates on Apple nights only.
         schedulePrewarm()
+    }
+
+    nonisolated static var overlayStartDay: String {
+        #if DEBUG
+        if let d = UserDefaults.standard.string(forKey: OnDeviceVerdictOverlay.startOverrideKey), d.count == 10 { return d }
+        #endif
+        return OnDeviceVerdictOverlay.startDay
+    }
+
+    /// The on-device compute for `day`. DEBUG + `-ji.ondevice.fakeNights N`: from an in-memory store
+    /// of N fake Apple nights (simulator, no HealthKit data) — same harness as `previewLine`.
+    nonisolated static func compute(provider: HealthKitProvider, day: String) async throws -> OnDeviceVerdictResult? {
+        #if DEBUG
+        let fake = UserDefaults.standard.integer(forKey: fakeNightsKey)
+        if fake > 0, let engine {
+            let store = BaselineStoreAdapter(store: BaselineStore(db: try AppDatabase.inMemory()))
+            try store.record(fakeNights(fake, day: day), today: day)
+            let input = OnDeviceVerdictInput(day: day, nights: try store.nightly(through: day))
+            guard var result = try engine.compute(input) else { return nil }
+            result.inputsDigest = input.digest
+            return result
+        }
+        #endif
+        return try await provider.onDeviceVerdict(day: day)
     }
 
     /// The uploader's `onNight` hook: nil when disabled (the uploader then keeps `.hourly`).

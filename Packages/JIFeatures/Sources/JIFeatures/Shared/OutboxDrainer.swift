@@ -18,6 +18,8 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case targets(TargetsDocument)
     /// W-B54 (B54-1): a queued lift edit (`PUT /planning/exercises/{id}`) the hub has now stored.
     case exercisePatch(ExerciseUpdateResult)
+    /// B-44 Option B: the phone's morning verdict the hub has now stored beside its own.
+    case onDeviceVerdict(OnDeviceVerdictStored)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -47,6 +49,8 @@ public final class OutboxDrainer {
     /// W-B54 (B54-1): lift edits (kind `"exercise_patch"`) and the local mirror they mark synced.
     private let exercisePatch: (any ExercisePatchProviding)?
     private let strengthStore: StrengthStateStore
+    /// B-44 Option B: the on-device verdict upload (kind `"ondevice_verdict"`).
+    private let onDeviceVerdict: (any OnDeviceVerdictUploading)?
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -69,7 +73,8 @@ public final class OutboxDrainer {
         targets: (any TargetsProviding)? = nil,
         strength: (any TrainingProviding)? = nil,
         exercisePatch: (any ExercisePatchProviding)? = nil,
-        strengthStore: StrengthStateStore? = nil
+        strengthStore: StrengthStateStore? = nil,
+        onDeviceVerdict: (any OnDeviceVerdictUploading)? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
@@ -80,6 +85,7 @@ public final class OutboxDrainer {
         self.strength = strength.map { StrengthOutbox(outbox: outbox, provider: $0) }
         self.exercisePatch = exercisePatch
         self.strengthStore = strengthStore ?? StrengthStateStore()
+        self.onDeviceVerdict = onDeviceVerdict
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -93,7 +99,8 @@ public final class OutboxDrainer {
             verdictOverride: provider as? any VerdictOverrideProviding,
             targets: provider as? any TargetsProviding,
             strength: provider as? any TrainingProviding,
-            exercisePatch: provider as? any ExercisePatchProviding
+            exercisePatch: provider as? any ExercisePatchProviding,
+            onDeviceVerdict: provider as? any OnDeviceVerdictUploading
         )
     }
 
@@ -107,7 +114,8 @@ public final class OutboxDrainer {
             verdictOverride: hub as? any VerdictOverrideProviding,
             targets: hub as? any TargetsProviding,
             strength: hub as? any TrainingProviding,
-            exercisePatch: hub as? any ExercisePatchProviding
+            exercisePatch: hub as? any ExercisePatchProviding,
+            onDeviceVerdict: hub as? any OnDeviceVerdictUploading
         )
     }
 
@@ -135,9 +143,11 @@ public final class OutboxDrainer {
     /// W-B54 (B54-1): a lift weight/reps edit (`TrainingViewModel.updateExercise`). `snake_case`
     /// like `plan_weekday`, the other Training-screen write; never re-spelled (queued rows).
     public nonisolated static let exercisePatchKind = "exercise_patch"
+    /// B-44 Option B: the phone's morning verdict (`POST /planning/ondevice-verdict`).
+    public nonisolated static let onDeviceVerdictKind = OnDeviceVerdictUpload.outboxKind
     public nonisolated static let knownKinds: Set<String> = [
         weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
-        legacyGoalsKind, targetsKind, exercisePatchKind,
+        legacyGoalsKind, targetsKind, exercisePatchKind, onDeviceVerdictKind,
     ]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
@@ -150,6 +160,7 @@ public final class OutboxDrainer {
         if targets != nil { kinds.insert(Self.targetsKind); kinds.insert(Self.legacyGoalsKind) }
         if strength != nil { kinds.insert(StrengthOutbox.kind) }
         if exercisePatch != nil { kinds.insert(Self.exercisePatchKind) }
+        if onDeviceVerdict != nil { kinds.insert(Self.onDeviceVerdictKind) }
         return kinds
     }
 
@@ -280,6 +291,27 @@ public final class OutboxDrainer {
                         for q in sameLift { try? outbox.markSent(id: q.id) }   // the hub said no — never retried
                     } else {
                         try? outbox.markFailed(id: row.id, error: Self.describeExercisePatch(error))
+                    }
+                    results[row.id] = .failure(error)
+                }
+            case Self.onDeviceVerdictKind:
+                guard let onDeviceVerdict, let body = try? JSONDecoder().decode(OnDeviceVerdictUpload.self, from: row.payload) else { continue }
+                // A recompute of the same day supersedes an older queued row (the hub upserts per
+                // date anyway): only the newest row of a day is sent, the older ones retire with it.
+                let sameDay = rows.filter { $0.kind == Self.onDeviceVerdictKind
+                    && (try? JSONDecoder().decode(OnDeviceVerdictUpload.self, from: $0.payload))?.date == body.date }
+                guard row.id == sameDay.last?.id else { continue }
+                do {
+                    let stored = try await onDeviceVerdict.uploadOnDeviceVerdict(body)
+                    for q in sameDay { try? outbox.markSent(id: q.id) }
+                    results[row.id] = .success(.onDeviceVerdict(stored))
+                } catch {
+                    // 404 = a hub that predates the route (deployed later): kept queued, not retired.
+                    let routeMissing: Bool = if case .http(404, _)? = error as? HubError { true } else { false }
+                    if Self.isPermanentRejection(error), !routeMissing {
+                        for q in sameDay { try? outbox.markSent(id: q.id) }   // the hub said no — never retried
+                    } else {
+                        try? outbox.markFailed(id: row.id, error: String(describing: error))
                     }
                     results[row.id] = .failure(error)
                 }

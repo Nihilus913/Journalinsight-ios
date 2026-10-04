@@ -85,6 +85,7 @@
 		D8939B1781303A3447E2127B /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9592E400266E0385BE90930E /* LiveActivityController.swift */; };
 		D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1DEEDD9B02F9398A695569 /* RootTabView.swift */; };
 		D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */; };
+		DA838B9E0D4F19EE474D435F /* OnDeviceVerdictOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E66CC75D8434D99CC18FA1F /* OnDeviceVerdictOverlay.swift */; };
 		DC306E33CD5648EA082E5A0F /* LiveActivityCapPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */; };
 		DDC97FFAAC64676F3B52E6AB /* Fix6FixerAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3261685EDB3B86163D8948AA /* Fix6FixerAppTests.swift */; };
 		DDECCDE909FC1D254736F2F7 /* KpiTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D806655451924807AB66B373 /* KpiTimelineProvider.swift */; };
@@ -208,6 +209,7 @@
 		77793FB1D2752C56C52B4D6C /* Fix9Fix10ScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix9Fix10ScreenTests.swift; sourceTree = "<group>"; };
 		7C66279B9FA496C89CE05177 /* StrengthLogViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthLogViewModelTests.swift; sourceTree = "<group>"; };
 		7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyDeepLinkHandler.swift; sourceTree = "<group>"; };
+		7E66CC75D8434D99CC18FA1F /* OnDeviceVerdictOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceVerdictOverlay.swift; sourceTree = "<group>"; };
 		80D37E54FBCF389C4B5901AF /* StrengthLogIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthLogIntent.swift; sourceTree = "<group>"; };
 		81E3002B92D368429BB3F69F /* MoreTabTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreTabTests.swift; sourceTree = "<group>"; };
 		85E4C7AF960174FE787EC5E0 /* StrengthLogViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthLogViews.swift; sourceTree = "<group>"; };
@@ -434,6 +436,7 @@
 				3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */,
 				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
 				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
+				7E66CC75D8434D99CC18FA1F /* OnDeviceVerdictOverlay.swift */,
 				01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */,
 				5958527A14A12B9893C50209 /* ShadowLogWriter.swift */,
 			);
@@ -764,6 +767,7 @@
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
+				DA838B9E0D4F19EE474D435F /* OnDeviceVerdictOverlay.swift in Sources */,
 				ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
