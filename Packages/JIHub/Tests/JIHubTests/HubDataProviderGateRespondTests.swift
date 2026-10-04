@@ -17,16 +17,26 @@ extension HubClientTests {
         return HubDataProvider(client: HubClient(config: config, session: StubURLProtocol.session()))
     }
 
+    /// W-B29 R-2: the `response` half of a write-path fixture of record
+    /// (`planning_gate_respond.json` / `planning_feel.json`, `{request, response}`), as the
+    /// raw bytes the hub sent — the success stubs serve the captured reply, not a literal.
+    private func fixtureResponse(_ name: String) throws -> (data: Data, json: [String: Any]) {
+        let url = try #require(MockDataProvider.fixtureURL(named: name), "missing fixture \(name)")
+        let doc = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let response = try #require(doc["response"] as? [String: Any])
+        return (try JSONSerialization.data(withJSONObject: response), response)
+    }
+
     @Test func respondGatePostsToTheRouterPathAndDecodesGateRespondOut() async throws {
         StubURLProtocol.reset()
-        StubURLProtocol.responses["/api/v1/planning/gate/respond"] = (200, Data("""
-        {"pdf_requested":true,"log_id":41}
-        """.utf8))
+        let fixture = try fixtureResponse("planning_gate_respond")
+        StubURLProtocol.responses["/api/v1/planning/gate/respond"] = (200, fixture.data)
 
-        let result = try await gateRespondProvider().respondGate(choice: .override, overrideReason: "sore shoulder", windowDays: 7)
+        let result = try await gateRespondProvider().respondGate(choice: .skip, overrideReason: "", windowDays: 7)
 
-        #expect(result.pdfRequested == true)
-        #expect(result.logId == 41)
+        #expect(result.pdfRequested == (fixture.json["pdf_requested"] as? Bool))
+        #expect(result.logId == (fixture.json["log_id"] as? Int))
+        #expect(result.logId != nil)
         #expect(StubURLProtocol.lastRequest?.httpMethod == "POST")
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/gate/respond")
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer t0k")
@@ -68,11 +78,12 @@ extension HubClientTests {
 
     @Test func logFeelPostsToTheRouterPathAndDecodesFeelOut() async throws {
         StubURLProtocol.reset()
-        StubURLProtocol.responses["/api/v1/planning/feel"] = (200, Data("{\"feel_id\":7}".utf8))
+        let fixture = try fixtureResponse("planning_feel")
+        StubURLProtocol.responses["/api/v1/planning/feel"] = (200, fixture.data)
 
-        let result = try await gateRespondProvider().logFeel(feelScore: 4, notes: "legs heavy", date: "2026-09-18")
+        let result = try await gateRespondProvider().logFeel(feelScore: 3, notes: "", date: "2026-10-04")
 
-        #expect(result.feelId == 7)
+        #expect(result.feelId == (fixture.json["feel_id"] as? Int))
         #expect(StubURLProtocol.lastRequest?.httpMethod == "POST")
         #expect(StubURLProtocol.lastRequest?.url?.path == "/api/v1/planning/feel")
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer t0k")
