@@ -15,14 +15,23 @@ public struct RecoveryInputDay: Codable, Sendable, Equatable {
     /// older hub. Scored only when the hub's `vitals` flag is on.
     public var respBpm: Double?
     public var wristTempC: Double?
+    /// B-104 p2 (HT B-104 p1): where `hrvMs` came from — "apple" (Watch RMSSD) | "garmin" (Garmin
+    /// nightly RMSSD, already × 0.95 hub-side = an estimate) | nil (no HRV that night, or an older
+    /// hub that does not send it — then an `hrvMs` is the Watch's, as before).
+    public var hrvSrc: String?
 
     public init(date: String, hrvMs: Double? = nil, rhrBpm: Double? = nil, sleepH: Double? = nil,
                 deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil,
-                respBpm: Double? = nil, wristTempC: Double? = nil) {
+                respBpm: Double? = nil, wristTempC: Double? = nil, hrvSrc: String? = nil) {
         self.date = date; self.hrvMs = hrvMs; self.rhrBpm = rhrBpm; self.sleepH = sleepH
         self.deepH = deepH; self.remH = remH; self.loadMin = loadMin
-        self.respBpm = respBpm; self.wristTempC = wristTempC
+        self.respBpm = respBpm; self.wristTempC = wristTempC; self.hrvSrc = hrvSrc
     }
+
+    /// B-104 p2: this night's HRV is a Garmin estimate (never true for an older hub's rows).
+    public var isGarminHrv: Bool { hrvMs != nil && hrvSrc == "garmin" }
+    /// B-104 p2: this night's HRV is the Watch's — `hrv_src` "apple", or missing (older hub).
+    public var isWatchHrv: Bool { hrvMs != nil && hrvSrc != "garmin" }
 }
 
 /// W-FIX10 R-04 (HT DH-4) — the hub's own verdict on the recovery baseline, from the default window
