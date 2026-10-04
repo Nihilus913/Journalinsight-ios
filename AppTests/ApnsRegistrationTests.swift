@@ -205,3 +205,59 @@ private struct SpyPushProvider: PushTokenProviding {
     #expect(components?.hour == LocalVerdictFloor.defaultHour)
     #expect(components?.minute == LocalVerdictFloor.defaultMinute)
 }
+
+// MARK: - W-B54 B54-2: a failed or provider-less registration retries on the next foreground
+
+@MainActor
+@Test func aFailedPostKeepsTheRegistrationPending() async {
+    let provider = SpyPushProvider(ack: nil, error: .network("offline"))
+    let registrar = ApnsRegistration()
+    registrar.providerSource = { provider }
+    await registrar.receive(deviceToken: Data([0xab, 0xcd]))
+    guard case .unavailable = registrar.state else {
+        Issue.record("a failed POST must read .unavailable, got \(registrar.state)")
+        return
+    }
+    #expect(registrar.pendingRegistration?.token == "abcd")
+}
+
+@MainActor
+@Test func retryWithAnAnsweringHubRegistersAndClearsThePending() async {
+    let failing = SpyPushProvider(ack: nil, error: .network("offline"))
+    let answering = SpyPushProvider()
+    let registrar = ApnsRegistration()
+    registrar.providerSource = { failing }
+    await registrar.receive(deviceToken: Data([0xab, 0xcd]))
+    registrar.providerSource = { answering }
+    await registrar.retryPendingRegistration()
+    #expect(answering.seen.registrations.map(\.token) == ["abcd"])
+    #expect(registrar.state == .registered(token: "abcd", registeredAt: "2026-09-18T05:10:00Z"))
+    #expect(registrar.pendingRegistration == nil)
+}
+
+@MainActor
+@Test func aTokenThatArrivedBeforeTheHubRegistersOnceTheProviderExists() async {
+    let registrar = ApnsRegistration()
+    registrar.providerSource = { nil }   // token before the Connection sheet was completed
+    await registrar.receive(deviceToken: Data([0x01]))
+    #expect(registrar.pendingRegistration?.token == "01")
+    let provider = SpyPushProvider()
+    registrar.providerSource = { provider }
+    await registrar.retryPendingRegistration()
+    #expect(provider.seen.registrations.map(\.token) == ["01"])
+    #expect(registrar.pendingRegistration == nil)
+    guard case .registered = registrar.state else {
+        Issue.record("retry must register once a provider exists, got \(registrar.state)")
+        return
+    }
+}
+
+@MainActor
+@Test func retryWithNothingPendingIsANoOp() async {
+    let provider = SpyPushProvider()
+    let registrar = ApnsRegistration()
+    registrar.providerSource = { provider }
+    await registrar.retryPendingRegistration()
+    #expect(provider.seen.registrations.isEmpty)
+    #expect(registrar.state == .idle)
+}

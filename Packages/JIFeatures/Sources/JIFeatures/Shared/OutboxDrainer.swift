@@ -16,6 +16,8 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case verdictOverrideCleared
     /// W-TGT: the hub stored the targets document (`PUT /planning/targets`). TEMP bridge until B-50.
     case targets(TargetsDocument)
+    /// W-B54 (B54-1): a queued lift edit (`PUT /planning/exercises/{id}`) the hub has now stored.
+    case exercisePatch(ExerciseUpdateResult)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -42,6 +44,9 @@ public final class OutboxDrainer {
     /// only triggers that pass, so a session logged offline goes out when the hub is back even
     /// if the Log sets screen is never reopened.
     private let strength: StrengthOutbox?
+    /// W-B54 (B54-1): lift edits (kind `"exercise_patch"`) and the local mirror they mark synced.
+    private let exercisePatch: (any ExercisePatchProviding)?
+    private let strengthStore: StrengthStateStore
 
     /// W9.5-L1 (scout S1-1): the ONE pass currently awaiting the hub, or `nil`. `drainOnce()` is
     /// reachable from three places that can overlap in time — `WeighInViewModel.submit` (in-tap),
@@ -62,7 +67,9 @@ public final class OutboxDrainer {
         planWeekday: (any PlanSessionWeekdayProviding)? = nil,
         verdictOverride: (any VerdictOverrideProviding)? = nil,
         targets: (any TargetsProviding)? = nil,
-        strength: (any TrainingProviding)? = nil
+        strength: (any TrainingProviding)? = nil,
+        exercisePatch: (any ExercisePatchProviding)? = nil,
+        strengthStore: StrengthStateStore? = nil
     ) {
         self.outbox = outbox
         self.weighIn = weighIn
@@ -71,6 +78,8 @@ public final class OutboxDrainer {
         self.verdictOverride = verdictOverride
         self.targets = targets
         self.strength = strength.map { StrengthOutbox(outbox: outbox, provider: $0) }
+        self.exercisePatch = exercisePatch
+        self.strengthStore = strengthStore ?? StrengthStateStore()
     }
 
     /// W3b shape, kept so `WeighInViewModel` and the watchdog wiring compile unchanged: a drainer
@@ -83,7 +92,8 @@ public final class OutboxDrainer {
             planWeekday: provider as? any PlanSessionWeekdayProviding,
             verdictOverride: provider as? any VerdictOverrideProviding,
             targets: provider as? any TargetsProviding,
-            strength: provider as? any TrainingProviding
+            strength: provider as? any TrainingProviding,
+            exercisePatch: provider as? any ExercisePatchProviding
         )
     }
 
@@ -96,7 +106,8 @@ public final class OutboxDrainer {
             planWeekday: hub as? any PlanSessionWeekdayProviding,
             verdictOverride: hub as? any VerdictOverrideProviding,
             targets: hub as? any TargetsProviding,
-            strength: hub as? any TrainingProviding
+            strength: hub as? any TrainingProviding,
+            exercisePatch: hub as? any ExercisePatchProviding
         )
     }
 
@@ -121,9 +132,12 @@ public final class OutboxDrainer {
     /// document it was edited from); the queue goes out as ONE PUT with the newest row — every
     /// edit applied in order to a fresh hub copy — and all rows retire together.
     public nonisolated static let targetsKind = TargetsDocument.outboxKind
+    /// W-B54 (B54-1): a lift weight/reps edit (`TrainingViewModel.updateExercise`). `snake_case`
+    /// like `plan_weekday`, the other Training-screen write; never re-spelled (queued rows).
+    public nonisolated static let exercisePatchKind = "exercise_patch"
     public nonisolated static let knownKinds: Set<String> = [
         weighInKind, gateRespondKind, sessionFeelKind, planWeekdayKind, verdictOverrideKind, verdictOverrideClearKind,
-        legacyGoalsKind, targetsKind,
+        legacyGoalsKind, targetsKind, exercisePatchKind,
     ]
 
     /// The kinds THIS instance can attempt (a kind whose provider is `nil` is excluded).
@@ -135,6 +149,7 @@ public final class OutboxDrainer {
         if verdictOverride != nil { kinds.insert(Self.verdictOverrideKind); kinds.insert(Self.verdictOverrideClearKind) }
         if targets != nil { kinds.insert(Self.targetsKind); kinds.insert(Self.legacyGoalsKind) }
         if strength != nil { kinds.insert(StrengthOutbox.kind) }
+        if exercisePatch != nil { kinds.insert(Self.exercisePatchKind) }
         return kinds
     }
 
@@ -172,6 +187,7 @@ public final class OutboxDrainer {
     /// `drainOnce()`'s `inFlight` task.
     private func drainPass() async -> [Int64: Result<OutboxDelivery, Error>] {
         var results: [Int64: Result<OutboxDelivery, Error>] = [:]
+        if exercisePatch != nil { enqueueLegacyLiftEdits() }
         guard let rows = try? outbox.pending() else { return results }
         let newestTargetsId = rows.last(where: { $0.kind == Self.targetsKind })?.id
         for row in rows {
@@ -238,6 +254,35 @@ public final class OutboxDrainer {
                     try? outbox.markFailed(id: row.id, error: Self.describeTargets(error))
                     results[row.id] = .failure(error)
                 }
+            case Self.exercisePatchKind:
+                guard let exercisePatch, let body = try? JSONDecoder().decode(ExercisePatchBody.self, from: row.payload) else { continue }
+                // Last edit wins: only the newest queued row of a lift is sent; the older ones of
+                // the same lift retire with it (they would only be overwritten a beat later).
+                let sameLift = rows.filter { $0.kind == Self.exercisePatchKind
+                    && (try? JSONDecoder().decode(ExercisePatchBody.self, from: $0.payload))?.exerciseId == body.exerciseId }
+                guard row.id == sameLift.last?.id else { continue }
+                do {
+                    let result = try await exercisePatch.updateExercise(exerciseId: body.exerciseId, patch: body.patch)
+                    for q in sameLift { try? outbox.markSent(id: q.id) }
+                    // Mark the local mirror synced only if it still holds what was sent — an edit
+                    // tapped while this PUT was in flight is a newer row, still queued.
+                    let local = strengthStore.entries().first { $0.exerciseId == body.exerciseId }
+                    if local == nil {
+                        strengthStore.saveLocal(exerciseId: body.exerciseId, exerciseName: body.exerciseName, patch: body.patch)
+                        strengthStore.markSynced(exerciseId: body.exerciseId)
+                    } else if local?.currentWeightKg == body.patch.currentWeightKg, local?.sets == body.patch.sets,
+                              local?.repsTarget == body.patch.repsTarget {
+                        strengthStore.markSynced(exerciseId: body.exerciseId)
+                    }
+                    results[row.id] = .success(.exercisePatch(result))
+                } catch {
+                    if Self.isPermanentRejection(error) {
+                        for q in sameLift { try? outbox.markSent(id: q.id) }   // the hub said no — never retried
+                    } else {
+                        try? outbox.markFailed(id: row.id, error: Self.describeExercisePatch(error))
+                    }
+                    results[row.id] = .failure(error)
+                }
             default:
                 continue   // incl. `StrengthOutbox.kind`: replayed below, as one ordered lane
             }
@@ -249,6 +294,22 @@ public final class OutboxDrainer {
             _ = await strength.drainOnce()
         }
         return results
+    }
+
+    /// W-B54 (B54-1): offline lift edits an OLDER build saved only in `StrengthStateStore` (nothing
+    /// replayed them) join the queue once, as ordinary `"exercise_patch"` rows.
+    private func enqueueLegacyLiftEdits() {
+        let legacy = strengthStore.takeLegacyUnsyncedOnce()
+        guard !legacy.isEmpty else { return }
+        // A lift that already has a queued row was edited by THIS build — that row is the truth.
+        let queued = Set(((try? outbox.pending()) ?? []).filter { $0.kind == Self.exercisePatchKind }
+            .compactMap { (try? JSONDecoder().decode(ExercisePatchBody.self, from: $0.payload))?.exerciseId })
+        for entry in legacy where !queued.contains(entry.exerciseId) {
+            let patch = ExerciseUpdate(currentWeightKg: entry.currentWeightKg, progressionStepKg: entry.progressionStepKg,
+                                       sets: entry.sets, repsTarget: entry.repsTarget)
+            _ = try? outbox.enqueue(kind: Self.exercisePatchKind,
+                                    payload: ExercisePatchBody(exerciseId: entry.exerciseId, exerciseName: entry.exerciseName, patch: patch))
+        }
     }
 
     private func attempt(
@@ -305,6 +366,16 @@ public extension OutboxDrainer {
             error is PlanSessionUpdateUnavailable
                 ? "This hub has no plan-session route yet — the weekday stays queued."
                 : "Couldn't reach the hub — the weekday stays queued."
+        }
+    }
+
+    /// W-B54: the hub's own `detail` where it gave one, else: the lift edit is still queued.
+    nonisolated static func describeExercisePatch(_ error: Error) -> String {
+        switch error as? HubError {
+        case .http(_, let detail) where detail?.isEmpty == false: detail!
+        case .network(let message): message
+        case .unauthorized: "Hub rejected the token — check Settings › Connection."
+        default: "Couldn't reach the hub — the lift change stays queued."
         }
     }
 

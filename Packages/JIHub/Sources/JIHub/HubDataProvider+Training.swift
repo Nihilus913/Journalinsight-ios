@@ -39,3 +39,8 @@ extension HubDataProvider: TrainingProviding {
 /// rows with. The method body is `TrainingProviding`'s above — conforming here only tells the
 /// drainer that THIS provider can deliver that kind.
 extension HubDataProvider: PlanSessionWeekdayProviding {}
+
+/// W-B54 (B54-1): the lift edit, replayed by `OutboxDrainer` from `"exercise_patch"` rows. The
+/// method is `TrainingProviding.updateExercise` above — this only tells the drainer this provider
+/// can deliver that kind.
+extension HubDataProvider: ExercisePatchProviding {}
