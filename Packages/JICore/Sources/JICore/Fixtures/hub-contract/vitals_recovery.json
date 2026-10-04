@@ -1,10 +1,4 @@
 {
-  "avg_acwr_7d": 0.8,
-  "avg_hrv_7d": 29.8,
-  "avg_readiness_7d": 61.7,
-  "avg_rhr_7d": 62.0,
-  "avg_sleep_score_7d": 75.8,
-  "bedtime_consistency_sd_min": 101.9,
   "days": [
     {
       "acwr": 0.0,
