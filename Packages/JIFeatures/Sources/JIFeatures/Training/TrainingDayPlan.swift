@@ -95,27 +95,25 @@ public nonisolated struct TrainingDayOptions: Sendable, Equatable {
     public let library: [TrainingDayOption]
 }
 
-/// Names compare case- and whitespace-insensitively ("day 1  full upper" = "Day 1 Full Upper").
+/// Names compare case- and whitespace-insensitively ("day 1  full upper" = "Day 1 Full Upper") —
+/// only to say a display name once (the hero title); never to link a session to a template (PL-8).
 nonisolated func trainingNameKey(_ s: String) -> String {
     s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
-}
-
-/// The plan session a library workout stands for, when it carries that session's name — so the
-/// same session is never offered twice and its day stays ONE link (the plan session's).
-nonisolated func linkedSession(_ t: WorkoutTemplate, spine: [WeekSpineEntry]) -> WeekSpineEntry? {
-    let key = trainingNameKey(t.name)
-    return spine.first { $0.id != nil && trainingNameKey($0.name) == key }
 }
 
 nonisolated func trainingDayPreview(
     day: TrainingWeekDay, spine: [WeekSpineEntry], exercises: [Exercise], templates: [WorkoutTemplate]
 ) -> TrainingDayPreview {
     let wd = day.weekday
-    var entries: [TrainingDayPreview.Entry] = spine.filter { $0.weekday == wd }.map { s in
-        if s.kind != .strength, let id = s.id { return .session(id: id, name: s.name, kind: s.kind) }
+    let names = Dictionary(templates.map { ($0.templateId, $0.name) }, uniquingKeysWith: { a, _ in a })
+    let onDay = spine.filter { $0.weekday == wd }
+    var entries: [TrainingDayPreview.Entry] = onDay.map { s in
+        // PL-8: a session linked to a template is shown as that template (its name, once).
+        if s.kind != .strength, let id = s.id { return .session(id: id, name: s.templateId.flatMap { names[$0] } ?? s.name, kind: s.kind) }
         return .strength(id: s.id, name: s.name, lifts: exercises.filter { $0.sessionName == s.name })
     }
-    for t in templates where t.weekdays.contains(wd) && linkedSession(t, spine: spine) == nil {
+    let linkedHere = Set(onDay.compactMap(\.templateId))
+    for t in templates where t.weekdays.contains(wd) && !linkedHere.contains(t.templateId) {
         entries.append(.template(t))
     }
     // B40-V1: the schedule stands in only while the hub hasn't listed the plan's own cardio
@@ -129,15 +127,12 @@ nonisolated func trainingDayPreview(
 }
 
 nonisolated func trainingDayOptions(weekday wd: Int, spine: [WeekSpineEntry], templates: [WorkoutTemplate]) -> TrainingDayOptions {
-    var linkedIds = Set<Int>()
+    // PL-8: a session linked (by id) to a template is that template's row — its days show there.
+    let known = Set(templates.map(\.templateId))
+    let linkedIds = Set(spine.compactMap { e in e.templateId.map(known.contains) == true ? e.id : nil })
     let library: [TrainingDayOption] = templates.map { t in
-        if let s = linkedSession(t, spine: spine), let id = s.id {
-            linkedIds.insert(id)
-            let days = s.weekday.map { [$0] } ?? []
-            return TrainingDayOption(id: "t\(t.templateId)", title: s.name, choice: .planSession(id: id, name: s.name),
-                                     currentDays: days, isOnThisDay: days.contains(wd), kind: s.kind, template: t)
-        }
-        let days = Array(Set(t.weekdays)).sorted()
+        let sessionDays = spine.filter { $0.templateId == t.templateId }.compactMap(\.weekday)
+        let days = Array(Set(t.weekdays + sessionDays)).sorted()
         return TrainingDayOption(id: "t\(t.templateId)", title: t.name, choice: .template(t),
                                  currentDays: days, isOnThisDay: days.contains(wd), kind: .strength, template: t)
     }
@@ -161,9 +156,17 @@ nonisolated func trainingDayWrites(
     let removeChoice = removing?.choice
     if let adding, let removeChoice, trainingSameChoice(adding, removeChoice) { return [] }
     var writes: [TrainingDayWrite] = []
+    // A session's write carries ITS name (an entry may show the linked template's name, PL-8).
+    func sessionName(_ id: Int, _ shown: String) -> String { spine.first { $0.id == id }?.name ?? shown }
     switch removeChoice {
     case .planSession(let id, let name)?:
-        if spine.first(where: { $0.id == id })?.weekday == wd { writes.append(.sessionWeekday(id: id, name: name, weekday: nil)) }
+        if let s = spine.first(where: { $0.id == id }), s.weekday == wd {
+            writes.append(.sessionWeekday(id: id, name: sessionName(id, name), weekday: nil))
+            // PL-8: its linked template leaves the day too (else the day still shows it).
+            if let tid = s.templateId, let t = templates.first(where: { $0.templateId == tid }), t.weekdays.contains(wd) {
+                writes.append(.templateWeekdays(t, Array(Set(t.weekdays).subtracting([wd])).sorted()))
+            }
+        }
     case .template(let t)?:
         let t = current(t)
         if t.weekdays.contains(wd) { writes.append(.templateWeekdays(t, Array(Set(t.weekdays).subtracting([wd])).sorted())) }
@@ -171,7 +174,7 @@ nonisolated func trainingDayWrites(
     }
     switch adding {
     case .planSession(let id, let name)?:
-        if spine.first(where: { $0.id == id })?.weekday != wd { writes.append(.sessionWeekday(id: id, name: name, weekday: wd)) }
+        if spine.first(where: { $0.id == id })?.weekday != wd { writes.append(.sessionWeekday(id: id, name: sessionName(id, name), weekday: wd)) }
     case .template(let t)?:
         let t = current(t)
         if !t.weekdays.contains(wd) { writes.append(.templateWeekdays(t, Array(Set(t.weekdays).union([wd])).sorted())) }

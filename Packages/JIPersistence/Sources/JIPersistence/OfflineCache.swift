@@ -7,6 +7,8 @@ public struct CacheHit<T: Sendable>: Sendable { public let value: T; public let 
 public struct OfflineCache: Sendable {
     private let db: AppDatabase
     public init(db: AppDatabase) { self.db = db }
+    /// W-B92 C-5: the same database, for a sibling store (the Planner's `PlannedSnapshotStore`).
+    public var database: AppDatabase { db }
 
     public func put<T: Encodable>(_ key: String, _ value: T) throws {
         let blob = try JSON.encoder.encode(value)
