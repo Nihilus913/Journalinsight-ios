@@ -21,3 +21,5 @@ public struct PrefStore: Sendable {
         try db.pool.write { db in try db.execute(sql: "DELETE FROM pref WHERE key = ?", arguments: [key]) }
     }
 }
+
+extension PrefStore: JIPrefStoring {}
