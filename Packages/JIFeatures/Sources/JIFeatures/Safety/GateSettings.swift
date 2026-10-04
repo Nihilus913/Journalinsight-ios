@@ -137,12 +137,8 @@ public nonisolated struct GateSettingsStore: Sendable {
     }
 }
 
-/// ISO-date arithmetic for the 8-week re-check. UTC Gregorian, so DST never shifts a day.
+/// ISO-date arithmetic for the 8-week re-check: `DayKey` calendar arithmetic, so DST never shifts a day.
 public nonisolated enum HrCapRecheck {
-    private static var calendar: Calendar {
-        var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c
-    }
-
     public static func addDays(_ iso: String, _ n: Int) -> String {
         DayKey(iso: iso)?.adding(days: n).iso ?? iso
     }

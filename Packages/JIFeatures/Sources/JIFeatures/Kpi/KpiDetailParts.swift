@@ -309,10 +309,7 @@ nonisolated func kpiDayDistance(from: String, to: String) -> Int? {
 
 /// "15 Sep" for yyyy-MM-dd.
 nonisolated func kpiShortDay(_ iso: String) -> String {
-    guard let d = DayKey(iso: iso)?.startDate(in: .gmt) else { return iso }
-    let out = DateFormatter()
-    out.locale = Locale(identifier: "en_GB"); out.timeZone = TimeZone(identifier: "UTC"); out.dateFormat = "d MMM"
-    return out.string(from: d)
+    DayKey(iso: iso)?.string(format: "d MMM", locale: Locale(identifier: "en_GB")) ?? iso // W-FIX13 F-1
 }
 
 /// The value card: the number, its status word and the explanation line (board `03 KpiDetail`).

@@ -215,20 +215,18 @@ public nonisolated enum KpiMetrics {
     }
 
     /// BUG-05 (card rule): a value labelled "last night" carries its date, or shows "—" once it is
-    /// older than 36 h. A night dated D is read that morning (taken as 06:00 UTC on D).
+    /// older than 36 h. A night dated D is read that morning (taken as 06:00 on D in the phone's
+    /// zone — W-FIX13 F-1, was 06:00 UTC).
     public static let lastNightMaxAgeHours: Double = 36
 
-    public static func isLastNightFresh(nightDate: String, now: Date) -> Bool {
-        guard let read = nightReadAt(nightDate) else { return false }
+    public static func isLastNightFresh(nightDate: String, now: Date, in zone: TimeZone = DayKey.zone) -> Bool {
+        guard let read = nightReadAt(nightDate, zone) else { return false }
         return now.timeIntervalSince(read) <= lastNightMaxAgeHours * 3600
     }
 
-    private static func nightReadAt(_ day: String) -> Date? {
-        let parts = day.split(separator: "-").compactMap { Int($0) }
-        guard day.count == 10, parts.count == 3 else { return nil }
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
-        return cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 6))
+    private static func nightReadAt(_ day: String, _ zone: TimeZone) -> Date? {
+        guard day.count == 10, let key = DayKey(iso: day) else { return nil }
+        return DayKey.calendar(in: zone).date(byAdding: .hour, value: 6, to: key.startDate(in: zone))
     }
 
     private static func nutritionField(_ n: NutritionDailyRow, _ id: KpiMetricId) -> Double? {

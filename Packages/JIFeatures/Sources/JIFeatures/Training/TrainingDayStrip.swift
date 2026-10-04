@@ -21,7 +21,7 @@ nonisolated public func trainingDayStatus(kcalBurnedActive: Double?, isFuture: B
 /// UTC day keys, so `Calendar.current` would shift a day either side of midnight.
 nonisolated let trainingStripCalendar: Calendar = {
     var c = Calendar(identifier: .gregorian)
-    c.timeZone = TimeZone(identifier: "UTC") ?? .current
+    c.timeZone = TimeZone(identifier: "UTC") ?? .current // hub date strings only, zone-free (F-1)
     return c
 }()
 

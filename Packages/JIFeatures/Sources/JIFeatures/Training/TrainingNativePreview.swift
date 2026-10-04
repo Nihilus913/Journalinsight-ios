@@ -72,7 +72,7 @@ struct TrainingNativePreview: View {
             // B-57 W1: the preview carries the screen's new header (spec §1 "Registration").
             // W-FIX3 fixer BUG-44: the board 3/01 header + hero.
             TrainingSessionHeader(subtitle: trainingSubtitle(verdict: morning?.verdict, isStale: false, date: previewFetchedAt,
-                                                             timeZone: TimeZone(identifier: "UTC")!),
+                                                             timeZone: TimeZone(identifier: "UTC")!), // preview fixture (F-1)
                                   fetchedAt: previewFetchedAt, watchLine: previewWatchLine)
             TrainingHeroCard(dayLabel: "Today", sessionName: "Full upper A",
                              rows: trainingHeroRows(exercises: exercises, session: PlannedSession(id: -1, name: "Full upper A", weekday: 0)),

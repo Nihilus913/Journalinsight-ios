@@ -494,13 +494,7 @@ public struct GateRationaleView: View {
 
     /// "2026-09-11" -> "Thu". Parsed as a plain calendar date (no timezone shift off the hub's day).
     nonisolated static func weekdayLabel(_ date: String, locale: Locale = .autoupdatingCurrent) -> String {
-        var calendar = Calendar(identifier: .iso8601)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
-        let parts = date.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3,
-              let d = calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-        else { return date }
-        return d.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated))
+        DayKey(iso: date)?.formatted(Date.FormatStyle(locale: locale).weekday(.abbreviated)) ?? date
     }
 }
 
