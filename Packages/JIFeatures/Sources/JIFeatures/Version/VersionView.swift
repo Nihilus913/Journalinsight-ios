@@ -3,7 +3,9 @@ import JIDesign
 
 // W5a-L4 (P-version). Mirrors `mobile/app/version.tsx`: identity card (icon, name, version,
 // bundle id), then "What changed" — one card per `ChangelogEntry` with its bullet items.
-// RN's "Last crash" section is descoped (Android-only Kotlin module). No Done button: this view
+// RN's "Last crash" section (Android-only Kotlin module there) is B-18 p2 on iOS: the newest on-device
+// `CrashRecord` (uncaught NSException / MetricKit, see CrashLog.swift) with Copy / Share / Clear;
+// local only, never uploaded. No Done button: this view
 // is pushed inside `SettingsView`'s `NavigationStack`, whose toolbar already carries Done.
 /// B-57 W1 r4 (fixer g3, board 5/05): the identity sits in one compact row, "What changed" is the
 /// three latest releases (each opens its notes one level down, plus "All releases" for the full
@@ -42,6 +44,8 @@ public struct VersionView: View {
     @State private var model: VersionViewModel
     private let thisInstall: VersionInstallState?
     @State private var staleSources: Int?
+    @State private var confirmClearCrashes = false
+    @State private var copiedCrash = false
 
     public init(model: VersionViewModel, thisInstall: VersionInstallState? = nil) {
         _model = State(initialValue: model)
@@ -102,6 +106,8 @@ public struct VersionView: View {
                 }
                 .accessibilityIdentifier("version.install.dataQuality")
             }
+
+            crashSection
         }
         .jiNativeFormChrome()
         .scrollContentBackground(.hidden)   // W-GUI tier B: on the page ground
@@ -110,12 +116,78 @@ public struct VersionView: View {
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("About & version")
-        .onAppear { model.markSeen() }
+        .onAppear { model.markSeen(); model.reloadCrashes() }
+        .confirmationDialog("Clear all crash logs?", isPresented: $confirmClearCrashes, titleVisibility: .visible) {
+            Button("Clear crash logs", role: .destructive) { model.clearCrashes() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Removes the \(model.crashes.count) stored report\(model.crashes.count == 1 ? "" : "s") from this phone.")
+        }
         .task {
             guard staleSources == nil, let dq = DataQualityAccess.shared.makeViewModel() else { return }
             await dq.load()
             if dq.phase == .loaded, !dq.sourceSummary.sources.isEmpty { staleSources = dq.sourceSummary.stale }
         }
+    }
+
+    /// B-18 p2: "Last crash" — empty state, or date / build / type / summary + Copy · Share · Clear.
+    @ViewBuilder private var crashSection: some View {
+        Section {
+            if let crash = model.lastCrash {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(crash.type).jiFont(.subheadline, weight: .bold, tint: .text)
+                        .accessibilityIdentifier("version.crash.type")
+                    Text(crash.summary).jiFont(.footnote, tint: .text).lineLimit(4)
+                        .accessibilityIdentifier("version.crash.summary")
+                    Text("\(VersionViewModel.crashDateLine(crash.date)) · \(VersionViewModel.crashBuildLine(crash)) · \(VersionViewModel.crashSourceLine(crash))")
+                        .jiFont(.caption, tint: .muted)
+                        .accessibilityIdentifier("version.crash.meta")
+                }
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("version.crash.latest")
+
+                Button {
+                    copyCrashReport()
+                } label: {
+                    Label(copiedCrash ? "Copied" : "Copy report", systemImage: copiedCrash ? "checkmark" : "doc.on.doc")
+                }
+                .accessibilityIdentifier("version.crash.copy")
+
+                ShareLink(item: model.crashReportText,
+                          preview: SharePreview("JournalInsight crash report")) {
+                    Label("Share report", systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("version.crash.share")
+
+                Button(role: .destructive) {
+                    confirmClearCrashes = true
+                } label: {
+                    Label("Clear crash logs", systemImage: "trash")
+                }
+                .accessibilityIdentifier("version.crash.clear")
+            } else {
+                Text("No crashes recorded").jiFont(.subheadline, tint: .muted)
+                    .accessibilityIdentifier("version.crash.empty")
+            }
+        } header: {
+            Text("Last crash")
+        } footer: {
+            if let err = model.crashClearError {
+                Text(err).accessibilityIdentifier("version.crash.error")
+            } else if model.crashes.count > 1 {
+                Text("\(model.crashes.count) reports stored on this phone (newest \(CrashLogStore.cap) kept). Copy and Share include all of them.")
+            } else {
+                Text("Stored on this phone only — never sent to the hub.")
+            }
+        }
+    }
+
+    private func copyCrashReport() {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = model.crashReportText
+        #endif
+        copiedCrash = true
     }
 
     private var versionPlatformLine: String {
