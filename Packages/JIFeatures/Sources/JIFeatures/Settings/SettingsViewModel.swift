@@ -38,6 +38,9 @@ public final class SettingsViewModel {
     public let todayChips: @MainActor () -> [TodayChip]
     /// Registered sections in render order (by `sortKey`, stable for equal keys).
     public let sections: [any SettingsSection]
+    /// W-B96 (B-96): the planned-sessions → iPhone Calendar export. nil = not wired (previews,
+    /// tests) → the Calendar section says "Not available in this build".
+    public let calendarExport: CalendarExportModel?
     /// RN `saved` — "Using hub — saved." after a successful save; nil until then.
     public private(set) var savedMessage: String?
 
@@ -69,10 +72,12 @@ public final class SettingsViewModel {
         weeklyPlanSchedule: WeeklyPlanViewModel.Schedule? = nil,
         sections: [any SettingsSection] = SettingsRegistry.sections,
         syncAction: (@MainActor () async throws -> Void)? = nil,
+        calendarExport: CalendarExportModel? = nil,
         now: @escaping () -> Date = Date.init,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
         self.syncAction = syncAction
+        self.calendarExport = calendarExport
         self.now = now
         self.connection = ConnectionSheetModel(store: store)
         self.prefs = prefs

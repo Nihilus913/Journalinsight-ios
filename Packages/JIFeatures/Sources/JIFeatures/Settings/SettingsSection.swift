@@ -156,6 +156,7 @@ public enum SettingsRegistry {
         OnTodaySection(),   // W-TGT L3: the My KPIs square picker, under Home & widgets (spec §4)
         SyncNowSection(),   // W-TGT fixer 1e: Sync now moved into Sync & hub (mock 04)
         PlateInventorySection(),   // W-B38-B B-9: bar + plate pairs for the plate calculator
+        CalendarSection(),   // W-B96 (B-96): planned sessions → iPhone Calendar (write-only, all-day)
         ]
         // W-B41: the data-source switch is a developer tool — it is not compiled into a Release
         // build at all, which is what keeps the `developer` group off Toby's phone.
