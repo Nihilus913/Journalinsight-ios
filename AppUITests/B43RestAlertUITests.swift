@@ -47,7 +47,10 @@ final class B43RestAlertUITests: JIUITestCase {
 
         // B-43 P1: opening the logger asks for notification permission — allow it.
         let allow = springboard.buttons["Allow"].firstMatch
-        if allow.waitForExistence(timeout: 8) { allow.tap() }
+        if allow.waitForExistence(timeout: 8) {
+            shot("B43-0-permission-prompt")
+            allow.tap()
+        }
 
         // Log the first set of the first lift: the 90 s rest countdown starts.
         let logSet = app.descendants(matching: .any)
