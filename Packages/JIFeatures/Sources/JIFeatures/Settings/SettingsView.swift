@@ -64,7 +64,7 @@ public nonisolated enum SettingsRoot {
                   sectionIds: ["l0.health"]),
             .init(id: "home", group: .today, kind: .homeWidgets,
                   sectionIds: ["l3.editToday", OnTodaySection.sectionId, "l5.weeklyPlan"]),
-            .init(id: "targets", group: .today, kind: .inline, sectionIds: ["l0.preferences"]),
+            .init(id: "targets", group: .today, kind: .inline, sectionIds: ["l0.preferences", TrainingBreakSection.sectionId]),
             .init(id: "appearance", group: .phone, kind: .inline, sectionIds: ["l1.appearance"]),
             .init(id: "haptics", group: .phone,
                   kind: .push(title: "Haptics & notifications", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
