@@ -22,8 +22,8 @@ enum OnDeviceVerdictWiring {
     nonisolated static let enabledKey = "ji.ondevice.verdict.enabled"
 
     /// The L1 compute (`HrvBand` + `mergeRecoveryDays` + `appleGateInputs` + `evaluate`) behind the
-    /// `OnDeviceVerdictComputing` seam. Verifier: return the JICompute adapter once L1 is merged.
-    nonisolated static var engine: (any OnDeviceVerdictComputing)? { nil }
+    /// `OnDeviceVerdictComputing` seam (`JIComputeVerdictEngine`, JIHealthKit).
+    nonisolated static var engine: (any OnDeviceVerdictComputing)? { JIComputeVerdictEngine() }
 
     /// DEBUG + Developer flag + an engine. Release: always false.
     nonisolated static var isEnabled: Bool {
@@ -90,19 +90,77 @@ enum OnDeviceVerdictWiring {
         }
     }
 
+    // MARK: - Developer screen estimate line
+
+    /// DEBUG harness: `-ji.ondevice.fakeNights N` (launch argument) computes the Developer line
+    /// from an in-memory baseline store holding N prior Apple nights + tonight instead of
+    /// HealthKit (simulator screenshot of the calibrating label). 0 / absent = the real store.
+    nonisolated static let fakeNightsKey = "ji.ondevice.fakeNights"
+
+    /// Binds `OnDeviceVerdictPreview.load` (the Developer screen's estimate line). Enabled builds only.
+    static func bindPreview() {
+        guard isEnabled else { return }
+        OnDeviceVerdictPreview.load = { await OnDeviceVerdictWiring.previewLine() }
+    }
+
+    nonisolated static func previewLine() async -> String {
+        let provider = makeProvider()
+        let day = provider.todayKey
+        let fake = UserDefaults.standard.integer(forKey: fakeNightsKey)
+        do {
+            let result: OnDeviceVerdictResult?
+            if fake > 0, let engine {
+                let store = BaselineStoreAdapter(store: BaselineStore(db: try AppDatabase.inMemory()))
+                try store.record(fakeNights(fake, day: day), today: day)
+                result = try engine.compute(OnDeviceVerdictInput(day: day, nights: try store.nightly(through: day)))
+            } else {
+                result = try await provider.onDeviceVerdict(day: day)
+            }
+            guard let result else { return "No night yet for \(day)" }
+            return OnDeviceVerdictLabel.headline(result)
+        } catch {
+            return "On-device verdict unavailable (\(error))"
+        }
+    }
+
+    /// N prior Apple nights (RMSSD ~40 ms, 7.5 h) + tonight, for the DEBUG fake store.
+    nonisolated static func fakeNights(_ n: Int, day: String) -> [OnDeviceNight] {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let fmt = Date.ISO8601FormatStyle(timeZone: utc.timeZone).year().month().day()
+        guard let base = try? fmt.parse(day) else { return [] }
+        let prior = (1...max(1, n)).prefix(n).compactMap { i -> OnDeviceNight? in
+            guard let date = utc.date(byAdding: .day, value: -i, to: base) else { return nil }
+            let d = date.formatted(fmt)
+            return OnDeviceNight(source: .apple, date: d, hrvRmssdMs: 38 + Double(i % 5), rhrBpm: 50,
+                                 sleepDurationSec: 27_000, sleepScore: 80)
+        }
+        return prior.reversed() + [OnDeviceNight(source: .apple, date: day, hrvRmssdMs: 41, rhrBpm: 49,
+                                                 sleepDurationSec: 27_360, sleepScore: 82)]
+    }
+
     // MARK: - BGAppRefresh pre-warm (~04:45)
 
     /// Must run before launch finishes (BGTaskScheduler rule); a no-op when disabled.
-    nonisolated static func registerPrewarm() {
-        guard isEnabled else { return }
+    /// Called from `JournalInsightApp.init` AFTER `boot()` has run `install` — so `install`'s
+    /// `schedulePrewarm()` is a no-op and the first submit happens here, once registered.
+    static func registerPrewarm() {
+        guard isEnabled, !prewarmRegistered else { return }
         BGTaskSchedulerAdapter().register(identifier: OnDevicePrewarm.taskIdentifier) {
             let warmed = await prewarm()
             await MainActor.run { schedulePrewarm() }
             return warmed
         }
+        prewarmRegistered = true
+        schedulePrewarm()
     }
 
+    /// BGTaskScheduler raises an ObjC exception (launch crash) when a request is submitted for an
+    /// identifier that is not registered yet.
+    private static var prewarmRegistered = false
+
     static func schedulePrewarm() {
+        guard prewarmRegistered else { return }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
         let begin = OnDevicePrewarm.nextBegin(after: Date(), calendar: cal)

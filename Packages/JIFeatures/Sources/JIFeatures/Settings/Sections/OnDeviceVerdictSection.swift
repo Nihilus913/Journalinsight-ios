@@ -18,6 +18,13 @@ public nonisolated func onDeviceShadowRowLine(_ row: ShadowVerdictRow) -> String
     return "\(row.day) · \(ShadowParity.verdictClass(row.onDeviceVerdict)) vs hub \(hub) · \(latency)"
 }
 
+/// The Developer screen's current on-device estimate ("Estimate — calibrating (N/28 nights) ·
+/// GO — …"). The App binds `load` at launch when the on-device verdict is enabled (DEBUG only);
+/// nil = the line is not shown.
+public enum OnDeviceVerdictPreview {
+    public static var load: (@Sendable () async -> String)?
+}
+
 /// W-ONDEVICE O-9/O-10: the DEBUG-only on-device verdict switch + the dual-run log. Not compiled
 /// into Release (NO release switch this wave: Release stays `.hub`).
 #if DEBUG
@@ -40,6 +47,7 @@ private struct OnDeviceVerdictRows: View {
     @AppStorage(OnDeviceVerdictSection.enabledKey) private var enabled = false
     @State private var parity: ShadowParity?
     @State private var rows: [ShadowVerdictRow] = []
+    @State private var estimate: String?
 
     var body: some View {
         Section("On-device verdict (debug)") {
@@ -50,6 +58,11 @@ private struct OnDeviceVerdictRows: View {
             .tint(theme.color(.info))
             .accessibilityIdentifier("settings.toggle.ondevice.verdict")
 
+            if let estimate {
+                Text(estimate)
+                    .font(.subheadline)
+                    .accessibilityIdentifier("settings.ondevice.estimate")
+            }
             Text(parity.map(onDeviceParityLine) ?? "No on-device mornings logged yet")
                 .font(.subheadline)
                 .accessibilityIdentifier("settings.ondevice.parity")
@@ -60,6 +73,7 @@ private struct OnDeviceVerdictRows: View {
             }
         }
         .task {
+            if let load = OnDeviceVerdictPreview.load { estimate = await load() }
             guard let db = try? AppDatabase.onDisk() else { return }
             let store = DecisionLogStore(db: db)
             parity = try? store.shadowParity()
