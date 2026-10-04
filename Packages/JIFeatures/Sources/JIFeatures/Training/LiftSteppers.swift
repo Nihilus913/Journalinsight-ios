@@ -23,13 +23,16 @@ public struct LiftSteppers: View {
     let exercises: [Exercise]
     let pendingIds: Set<Int>
     let failedIds: Set<Int>
+    /// W-B54: lift edits queued in the Outbox (not yet accepted by the hub) — the value stands,
+    /// marked "waiting to sync"; the steppers stay live (an offline user may keep editing).
+    let queuedIds: Set<Int>
     let onUpdate: (Exercise, ExerciseUpdate) -> Void
     @State private var selected = liftDefs[0].key
     @Environment(\.jiTheme) private var theme
     @State private var armedDecrease: Set<String> = [] // "weight" or "reps:<exerciseId>"
 
-    public init(exercises: [Exercise], pendingIds: Set<Int> = [], failedIds: Set<Int> = [], onUpdate: @escaping (Exercise, ExerciseUpdate) -> Void) {
-        self.exercises = exercises; self.pendingIds = pendingIds; self.failedIds = failedIds; self.onUpdate = onUpdate
+    public init(exercises: [Exercise], pendingIds: Set<Int> = [], failedIds: Set<Int> = [], queuedIds: Set<Int> = [], onUpdate: @escaping (Exercise, ExerciseUpdate) -> Void) {
+        self.exercises = exercises; self.pendingIds = pendingIds; self.failedIds = failedIds; self.queuedIds = queuedIds; self.onUpdate = onUpdate
     }
 
     public var body: some View {
@@ -70,6 +73,7 @@ public struct LiftSteppers: View {
         let canStepWeight = weight != nil && step != nil && step! > 0
         let pending = rows.contains { pendingIds.contains($0.exerciseId) }
         let failed = rows.contains { failedIds.contains($0.exerciseId) }
+        let queued = liftCardQueuedForSync(rowIds: rows.map(\.exerciseId), queued: queuedIds)
         return Surface(level: 2) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(canonical.exerciseName).jiFont(.subheadline, weight: .bold).foregroundStyle(theme.color(.text))
@@ -79,6 +83,12 @@ public struct LiftSteppers: View {
                         .jiNumeral(.numeralCompact).foregroundStyle(theme.color(.text))
                         .accessibilityLabel("\(canonical.exerciseName) weight")
                         .accessibilityValue(weight != nil ? "\(weight!.formatted()) kg" : "no data")
+                    if queued {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.caption).foregroundStyle(theme.color(.muted))
+                            .accessibilityLabel("Waiting to sync")
+                            .accessibilityIdentifier("lift-pending-sync-\(canonical.exerciseId)")
+                    }
                     Spacer()
                     if canStepWeight {
                         stepButton(symbol: "−", label: liftStepperLabel(exerciseName: canonical.exerciseName, sessionName: nil, quantity: .weight, direction: .decrease), requireConfirm: true, armKey: "weight:\(canonical.exerciseId)", disabled: pending) {
@@ -134,6 +144,11 @@ public struct LiftSteppers: View {
         .accessibilityLabel(liftStepperLabel(label, armed: armed))
         .accessibilityIdentifier("lift-step-\(armKey)")
     }
+}
+
+/// W-B54: a lift card shows "waiting to sync" when any of its session rows has a queued edit.
+nonisolated public func liftCardQueuedForSync(rowIds: [Int], queued: Set<Int>) -> Bool {
+    rowIds.contains { queued.contains($0) }
 }
 
 // MARK: - Per-exercise stepper a11y strings (port of `LiftSteppers.tsx` `StepButton` / `SessionRepsRow` / `LiftCard`)

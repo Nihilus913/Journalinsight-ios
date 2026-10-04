@@ -94,7 +94,7 @@ public struct TrainingView: View {
         // W-FIX2 BUG-25: the pending glyph clears after ANY drain — on every appearance, and while
         // a weekday is queued and the screen is up (the watcher ends once nothing is pending).
         .onAppear { model.screenAppeared() }
-        .task(id: model.pendingSessionSync.isEmpty) { await model.watchPendingSync() }
+        .task(id: model.hasPendingSync) { await model.watchPendingSync() }
         .animation(JIMotion.standard, value: model.phase)
         // W-B38-B B-8: the live source is the Watch's mirrored strength session
         // (`MirroredSessionFeed`, fed by the App's mirroring handler + strength bridge). Where no
@@ -266,7 +266,7 @@ public struct TrainingView: View {
                 healthWorkouts: model.selectedDayHealthWorkouts
             )
             JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
-            LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed) { exercise, patch in
+            LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed, queuedIds: model.pendingExerciseSync) { exercise, patch in
                 Task { await model.updateExercise(exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName, patch: patch) }
             }
             Text(trainingProgressionCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))
