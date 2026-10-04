@@ -48,6 +48,10 @@ public protocol TrainingProviding: Sendable {
     func completeStrengthSession(session: String, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut
     /// `GET /strength-sessions?from&to` (history)
     func strengthSessions(from: String, to: String) async throws -> [StrengthSessionOut]
+
+    /// B-89 BP-6a `GET /api/v1/training/strength-records` — per-lift set history (Garmin + logged).
+    /// Defaulted: throws `StrengthRecordsUnavailable`; the Records screen then shows the phone's log only.
+    func strengthRecords() async throws -> StrengthRecordsOut
     /// `GET /strength-sessions/last-sets?exercise_key=` (gap #29)
     func strengthLastSets(exerciseKey: String) async throws -> [StrengthSetOut]
 }
@@ -71,6 +75,7 @@ public extension TrainingProviding {
     func deleteStrengthSet(session: String, clientId: String) async throws { throw StrengthLogUnavailable() }
     func completeStrengthSession(session: String, _ body: StrengthSessionComplete) async throws -> StrengthSessionOut { throw StrengthLogUnavailable() }
     func strengthSessions(from: String, to: String) async throws -> [StrengthSessionOut] { throw StrengthLogUnavailable() }
+    func strengthRecords() async throws -> StrengthRecordsOut { throw StrengthRecordsUnavailable() }
     func strengthLastSets(exerciseKey: String) async throws -> [StrengthSetOut] { throw StrengthLogUnavailable() }
 }
 

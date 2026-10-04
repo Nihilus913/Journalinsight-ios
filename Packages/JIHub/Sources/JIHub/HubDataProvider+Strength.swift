@@ -40,4 +40,9 @@ extension HubDataProvider {
         let list: StrengthSetList = try await client.get("/api/v1/planning/strength-sessions/last-sets", query: ["exercise_key": exerciseKey])
         return list.sets
     }
+
+    /// B-89 BP-6a — per-lift Garmin + logged set history for the Records screen.
+    public func strengthRecords() async throws -> StrengthRecordsOut {
+        try await client.get("/api/v1/training/strength-records")
+    }
 }
