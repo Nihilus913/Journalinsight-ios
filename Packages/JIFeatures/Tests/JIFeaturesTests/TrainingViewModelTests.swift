@@ -128,3 +128,105 @@ private func makeVM(
     await vm.load()
     #expect(vm.screenState == .yazioAuthExpired(detail: "token stale"))
 }
+
+// MARK: - W-B54 (B54-1): lift edits are outbox-first
+
+nonisolated final class LiftOutboxFakeProvider: TrainingProviding, ExercisePatchProviding, @unchecked Sendable {
+    var rows: [Exercise] = [
+        Exercise(exerciseId: 19, sessionName: "Day 1 Full Upper", exerciseName: "Barbell Bench Press", sets: 3, repsTarget: "6-12", currentWeightKg: 50, progressionStepKg: 2.5),
+    ]
+    var updateError: Error?
+    var updates: [(Int, ExerciseUpdate)] = []
+    func trainingDay(date: String) async throws -> TrainingDayDetail { TrainingDayDetail(date: date, activities: [], exerciseSets: []) }
+    func exercises() async throws -> [Exercise] { rows }
+    func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult {
+        updates.append((exerciseId, patch))
+        if let updateError { throw updateError }
+        return ExerciseUpdateResult(exerciseId: exerciseId, updated: true)
+    }
+}
+
+@MainActor
+private func makeLiftVM(_ hub: LiftOutboxFakeProvider, outbox: Outbox, store: StrengthStateStore) -> TrainingViewModel {
+    TrainingViewModel(
+        provider: hub, healthProvider: MockDataProvider(), cache: OfflineCache(db: try! AppDatabase.inMemory()),
+        strengthStore: store, outbox: outbox,
+        drainer: OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store),
+        now: { ISO8601DateFormatter().date(from: "2026-10-04T08:00:00Z")! }
+    )
+}
+
+@Test @MainActor func anOfflineLiftEditStandsIsQueuedAndMarkedPending() async throws {
+    let hub = LiftOutboxFakeProvider()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let store = StrengthStateStore(defaults: UserDefaults(suiteName: "b54.vm.\(UUID().uuidString)"))
+    let vm = makeLiftVM(hub, outbox: outbox, store: store)
+    await vm.load()
+    hub.updateError = HubError.network("hub unreachable")
+
+    await vm.updateExercise(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5, sets: 3))
+
+    #expect(vm.exercises.first { $0.exerciseId == 19 }?.currentWeightKg == 52.5)
+    #expect(vm.updateFailed.isEmpty)
+    #expect(vm.pendingUpdates.isEmpty)
+    #expect(vm.pendingExerciseSync == [19])
+    let rows = try outbox.pending()
+    #expect(rows.count == 1)
+    #expect(rows.first?.kind == "exercise_patch")
+    #expect(store.getLocal(exerciseId: 19)?.currentWeightKg == 52.5)
+
+    // The hub comes back: any drain (watchdog, retry scheduler, the next tap) clears the marker.
+    hub.updateError = nil
+    _ = await OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store).drainOnce()
+    vm.reconcilePendingSync()
+    #expect(vm.pendingExerciseSync.isEmpty)
+    #expect(try outbox.pending().isEmpty)
+    #expect(hub.updates.last?.1.currentWeightKg == 52.5)
+    #expect(store.getLocal(exerciseId: 19)?.synced == true)
+}
+
+@Test @MainActor func anOnlineLiftEditIsSentInTapAndLeavesNothingQueued() async throws {
+    let hub = LiftOutboxFakeProvider()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let store = StrengthStateStore(defaults: UserDefaults(suiteName: "b54.vm.\(UUID().uuidString)"))
+    let vm = makeLiftVM(hub, outbox: outbox, store: store)
+    await vm.load()
+
+    await vm.updateExercise(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5))
+
+    #expect(hub.updates.count == 1)
+    #expect(vm.exercises.first?.currentWeightKg == 52.5)
+    #expect(vm.pendingExerciseSync.isEmpty)
+    #expect(try outbox.pending().isEmpty)
+}
+
+@Test @MainActor func aRefusedLiftEditRollsBackAndSaysSo() async throws {
+    let hub = LiftOutboxFakeProvider()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let store = StrengthStateStore(defaults: UserDefaults(suiteName: "b54.vm.\(UUID().uuidString)"))
+    let vm = makeLiftVM(hub, outbox: outbox, store: store)
+    await vm.load()
+    hub.updateError = HubError.http(status: 422, detail: "bad weight")
+
+    await vm.updateExercise(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: -5, progressionStepKg: 2.5))
+
+    #expect(vm.exercises.first?.currentWeightKg == 50)
+    #expect(vm.updateFailed == [19])
+    #expect(vm.pendingExerciseSync.isEmpty)
+    #expect(try outbox.pending().isEmpty)
+    #expect(store.getLocal(exerciseId: 19)?.currentWeightKg != -5)
+}
+
+@Test @MainActor func aRefreshWhileALiftEditIsQueuedKeepsTheQueuedValue() async throws {
+    let hub = LiftOutboxFakeProvider()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let store = StrengthStateStore(defaults: UserDefaults(suiteName: "b54.vm.\(UUID().uuidString)"))
+    let vm = makeLiftVM(hub, outbox: outbox, store: store)
+    await vm.load()
+    hub.updateError = HubError.network("offline")
+    await vm.updateExercise(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5))
+
+    await vm.refresh()   // reads answer (old 50 kg), the write is still queued
+
+    #expect(vm.exercises.first { $0.exerciseId == 19 }?.currentWeightKg == 52.5)
+}
