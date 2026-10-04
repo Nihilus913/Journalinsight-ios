@@ -11,11 +11,17 @@ public struct RecoveryInputDay: Codable, Sendable, Equatable {
     public var deepH: Double?
     public var remH: Double?
     public var loadMin: Double?
+    /// W-B103 (B-103): sleeping breathing rate (Apple, Garmin fills) + Apple wrist temp; nil from an
+    /// older hub. Scored only when the hub's `vitals` flag is on.
+    public var respBpm: Double?
+    public var wristTempC: Double?
 
     public init(date: String, hrvMs: Double? = nil, rhrBpm: Double? = nil, sleepH: Double? = nil,
-                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil) {
+                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil,
+                respBpm: Double? = nil, wristTempC: Double? = nil) {
         self.date = date; self.hrvMs = hrvMs; self.rhrBpm = rhrBpm; self.sleepH = sleepH
         self.deepH = deepH; self.remH = remH; self.loadMin = loadMin
+        self.respBpm = respBpm; self.wristTempC = wristTempC
     }
 }
 
@@ -66,7 +72,18 @@ public struct RecoveryInputsReport: Codable, Sendable, Equatable {
     public var date: String
     public var days: [RecoveryInputDay]
     public var calibration: RecoveryCalibration?
-    public init(date: String, days: [RecoveryInputDay], calibration: RecoveryCalibration? = nil) {
-        self.date = date; self.days = days; self.calibration = calibration
+    /// W-B103: the hub's `HT_RECOVERY_VITALS` flag — the phone scores breathing/wrist temp only when
+    /// it is on. Missing (older hub or cache) = false.
+    public var vitals: Bool
+    public init(date: String, days: [RecoveryInputDay], calibration: RecoveryCalibration? = nil, vitals: Bool = false) {
+        self.date = date; self.days = days; self.calibration = calibration; self.vitals = vitals
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        date = try c.decode(String.self, forKey: .date)
+        days = try c.decode([RecoveryInputDay].self, forKey: .days)
+        calibration = try c.decodeIfPresent(RecoveryCalibration.self, forKey: .calibration)
+        vitals = try c.decodeIfPresent(Bool.self, forKey: .vitals) ?? false
     }
 }

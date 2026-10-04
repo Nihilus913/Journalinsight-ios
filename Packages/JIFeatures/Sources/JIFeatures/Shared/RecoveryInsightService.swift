@@ -29,6 +29,8 @@ public final class RecoveryInsightService {
     /// W-FIX10 R-04: the hub's own baseline verdict (HT DH-4); nil from an older hub or a provider
     /// without one. When it says calibrating, the phone never shows a score or band of its own.
     public private(set) var calibration: RecoveryCalibration?
+    /// W-B103: the hub's vitals flag (breathing penalty-only + wrist temp display-only).
+    public private(set) var vitals = false
 
     private let provider: (any RecoveryInputsProviding)?
     private let cache: OfflineCache
@@ -64,6 +66,7 @@ public final class RecoveryInsightService {
         today = day
         days = loaded.value?.days ?? []
         calibration = loaded.value?.calibration
+        vitals = loaded.value?.vitals ?? false
         fetchedAt = loaded.fetchedAt ?? fetchedAt
         recompute()
     }
@@ -76,7 +79,7 @@ public final class RecoveryInsightService {
     }
 
     func recompute() {
-        result = Self.score(days: days, today: today, calibration: calibration)
+        result = Self.score(days: days, today: today, calibration: calibration, vitals: vitals)
         reasonWord = result == nil ? "No data" : nil
     }
 
@@ -86,10 +89,13 @@ public final class RecoveryInsightService {
     /// with the hub's own night counts (no score), and each component the hub still calibrates
     /// loses its z. The phone never builds a number on nights the hub does not count.
     public nonisolated static func score(days: [RecoveryInputDay], today: String,
-                                         calibration: RecoveryCalibration? = nil) -> RecoveryScoreResult? {
+                                         calibration: RecoveryCalibration? = nil,
+                                         vitals: Bool = false) -> RecoveryScoreResult? {
         let series = days.map { RecoverySeriesDay(date: $0.date, hrvMs: $0.hrvMs, rhrBpm: $0.rhrBpm, sleepH: $0.sleepH,
-                                                  deepH: $0.deepH, remH: $0.remH, loadMin: $0.loadMin) }
-        guard !series.isEmpty, let local = try? RecoveryScore.compute(days: series, today: today) else { return nil }
+                                                  deepH: $0.deepH, remH: $0.remH, loadMin: $0.loadMin,
+                                                  respBpm: $0.respBpm, wristTempC: $0.wristTempC) }
+        guard !series.isEmpty,
+              let local = try? RecoveryScore.compute(days: series, today: today, includeVitals: vitals) else { return nil }
         guard let calibration, calibration.calibrating else { return local }
         let comps = local.components.map { c -> RecoveryComponent in
             guard calibration.isCalibrating(c.key.rawValue) else { return c }
