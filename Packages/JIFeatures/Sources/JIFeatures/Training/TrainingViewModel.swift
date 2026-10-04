@@ -525,6 +525,11 @@ public final class TrainingViewModel {
         trainingDayOptions(weekday: weekday, spine: daySpine, templates: library?.templates ?? [])
     }
 
+    /// PL-5: the day picker's rows — the Planner's ALL WORKOUTS, the same list in the same order.
+    public func plannerOptions(weekday: Int) -> [TrainingDayOption] {
+        plannerDayOptions(weekday: weekday, rows: plannerWorkouts, spine: daySpine, templates: library?.templates ?? [])
+    }
+
     /// true while this entry's day change is queued and not yet accepted by the hub.
     public func isPending(_ entry: TrainingDayPreview.Entry) -> Bool {
         switch entry {

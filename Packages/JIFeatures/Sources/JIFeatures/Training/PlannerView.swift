@@ -111,6 +111,18 @@ public struct PlannerView: View {
         }
         .onAppear { model.screenAppeared() }
         .refreshable { await model.refresh() }
+        #if DEBUG
+        // `-workout-library-open new|import|t<id>`: the editor / Import sheet once the list is up.
+        .task {
+            guard let route = workoutLibraryLaunchRoute(CommandLine.arguments) else { return }
+            await model.library?.load()
+            switch route {
+            case .newWorkout: editing = PlannerEditorTarget(template: nil)
+            case .importSheet: showingImport = true
+            case .edit(let id): if let t = templates.first(where: { $0.templateId == id }) { editing = PlannerEditorTarget(template: t) }
+            }
+        }
+        #endif
         .sheet(item: $dayPreview) { ref in TrainingDaySheet(model: model, weekday: ref.weekday) }
         .sheet(item: $editing) { target in
             if let library = model.library {
@@ -127,17 +139,6 @@ public struct PlannerView: View {
         .sheet(isPresented: $showSendToWatch) { if let sendToWatch { SendToWatchSheet(model: sendToWatch) } }
         #endif
         .navigationDestination(item: $strengthDetail) { row in PlannerStrengthDetail(model: model, ref: row) }
-        .confirmationDialog("Delete \(pendingDelete?.name ?? "")?",
-                            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-                            titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                guard let t = pendingDelete, let library = model.library else { return }
-                pendingDelete = nil
-                Task { _ = await library.delete(t) }
-            }
-        } message: {
-            Text("It is removed from JournalInsight. A copy on Garmin Connect stays there.")
-        }
     }
 
     // MARK: summary + week
@@ -313,6 +314,20 @@ public struct PlannerView: View {
         .accessibilityHint(row.editable ? "Opens the editor" : "Shows the lifts")
         .accessibilityIdentifier(row.templateId.map { "workouts-row-\($0)" } ?? "planner-row-\(row.ref)")
         .contextMenu { rowMenu(row, template: t) }
+        // B40-V8: the confirmation hangs off the row being deleted, so its popover points at it.
+        .confirmationDialog("Delete \(t?.name ?? row.name)?", isPresented: deleteBinding(for: t), titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                guard let t, let library = model.library else { return }
+                pendingDelete = nil
+                Task { _ = await library.delete(t) }
+            }
+        } message: {
+            Text("It is removed from JournalInsight. A copy on Garmin Connect stays there.")
+        }
+    }
+
+    private func deleteBinding(for t: WorkoutTemplate?) -> Binding<Bool> {
+        Binding(get: { t != nil && pendingDelete?.templateId == t?.templateId }, set: { if !$0 { pendingDelete = nil } })
     }
 
     @ViewBuilder private func rowMenu(_ row: PlannerWorkout, template t: WorkoutTemplate?) -> some View {

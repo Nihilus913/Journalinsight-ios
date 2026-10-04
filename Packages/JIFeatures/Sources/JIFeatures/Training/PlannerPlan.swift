@@ -105,3 +105,22 @@ nonisolated func plannerRowSymbol(_ row: PlannerWorkout, template: WorkoutTempla
     if let t = template { return WorkoutFormat.sportSymbol(t.hasStrength ? .strength : (t.effectiveSegments.first?.sport ?? .running)) }
     return row.isStrength ? "dumbbell.fill" : "figure.run"
 }
+
+// MARK: - PL-5: the day picker lists the Planner's rows
+
+/// The day picker's rows = the Planner's ALL WORKOUTS, in the same order: a plan session picks
+/// its `plan_session` weekday, a template its `weekdays` (the library's current row). A template
+/// the library has not loaded yet is left out (nothing to write with).
+nonisolated func plannerDayOptions(weekday wd: Int, rows: [PlannerWorkout], spine: [WeekSpineEntry], templates: [WorkoutTemplate]) -> [TrainingDayOption] {
+    rows.compactMap { row in
+        let days = Array(Set(row.weekdays)).sorted()
+        if let sid = row.sessionId {
+            let kind = spine.first { $0.id == sid }?.kind ?? (row.isStrength ? .strength : .longRun)
+            return TrainingDayOption(id: row.ref, title: row.name, choice: .planSession(id: sid, name: row.name),
+                                     currentDays: days, isOnThisDay: days.contains(wd), kind: kind, template: nil)
+        }
+        guard let tid = row.templateId, let t = templates.first(where: { $0.templateId == tid }) else { return nil }
+        return TrainingDayOption(id: row.ref, title: t.name, choice: .template(t), currentDays: days, isOnThisDay: days.contains(wd),
+                                 kind: .strength, template: t)
+    }
+}

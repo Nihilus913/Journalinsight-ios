@@ -210,3 +210,59 @@ func makePlannerVM(_ hub: PlannerHub, cache: OfflineCache, outbox: Outbox) -> Tr
     #expect(lifts.count == 6 && lifts.allSatisfy { $0.exerciseId.map { (40..<46).contains($0) } ?? false })
     #expect(plannerLiftLine(lifts[0]) == "Next 40 kg · 3 × 8")
 }
+
+// MARK: - PL-5: one way in, one list
+
+private func plannerSource(_ relative: String) throws -> String {
+    let pkg = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    return try String(contentsOf: pkg.appending(path: "Sources/JIFeatures/\(relative)"), encoding: .utf8)
+}
+
+@Test func noStandaloneWorkoutLibraryScreenIsPushedAnyMore() throws {
+    let src = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "Sources/JIFeatures")
+    let files = FileManager.default.enumerator(at: src, includingPropertiesForKeys: nil)!.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
+    #expect(files.count > 50)
+    for f in files where f.lastPathComponent != "PlannerView.swift" {
+        let body = try String(contentsOf: f, encoding: .utf8)
+        #expect(!body.contains("WorkoutLibraryView("), "\(f.lastPathComponent) still pushes the standalone library")
+    }
+}
+
+@Test @MainActor func theDaySheetHasNoLibraryRoute() throws {
+    #expect(TrainingDaySheet.Route.pick(replacing: nil) == .pick(replacing: nil))
+    let sheet = try plannerSource("Training/TrainingDaySheet.swift")
+    #expect(!sheet.contains("case library"))
+    #expect(!sheet.contains(".library)"))
+    #expect(TrainingView.launchArgumentDayRoute(["app", "-training-day-route", "library"]) == nil)
+}
+
+@Test func trainingTodayAndTheToolbarAllOpenThePlanner() throws {
+    let training = try plannerSource("Training/TrainingView.swift")
+    #expect(training.contains("navigationDestination(isPresented: $showWeek) { PlannerView(model: model) }"))
+    #expect(training.contains("Button { showWeek = true } label: { Image(systemName: \"figure.run.square.stack\") }"))
+    #expect(try plannerSource("Today/TodayView.swift").contains("PlannerView(model: weekModel)"))
+}
+
+@Test func thePickerListsThePlannersRowsInTheSameOrder() {
+    let spine = trainingDaySpine(strength: weekSpine(planSessions: Array(plannerSessions.prefix(4)), exercises: plannerExercises()), sessions: plannerSessions)
+    let rows = plannerHubRows()
+    let options = plannerDayOptions(weekday: 6, rows: rows, spine: spine, templates: plannerLibrary)
+    #expect(options.map(\.id) == rows.map(\.ref))
+    #expect(options.first { $0.id == "s4" }?.choice == .planSession(id: 4, name: "Day 4 Full Upper"))
+    #expect(options.first { $0.id == "s4" }?.currentDays == [])
+    #expect(options.first { $0.id == "t1" }?.isOnThisDay == true)
+    #expect(options.first { $0.id == "s5" }?.kind == .interval)
+    // A template the library has not loaded is not offered (nothing to write it with).
+    #expect(plannerDayOptions(weekday: 6, rows: rows, spine: spine, templates: []).count == 7)
+}
+
+@Test @MainActor func pickingFromTheUnifiedPickerWritesThroughChangeDay() async throws {
+    let hub = PlannerHub()
+    let vm = makePlannerVM(hub, cache: OfflineCache(db: try AppDatabase.inMemory()), outbox: Outbox(db: try AppDatabase.inMemory()))
+    await vm.load()
+    let day4 = try #require(vm.plannerOptions(weekday: 6).first { $0.id == "s4" })
+    #expect(await vm.changeDay(weekday: 6, adding: day4.choice, removing: nil) == .saved)
+    #expect(hub.weekdayCalls.count == 1 && hub.weekdayCalls[0].0 == 4 && hub.weekdayCalls[0].1 == 6)
+    #expect(vm.plannerWorkouts.first { $0.ref == "s4" }?.weekdays == [6])
+}

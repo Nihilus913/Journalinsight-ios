@@ -102,17 +102,13 @@ public struct TrainingDaySheet: View {
     @State private var pendingRemove: TrainingDayPreview.Entry?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
-    #if canImport(WorkoutKit)
-    // B40-V7: the library pushed from this sheet keeps its per-row "Send to Watch".
-    @Environment(\.sendToWatchModel) private var sendToWatch
-    @State private var showSendToWatch = false
-    #endif
     private let theme = JITheme.native
 
+    /// W-PLANNER PL-5: the picker only — the library is the Planner's ALL WORKOUTS now (the old
+    /// `.library` push was a second copy of the picker's list).
     public enum Route: Hashable, Sendable {
         /// The picker; `replacing` = the entry id it swaps out (nil = add to the day).
         case pick(replacing: String?)
-        case library
     }
 
     public init(model: TrainingViewModel, weekday: Int, initialRoute: Route? = nil) {
@@ -123,14 +119,6 @@ public struct TrainingDaySheet: View {
 
     private var preview: TrainingDayPreview { model.dayPreview(weekday: weekday) }
 
-    private var librarySendToWatch: ((WorkoutTemplate) -> Void)? {
-        #if canImport(WorkoutKit)
-        guard let sendToWatch else { return nil }
-        return { template in sendToWatch.pickOnly(template.templateId); showSendToWatch = true }
-        #else
-        nil
-        #endif
-    }
     private var dayName: String { planWeekdayNames[weekday] }
 
     public var body: some View {
@@ -149,22 +137,14 @@ public struct TrainingDaySheet: View {
                     switch route {
                     case .pick(let replacingId):
                         TrainingDayPicker(model: model, weekday: weekday,
-                                          replacing: preview.entries.first { $0.id == replacingId },
-                                          openLibrary: { path.append(.library) }) { result in
+                                          replacing: preview.entries.first { $0.id == replacingId }) { result in
                             notice = trainingDayPickNotice(result)
                             if case .refused = result { return }
                             path.removeAll()
                         }
-                    case .library:
-                        if let library = model.library { WorkoutLibraryView(model: library, onSendToWatch: librarySendToWatch) }
                     }
                 }
         }
-        #if canImport(WorkoutKit)
-        .sheet(isPresented: $showSendToWatch) {
-            if let sendToWatch { SendToWatchSheet(model: sendToWatch) }
-        }
-        #endif
         .confirmationDialog("Take \(pendingRemove?.title ?? "") off \(dayName)?",
                             isPresented: Binding(get: { pendingRemove != nil }, set: { if !$0 { pendingRemove = nil } }),
                             titleVisibility: .visible) {
@@ -289,13 +269,13 @@ public struct TrainingDaySheet: View {
 
 // MARK: - Picker
 
-/// The change picker: the plan sessions, then the whole B-40 workout library (rendered from the
-/// library's cache when the hub is unreachable). A tap writes at once (offline-first) and returns.
+/// The change picker. W-PLANNER PL-5: ONE list — the Planner's ALL WORKOUTS (plan sessions and
+/// library templates, same order; the templates rendered from the library's cache when the hub is
+/// unreachable). A tap writes at once (offline-first) and returns.
 struct TrainingDayPicker: View {
     @Bindable var model: TrainingViewModel
     let weekday: Int
     let replacing: TrainingDayPreview.Entry?
-    let openLibrary: () -> Void
     let onPicked: (TrainingViewModel.DayChangeResult) -> Void
     @State private var busy = false
     @State private var error: String?
@@ -305,7 +285,7 @@ struct TrainingDayPicker: View {
     private var dayName: String { planWeekdayNames[weekday] }
 
     var body: some View {
-        let options = model.dayOptions(weekday: weekday)
+        let options = model.plannerOptions(weekday: weekday)
         List {
             Section {
                 EmptyView()
@@ -326,10 +306,7 @@ struct TrainingDayPicker: View {
                 .textCase(nil)
                 .fixedSize(horizontal: false, vertical: true)
             }
-            if !options.plan.isEmpty {
-                Section("Your plan") { ForEach(options.plan) { optionRow($0) } }
-            }
-            librarySection(options.library)
+            allWorkoutsSection(options)
         }
         .jiNativeFormChrome()
         .scrollContentBackground(.hidden)
@@ -341,8 +318,9 @@ struct TrainingDayPicker: View {
         .accessibilityIdentifier("training-day-picker")
     }
 
-    @ViewBuilder private func librarySection(_ rows: [TrainingDayOption]) -> some View {
+    @ViewBuilder private func allWorkoutsSection(_ rows: [TrainingDayOption]) -> some View {
         Section {
+            ForEach(rows) { optionRow($0) }
             if let library = model.library {
                 switch library.state {
                 case .idle, .loading where library.templates.isEmpty:
@@ -358,22 +336,16 @@ struct TrainingDayPicker: View {
                     .accessibilityIdentifier("training-day-library-error")
                 default:
                     if rows.isEmpty {
-                        Text("No workouts in the library yet.").foregroundStyle(theme.color(.muted))
+                        Text("No workouts yet — add one in the Planner.").foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("training-day-library-empty")
-                    } else {
-                        ForEach(rows) { optionRow($0) }
                     }
                 }
-                Button(action: openLibrary) {
-                    Label("Open workout library", systemImage: "list.bullet.rectangle")
-                }
-                .accessibilityIdentifier("training-day-open-library")
             } else {
-                Text("The workout library needs the hub connection.").foregroundStyle(theme.color(.muted))
+                Text("Library workouts need the hub connection.").foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("training-day-library-unavailable")
             }
         } header: {
-            Text("Workout library")
+            Text("All workouts")
         }
     }
 
