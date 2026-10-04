@@ -30,7 +30,7 @@ public nonisolated func moodMirrorPayload(_ n: NewCheckIn, savedAt: Date) -> Moo
 }
 
 /// The seam `MindViewModel` and the Settings toggle talk to (fakes in tests, HealthKit in the app).
-public protocol MoodMirroring: Sendable {
+public nonisolated protocol MoodMirroring: Sendable {
     /// Asks for State of Mind write access; returns false when sharing is denied.
     func requestAuthorization() async throws -> Bool
     func mirror(_ payload: MoodMirrorPayload) async throws
