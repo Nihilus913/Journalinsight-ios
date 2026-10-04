@@ -118,7 +118,7 @@ func recoveryScoreMatchesPython(_ c: RecoveryScoreCase) throws {
         .appendingPathComponent("Sources/JICompute/Recovery")
     let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
         .filter { $0.pathExtension == "swift" }
-    #expect(files.count == 2)
+    #expect(files.count == 3)   // PersonalNormal, RecoveryScore, HrvBand (W-ONDEVICE O-2)
     for f in files {
         let text = try String(contentsOf: f, encoding: .utf8)
         for banned in ["Date()", "Calendar.current", "TimeZone.current"] {
