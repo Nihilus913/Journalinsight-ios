@@ -105,3 +105,118 @@ private func makeDrainer(outbox: Outbox, weighIn: WeighInFakeProvider? = WeighIn
     _ = try outbox.enqueue(kind: "some_other_write", payload: ["x": 1])
     #expect(drainer.pendingDeliverableCount() == 2)
 }
+
+// MARK: - W-B54 (B54-1): lift edits are outbox rows of kind `exercise_patch`
+
+nonisolated final class ExercisePatchFakeProvider: ExercisePatchProviding, @unchecked Sendable {
+    var error: Error?
+    var calls: [(Int, ExerciseUpdate)] = []
+    func updateExercise(exerciseId: Int, patch: ExerciseUpdate) async throws -> ExerciseUpdateResult {
+        calls.append((exerciseId, patch))
+        if let error { throw error }
+        return ExerciseUpdateResult(exerciseId: exerciseId, updated: true)
+    }
+}
+
+private func b54Store() -> StrengthStateStore {
+    StrengthStateStore(defaults: UserDefaults(suiteName: "b54.drainer.\(UUID().uuidString)"))
+}
+
+@Test @MainActor func exercisePatchKindIsKnownAndDrainableWithAProvider() {
+    #expect(OutboxDrainer.exercisePatchKind == "exercise_patch")
+    #expect(OutboxDrainer.knownKinds.contains("exercise_patch"))
+    let outbox = Outbox(db: try! AppDatabase.inMemory())
+    #expect(OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: ExercisePatchFakeProvider(), strengthStore: b54Store())
+        .drainableKinds.contains("exercise_patch"))
+    #expect(!OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil).drainableKinds.contains("exercise_patch"))
+}
+
+@Test @MainActor func aQueuedExercisePatchIsSentAndTheLocalRowMarkedSynced() async throws {
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let hub = ExercisePatchFakeProvider()
+    let store = b54Store()
+    let patch = ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5, sets: 3, repsTarget: 8)
+    store.saveLocal(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: patch)
+    let id = try outbox.enqueue(kind: OutboxDrainer.exercisePatchKind, payload: ExercisePatchBody(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: patch))
+    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store)
+
+    let results = await drainer.drainOnce()
+
+    guard case .success(.exercisePatch(let r)) = results[id] else { Issue.record("expected exercise-patch success, got \(String(describing: results[id]))"); return }
+    #expect(r == ExerciseUpdateResult(exerciseId: 19, updated: true))
+    #expect(hub.calls.count == 1)
+    #expect(hub.calls.first?.0 == 19)
+    #expect(hub.calls.first?.1 == patch)
+    #expect(try outbox.pending().isEmpty)
+    #expect(store.getLocal(exerciseId: 19)?.synced == true)
+}
+
+@Test @MainActor func anUnreachableHubLeavesTheExercisePatchQueued() async throws {
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let hub = ExercisePatchFakeProvider()
+    hub.error = HubError.network("offline")
+    let store = b54Store()
+    let patch = ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5)
+    store.saveLocal(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: patch)
+    let id = try outbox.enqueue(kind: OutboxDrainer.exercisePatchKind, payload: ExercisePatchBody(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: patch))
+    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store)
+
+    _ = await drainer.drainOnce()
+
+    let rows = try outbox.pending()
+    #expect(rows.map(\.id) == [id])
+    #expect(rows.first?.attempts == 1)
+    #expect(store.getLocal(exerciseId: 19)?.synced == false)
+}
+
+@Test @MainActor func aHubRefusalRetiresTheExercisePatch() async throws {
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let hub = ExercisePatchFakeProvider()
+    hub.error = HubError.http(status: 422, detail: "current_weight_kg must be >= 0")
+    let id = try outbox.enqueue(kind: OutboxDrainer.exercisePatchKind, payload: ExercisePatchBody(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: -1, progressionStepKg: 2.5)))
+    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: b54Store())
+
+    let results = await drainer.drainOnce()
+
+    guard case .failure? = results[id] else { Issue.record("a refusal must be reported as a failure"); return }
+    #expect(try outbox.pending().isEmpty) // retired: retrying a 4xx forever would be a lie
+}
+
+@Test @MainActor func severalEditsOfOneLiftSendOnlyTheNewestAndRetireAll() async throws {
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let hub = ExercisePatchFakeProvider()
+    let store = b54Store()
+    let older = try outbox.enqueue(kind: OutboxDrainer.exercisePatchKind, payload: ExercisePatchBody(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5)))
+    let newer = try outbox.enqueue(kind: OutboxDrainer.exercisePatchKind, payload: ExercisePatchBody(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 55, progressionStepKg: 2.5)))
+    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store)
+
+    let results = await drainer.drainOnce()
+
+    #expect(hub.calls.map(\.1.currentWeightKg) == [55]) // last edit wins on the hub
+    guard case .success(.exercisePatch)? = results[newer] else { Issue.record("newest row must be delivered"); return }
+    _ = older
+    #expect(try outbox.pending().isEmpty)
+}
+
+@Test @MainActor func legacyUnsyncedLiftEditsAreEnqueuedOnceAndDelivered() async throws {
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let hub = ExercisePatchFakeProvider()
+    let store = b54Store()
+    // An older build saved this offline edit locally and never replayed it.
+    store.saveLocal(exerciseId: 21, exerciseName: "Lat Pulldown", patch: ExerciseUpdate(currentWeightKg: 45, progressionStepKg: 2.5, sets: 3, repsTarget: 10))
+    store.saveLocal(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 50, progressionStepKg: 2.5))
+    store.markSynced(exerciseId: 19)
+    let drainer = OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store)
+
+    _ = await drainer.drainOnce()
+
+    #expect(hub.calls.map(\.0) == [21])
+    #expect(hub.calls.first?.1 == ExerciseUpdate(currentWeightKg: 45, progressionStepKg: 2.5, sets: 3, repsTarget: 10))
+    #expect(store.listUnsynced().isEmpty)
+    #expect(try outbox.pending().isEmpty)
+
+    // Once per install: a later unsynced row is the outbox's business, not a second hand-over.
+    store.saveLocal(exerciseId: 22, exerciseName: "Row", patch: ExerciseUpdate(currentWeightKg: 40, progressionStepKg: 2.5))
+    _ = await drainer.drainOnce()
+    #expect(hub.calls.count == 1)
+}

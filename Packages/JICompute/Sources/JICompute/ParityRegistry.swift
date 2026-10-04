@@ -54,7 +54,7 @@ public nonisolated enum ParityRegistry {
         // --- R6b-1: sleep score parity port ----------------------------------
         "sleep_score_computed": ParityEntry(
             source: .computed,
-            notes: "R6b-1: ported sleep-score algorithm; golden fixture gen_golden_sleep.py + mobile sleep.parity.test.ts."
+            notes: "R6b-1: ported sleep-score algorithm; golden fixture gen_golden_sleep.py + mobile sleep.parity.test.ts. W-B67: computeSleepScoreBreakdown (4 components, parity with hub compute_sleep_score_breakdown; computeSleepScore = its total; display only, still shadow)."
         ),
         "sleep_debt": ParityEntry(
             source: .computed,

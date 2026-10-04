@@ -9,8 +9,8 @@ import JICore
 
 
 @MainActor
-private func rig(enabled: Bool = true, engine: Bool = false) -> (Rig, MarkerLog) {
-    let r = Rig(engine: engine)
+private func rig(enabled: Bool = true, engine: Bool = false, gap: JIHapticGap = .wallClock) -> (Rig, MarkerLog) {
+    let r = Rig(engine: engine, gap: gap)
     let log = MarkerLog()
     r.dispatcher.marker = log.sink
     r.dispatcher.nowMs = { 1_758_200_000_123 }
@@ -48,17 +48,15 @@ private func expectMarker(_ line: String?, _ label: String) {
     let (r, log) = rig(); r.dispatcher.fire(.verdictReveal(.muted))
     #expect(log.lines.isEmpty)
 }
-@Test @MainActor func markerGateChangeLabelsEachTierAndChangedLogsOnceNotTwice() async throws {
-    let (r, log) = rig()
+@Test @MainActor func markerGateChangeLabelsEachTierAndChangedLogsOnceNotTwice() {
+    let (r, log) = rig(gap: .immediate)
     r.dispatcher.fire(.gateChange(.routine)); expectMarker(log.last, "gateChange:routine")
     r.dispatcher.fire(.gateChange(.failed)); expectMarker(log.last, "gateChange:failed")
     let before = log.lines.count
     r.dispatcher.fire(.gateChange(.changed))
-    #expect(log.lines.count == before + 1)   // exactly one new line immediately, not one per pulse
     expectMarker(log.last, "gateChange:changed")
-    // Wait for the second pulse itself (a fixed 250 ms sleep raced it under load, B-57 W1).
-    try await waitForPulses { r.fallback.calls.count >= 4 }
-    #expect(log.lines.count == before + 1)   // still just the one after both pulses complete
+    // `.immediate` gap (B-53): both pulses have already played — still exactly one marker line.
+    #expect(log.lines.count == before + 1)   // one new line for the fire, not one per pulse
     #expect(r.fallback.calls.count == 4)     // routine + failed + the two "changed" pulses
 }
 

@@ -79,7 +79,20 @@ public final class KpiDetailViewModel {
     public private(set) var medication: MedicationEntry?
     public let daytimeHrv: Double?
     private static let keys = (recovery: "kpidetail.recovery", nutrition: "kpidetail.nutrition", gate: "kpidetail.gate", targets: "kpi.targets", goals: "kpidetail.goals", load: "kpidetail.load",
-                               calibration: "kpidetail.calibration", sourceDays: "kpidetail.sourceDays")
+                               calibration: "kpidetail.calibration", sourceDays: "kpidetail.sourceDays", sleepSummary: "kpidetail.sleepSummary")
+
+    // MARK: - W-B67 R-3: "How this score is built" (Sleep only)
+
+    /// `/vitals/sleep-summary` for the Sleep metric (provider speaks `SleepSummaryProviding`);
+    /// nil = other metric, no seam, or not loaded. A failure is never a screen error.
+    public private(set) var sleepSummary: SleepSummary?
+    /// The four component rows, or nil (section hidden) when the hub serves no breakdown (old hub).
+    public var sleepBreakdownRows: [SleepBreakdownRow]? {
+        guard metric == .sleep, let b = sleepSummary?.scoreBreakdown, !b.components.isEmpty else { return nil }
+        return JIFeatures.sleepBreakdownRows(b, source: sleepSummary?.scoreComputedSource)
+    }
+    public var sleepBreakdownTotal: Int? { sleepBreakdownRows == nil ? nil : sleepSummary?.scoreBreakdown?.total }
+    public var sleepBreakdownFooter: String { sleepBreakdownFooterText }
 
     /// W-FIX10 R-04: the hub's baseline verdict (`/vitals/recovery-inputs` `calibration`, HT DH-4)
     /// for HRV / RHR. nil = not loaded / older hub / other metric — the phone's own band stands.
@@ -243,6 +256,7 @@ public final class KpiDetailViewModel {
         if kpiSourceField(metric) != nil, let hit = try? cache.get(Self.keys.sourceDays, as: [RecoveryInputDay].self) {
             sourceDays = hit.value
         }
+        if metric == .sleep, let hit = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = hit.value }
         if metric == .acwr, let hit = try? cache.get(Self.keys.load, as: [RecoveryInputDay].self) {
             adoptLoad(hit.value, today: RecoveryInsightService.localDayKey(Date()))
         }
@@ -281,6 +295,10 @@ public final class KpiDetailViewModel {
                     try? cache.put(Self.keys.sourceDays, report.days)
                 }
             }
+            // W-B67 R-3: the Sleep breakdown; a failure keeps the cached one (never a screen error).
+            if metric == .sleep, let sp = health as? any SleepSummaryProviding,
+               let hit = try? await SectionLoader.load(key: Self.keys.sleepSummary, cache: cache, fetch: { try await sp.sleepSummary() }),
+               let sv = hit.value { sleepSummary = sv }
             if isNutritionKpi(metric), let goalsProvider {
                 if let hit = try? await SectionLoader.load(key: Self.keys.goals, cache: cache, fetch: { try await goalsProvider.goals() }),
                    let gv = hit.value { goals = gv }
