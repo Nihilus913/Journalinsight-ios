@@ -96,7 +96,7 @@ public struct VersionView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("version.install.hub")
                 NavigationLink {
-                    if let dq = DataQualityAccess.shared.makeViewModel() { DataQualityView(model: dq) } else { DataQualityUnavailableView() }
+                    DataQualityScreen()   // F-5: owns its model across re-renders
                 } label: {
                     SettingsLinkLabel(title: "Data quality", trailing: "—", badge: settingsDataQualityBadge(stale: staleSources))
                 }

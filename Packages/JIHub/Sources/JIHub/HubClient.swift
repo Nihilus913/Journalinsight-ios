@@ -6,11 +6,13 @@ public struct HubClient: Sendable {
     private let session: URLSession
     /// The zone sent as `X-JI-TZ` on every request (W-KEYS K5, Toby D1): the hub keys "today" by
     /// the phone's zone. Read per request, so a travel zone change applies without a relaunch.
+    /// W-FIX13 F-2: defaults to `DayKey.zone`, the same zone every app day computation uses; the
+    /// hub stores the latest value (`app_settings.phone_tz`) for the morning window.
     private let timeZone: @Sendable () -> TimeZone
     public static let timeZoneHeader = "X-JI-TZ"
 
     public init(config: ConnectionConfig, session: URLSession = HubClient.makeDefaultSession(),
-                timeZone: @escaping @Sendable () -> TimeZone = { .current }) {
+                timeZone: @escaping @Sendable () -> TimeZone = { DayKey.zone }) {
         self.config = config; self.session = session; self.timeZone = timeZone
     }
 

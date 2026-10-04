@@ -15,7 +15,11 @@ public nonisolated enum PlateMath {
 
     public static func perSide(totalKg: Double, barKg: Double, pairs: [Double]) -> [Double]? {
         guard totalKg.isFinite, barKg.isFinite, barKg > 0, totalKg >= barKg - toleranceKg else { return nil }
-        let side = (totalKg - barKg) / 2
+        return solve(side: (totalKg - barKg) / 2, pairs: pairs)
+    }
+
+    /// The exact plates (heaviest first) that make `side`, or nil. Never a nearest guess.
+    static func solve(side: Double, pairs: [Double]) -> [Double]? {
         if side <= toleranceKg { return [] }
         let plates = pairs.filter { $0.isFinite && $0 > 0 }.sorted(by: >)
         var chosen: [Double] = []
@@ -37,5 +41,17 @@ public nonisolated enum PlateMath {
             return false
         }
         return search(0, side) ? chosen : nil
+    }
+
+    /// W-FIX13 F-3c — a dumbbell: `perHandKg` is the weight of ONE dumbbell, there is no bar, and
+    /// each side of each dumbbell needs one plate, so a size counts once per two pairs in `pairs`
+    /// (both hands are loaded from the same inventory). [] = an empty handle; nil = not loadable.
+    public static func perSideDumbbell(perHandKg: Double, pairs: [Double]) -> [Double]? {
+        guard perHandKg.isFinite, perHandKg >= 0 else { return nil }
+        if perHandKg <= toleranceKg { return [] }
+        let usable = pairs.filter { $0.isFinite && $0 > 0 }
+        let perDumbbell = Dictionary(grouping: usable, by: { $0 })
+            .flatMap { size, all in Array(repeating: size, count: all.count / 2) }
+        return solve(side: perHandKg / 2, pairs: perDumbbell)
     }
 }

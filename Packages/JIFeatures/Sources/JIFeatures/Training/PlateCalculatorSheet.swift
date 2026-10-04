@@ -31,7 +31,7 @@ public struct PlateCalculatorSheet: View {
                     }
                 }
                 Section {
-                    Text("Bar \(plateKgText(model.inventory.barKg)) kg · plates from Settings › Plates & bar")
+                    Text(model.load == .dumbbell ? "No bar · plates from Settings › Plates & bar, shared by both dumbbells" : "Bar \(plateKgText(model.inventory.barKg)) kg · plates from Settings › Plates & bar")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }

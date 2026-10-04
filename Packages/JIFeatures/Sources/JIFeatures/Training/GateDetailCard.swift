@@ -6,13 +6,8 @@ import JIDesign
 /// missing or unreadable (never the raw "2026-09-25").
 public nonisolated func readinessDateText(_ iso: String?, locale: Locale = .autoupdatingCurrent) -> String {
     guard let iso, iso.count == 10 else { return "—" }
-    var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
-    let parts = iso.split(separator: "-").compactMap { Int($0) }
-    guard parts.count == 3,
-          let date = utc.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
-          utc.component(.day, from: date) == parts[2] else { return "—" }
-    let style = Date.FormatStyle(locale: locale, timeZone: utc.timeZone).weekday(.abbreviated).day().month(.abbreviated)
-    return date.formatted(style)
+    guard let day = DayKey(iso: iso) else { return "—" } // W-FIX13 F-1: the key's own label
+    return day.formatted(Date.FormatStyle(locale: locale).weekday(.abbreviated).day().month(.abbreviated))
 }
 
 /// W-FIX11 H1-05: the Readiness card's verdict — the user's call when there is one.

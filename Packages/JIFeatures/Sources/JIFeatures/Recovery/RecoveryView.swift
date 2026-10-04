@@ -326,7 +326,7 @@ public nonisolated func recoveryDeepText(hours: Double?) -> String {
 /// time zone, and `TrendChart` only ever orders and labels these.
 public nonisolated func recoveryTrendDate(_ day: String, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date? {
     var c = calendar
-    c.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+    c.timeZone = TimeZone(identifier: "UTC") ?? .gmt // re-prints a hub date string, zone-free (F-1)
     let parts = day.split(separator: "-").compactMap { Int($0) }
     guard parts.count == 3 else { return nil }
     return c.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))

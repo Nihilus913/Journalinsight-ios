@@ -33,3 +33,13 @@ import Testing
     let week = try await provider.nutritionWeek(windowDays: 7)
     #expect(week.count == 7)
 }
+
+// W-B77 R-4: the hub's per-day fibre / sugar (SUM of YAZIO food items); old hubs omit them.
+@Test func nutritionDailyRowDecodesFibreAndSugar() throws {
+    let json = #"{"days":[{"date":"2026-09-29","fiber_g":24.1,"sugar_g":40},{"date":"2026-09-30","kcal_consumed":1500}]}"#
+    let days = try JSON.decoder.decode(NutritionReportResponse.self, from: Data(json.utf8)).days
+    #expect(days[0].fiberG == 24.1)
+    #expect(days[0].sugarG == 40)
+    #expect(days[1].fiberG == nil, "a hub without the key must decode nil, never 0 (rule 5)")
+    #expect(days[1].sugarG == nil)
+}

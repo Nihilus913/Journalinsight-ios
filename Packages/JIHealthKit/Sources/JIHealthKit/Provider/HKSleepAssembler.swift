@@ -31,6 +31,13 @@ public struct HKSleepNight: Sendable, Equatable {
     public var sleepScore: Int? {
         computeSleepScore(durationSec: durationSec, deepSec: deepSec, remSec: remSec, awakeSec: awakeSec)
     }
+
+    /// W-B67 R-2: how `sleepScore` is built (duration / deep / REM / continuity), for Apple-native
+    /// nights with no hub — the same rows the hub's `score_breakdown` serves. `total == sleepScore`.
+    /// Delegates to `JICompute` like `sleepScore`; an unstaged night shows its stages `inferred`.
+    public var sleepScoreBreakdown: ComputedSleepBreakdown? {
+        computeSleepScoreBreakdown(durationSec: durationSec, deepSec: deepSec, remSec: remSec, awakeSec: awakeSec)
+    }
 }
 
 /// Groups HealthKit sleep-analysis category samples into nights.

@@ -27,14 +27,9 @@ extension MockDataProvider: RecoveryInputsProviding {
 
     /// The same days, synchronously (the Gallery's seeded `RecoveryInsightService`).
     public static func recoveryInputDays(date: String, windowDays: Int) -> [RecoveryInputDay] {
-        let fmt = DateFormatter()
-        fmt.calendar = Calendar(identifier: .gregorian)
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        fmt.timeZone = TimeZone(identifier: "UTC")
-        fmt.dateFormat = "yyyy-MM-dd"
-        guard let end = fmt.date(from: date) else { return [] }
+        guard date.count == 10, let end = DayKey(iso: date) else { return [] } // W-FIX13 F-1
         return (0..<max(windowDays, 0)).reversed().map { k in
-            let d = fmt.string(from: end.addingTimeInterval(Double(-k) * 86_400))
+            let d = end.adding(days: -k).iso
             return RecoveryInputDay(date: d, hrvMs: 40 + Double(k % 5), rhrBpm: 55 + Double(k % 3),
                                     sleepH: 7 + Double(k % 4) * 0.25, deepH: 1 + Double(k % 3) * 0.1,
                                     remH: 1.5 + Double(k % 2) * 0.2, loadMin: 30 + Double(k % 6) * 10)

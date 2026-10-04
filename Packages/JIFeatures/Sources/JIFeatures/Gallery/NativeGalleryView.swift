@@ -20,7 +20,7 @@ public struct NativeGalleryView: View {
     @State private var segment: GallerySegment? = nil
     @State private var range: TrendRange = .week
     @State private var selectedDay: Date? = nil
-    private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; c.locale = Locale(identifier: "en_US"); return c }
+    private var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")! /* gallery fixture, not a day key (F-1) */; c.locale = Locale(identifier: "en_US"); return c }
     private let today = Date(timeIntervalSince1970: 1_789_992_000) // 2026-09-21 12:00 UTC
     private var trend: [TrendPoint] {
         (0..<7).map { TrendPoint(date: today.addingTimeInterval(Double($0 - 6) * 86_400), value: [48, 50, 47, 53, 51, 49, 52][$0]) }

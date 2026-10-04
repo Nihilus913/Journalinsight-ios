@@ -7,47 +7,9 @@ import JIPersistence
 
 // W8-L1 (P-haptics). Port of `mobile/app/settings.tsx`'s `HapticsRow` ("Feel" card: the On/Off
 // master switch, the device-capability caption, the intensity slider, the "Feel it" preview) +
-// `HapticIntensitySlider.tsx` + the persistence half of `hapticsPrefs.ts` (`getLocalPref` /
-// `setLocalPref` → `PrefStore`, SAME keys `haptics.enabled.v1` / `haptics.intensity.v1`, two
-// separate blobs). Sits in RN's Preferences band after Appearance.
-
-// MARK: - HapticsPrefsStore (hapticsPrefs.ts over PrefStore)
-
-/// `loadHapticsEnabled` / `setHapticsEnabled` / `loadHapticsIntensity` / `setHapticsIntensity`.
-/// Every write updates the dispatcher's synchronous cache FIRST, then the disk (RN: "updates
-/// the sync cache immediately, before the disk write even resolves"). A failed read means
-/// nothing persisted yet (defaults), never an error.
-public nonisolated enum HapticsPrefsStore {
-    public static let enabledKey = JIHapticsPrefs.enabledKey
-    public static let intensityKey = JIHapticsPrefs.intensityKey
-
-    /// The persisted prefs (defaults for a missing/corrupt blob, field by field).
-    public static func load(from store: PrefStore) -> JIHapticsPrefs {
-        let enabled = (try? store.get(enabledKey, as: Bool.self)) ?? nil
-        let intensity = (try? store.get(intensityKey, as: Double.self)) ?? nil
-        return JIHapticsPrefs.reconcile(enabled: enabled, intensity: intensity)
-    }
-
-    /// `ensureLoaded` — the once-per-launch read that catches the sync cache up with the disk.
-    /// The app calls this at boot (`appWiring`), so a cold start defaults OPEN (haptics fire at
-    /// 100) only until this runs.
-    @MainActor public static func warm(from store: PrefStore, into dispatcher: JIHapticDispatcher = .shared) {
-        dispatcher.prefs = load(from: store)
-    }
-
-    /// `setHapticsEnabled(enabled)`.
-    @MainActor public static func setEnabled(_ enabled: Bool, store: PrefStore, dispatcher: JIHapticDispatcher = .shared) throws {
-        dispatcher.prefs.enabled = enabled
-        try store.set(enabledKey, enabled)
-    }
-
-    /// `setHapticsIntensity(pct)` — clamps to [1, 100]; 0 is never storable.
-    @MainActor public static func setIntensity(_ pct: Double, store: PrefStore, dispatcher: JIHapticDispatcher = .shared) throws {
-        let clamped = JIHapticsPrefs.clampIntensity(pct)
-        dispatcher.prefs.intensity = clamped
-        try store.set(intensityKey, clamped)
-    }
-}
+// `HapticIntensitySlider.tsx`. The persistence half of `hapticsPrefs.ts` (`HapticsPrefsStore`) lives
+// in JIDesign (Haptics/HapticsPrefs.swift) over the JICore `JIPrefStoring` seam, which `PrefStore`
+// satisfies (W-B31). Sits in RN's Preferences band after Appearance.
 
 // MARK: - HapticsViewModel (useHapticsEnabled / useHapticsIntensity + the slider's own loop)
 

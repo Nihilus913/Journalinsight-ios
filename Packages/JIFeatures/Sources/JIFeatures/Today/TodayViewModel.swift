@@ -51,6 +51,9 @@ public final class TodayViewModel {
     private var hubGate: GateResponse?
     private var fuelHealth: HealthTotalsSource
     public private(set) var recovery: [RecoveryDay] = []
+    /// W-FIX13 F-7 (B-69): the hub's `last_night` (newest night, Apple before Garmin) — the vitals
+    /// tile and the readiness ring read it; nil (older hub / no night) = the rows path.
+    public private(set) var lastNightReport: RecoveryLastNight?
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
     /// True once a live fetch has actually completed (success or non-cancellation failure with cache
@@ -92,7 +95,9 @@ public final class TodayViewModel {
     private let zone: () -> TimeZone
     private static let keys = (morning: "today.morning", gate: "today.gate", recovery: "today.recovery", sleepSummary: "today.sleepSummary",
                                exercises: "today.exercises", planSessions: "today.planSessions", verdictReason: "today.verdictReason",
-                               planWeek: "today.planWeek", hubLastSync: "today.hubLastSync")
+                               planWeek: "today.planWeek", hubLastSync: "today.hubLastSync",
+                               lastNight: lastNightCacheKey)
+    nonisolated private static let lastNightCacheKey = "today.lastNight"
 
     /// W-FIX10 R-01: the active plan's sessions (`GET /planning/plan-sessions`) — the one schedule
     /// resolver (`scheduledSession`) reads today's session from their weekdays. Empty = no plan read
@@ -241,7 +246,16 @@ public final class TodayViewModel {
         }
     }
 
-    public var readiness: Double? { lastNight(\.readinessScore)?.value }
+    public var readiness: Double? { lastNightReading(\.readiness, rows: \.readinessScore)?.value }
+
+    /// F-7 (B-69): the hub's `last_night` value (that night, that source) while it is fresh; a hub
+    /// that served no `last_night` falls back to the rows. Never mixes: a served night's nil
+    /// (Apple calibrating) stays nil rather than borrowing an older Garmin night.
+    private func lastNightReading(_ served: KeyPath<RecoveryLastNight, Double?>, rows: @escaping (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
+        guard let night = lastNightReport else { return lastNight(rows) }
+        guard KpiMetrics.isLastNightFresh(nightDate: night.date, now: now(), in: zone()), let v = night[keyPath: served] else { return nil }
+        return (v, night.date)
+    }
 
     /// DEV-02: the sleep-summary score with its night, whatever its age.
     private var summarySleep: (value: Double, date: String)? {
@@ -277,9 +291,9 @@ public final class TodayViewModel {
         return [
             // W-FIX1 BUG-06: last night's HRV, never `hrv_series`' 7-day `hrv_weekly_avg` mix.
             chip("hrv", "HRV", unit: "ms", points: rec.map { KpiMetrics.nightlyHrvMs($0) }, sourceMissing: !caps.contains(.hrvRMSSD),
-                 latest: lastNight { KpiMetrics.nightlyHrvMs($0) }),
+                 latest: lastNightReading(\.hrvMs) { KpiMetrics.nightlyHrvMs($0) }),
             chip("rhr", "RHR", unit: "bpm", points: rec.map(\.rhrBpm), sourceMissing: false,
-                 latest: lastNight(\.rhrBpm)),
+                 latest: lastNightReading(\.rhrBpm, rows: \.rhrBpm)),
             // W-FIX2 DEV-02: the hub's sleep-summary score for last night (89 on 09-25), else the
             // recovery row's own score — both under the same ≤ 36 h "last night" rule.
             chip("sleep", "Sleep", unit: nil, points: rec.map(\.sleepScore), sourceMissing: !caps.contains(.garminSleepScore) && summarySleep == nil,
@@ -315,7 +329,7 @@ public final class TodayViewModel {
             chip("body_battery", "Body Battery", unit: nil, points: sortedRec.map(\.bodyBatteryAvg), sourceMissing: false,
                  latest: lastNight(\.bodyBatteryAvg)),
             chip("readiness", "Readiness", unit: nil, points: sortedRec.map(\.readinessScore), sourceMissing: false,
-                 latest: lastNight(\.readinessScore)),
+                 latest: lastNightReading(\.readiness, rows: \.readinessScore)),
             chip("carbs", "Carbs", unit: "g", points: sortedDaily.map { $0.values["carbs_g"] ?? nil }, sourceMissing: false,
                  latest: foodValue("carbs_g")),
             chip("fat", "Fat", unit: "g", points: sortedDaily.map { $0.values["fat_g"] ?? nil }, sourceMissing: false,
@@ -357,6 +371,7 @@ public final class TodayViewModel {
         fuelHealth.restore(from: cache)   // W-FIX7 N-1: last launch's Health food until this launch's read lands
         if let r = try? cache.get(Self.keys.recovery, as: [RecoveryDay].self) { recovery = KpiMetrics.honestRecovery(r.value); recoveryFetchedAt = r.fetchedAt }
         if let s = try? cache.get(Self.keys.sleepSummary, as: SleepSummary.self) { sleepSummary = s.value }
+        if let n = try? cache.get(Self.keys.lastNight, as: RecoveryLastNight.self) { lastNightReport = n.value }
         if let e = try? cache.get(Self.keys.exercises, as: [Exercise].self) { exercises = e.value }
         if let p = try? cache.get(Self.keys.planSessions, as: [PlanSessionOut].self) { planSessions = p.value }
         if let w = try? cache.get(Self.keys.planWeek, as: PlanWeekOut.self), w.value.start == planWeekStart(todayDateString) {
@@ -395,6 +410,7 @@ public final class TodayViewModel {
             // W-FIX2 L5: the sleep summary and the hub's sync time are extras — they never drive
             // `phase`/`hubReachable`, and a failure keeps the last known value.
             async let sR = Self.loadSleepSummary(provider: provider, cache: cache)
+            async let lnR = Self.loadLastNight(provider: provider, cache: cache)
             async let hR = Self.loadHubLastSync(provider: provider)
             async let eR = Self.loadExercises(provider: provider, cache: cache)
             let today = todayDateString
@@ -405,6 +421,7 @@ public final class TodayViewModel {
             if let pv = await pR { planSessions = pv }
             planWeek = await pwR   // nil when not served: never keep another week's answer
             if let sv = await sR { sleepSummary = sv }
+            if let ln = await lnR { lastNightReport = ln }   // answered: even nil replaces (no stale night)
             if let hv = await hR { hubLastSync = hv; try? cache.put(Self.keys.hubLastSync, hv) }
             if let ev = await eR { exercises = ev }
             if let wv = await wR { hubDay = wv }
@@ -475,6 +492,18 @@ public final class TodayViewModel {
     nonisolated private static func loadSleepSummary(provider: any HealthDataProvider, cache: OfflineCache) async -> SleepSummary? {
         guard let sp = provider as? any SleepSummaryProviding else { return nil }
         return (try? await SectionLoader.load(key: keys.sleepSummary, cache: cache) { try await sp.sleepSummary() })?.value
+    }
+
+    /// F-7: `.some(night)` when the hub answered (night may be nil), nil when not served / failed
+    /// (the last known night stays).
+    /// (A cached night older than 36 h is never shown — `lastNightReading` checks freshness.)
+    nonisolated private static func loadLastNight(provider: any HealthDataProvider, cache: OfflineCache) async -> RecoveryLastNight?? {
+        guard let lp = provider as? any RecoveryLastNightProviding else { return nil }
+        do {
+            let night = try await lp.recoveryLastNight()
+            if let night { try? cache.put(lastNightCacheKey, night) }
+            return .some(night)
+        } catch { return nil }
     }
 
     nonisolated private static func loadExercises(provider: any HealthDataProvider, cache: OfflineCache) async -> [Exercise]? {
