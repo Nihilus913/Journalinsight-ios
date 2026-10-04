@@ -309,10 +309,7 @@ nonisolated func kpiDayDistance(from: String, to: String) -> Int? {
 
 /// "15 Sep" for yyyy-MM-dd.
 nonisolated func kpiShortDay(_ iso: String) -> String {
-    guard let d = DayKey(iso: iso)?.startDate(in: .gmt) else { return iso }
-    let out = DateFormatter()
-    out.locale = Locale(identifier: "en_GB"); out.timeZone = TimeZone(identifier: "UTC"); out.dateFormat = "d MMM"
-    return out.string(from: d)
+    DayKey(iso: iso)?.string(format: "d MMM", locale: Locale(identifier: "en_GB")) ?? iso // W-FIX13 F-1
 }
 
 /// The value card: the number, its status word and the explanation line (board `03 KpiDetail`).
@@ -352,5 +349,138 @@ struct KpiDetailValueCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+// MARK: - W-B67 R-3: "How this score is built" (Sleep KPI detail)
+
+/// One component row of the sleep-score breakdown: label, `points / max` bar, the input it was
+/// scored on, and where the night came from. Display only — the score is a shadow score.
+public nonisolated struct SleepBreakdownRow: Equatable, Sendable, Identifiable {
+    public let id: String          // duration | deep | rem | continuity
+    public let title: String
+    public let pointsText: String  // "5.7 / 20"
+    public let fraction: Double    // points / max, clamped 0…1 for the bar
+    public let input: String       // "31 min · 5 % of sleep, target 18 %" | "no data · credited 80 %"
+    public let source: String?     // "Apple" | "Garmin"
+}
+
+public nonisolated let sleepBreakdownFooterText = "Shadow score — not a gate input"
+
+/// "AppleHealth" → "Apple", "GarminAPI"/"GarminDB" → "Garmin"; anything else as served.
+nonisolated func sleepBreakdownSourceLabel(_ label: String?) -> String? {
+    guard let label, !label.isEmpty else { return nil }
+    if label.hasPrefix("Apple") { return "Apple" }
+    if label.hasPrefix("Garmin") { return "Garmin" }
+    return label
+}
+
+/// A target share: "18 %" / "22.5 %" — whole percent unless it carries a tenth.
+nonisolated func sleepBreakdownPercent(_ ratio: Double) -> String {
+    let p = ratio * 100
+    let tenth = (p * 10).rounded() / 10
+    return tenth == tenth.rounded() ? "\(Int(tenth)) %" : String(format: "%.1f %%", tenth)
+}
+
+private nonisolated func sleepBreakdownMinutes(_ seconds: Int) -> String {
+    let m = Int((Double(seconds) / 60).rounded())
+    return m >= 60 ? DurationFormat.hoursPaddedMinutes(seconds: Double(seconds)) : "\(m) min"
+}
+
+/// The hub's (or the phone's own) breakdown as the four rows the Sleep detail lists.
+public nonisolated func sleepBreakdownRows(_ breakdown: SleepScoreBreakdown, source: String?) -> [SleepBreakdownRow] {
+    let src = sleepBreakdownSourceLabel(source)
+    return breakdown.components.map { c in
+        let title = switch c.key {
+        case "duration": "Duration"
+        case "deep": "Deep sleep"
+        case "rem": "REM sleep"
+        case "continuity": "Continuity"
+        default: c.key.capitalized
+        }
+        let input: String
+        if c.inferred || c.value == nil {
+            input = "no data · credited 80 %"
+        } else if let v = c.value {
+            switch c.key {
+            case "duration": input = DurationFormat.hoursPaddedMinutes(seconds: Double(v))
+            case "continuity": input = "\(Int((Double(v) / 60).rounded())) min awake"
+            default:
+                var parts = [sleepBreakdownMinutes(v)]
+                if let share = c.share, let target = c.target {
+                    parts.append("\(Int((share * 100).rounded())) % of sleep, target \(sleepBreakdownPercent(target))")
+                }
+                input = parts.joined(separator: " · ")
+            }
+        } else { input = "—" }
+        let fraction = c.max > 0 ? min(1, max(0, c.points / Double(c.max))) : 0
+        return SleepBreakdownRow(id: c.key, title: title, pointsText: String(format: "%.1f / %d", c.points, c.max),
+                                 fraction: fraction, input: input, source: src)
+    }
+}
+
+public extension SleepScoreBreakdown {
+    /// The phone's own computation (`JICompute.computeSleepScoreBreakdown`, Apple-native nights via
+    /// `HKSleepNight.sleepScoreBreakdown`) in the hub's wire shape — one row builder for both.
+    nonisolated init(computed: ComputedSleepBreakdown) {
+        self.init(total: computed.total, components: computed.components.map {
+            SleepScoreComponent(key: $0.key, points: $0.points, max: $0.max, value: $0.value,
+                                share: $0.share, target: $0.target, inferred: $0.inferred)
+        })
+    }
+}
+
+/// The Sleep detail's "How this score is built" card: one row per component (bar = points / max),
+/// then the shadow-score footer. Hidden by the caller when there is no breakdown (old hub).
+struct SleepBreakdownSection: View {
+    let rows: [SleepBreakdownRow]
+    let total: Int?
+    private let theme = JITheme.native
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            JISectionHeader("How this score is built")
+            Surface(level: 1, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 { JIRowDivider().padding(.leading, 0) }
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .firstTextBaseline, spacing: JISpacing.s3) {
+                                Text(row.title).jiFont(.body).foregroundStyle(theme.color(.text))
+                                Spacer(minLength: JISpacing.s2)
+                                Text(row.pointsText).jiFont(.body, weight: .semibold).monospacedDigit()
+                                    .foregroundStyle(theme.color(.text))
+                            }
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(theme.color(.muted).opacity(0.2))
+                                    Capsule().fill(theme.color(.sleep)).frame(width: geo.size.width * row.fraction)
+                                }
+                            }
+                            .frame(height: 6)
+                            .accessibilityHidden(true)
+                            HStack(alignment: .firstTextBaseline, spacing: JISpacing.s2) {
+                                Text(row.input).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: JISpacing.s2)
+                                if let source = row.source {
+                                    Text(source).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                }
+                            }
+                        }
+                        .padding(.vertical, JISpacing.s3)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("kpi-sleep-breakdown-\(row.id)")
+                    }
+                }
+                .padding(.horizontal, JISpacing.s4).padding(.vertical, 6)
+            }
+            Text((total.map { "\($0) points in all · " } ?? "") + sleepBreakdownFooterText)
+                .jiFont(.caption).foregroundStyle(theme.color(.muted))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s3)
+                .accessibilityIdentifier("kpi-sleep-breakdown-footer")
+        }
+        .accessibilityIdentifier("kpi-sleep-breakdown")
     }
 }

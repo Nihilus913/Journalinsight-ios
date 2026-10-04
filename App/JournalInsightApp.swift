@@ -81,6 +81,10 @@ struct JournalInsightApp: App {
         )
         // BGTaskScheduler requires registration before launch finishes.
         scheduler.registerBackgroundTask()
+        // W-ONDEVICE O-9: the ~04:45 verdict pre-warm (registered only when the on-device verdict is enabled).
+        OnDeviceVerdictWiring.registerPrewarm()
+        // W-ONDEVICE: the Developer screen's on-device estimate line (enabled builds only).
+        OnDeviceVerdictWiring.bindPreview()
         _outboxRetry = State(initialValue: scheduler)
     }
 
@@ -156,6 +160,7 @@ struct JournalInsightApp: App {
                     let mirror = GateSettingsMirror(prefs: env.prefs,
                                                     provider: (env.hubProvider ?? env.providerStore?.provider) as? any TargetsProviding)
                     Task { @MainActor in await mirror.pushIfPending() }
+                    Task { @MainActor in await ApnsRegistration.shared.retryPendingRegistration() } // W-B54 B54-2
                 } else {
                     watchdog?.stop()
                     watchdog = nil

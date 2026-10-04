@@ -31,7 +31,7 @@ public enum WorkoutHRAttacher {
 
     public static func syncId(workout syncId: String, at ts: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = BackloadDateParsing.zurich
+        cal.timeZone = BackloadDateParsing.hubZone
         let c = cal.dateComponents([.hour, .minute, .second], from: ts)
         return String(format: "%@:hr:%02d%02d%02d", syncId, c.hour ?? 0, c.minute ?? 0, c.second ?? 0)
     }

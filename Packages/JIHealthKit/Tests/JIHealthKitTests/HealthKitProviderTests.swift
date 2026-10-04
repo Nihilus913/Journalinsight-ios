@@ -97,6 +97,19 @@ import JICompute
         #expect(nights["2026-09-18"]?.durationSec == 21_600)
     }
 
+    /// W-B67 R-2: an Apple-native night carries its breakdown; total == the night's score, and an
+    /// unstaged night shows deep/REM/continuity as inferred (credited 80 %).
+    @Test func appleNightCarriesTheScoreBreakdown() throws {
+        let staged = HKSleepNight(day: "2026-10-04", durationSec: 36_200, deepSec: 1_858, remSec: 11_417, awakeSec: 1_109)
+        let b = try #require(staged.sleepScoreBreakdown)
+        #expect(b.total == staged.sleepScore)
+        #expect(b.components.map(\.points) == [50.0, 5.7, 20.0, 10.0])
+        let unstaged = HKSleepNight(day: "2026-10-04", durationSec: 25_200, deepSec: nil, remSec: nil, awakeSec: nil)
+        let u = try #require(unstaged.sleepScoreBreakdown)
+        #expect(u.total == unstaged.sleepScore)
+        #expect(u.components.dropFirst().allSatisfy { $0.inferred })
+    }
+
     @Test func aDayOfOnlyAwakeSamplesHasNoNightToScore() {
         let window = HKSampleWindow(windowDays: 3, now: now, calendar: calendar)
         let nights = HKSleepAssembler.nights(from: [

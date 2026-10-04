@@ -214,6 +214,30 @@ enum Migrations {
                 t.column("captured_at", .text).notNull()
             }
         }
+        // W-ONDEVICE O-6 (B-20): raw nightly values behind the on-device verdict. Recompute-on-read
+        // (no aggregate columns); `(source, metric, date)` keeps a replayed night one row.
+        // Not backed up: rebuildable from HealthKit + the hub seed.
+        m.registerMigration("v6_ondevice_baseline") { db in
+            try db.create(table: "baseline_sample", ifNotExists: true) { t in
+                t.column("source", .text).notNull()
+                t.column("metric", .text).notNull()
+                t.column("date", .text).notNull()
+                t.column("value", .double).notNull()
+                t.primaryKey(["source", "metric", "date"])
+            }
+        }
+        // W-ONDEVICE O-10 (B-44): the dual-run log — one row per morning, on-device vs hub verdict.
+        // Local diagnostics only (not backed up).
+        m.registerMigration("v6b_ondevice_shadow") { db in
+            try db.create(table: "ondevice_shadow_log", ifNotExists: true) { t in
+                t.primaryKey("day", .text)
+                t.column("ondevice_verdict", .text).notNull()
+                t.column("hub_verdict", .text)
+                t.column("inputs_digest", .text).notNull()
+                t.column("computed_at", .text).notNull()
+                t.column("latency_from_wake_sec", .double)
+            }
+        }
         return m
     }
 }

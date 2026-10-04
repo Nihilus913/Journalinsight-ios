@@ -170,3 +170,27 @@ func verdictPartsMatchesRN(input: String?, word: String, session: String, tone: 
     let energy = try JSON.decoder.decode(EnergyReport.self, from: fixture("nutrition_energy"))
     #expect(try JSON.decoder.decode(EnergyReport.self, from: JSON.encoder.encode(energy)) == energy)
 }
+
+/// W-B67 R-2: the sleep-summary fixture (regenerated from the R-1 hub on :8301) carries the
+/// score breakdown — 4 components, total == score_computed — and last night's awake seconds.
+@Test func decodesSleepSummaryBreakdown() throws {
+    let s = try JSON.decoder.decode(SleepSummary.self, from: fixture("vitals_sleep_summary"))
+    let b = try #require(s.scoreBreakdown)
+    #expect(b.components.count == 4)
+    #expect(b.components.map(\.key) == ["duration", "deep", "rem", "continuity"])
+    #expect(b.components.map(\.max) == [50, 20, 20, 10])
+    #expect(Double(b.total) == s.scoreComputed)
+    #expect(b.components[1].points == 5.7)
+    #expect(b.components[1].target == 0.18)
+    #expect(s.lastNightAwakeSec == 1109)
+    #expect(s.scoreComputedSource == "AppleHealth")
+}
+
+/// An older hub (no `score_breakdown` key) still decodes — the breakdown is simply nil.
+@Test func decodesSleepSummaryWithoutBreakdown() throws {
+    let json = Data(#"{"score_computed": 82, "score_computed_date": "2026-09-11"}"#.utf8)
+    let s = try JSON.decoder.decode(SleepSummary.self, from: json)
+    #expect(s.scoreComputed == 82)
+    #expect(s.scoreBreakdown == nil)
+    #expect(s.lastNightAwakeSec == nil)
+}

@@ -8,10 +8,13 @@ import Foundation
 public nonisolated struct RecoverySeriesDay: Hashable, Sendable, Codable {
     public var date: String
     public var hrvMs, rhrBpm, sleepH, deepH, remH, loadMin: Double?
+    /// W-ONDEVICE O-3 (W-CAL C-1): which device the night's HRV came from; nil = untagged / no
+    /// HRV. Not scored — the merge sets it, the UI may show it.
+    public var source: HrvNightSource?
     public init(date: String, hrvMs: Double? = nil, rhrBpm: Double? = nil, sleepH: Double? = nil,
-                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil) {
+                deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil, source: HrvNightSource? = nil) {
         self.date = date; self.hrvMs = hrvMs; self.rhrBpm = rhrBpm; self.sleepH = sleepH
-        self.deepH = deepH; self.remH = remH; self.loadMin = loadMin
+        self.deepH = deepH; self.remH = remH; self.loadMin = loadMin; self.source = source
     }
 }
 
@@ -40,11 +43,14 @@ public nonisolated struct RecoveryScoreResult: Hashable, Sendable {
     public let components: [RecoveryComponent]
     public let nights: Int
     public let nightsNeeded: Int
+    /// W-CAL C-1: HRV nights in the 28-day normal window by device (display only).
+    public let nApple: Int
+    public let nGarmin: Int
 
     public init(status: RecoveryScoreStatus, score: Int?, raw: Double?, components: [RecoveryComponent],
-                nights: Int, nightsNeeded: Int = PersonalNormal.minN) {
+                nights: Int, nightsNeeded: Int = PersonalNormal.minN, nApple: Int = 0, nGarmin: Int = 0) {
         self.status = status; self.score = score; self.raw = raw; self.components = components
-        self.nights = nights; self.nightsNeeded = nightsNeeded
+        self.nights = nights; self.nightsNeeded = nightsNeeded; self.nApple = nApple; self.nGarmin = nGarmin
     }
 
     public func component(_ key: RecoveryComponentKey) -> RecoveryComponent? { components.first { $0.key == key } }
@@ -87,6 +93,45 @@ public nonisolated enum RecoveryScore {
         var out: [String: Double] = [:]
         for (k, d) in by { if let v = pick(d), v.isFinite, keep(v) { out[k] = v } }
         return out
+    }
+
+    /// W-ONDEVICE O-3 — port of `merge_recovery_days` (@ cal): Apple nights with Garmin filling
+    /// the gaps field by field (HRV, RHR, sleep, deep, REM). Only Garmin RMSSD is scaled, by the
+    /// one device factor `HrvBand.garminRmssdFactor` unless `factor` is given. Load is never
+    /// filled (the loader already picks one device per day). Ascending dates.
+    public static func mergeRecoveryDays(apple: [RecoverySeriesDay], garmin: [RecoverySeriesDay],
+                                         factor: Double? = nil) -> [RecoverySeriesDay] {
+        let f = factor ?? HrvBand.garminRmssdFactor
+        var aBy: [String: RecoverySeriesDay] = [:], gBy: [String: RecoverySeriesDay] = [:]
+        for d in apple { aBy[d.date] = d }                 // a later duplicate wins, like the Python dict
+        for d in garmin { gBy[d.date] = d }
+        func finite(_ v: Double?) -> Bool { v?.isFinite == true }
+        func pick(_ x: Double?, _ y: Double?) -> Double? { finite(x) ? x : y }
+        var out: [RecoverySeriesDay] = []
+        for date in Set(aBy.keys).union(gBy.keys).sorted() {
+            guard let g = gBy[date] else {
+                var a = aBy[date]!
+                a.source = finite(a.hrvMs) ? .apple : nil
+                out.append(a)
+                continue
+            }
+            let a = aBy[date] ?? RecoverySeriesDay(date: date)
+            let hrv: Double?
+            let src: HrvNightSource?
+            if finite(a.hrvMs) { hrv = a.hrvMs; src = .apple }
+            else if finite(g.hrvMs) { hrv = g.hrvMs! * f; src = .garmin }
+            else { hrv = nil; src = nil }
+            out.append(RecoverySeriesDay(date: date, hrvMs: hrv, rhrBpm: pick(a.rhrBpm, g.rhrBpm),
+                                         sleepH: pick(a.sleepH, g.sleepH), deepH: pick(a.deepH, g.deepH),
+                                         remH: pick(a.remH, g.remH), loadMin: a.loadMin, source: src))
+        }
+        return out
+    }
+
+    /// Merge (Apple first, Garmin fills) then score — what the hub's recovery loader does.
+    public static func compute(apple: [RecoverySeriesDay], garmin: [RecoverySeriesDay], today: String,
+                               factor: Double? = nil) throws -> RecoveryScoreResult {
+        try compute(days: mergeRecoveryDays(apple: apple, garmin: garmin, factor: factor), today: today)
     }
 
     public static func compute(days: [RecoverySeriesDay], today: String) throws -> RecoveryScoreResult {
@@ -150,17 +195,23 @@ public nonisolated enum RecoveryScore {
         let comps = [hrv, rhrC, sleepC, loadC]
         let core = [hrv, rhrC, sleepC]
         let nights = core.map(\.normalN).min() ?? 0
+        let (nStart, nEnd) = try PersonalNormal.window(today: today)
+        let nG = hrvLn.keys.filter { $0 >= nStart && $0 <= nEnd && by[$0]?.source == .garmin }.count
+        let nA = try PersonalNormal.count(hrvLn, today: today) - nG
         if core.contains(where: { $0.status == .calibrating }) {
-            return RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: comps, nights: nights)
+            return RecoveryScoreResult(status: .calibrating, score: nil, raw: nil, components: comps, nights: nights,
+                                       nApple: nA, nGarmin: nG)
         }
         guard hrv.z != nil else {
-            return RecoveryScoreResult(status: .missing, score: nil, raw: nil, components: comps, nights: nights)
+            return RecoveryScoreResult(status: .missing, score: nil, raw: nil, components: comps, nights: nights,
+                                       nApple: nA, nGarmin: nG)
         }
         let zs = comps.compactMap(\.z)
         var total = 0.0
         for z in zs { total += z }
         let mean = total / Double(zs.count)
         let raw = max(0.0, min(100.0, 50.0 + mean * 50.0 / 3.0))
-        return RecoveryScoreResult(status: .ok, score: roundScore(raw), raw: raw, components: comps, nights: nights)
+        return RecoveryScoreResult(status: .ok, score: roundScore(raw), raw: raw, components: comps, nights: nights,
+                                   nApple: nA, nGarmin: nG)
     }
 }

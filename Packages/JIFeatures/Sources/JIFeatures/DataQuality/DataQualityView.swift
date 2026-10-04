@@ -49,9 +49,14 @@ public struct DataQualityView: View {
         // copy becomes the navigation subtitle, verbatim.
         .navigationTitle("Data quality")
         .refreshable { await model.refresh() }
-        .task { if !model.hasLiveResult { await model.load() } }
+        // F-5 (B-59): keyed on the model, so a model rebuilt by a parent re-render is loaded too,
+        // and an `.idle` (cancelled) model loads again instead of keeping the placeholder.
+        .task(id: ObjectIdentifier(model)) { if Self.needsLoad(model) { await model.load() } }
         .animation(JIMotion.standard, value: model.phase)
     }
+
+    /// F-5: the screen loads unless a live answer is already shown.
+    static func needsLoad(_ model: DataQualityViewModel) -> Bool { !model.hasLiveResult }
 
     private var loading: some View {
         Section { SkeletonBlock(height: 260) }
@@ -62,7 +67,7 @@ public struct DataQualityView: View {
     private func errorCard(_ message: String) -> some View {
         Section {
             Text(message).foregroundStyle(theme.color(.text))
-            Button("Retry") { Task { await model.refresh() } }
+            Button("Retry") { Task { await model.retry() } }
                 .accessibilityLabel("Retry loading data quality")
                 .accessibilityIdentifier("dataQuality.retry")
         }
@@ -186,6 +191,22 @@ public struct DataQualityView: View {
 /// Rule 5: what both entry points show when no `DataQualityProviding` has been installed on
 /// `DataQualityAccess` (e.g. the on-device Apple Watch source, which has no hub reports) — a
 /// screen that explains itself, never a blank push.
+/// F-5 (B-59): a pushed Data quality screen that OWNS its model. A `NavigationLink` destination
+/// is rebuilt on every parent re-render (the Settings row sets its stale badge right after its own
+/// load); building the model there swapped an idle model under an already-run `.task` — the
+/// endless placeholder. `@State` keeps the first model for the screen's lifetime.
+public struct DataQualityScreen: View {
+    @State private var model: DataQualityViewModel?
+
+    public init(access: DataQualityAccess = .shared) {
+        _model = State(initialValue: access.makeViewModel())
+    }
+
+    public var body: some View {
+        if let model { DataQualityView(model: model) } else { DataQualityUnavailableView() }
+    }
+}
+
 public struct DataQualityUnavailableView: View {
     @Environment(\.jiTheme) private var theme
     public init() {}

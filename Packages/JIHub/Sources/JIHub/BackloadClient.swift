@@ -7,9 +7,9 @@ public struct BackloadClient: Sendable {
     private let hub: HubClient
     public init(hub: HubClient) { self.hub = hub }
 
-    /// The backload contract's day boundary (W2h): the chunker cuts Zurich months
-    /// (`BackloadDateParsing.zurich`), so the range is keyed in Zurich, not the phone's zone.
-    private static let zone = TimeZone(identifier: "Europe/Zurich")!
+    /// The backload contract's day boundary (W2h): the chunker cuts hub-zone months
+    /// (`DayKey.hubZone`), so the range is keyed in the hub's zone, not the phone's.
+    private static var zone: TimeZone { DayKey.hubZone }
 
     /// `kinds`: the contract v2 `kinds` CSV filter (see `docs/waves/cards/W2i.md`). `nil`/empty
     /// omits the query param entirely, which the hub treats as its `DAILY_KINDS` default — so a

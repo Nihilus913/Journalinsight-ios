@@ -1,4 +1,5 @@
 import SwiftUI
+import JICore
 import JIDesign
 import JIPersistence
 
@@ -81,10 +82,10 @@ public struct JournalCalendarScreen: View {
     public init(model: JournalViewModel) {
         self.model = model
         _anchor = State(initialValue: model.today)
-        _selectedDay = State(initialValue: JournalCalendarZurich.isoDay(model.today))
+        _selectedDay = State(initialValue: DayKey(date: model.today).iso)
     }
 
-    private var todayISO: String { JournalCalendarZurich.isoDay(model.today) }
+    private var todayISO: String { DayKey(date: model.today).iso }
     private var stats: JournalPeriodStats {
         journalPeriodStats(entries: model.entries, tab: tab, anchor: anchor, today: model.today)
     }
@@ -179,9 +180,9 @@ public struct JournalCalendarScreen: View {
     }
 
     private var yearGrid: some View {
-        let year = JournalCalendarZurich.calendar.component(.year, from: anchor)
+        let year = DayKey.calendar().component(.year, from: anchor)
         let counts = journalYearMonthCounts(dates: Array(model.entryDates), year: year)
-        let names = JournalCalendarZurich.formatter("MMM").shortStandaloneMonthSymbols ?? []
+        let names = DayKey.formatter("MMM").shortStandaloneMonthSymbols ?? []
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: typeSize.isAccessibilitySize ? 2 : 3)
         return LazyVGrid(columns: columns, spacing: 8) {
             ForEach(0..<12, id: \.self) { i in
@@ -231,8 +232,8 @@ public struct JournalCalendarScreen: View {
 
     @ViewBuilder private var dayCard: some View {
         let written = model.entryDates.contains(selectedDay)
-        let date = JournalCalendarZurich.date(fromISODay: selectedDay)
-        let label = date.map { JournalCalendarZurich.formatter("EEE d MMM").string(from: $0) } ?? selectedDay
+        let date = DayKey(iso: selectedDay)?.startDate
+        let label = date.map { DayKey.formatter("EEE d MMM").string(from: $0) } ?? selectedDay
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label).jiFont(.subheadline, weight: .semibold, tint: .text)

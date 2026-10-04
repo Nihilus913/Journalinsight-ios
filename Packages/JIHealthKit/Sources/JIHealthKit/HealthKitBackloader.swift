@@ -365,7 +365,7 @@ public final class HealthKitBackloader: BackloadRunning, Sendable {
 
     private func writeCursor(_ date: Date) {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = BackloadDateParsing.zurich
+        cal.timeZone = BackloadDateParsing.hubZone
         let comps = cal.dateComponents([.year, .month, .day], from: date)
         guard let y = comps.year, let m = comps.month, let d = comps.day else { return }
         cursorDefaults?.set(String(format: "%04d-%02d-%02d", y, m, d), forKey: Self.cursorKey)

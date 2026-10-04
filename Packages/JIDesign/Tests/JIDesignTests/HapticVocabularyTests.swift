@@ -43,8 +43,9 @@ struct Rig {
     let player = RecordingPlayer()
     let fallback = RecordingFallback()
     let dispatcher: JIHapticDispatcher
-    init(engine: Bool = false) {
+    init(engine: Bool = false, gap: JIHapticGap = .wallClock) {
         dispatcher = JIHapticDispatcher(player: player, fallback: fallback)
+        dispatcher.gap = gap
         if engine { player.capabilities = Rig.rich }
         dispatcher.marker = { _ in }
     }
@@ -133,26 +134,23 @@ struct Rig {
     #expect(r.fallback.calls.count == 1)
     #expect(r.fallback.calls != [.impact(.soft)])
 }
-@Test @MainActor func changedFiresAGenuineTwoPulsePattern() async throws {
-    let r = Rig(); r.dispatcher.fire(.gateChange(.changed))
-    try await waitForPulses { r.fallback.calls.count >= 2 }
+@Test @MainActor func changedFiresAGenuineTwoPulsePattern() {
+    let r = Rig(gap: .immediate); r.dispatcher.fire(.gateChange(.changed))
     #expect(r.fallback.calls == [.impact(.rigid), .impact(.rigid)])
 }
-@Test @MainActor func theThreeTiersUsePairwiseDistinctShapes() async throws {
-    let routine = Rig(); routine.dispatcher.fire(.gateChange(.routine))
-    let failed = Rig(); failed.dispatcher.fire(.gateChange(.failed))
-    let changed = Rig(); changed.dispatcher.fire(.gateChange(.changed))
-    try await waitForPulses { changed.fallback.calls.count >= 2 }
+@Test @MainActor func theThreeTiersUsePairwiseDistinctShapes() {
+    let routine = Rig(gap: .immediate); routine.dispatcher.fire(.gateChange(.routine))
+    let failed = Rig(gap: .immediate); failed.dispatcher.fire(.gateChange(.failed))
+    let changed = Rig(gap: .immediate); changed.dispatcher.fire(.gateChange(.changed))
     #expect(routine.fallback.calls.last != failed.fallback.calls.last)
     #expect(changed.fallback.calls.count == 2)
     // Core Haptics side too: three distinct patterns.
     let p = { (t: JIGateChangeTier) in JIHapticRecipes.recipe(t.recipeName).pulses }
     #expect(p(.routine) != p(.changed) && p(.changed) != p(.failed) && p(.routine) != p(.failed))
 }
-@Test @MainActor func gateChangeRespectsTheToggleForAllThreeTiers() async throws {
-    let r = Rig(); r.setEnabled(false)
+@Test @MainActor func gateChangeRespectsTheToggleForAllThreeTiers() {
+    let r = Rig(gap: .immediate); r.setEnabled(false)
     r.dispatcher.fire(.gateChange(.routine)); r.dispatcher.fire(.gateChange(.changed)); r.dispatcher.fire(.gateChange(.failed))
-    try await Task.sleep(for: .milliseconds(250))
     #expect(r.fallback.calls.isEmpty)
 }
 
@@ -362,11 +360,4 @@ struct Rig {
     #expect(JIHapticsPrefs.reconcile(enabled: false, intensity: nil) == JIHapticsPrefs(enabled: false, intensity: 100))
     let blob = try JSON.encoder.encode(JIHapticsPrefs(enabled: false, intensity: 7))
     #expect(try JSON.decoder.decode(JIHapticsPrefs.self, from: blob) == JIHapticsPrefs(enabled: false, intensity: 7))
-}
-
-/// The "changed" tier's second pulse is scheduled after a gap on the MainActor; a fixed 250 ms sleep
-/// raced it when the suite's render tests load the MainActor (B-57 W1). Poll up to 2 s instead.
-/// Shared with `FeelgateMarkerTests`, which raced the same pulse.
-@MainActor func waitForPulses(_ done: () -> Bool) async throws {
-    for _ in 0..<80 where !done() { try await Task.sleep(for: .milliseconds(25)) }
 }

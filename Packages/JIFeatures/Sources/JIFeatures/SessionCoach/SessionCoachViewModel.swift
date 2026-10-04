@@ -59,6 +59,12 @@ public final class SessionCoachViewModel {
 
     private let liveProvider: (any LiveSessionProviding)?
     private let pollNs: UInt64
+    /// W-B31 R-1: the haptics dispatcher the HR-cap edge fires through (`.shared` in the app; a
+    /// private one per test).
+    private let haptics: JIHapticDispatcher
+    /// The cap state after the previous tick (nil before the first one) — RN `SessionCoach.tsx`
+    /// `prevCapState` ref.
+    private var prevCapState: JIHrCapState?
     private var pollTask: Task<Void, Never>?
 
     public convenience init(provider: (any HealthDataProvider)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
@@ -68,8 +74,10 @@ public final class SessionCoachViewModel {
     /// W-B38-B B-8: a live source handed in directly — the phone's `MirroredSessionFeed` (the Watch's
     /// mirrored strength session). `mirrored` is set when it is that feed, so the screen also lists
     /// the sets as they land.
-    public init(live: (any LiveSessionProviding)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings()) {
+    public init(live: (any LiveSessionProviding)?, pollIntervalMs: UInt64 = 2000, settings: GateSettings = GateSettings(),
+                haptics: JIHapticDispatcher = .shared) {
         self.settings = settings
+        self.haptics = haptics
         self.liveProvider = live
         self.mirrored = live as? MirroredSessionFeed
         self.capable = live != nil
@@ -85,7 +93,7 @@ public final class SessionCoachViewModel {
         guard capable, let liveProvider, pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.tick(liveProvider)
+                await self?.tick()
                 guard let pollNs = self?.pollNs else { return }
                 try? await Task.sleep(nanoseconds: pollNs)
             }
@@ -99,7 +107,9 @@ public final class SessionCoachViewModel {
         pollTask = nil
     }
 
-    private func tick(_ provider: any LiveSessionProviding) async {
+    /// One poll tick (internal for the haptics tests, which drive ticks directly).
+    func tick() async {
+        guard let provider = liveProvider else { return }
         defer { hasPolled = true }
         do {
             let next = try await provider.liveSession()
@@ -107,6 +117,29 @@ public final class SessionCoachViewModel {
             error = nil
         } catch {
             self.error = (error as? HubError).map(Self.describe) ?? error.localizedDescription
+        }
+        fireCapEdgeHaptic()
+    }
+
+    /// RN `SessionCoach.tsx` L145–156: on a real cap-state edge, `hapticGateChange(tier)` —
+    /// breach = "failed" (even from the first reading), any other real transition = "changed",
+    /// no edge / to-or-from unknown = nothing.
+    private func fireCapEdgeHaptic() {
+        let next = Self.hapticCapState(capState)
+        defer { prevCapState = next }
+        if let tier = JIHapticRecipes.gateChangeTier(prevCap: prevCapState, nextCap: next) {
+            haptics.fire(.gateChange(tier))
+        }
+    }
+
+    /// `CapState` → the haptics layer's `JIHrCapState`, case-for-case. `.noLimit` → `.unknown`:
+    /// no limit is never haptic-worthy (RN's null cap).
+    nonisolated static func hapticCapState(_ state: CapState) -> JIHrCapState {
+        switch state {
+        case .unknown, .noLimit: .unknown
+        case .under: .under
+        case .approaching: .approaching
+        case .breach: .breach
         }
     }
 

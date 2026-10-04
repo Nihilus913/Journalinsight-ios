@@ -78,6 +78,15 @@ public final class TrainingViewModel {
     /// "pending sync" marker until the drainer reports the row delivered.
     public private(set) var pendingSessionSync: Set<Int> = []
 
+    /// W-B54 (B54-1): exercise ids whose lift edit is queued in the `Outbox` (kind
+    /// `"exercise_patch"`) and NOT yet accepted by the hub — the value stands on screen, marked
+    /// pending, exactly like `pendingSessionSync`. Recomputed from the queue (`reconcilePendingSync`).
+    public private(set) var pendingExerciseSync: Set<Int> = []
+
+    /// W-B54: anything (a weekday or a lift edit) still queued — the screen's watcher keys on this,
+    /// so a queued lift edit alone keeps it re-reading the outbox until the marker can clear.
+    public var hasPendingSync: Bool { !(pendingSessionSync.isEmpty && pendingExerciseSync.isEmpty) }
+
     /// B-52: the plan sessions (id / name / weekday) this screen knows about, cached alongside
     /// gate / morning / exercises so the week strip renders from disk on a cold, offline launch.
     /// Derived from the exercise rows on every successful fetch and updated optimistically by
@@ -307,6 +316,7 @@ public final class TrainingViewModel {
         if let mv = m.value { morning = mv }
         if let ev = e.value {
             exercises = ev
+            reapplyQueuedLiftEdits()
             // B-52: re-derive the plan-session spine ONLY from a section that actually came from
             // the hub. `SectionLoader` hands back the cached rows when the fetch failed, and those
             // rows are exactly the ones whose `weekday` may be older than what this device knows —
@@ -375,25 +385,67 @@ public final class TrainingViewModel {
         }
     }
 
-    /// Weight/reps stepper commit (LiftSteppers). Local-first: a `HubError.network` failure still
-    /// mutates `exercises` in place (via `StrengthStateStore`) instead of losing the tap — mirrors
-    /// `useExerciseActions.ts`'s optimistic-update + `updateExerciseLocalFirst` fallback pair.
+    /// Weight/reps stepper commit (LiftSteppers) — **outbox first** (W-B54 B54-1, same order as
+    /// `assignSession`): the edit is written to the durable `Outbox` (kind `"exercise_patch"`) and
+    /// the local mirror BEFORE the hub is asked, then drained in-tap. An unreachable hub leaves the
+    /// value standing, marked in `pendingExerciseSync` until any drain delivers it; a hub that
+    /// *refused* the edit (4xx) retires the row, rolls the lift back and says so (`updateFailed`).
+    /// Without a queue wired (previews, fixtures) the old local-first direct PUT is all there is.
     public func updateExercise(exerciseId: Int, exerciseName: String, patch: ExerciseUpdate) async {
         updateFailed.remove(exerciseId)
         pendingUpdates.insert(exerciseId)
+        defer { pendingUpdates.remove(exerciseId) }
         let previous = exercises
         applyOptimistic(exerciseId: exerciseId, patch: patch)
-        do {
-            _ = try await updateExerciseLocalFirst(
-                store: strengthStore, exerciseId: exerciseId, exerciseName: exerciseName, patch: patch,
-                hubUpdate: { [provider] id, p in try await provider.updateExercise(exerciseId: id, patch: p) }
-            )
-            try? cache.put(Self.keys.exercises, exercises)
-        } catch {
+
+        guard let outbox, let drainer else {
+            do {
+                _ = try await updateExerciseLocalFirst(
+                    store: strengthStore, exerciseId: exerciseId, exerciseName: exerciseName, patch: patch,
+                    hubUpdate: { [provider] id, p in try await provider.updateExercise(exerciseId: id, patch: p) }
+                )
+                try? cache.put(Self.keys.exercises, exercises)
+            } catch {
+                exercises = previous
+                updateFailed.insert(exerciseId)
+            }
+            return
+        }
+
+        guard let rowId = try? outbox.enqueue(
+            kind: OutboxDrainer.exercisePatchKind,
+            payload: ExercisePatchBody(exerciseId: exerciseId, exerciseName: exerciseName, patch: patch)
+        ) else {
+            // The queue itself is unwritable: a real failure to record the edit, not "offline".
             exercises = previous
             updateFailed.insert(exerciseId)
+            return
         }
-        pendingUpdates.remove(exerciseId)
+        let previousLocal = strengthStore.entries().first { $0.exerciseId == exerciseId }
+        strengthStore.saveLocal(exerciseId: exerciseId, exerciseName: exerciseName, patch: patch)
+        try? cache.put(Self.keys.exercises, exercises)
+        pendingExerciseSync.insert(exerciseId)
+
+        let results = await drainer.drainOnce()
+        if case .failure(let error)? = results[rowId], OutboxDrainer.isPermanentRejection(error) {
+            try? outbox.markSent(id: rowId)   // already retired by the drainer; idempotent
+            exercises = previous
+            try? cache.put(Self.keys.exercises, exercises)
+            if let previousLocal {
+                strengthStore.saveLocal(exerciseId: exerciseId, exerciseName: previousLocal.exerciseName,
+                                        patch: ExerciseUpdate(currentWeightKg: previousLocal.currentWeightKg,
+                                                              progressionStepKg: previousLocal.progressionStepKg,
+                                                              sets: previousLocal.sets, repsTarget: previousLocal.repsTarget))
+                if previousLocal.synced { strengthStore.markSynced(exerciseId: exerciseId) }
+            } else if let row = previous.first(where: { $0.exerciseId == exerciseId }), let kg = row.currentWeightKg {
+                strengthStore.saveLocal(exerciseId: exerciseId, exerciseName: row.exerciseName,
+                                        patch: ExerciseUpdate(currentWeightKg: kg, progressionStepKg: row.progressionStepKg ?? 0,
+                                                              sets: row.sets, repsTarget: row.repsTarget.flatMap(Int.init)))
+                strengthStore.markSynced(exerciseId: exerciseId)
+            }
+            updateFailed.insert(exerciseId)
+        }
+        reconcilePendingSync()
     }
 
     /// B-45 (c) / B-52: assign a plan session to a weekday (or clear it) — **outbox first**.
@@ -464,6 +516,22 @@ public final class TrainingViewModel {
             ids.insert(body.sessionId)
         }
         pendingSessionSync = ids
+        var lifts = Set<Int>()
+        for row in rows where row.kind == OutboxDrainer.exercisePatchKind {
+            guard let body = try? JSONDecoder().decode(ExercisePatchBody.self, from: row.payload) else { continue }
+            lifts.insert(body.exerciseId)
+        }
+        pendingExerciseSync = lifts
+    }
+
+    /// W-B54: a refresh that lands while lift edits are still queued must not put the hub's
+    /// older weight back on screen — the queued patches are re-applied, oldest → newest.
+    private func reapplyQueuedLiftEdits() {
+        guard let outbox, let rows = try? outbox.pending() else { return }
+        for row in rows where row.kind == OutboxDrainer.exercisePatchKind {
+            guard let body = try? JSONDecoder().decode(ExercisePatchBody.self, from: row.payload) else { continue }
+            applyOptimistic(exerciseId: body.exerciseId, patch: body.patch)
+        }
     }
 
     /// W-FIX2 BUG-25: `.task` reloads only while `!hasLiveResult`, so a tab switch back after a
@@ -476,7 +544,7 @@ public final class TrainingViewModel {
     /// with no outbox wired there is nothing to watch.
     public func watchPendingSync(every interval: Duration = .seconds(2)) async {
         guard outbox != nil else { return }
-        while !pendingSessionSync.isEmpty, !Task.isCancelled {
+        while hasPendingSync, !Task.isCancelled {
             try? await Task.sleep(for: interval)
             if Task.isCancelled { return }
             reconcilePendingSync()
