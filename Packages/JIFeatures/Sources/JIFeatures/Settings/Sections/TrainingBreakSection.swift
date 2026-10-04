@@ -24,18 +24,39 @@ private struct TrainingBreakRows: View {
 struct TrainingBreakToggle: View {
     let model: TrainingBreakViewModel
 
+    /// B-107: the whole row is one tap target (a tap on the label or the switch flips it — before,
+    /// only a swipe on the switch did in the sim). The switch is drawn, not hit-tested, so one tap
+    /// never flips it twice.
     var body: some View {
-        Toggle(isOn: Binding(get: { model.paused }, set: { on in Task { await model.set(paused: on) } })) {
-            VStack(alignment: .leading, spacing: 2) {
-                Label("I'm on a break", systemImage: "pause.circle")
-                Text(model.sinceText ?? "Load reads Paused while this is on")
-                    .font(.footnote).foregroundStyle(.secondary)
-                if let error = model.errorMessage {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+        Button {
+            let on = !model.paused
+            Task { await model.set(paused: on) }
+        } label: {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("I'm on a break", systemImage: "pause.circle")
+                        .foregroundStyle(.primary)
+                    Text(model.sinceText ?? "Load reads Paused while this is on")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    if let error = model.errorMessage {
+                        Text(error).font(.footnote).foregroundStyle(.red)
+                    }
                 }
+                Spacer(minLength: 8)
+                Toggle("I'm on a break", isOn: .constant(model.paused))
+                    .labelsHidden()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .disabled(model.busy || model.state == nil)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("I'm on a break")
+        .accessibilityValue(model.paused ? "On" : "Off")
+        .accessibilityHint(model.sinceText ?? "Load reads Paused while this is on")
+        .accessibilityAddTraits(.isToggle)
         .accessibilityIdentifier("settings.trainingBreak.toggle")
         .task { if model.state == nil { await model.load() } }
     }

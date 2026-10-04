@@ -173,6 +173,13 @@ public final class TrainingViewModel {
 
     public var todayDateString: String { DayKey.today(now: now()).iso }
 
+    /// B-95 (BP-26): time in zone over W / M / 6M over this screen's provider (hub zones route);
+    /// nil provider conformance = the screen's "needs the hub" note.
+    public func makeZoneTimeModel(span: ZoneTimeSpan = .week) -> ZoneTimeModel {
+        let now = self.now
+        return ZoneTimeModel(provider: provider as? any ZoneTimeProviding, span: span, today: { DayKey.today(now: now()) })
+    }
+
     /// W-B92 C-5: the Planner's Month view over this screen's provider (hub calendar route), the
     /// phone's planned snapshots (same database as the cache) and the plan as the offline answer.
     public func makeMonthModel() -> TrainingMonthModel {

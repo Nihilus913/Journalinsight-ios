@@ -1,0 +1,837 @@
+{
+ "shadowVerdictCases": [
+  {
+   "label": "pass",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-sleep-70-edge",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 70,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-hrv-27-edge",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 27,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-rhr-65-edge",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 65,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-rhr-missing",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-dur-missing",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": null,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "pass-dur-zero",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 0,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "fail-sleep-missing",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": null,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep score missing — fails closed, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "fail-hrv-missing",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": null,
+    "hrv_status": null,
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "fail-both-missing",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": null,
+    "sleep_duration_h": null,
+    "hrv": null,
+    "hrv_status": null,
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep score missing — fails closed, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "fail-hrv-26",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 26,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "fail-rhr-66",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 66,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "fail-dur-short",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 5.5,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep69-uncorroborated",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 69,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": false,
+    "shadow_gate_ok": true,
+    "diverges": true,
+    "note": "sleep 69<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=None) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-uncorroborated-debt0",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": 0.0,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": false,
+    "shadow_gate_ok": true,
+    "diverges": true,
+    "note": "sleep 65<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=0.0) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-corroborated-debt",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": 1.5,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 corroborated (hrv=32 status=BALANCED, debt=1.5) — stays capped, same as live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-corroborated-unbalanced",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "UNBALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 corroborated (hrv=32 status=UNBALANCED, debt=None) — stays capped, same as live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-corroborated-hrv-low-status",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "LOW",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 corroborated (hrv=32 status=LOW, debt=None) — stays capped, same as live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-hrv26",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 26,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 corroborated (hrv=26 status=BALANCED, debt=None) — stays capped, same as live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-short-dur",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 5.0,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=None) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep65-rhr66",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 66,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 65<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=None) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "sleep55-uncorroborated",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 55,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": false,
+    "shadow_gate_ok": true,
+    "diverges": true,
+    "note": "sleep 55<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=None) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "dose-day2-pass",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "dose-day3-no-amber",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "dose-day3-resp-amber",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {
+    "y_resp": 17.0,
+    "resp_baseline": 14.0
+   },
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "dose-day3-sleep69",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 69,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep 69<70 UNCORROBORATED (hrv=32 status=BALANCED, debt=None) — shadow lifts the cap"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "dose-day4-status-low",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "LOW",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26",
+    "2026-07-25"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "resp-amber-no-dose",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {
+    "y_resp": 17.0,
+    "resp_baseline": 14.0
+   },
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "resp-below-amber",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000
+   },
+   "db": {
+    "y_resp": 14.5,
+    "resp_baseline": 14.0
+   },
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "strength-day",
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": false,
+    "shadow_verdict": null,
+    "live_gate_ok": null,
+    "shadow_gate_ok": null,
+    "diverges": false,
+    "note": "non-interval day — refinement is scoped to the interval gate's sleep>=70 hard cap only"
+   },
+   "hubVerdict": "GO — Day 2 Full Upper + Z2 60min"
+  },
+  {
+   "label": "strength-day-sleep65",
+   "today": "2026-07-29",
+   "m": {
+    "sleep": 65,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-29",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": false,
+    "shadow_verdict": null,
+    "live_gate_ok": null,
+    "shadow_gate_ok": null,
+    "diverges": false,
+    "note": "non-interval day — refinement is scoped to the interval gate's sleep>=70 hard cap only"
+   },
+   "hubVerdict": "GO (auto-regulated) — Day 2 Full Upper + Z2 60min"
+  },
+  {
+   "label": "z2-day",
+   "today": "2026-07-23",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-23",
+    "steps_yesterday": 16000
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": false,
+    "shadow_verdict": null,
+    "live_gate_ok": null,
+    "shadow_gate_ok": null,
+    "diverges": false,
+    "note": "non-interval day — refinement is scoped to the interval gate's sleep>=70 hard cap only"
+   },
+   "hubVerdict": "GO — Long Zone 2 75-90min"
+  }
+ ]
+}
