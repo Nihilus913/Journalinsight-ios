@@ -96,3 +96,16 @@ private let cachedTemplates: [WorkoutTemplate] = [
     #expect(rows.filter { $0.kind == .template }.count == 4)
     #expect(rows.filter(\.isStrength).count == 4)
 }
+
+/// PL-8 (verifier fix): a template row names the cardio sessions linked to it by id
+/// (`linked_refs`, HT migration 060) — the phone links session ↔ template by that, never by name.
+@Test func plannerDecodesLinkedRefsAsSessionIds() throws {
+    let json = #"[{"ref":"t3","kind":"template","name":"Norwegian 4×4","sport":"running","weekdays":[1,5],"editable":true,"linked_refs":["s5","s8"]},{"ref":"s1","kind":"plan_session","name":"Day 1","sport":"strength","weekdays":[0]}]"#
+    let rows = try JSON.decoder.decode([PlannerWorkout].self, from: Data(json.utf8))
+    #expect(rows[0].linkedRefs == ["s5", "s8"] && rows[0].linkedSessionIds == [5, 8])
+    #expect(rows[1].linkedRefs.isEmpty)
+    #expect(plannerSessionTemplateLinks(rows) == [5: 3, 8: 3])
+    // Round-trips through the cache.
+    let again = try JSON.decoder.decode([PlannerWorkout].self, from: JSON.encoder.encode(rows))
+    #expect(again == rows)
+}

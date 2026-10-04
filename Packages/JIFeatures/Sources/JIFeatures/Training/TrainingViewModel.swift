@@ -168,7 +168,7 @@ public final class TrainingViewModel {
     /// W-FIX7 F7-1: today's day is done when Apple Health holds a matching workout today.
     public var weekSummary: TrainingWeekSummary {
         trainingWeekSummary(planSessions: planSessions, exercises: exercises, daily: gate?.daily ?? [], today: todayDateString,
-                            otherSessions: allPlanSessions, templates: library?.templates ?? [])
+                            otherSessions: allPlanSessions, templates: library?.templates ?? [], links: sessionTemplateLinks)
             .applyingTodayWorkouts(todaysWorkouts)
     }
 
@@ -210,8 +210,9 @@ public final class TrainingViewModel {
             ?? (try? cache.get("today.gate", as: GateResponse.self))?.value
         let all = (try? cache.get(cacheKeys.allPlanSessions, as: [PlanSessionOut].self))?.value ?? []
         let templates = (try? cache.get(WorkoutLibraryViewModel.cacheKey, as: [WorkoutTemplate].self))?.value ?? []
+        let planner = (try? cache.get(plannerCacheKey, as: [PlannerWorkout].self))?.value ?? []
         return trainingWeekSummary(planSessions: sessions, exercises: exercises, daily: gate?.daily ?? [], today: today,
-                                   otherSessions: all, templates: templates)
+                                   otherSessions: all, templates: templates, links: plannerSessionTemplateLinks(planner))
     }
 
     public func load() async {
@@ -481,8 +482,13 @@ public final class TrainingViewModel {
     /// The plan-session spine the day flow reads (cached ids first, including an offline pick),
     /// plus the plan's cardio / rest sessions when the hub lists them (B40-V1).
     var daySpine: [WeekSpineEntry] {
-        trainingDaySpine(strength: weekSpine(planSessions: planSessions, exercises: exercises), sessions: allPlanSessions)
+        plannerLinkingSpine(trainingDaySpine(strength: weekSpine(planSessions: planSessions, exercises: exercises), sessions: allPlanSessions),
+                            links: sessionTemplateLinks)
     }
+
+    /// PL-8: plan-session id → its workout template, from the hub's `/planning/workouts`
+    /// `linked_refs` (cached with the list). Empty on an older hub — never guessed from names.
+    var sessionTemplateLinks: [Int: Int] { plannerSessionTemplateLinks(hubPlannerWorkouts ?? []) }
 
     /// B40-V1: refresh the whole-plan list. Optional on every count — an older hub (no route) or
     /// an unreachable one keeps what is cached; a still-queued weekday is never undone.

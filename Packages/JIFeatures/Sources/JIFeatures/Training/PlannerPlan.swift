@@ -26,7 +26,10 @@ nonisolated func plannerWorkoutRows(
         } else if let tid = row.templateId {
             listed.insert(tid)
             if let t = byTemplate[tid] {
-                row.weekdays = Array(Set(t.weekdays)).sorted()
+                // PL-8: + the days of the sessions linked to it by id (as the hub's `weekdays` does).
+                let linkedIds = Set(row.linkedSessionIds)
+                let sessionDays = spine.filter { e in e.templateId == tid || (e.id.map(linkedIds.contains) ?? false) }.compactMap(\.weekday)
+                row.weekdays = Array(Set(t.weekdays + sessionDays)).sorted()
                 row.name = t.name
                 if let g = t.garmin { row.garmin = g; row.onGarmin = true }
             } else if libraryLoaded && !templates.isEmpty {
@@ -162,7 +165,12 @@ nonisolated func plannerDropWrites(_ item: PlannerDragItem, toWeekday wd: Int, s
     guard (0...6).contains(wd) else { return [] }
     if let sid = item.sessionId {
         guard let s = spine.first(where: { $0.id == sid }), s.weekday != wd else { return [] }
-        return [.sessionWeekday(id: sid, name: s.name, weekday: wd)]
+        var writes: [TrainingDayWrite] = [.sessionWeekday(id: sid, name: s.name, weekday: wd)]
+        // PL-8: a linked session moves as its template — the template leaves the old day too.
+        if let old = s.weekday, let tid = s.templateId, let t = templates.first(where: { $0.templateId == tid }), t.weekdays.contains(old) {
+            writes.append(.templateWeekdays(t, Array(Set(t.weekdays).subtracting([old])).sorted()))
+        }
+        return writes
     }
     guard let tid = item.templateId, let t = templates.first(where: { $0.templateId == tid }) else { return [] }
     let now = Set(t.weekdays)

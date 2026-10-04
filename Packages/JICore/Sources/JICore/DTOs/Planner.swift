@@ -33,17 +33,21 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
     public var onGarmin: Bool
     /// true = opens the workout editor (a template); false = a plan session (strength detail).
     public var editable: Bool
+    /// PL-8 (HT migration 060): on a template, the plan sessions linked to it by id (`"s<id>"`) —
+    /// such a session IS this template (its weekday shows here; the hub does not list it alone).
+    /// `[]` on sessions, unlinked templates and older hubs. Never inferred from names.
+    public var linkedRefs: [String]
 
     public var id: String { ref }
 
     public init(ref: String, kind: Kind, name: String, sport: String, weekdays: [Int], liftCount: Int = 0,
-                summary: String? = nil, garmin: GarminLink? = nil, onGarmin: Bool? = nil, editable: Bool) {
+                summary: String? = nil, garmin: GarminLink? = nil, onGarmin: Bool? = nil, editable: Bool, linkedRefs: [String] = []) {
         self.ref = ref; self.kind = kind; self.name = name; self.sport = sport; self.weekdays = weekdays
         self.liftCount = liftCount; self.summary = summary; self.garmin = garmin
-        self.onGarmin = onGarmin ?? (garmin != nil); self.editable = editable
+        self.onGarmin = onGarmin ?? (garmin != nil); self.editable = editable; self.linkedRefs = linkedRefs
     }
 
-    private enum CodingKeys: String, CodingKey { case ref, kind, name, sport, weekdays, liftCount, summary, garmin, editable }
+    private enum CodingKeys: String, CodingKey { case ref, kind, name, sport, weekdays, liftCount, summary, garmin, editable, linkedRefs }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -55,6 +59,7 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
         liftCount = try c.decodeIfPresent(Int.self, forKey: .liftCount) ?? 0
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
         editable = try c.decodeIfPresent(Bool.self, forKey: .editable) ?? false
+        linkedRefs = (try? c.decodeIfPresent([String].self, forKey: .linkedRefs)) ?? []
         if let link = try? c.decodeIfPresent(GarminLink.self, forKey: .garmin) {
             garmin = link; onGarmin = true
         } else {
@@ -74,6 +79,7 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
         try c.encodeIfPresent(summary, forKey: .summary)
         if let garmin { try c.encode(garmin, forKey: .garmin) } else { try c.encode(onGarmin, forKey: .garmin) }
         try c.encode(editable, forKey: .editable)
+        try c.encode(linkedRefs, forKey: .linkedRefs)
     }
 
     /// The `plan_session` id (`"s12"` → 12), nil for a template.
@@ -81,6 +87,16 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
     /// The `workout_template` id (`"t3"` → 3), nil for a session.
     public var templateId: Int? { kind == .template && ref.hasPrefix("t") ? Int(ref.dropFirst()) : nil }
     public var isStrength: Bool { sport.lowercased() == "strength" }
+    /// The linked plan-session ids (`"s5"` → 5).
+    public var linkedSessionIds: [Int] { linkedRefs.compactMap { $0.hasPrefix("s") ? Int($0.dropFirst()) : nil } }
+}
+
+/// PL-8: plan-session id → the template it is linked to, from the hub's rows (`linked_refs`).
+/// Empty for an older hub (no links) — the phone then shows both, never guesses by name.
+public nonisolated func plannerSessionTemplateLinks(_ rows: [PlannerWorkout]) -> [Int: Int] {
+    var out: [Int: Int] = [:]
+    for row in rows { if let tid = row.templateId { for sid in row.linkedSessionIds where out[sid] == nil { out[sid] = tid } } }
+    return out
 }
 
 /// PL-3: the Planner's read slice (one protocol per screen's hub routes). Defaulted: a provider
