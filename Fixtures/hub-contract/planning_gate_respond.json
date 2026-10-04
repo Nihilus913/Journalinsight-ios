@@ -1,0 +1,12 @@
+{
+  "request": {
+    "choice": "N",
+    "date": "2026-10-04",
+    "override_reason": "",
+    "window_days": 7
+  },
+  "response": {
+    "log_id": 87,
+    "pdf_requested": false
+  }
+}
