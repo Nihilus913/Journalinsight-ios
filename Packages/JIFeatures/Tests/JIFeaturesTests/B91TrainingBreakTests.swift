@@ -41,6 +41,28 @@ struct B91TrainingBreakTests {
         #expect(m.errorMessage?.hasPrefix("Could not update the break") == true)
     }
 
+    // B-107: a confirmed write re-fetches Decide at once (no relaunch); a failed one does not.
+    @Test func confirmedWriteRunsTheRefetchHookOnce() async {
+        let provider = StubBreakProvider()
+        var fired = 0
+        let m = TrainingBreakViewModel(provider: provider, state: TrainingBreak(paused: false),
+                                       onChanged: { fired += 1 })
+        await m.set(paused: true)
+        #expect(fired == 1 && m.paused)
+        await m.set(paused: false)
+        #expect(fired == 2 && !m.paused)
+    }
+
+    @Test func failedWriteNeverRunsTheRefetchHook() async {
+        let provider = StubBreakProvider()
+        await provider.setFail(true)
+        var fired = 0
+        let m = TrainingBreakViewModel(provider: provider, state: TrainingBreak(paused: false),
+                                       onChanged: { fired += 1 })
+        await m.set(paused: true)
+        #expect(fired == 0)
+    }
+
     @Test func dayTextMatchesTheHubCaption() {
         #expect(trainingBreakDayText("2026-09-28") == "28 Sep")
         #expect(trainingBreakDayText("2026-10-01") == "1 Oct")
