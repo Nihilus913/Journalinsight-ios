@@ -686,7 +686,9 @@ struct RootTabView: View {
         todayTabContent.sheet(isPresented: $showCheckIn) {
             if let moreMindModel {
                 CheckInSheet(model: moreMindModel, prompt: checkInModel?.livePrompt,
-                             onSaved: { checkInModel?.markAnswered() })
+                             // W-B102 sim: close explicitly — `dismiss()` alone left `showCheckIn`
+                             // true once the card vanished, and the next shell re-render re-presented the sheet.
+                             onSaved: { checkInModel?.markAnswered(); showCheckIn = false })
             } else if moreMindUnavailable {
                 screenUnavailable(title: "Mind unavailable", systemImage: "water.waves")
             } else {
@@ -1323,6 +1325,11 @@ struct RootTabView: View {
                                    lastCheckinDay: lastCheckin, gateSignals: morning?.gateSignals ?? [])
         let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
         await model.refresh(inputs, now: now)
+        #if DEBUG
+        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            .filter { $0.identifier == CheckInNotification.identifier }.map(\.identifier)
+        print("[W-B102] checkin mornings=\(mornings.count) evaluation=\(model.evaluation) pending=\(pending)")
+        #endif
     }
 
     private func recordGateAnswered() {
