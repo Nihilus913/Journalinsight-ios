@@ -115,11 +115,13 @@ public struct KpiDetailView: View {
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
             if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
-                                          deepRem: kpiDetailDeepRem, sdnn: kpiDetailSdnn) {
+                                          deepRem: kpiDetailDeepRem, sdnn: kpiDetailSdnn,
+                                          scoreBreakdownShown: model.sleepBreakdownRows != nil) {
                 blockSection(block)
             }
         } else if model.metric == .sleep, let block = kpiDetailBlock(metric: .sleep, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
-                                                                        deepRem: kpiDetailDeepRem) {
+                                                                        deepRem: kpiDetailDeepRem,
+                                                                        scoreBreakdownShown: model.sleepBreakdownRows != nil) {
             blockSection(block)
         }
         // W-TGT: Goal · Rule · Your normal, one Edit (the same sheet as Settings › Targets).
