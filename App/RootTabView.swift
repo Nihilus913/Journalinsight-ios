@@ -200,6 +200,9 @@ struct RootTabView: View {
     // encrypted check-in / event / WHO-5 rows decode.
     @State private var moreMindModel: MindViewModel?
     @State private var moreMindUnavailable = false
+    /// W-B102 (BP-23a): the data-triggered check-in — Today card, one-shot notification, sheet.
+    @State private var checkInModel: CheckInPromptModel?
+    @State private var showCheckIn = false
     @State private var journalModel: JournalViewModel?
     @State private var selectedTab: RootTab = .today
     /// B-55: one push path PER TAB (see `TabRouter`) — there is no root `NavigationStack`.
@@ -385,6 +388,7 @@ struct RootTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 evaluateGate()
+                Task { await refreshCheckIn() }   // W-B102 C-7
                 if let targetsModel { Task { await targetsModel.pushIfPending() } }   // W-TGT: queued body
                 goalsSetupModel?.refreshHubPending()   // W-FIX5 DEV-15
             }
@@ -676,8 +680,23 @@ struct RootTabView: View {
         }
     }
 
-    @ViewBuilder
+    /// W-B102 C-5: the check-in sheet, opened by the Today card or `ji://checkin` (notification tap).
+    /// Hung on the Today tab (not the shell's long modifier chain, which no longer type-checks in time).
     private var todayTab: some View {
+        todayTabContent.sheet(isPresented: $showCheckIn) {
+            if let moreMindModel {
+                CheckInSheet(model: moreMindModel, prompt: checkInModel?.livePrompt,
+                             onSaved: { checkInModel?.markAnswered() })
+            } else if moreMindUnavailable {
+                screenUnavailable(title: "Mind unavailable", systemImage: "water.waves")
+            } else {
+                ProgressView().task { await makeMoreMindModel() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var todayTabContent: some View {
         if let store = env.providerStore {
             if let todayModel, gateOpen, todayModel.phase == .loaded || !todayModel.hasLiveResult {
                 gateScreen(todayModel)
@@ -691,6 +710,10 @@ struct RootTabView: View {
                 )
                 .environment(\.gateRationaleModel, gateRationaleModel)
                 .environment(\.verdictOverrideModel, verdictOverrideModel)
+                .environment(\.checkInPrompt, checkInModel)
+                .environment(\.openCheckIn, { showCheckIn = true })
+                // W-B102 C-7: re-evaluate the check-in rules whenever the morning (re)loads.
+                .task(id: todayModel.morning?.verdictDate ?? "") { await refreshCheckIn() }
             } else {
                 ProgressView()
                     .task { makeTodayModels(store: store) }
@@ -1278,6 +1301,30 @@ struct RootTabView: View {
         gateOpen = true
     }
 
+    // MARK: - W-B102 C-7: data-triggered check-in (BP-23a)
+
+    /// Gathers the 7 mornings (hub `morning-verdict`), today's override + gate signals and the
+    /// newest on-device mind check-in day, then lets `CheckInPromptModel` decide. Never blocks UI;
+    /// a hub-less install simply stays calibrating.
+    private func refreshCheckIn() async {
+        guard let provider = env.providerStore?.provider else { return }
+        let model = checkInModel ?? CheckInPromptModel(center: UNUserNotificationCenter.current(), prefs: env.prefs)
+        checkInModel = model
+        let today = DayKey.today()
+        let mornings = await CheckInPromptModel.loadMornings(today: today) { date in
+            try await provider.morningVerdict(date: date).verdict
+        }
+        let db = journalDB ?? (try? AppDatabase.onDisk())
+        journalDB = db
+        let lastCheckin = db.flatMap { try? CheckInStore(db: $0).latestDate() }.flatMap { DayKey(iso: $0) }
+        let morning = todayModel?.morning
+        let inputs = CheckInInputs(today: today, mornings: mornings,
+                                   override: verdictOverrideModel?.current ?? morning?.verdictOverride,
+                                   lastCheckinDay: lastCheckin, gateSignals: morning?.gateSignals ?? [])
+        let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        await model.refresh(inputs, now: now)
+    }
+
     private func recordGateAnswered() {
         try? env.prefs.set(GateLaunch.lastAnsweredKey, GateLaunch.localDay(Date()))
     }
@@ -1362,6 +1409,8 @@ struct RootTabView: View {
     func handle(_ link: DeepLink) {
         // W-FIX2 DEV-04: `ji://gate` opens Decide on Today without clearing today's stored call.
         if link == .gate { openGate(); return }
+        // W-B102 C-5: `ji://checkin` opens the mind check-in (with the live prompt's "why") over Today.
+        if case .checkIn = link { selectedTab = .today; showCheckIn = true; return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)
