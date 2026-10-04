@@ -1,6 +1,7 @@
 import SwiftUI
 import JICore
 import JIDesign
+import JIWorkouts
 
 public struct TodayView: View {
     @Bindable private var model: TodayViewModel
@@ -36,6 +37,9 @@ public struct TodayView: View {
     /// B-57 W5 C4: the progression rule's lifts and this week's plan (nil in previews → not shown).
     @Environment(\.progression) private var progression
     @Environment(\.trainingWeekSummary) private var plannedWeek
+    /// W-PLANNER fixer PL-5: handed to the Planner ("Your week") so its Day 1 offers Log sets.
+    @Environment(\.strengthLogDeps) private var strengthLogDeps
+    @Environment(\.strengthWatchPlanSender) private var sendWatchPlan
     /// W-FIX7 F7-1: the week with today's workouts applied (today's session done) — Apple Health and
     /// the hub's rows (W-FIX9 fixer FIX9V-2: the same two sources as the summary line).
     private var week: TrainingWeekSummary? {
@@ -252,7 +256,7 @@ public struct TodayView: View {
         }
         .navigationDestination(isPresented: $showWeekReview) {
             if let weekModel {
-                TrainingWeekView(model: weekModel).task { await weekModel.load() }
+                PlannerView(model: weekModel, strengthLogDeps: strengthLogDeps, sendWatchPlan: sendWatchPlan).task { await weekModel.load() }
             } else if let rationaleModel {
                 gateRationaleScreen(model: rationaleModel, respondModel: gateRespondModel)
             }
