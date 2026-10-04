@@ -132,12 +132,13 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
 /// status word (an unknown or absent word stays "Context only"), the hub caption as the detail.
 /// Never a personal-normal band: 0.80–1.30 is a population band and the caption says so.
 public nonisolated func decideLoadStatus(_ s: GateSignal) -> JISignalStatus {
+    // W-B91: Paused is the user's own status — it holds even without an ACWR value.
+    if s.loadStatus == "paused" { return .paused }
     guard s.value != nil else { return .missing(.noData) }
     switch s.loadStatus {
     case "maintaining": return .maintaining
     case "productive": return .productive
     case "overreaching": return .overreaching
-    case "paused": return .paused
     default: return .contextOnly
     }
 }

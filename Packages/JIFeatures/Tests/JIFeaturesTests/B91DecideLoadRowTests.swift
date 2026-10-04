@@ -28,9 +28,9 @@ struct B91DecideLoadRowTests {
     @Test func eachNamedStatusMaps() {
         #expect(decideSignalRowModel(load(1.07, "productive")).status == .productive)
         #expect(decideSignalRowModel(load(0.62, "maintaining")).status == .maintaining)
-        let paused = decideSignalRowModel(load(1.84, "paused", note: "6 sessions in 28 d after a 9-day break · ratio unreliable for 14 d"))
+        let paused = decideSignalRowModel(load(1.84, "paused", note: "On a break since 28 Sep · set by you · ratio not rated"))
         #expect(paused.status == .paused && paused.status.word == "Paused")
-        #expect(paused.detail?.contains("9-day break") == true)
+        #expect(paused.detail == "On a break since 28 Sep · set by you · ratio not rated")
         #expect(JISignalStatus.productive.role == .go)
         #expect(JISignalStatus.paused.role == .muted)
         #expect(JISignalStatus.maintaining.role == .muted)
@@ -40,6 +40,13 @@ struct B91DecideLoadRowTests {
         #expect(decideSignalRowModel(load(1.2, nil)).status == .contextOnly)
         #expect(decideSignalRowModel(load(1.2, "peaking")).status == .contextOnly)
         #expect(decideSignalRowModel(load(nil, "productive")).status == .missing(.noData))
+    }
+
+    /// Toby 2026-10-04: Paused is the user's own status — it holds without an ACWR value too.
+    @Test func userPauseHoldsWithoutAValue() {
+        let m = decideSignalRowModel(load(nil, "paused", note: "On a break since 1 Oct · set by you · ratio not rated"))
+        #expect(m.status == .paused)
+        #expect(m.detail?.contains("1 Oct") == true)
     }
 
     @Test func neverSaysOvertraining() {

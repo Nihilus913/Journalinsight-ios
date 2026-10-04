@@ -127,6 +127,7 @@ extension HubClientTests {
         "HubDataProvider+GateRespond.swift: POST /api/v1/planning/feel": "append one session feel",
         "HubDataProvider+VerdictOverride.swift: POST /api/v1/planning/verdict-override": "one day's override (required date)",
         "HubDataProvider+VerdictOverride.swift: DELETE /api/v1/planning/verdict-override": "one day's override (required date)",
+        "HubDataProvider+TrainingBreak.swift: PUT /api/v1/planning/training-break": "the one open break (W-B91 user toggle)",
         "HubDataProvider+Push.swift: POST /api/v1/planning/push-token": "upsert this device's token",
         // W-B40 X-1 (XC half): the workout library's writes — see HubDataProviderWorkoutsTests.
         "HubDataProvider+Workouts.swift: POST /api/v1/planning/workout-templates":
