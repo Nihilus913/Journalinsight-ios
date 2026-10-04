@@ -1,20 +1,63 @@
 {
   "bedtime_consistency_nights": 28,
-  "bedtime_consistency_sd_min": 102.9,
+  "bedtime_consistency_sd_min": 51.4,
   "bedtime_consistency_sources": [
+    "AppleHealth",
     "GarminAPI"
   ],
-  "debt_baseline_hours": 7.383,
-  "debt_date": "2026-09-11",
-  "debt_hours": -0.27,
-  "debt_source": "GarminAPI",
-  "last_night_date": "2026-09-11",
-  "last_night_deep_sleep_sec": 4860,
-  "last_night_duration_sec": 24540,
-  "last_night_light_sleep_sec": 15180,
-  "last_night_rem_sleep_sec": 4500,
-  "last_night_source": "GarminAPI",
-  "score_computed": 82,
-  "score_computed_date": "2026-09-11",
-  "score_computed_source": "GarminAPI"
+  "debt_baseline_hours": 7.4,
+  "debt_date": "2026-10-04",
+  "debt_hours": -7.82,
+  "debt_source": "AppleHealth",
+  "last_night_awake_sec": 1109,
+  "last_night_date": "2026-10-04",
+  "last_night_deep_sleep_sec": 1858,
+  "last_night_duration_sec": 36200,
+  "last_night_light_sleep_sec": 22865,
+  "last_night_rem_sleep_sec": 11417,
+  "last_night_source": "AppleHealth",
+  "score_breakdown": {
+    "components": [
+      {
+        "inferred": false,
+        "key": "duration",
+        "max": 50,
+        "points": 50.0,
+        "share": null,
+        "target": null,
+        "value": 36200
+      },
+      {
+        "inferred": false,
+        "key": "deep",
+        "max": 20,
+        "points": 5.7,
+        "share": 0.051,
+        "target": 0.18,
+        "value": 1858
+      },
+      {
+        "inferred": false,
+        "key": "rem",
+        "max": 20,
+        "points": 20.0,
+        "share": 0.315,
+        "target": 0.225,
+        "value": 11417
+      },
+      {
+        "inferred": false,
+        "key": "continuity",
+        "max": 10,
+        "points": 10.0,
+        "share": 0.031,
+        "target": null,
+        "value": 1109
+      }
+    ],
+    "total": 86
+  },
+  "score_computed": 86,
+  "score_computed_date": "2026-10-04",
+  "score_computed_source": "AppleHealth"
 }

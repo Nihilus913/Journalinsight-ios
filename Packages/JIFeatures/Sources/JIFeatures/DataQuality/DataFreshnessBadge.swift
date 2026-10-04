@@ -11,7 +11,7 @@ nonisolated func parseHubTimestamp(_ raw: String) -> Date? {
     if let date = try? Date(raw, strategy: .iso8601) { return date }
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(identifier: "UTC")
+    formatter.timeZone = TimeZone(identifier: "UTC") // hub instant default, not a day key (F-1)
     // W-FIX1 BUG-23: the hub's `str(timestamptz)` carries a space separator AND an offset
     // ("2026-09-25 10:02:23.725876+02:00", or "+00" / "+0200"), so the zoned shapes come first;
     // an explicit offset wins over the UTC default.

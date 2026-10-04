@@ -54,7 +54,7 @@ public nonisolated enum ParityRegistry {
         // --- R6b-1: sleep score parity port ----------------------------------
         "sleep_score_computed": ParityEntry(
             source: .computed,
-            notes: "R6b-1: ported sleep-score algorithm; golden fixture gen_golden_sleep.py + mobile sleep.parity.test.ts."
+            notes: "R6b-1: ported sleep-score algorithm; golden fixture gen_golden_sleep.py + mobile sleep.parity.test.ts. W-B67: computeSleepScoreBreakdown (4 components, parity with hub compute_sleep_score_breakdown; computeSleepScore = its total; display only, still shadow)."
         ),
         "sleep_debt": ParityEntry(
             source: .computed,
@@ -122,6 +122,15 @@ public nonisolated enum ParityRegistry {
             notes: "R6c-6 local-first write surface (nutrition log redirect); pre-registered ahead of F5b/R6d-1, which will flip this per-metric."
         ),
     ]
+
+    /// Swift-only: which JICompute type implements a `.computed` metric (W-ONDEVICE O-5). Kept
+    /// apart from `entries` so the notes stay identical to the Python/TS registries.
+    public static let implementations: [String: String] = [
+        "readiness_categorical": "JICompute.ReadinessComposite",
+    ]
+
+    /// The implementing JICompute type for `metric`, or nil when none is ported.
+    public static func implementation(for metric: String) -> String? { implementations[metric] }
 
     /// Return the parity source for `metric`, defaulting to `.hub`.
     public static func source(for metric: String) -> ParitySource {

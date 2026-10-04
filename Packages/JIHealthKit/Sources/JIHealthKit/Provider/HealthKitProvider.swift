@@ -13,22 +13,24 @@ public enum ProviderError: Error, Equatable, Sendable {
     case notCapable(DataCapability)
     /// HealthKit itself is unavailable on this device (iPad, Mac, simulator without Health).
     case healthDataUnavailable
+    /// W-ONDEVICE O-7: the on-device verdict has no night for this day yet (payload = the day).
+    /// Never a guessed verdict (rule 5); the hub answers the same case with "No verdict yet".
+    case missing(String)
 }
 
 /// **T2**: the Apple-only provider — the app computes from HealthKit on this device instead of
 /// asking the Mac hub (T1, `JIHub.HubDataProvider`). Spec §4.2's capability seam is what makes the
 /// two interchangeable: every tile reads `capabilities`, never the provider type.
 ///
-/// ## The gate is deliberately OFF
-/// `gate`, `morning` and `morningVerdict` always throw `ProviderError.notCapable(.gate)`, and
-/// (W-FIX10 F10-4) `DataCapability.appleWatchCapabilities` (`Capabilities+HK.swift`) no longer
-/// lists those domains. The verdict is not a formula over today's numbers alone — it is a comparison against a
-/// **per-source median + MAD baseline** (memory `project_source_agnostic_gate`: Apple and Garmin
-/// readings do not align, so a Garmin-fitted baseline applied to Apple numbers produces a
-/// confidently wrong verdict). That baseline store is not ported yet; the spec's risk table
-/// (`2026-09-12-ji-swift-native-migration-design.md` L276) gates T2's verdict behind an
-/// overnight-equivalence proof. `docs/BACKLOG.md`: "T2 baseline store median+MAD after
-/// overnight-equivalence proof" — flip these three methods on there, not here.
+/// ## The gate is OFF unless the on-device verdict is wired (W-ONDEVICE O-7)
+/// Without an `OnDeviceVerdictComputing` engine + `NightlyBaselineStoring` store, `gate`,
+/// `morning` and `morningVerdict` throw `ProviderError.notCapable(.gate)` and
+/// `appleWatchCapabilities` does not list them (W-FIX10 F10-4). The verdict is a comparison
+/// against a **per-source baseline** (memory `project_source_agnostic_gate`), so it is computed
+/// only from the on-device store (Apple nights, plus Garmin nights only from the O-8 hub seed).
+/// With both wired (DEBUG/Developer toggle only — Release stays `.hub` until the 14-day dual run,
+/// O-10), `.morning` + `.morningVerdict` flip ON; `.gate` (`GateResponse`, KPI averages incl.
+/// nutrition) stays the hub's.
 ///
 /// `@unchecked Sendable`: the only mutable state is `anchors`/`lastAnchorFetch`, guarded by
 /// `lock` on every access; everything else is a `let`.
@@ -41,6 +43,13 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     /// last-fetch and a future incremental path has somewhere to resume from.
     private var anchors: [String: HKQueryAnchor] = [:]
     private var lastAnchorFetch: Date?
+    /// W-ONDEVICE O-6: resolves a sample's source bundle id for `HKSourceFilter` (injectable: a
+    /// package test cannot set a sample's source).
+    private let sourceBundle: @Sendable (HKSample) -> String?
+    /// W-ONDEVICE O-6: the on-device baseline store, nil = no on-device verdict wired.
+    private let baseline: (any NightlyBaselineStoring)?
+    /// W-ONDEVICE O-7: the on-device verdict compute; nil = the gate trio stays OFF.
+    private let onDevice: (any OnDeviceVerdictComputing)?
 
     /// What this provider supplies. Defaults to the frozen `appleWatchCapabilities` bitmap;
     /// injectable so a test can drive the "capability absent → `notCapable`" table without
@@ -55,12 +64,23 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
             c.timeZone = .current
             return c
         }(),
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        sourceBundle: @escaping @Sendable (HKSample) -> String? = HKSourceFilter.sampleBundle,
+        baseline: (any NightlyBaselineStoring)? = nil,
+        onDevice: (any OnDeviceVerdictComputing)? = nil
     ) {
         self.store = store
-        self.capabilities = capabilities
+        // W-ONDEVICE O-7: `.morning` / `.morningVerdict` flip ON only when the on-device verdict
+        // is enabled (an engine AND a store are wired — the DEBUG/Developer toggle; Release stays
+        // `.hub`). `.gate` (`GateResponse`, the KPI averages) stays the hub's: it needs nutrition.
+        var caps = capabilities
+        if onDevice != nil, baseline != nil { caps.formUnion([.morning, .morningVerdict]) }
+        self.capabilities = caps
+        self.onDevice = onDevice
         self.calendar = calendar
         self.now = now
+        self.sourceBundle = sourceBundle
+        self.baseline = baseline
     }
 
     // MARK: - Health
@@ -78,12 +98,60 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
         throw ProviderError.notCapable(.gate)
     }
 
+    /// W-ONDEVICE O-7: today's verdict computed on device, in the hub's `MorningResponse` shape.
+    /// No night yet -> `verdict` nil ("No verdict yet"), never a guess. Nutrition fields
+    /// (`carbs3dAvg`) stay nil: HealthKit cannot supply them.
     public func morning() async throws -> MorningResponse {
-        throw ProviderError.notCapable(.gate)
+        try requireOnDevice(.morning)
+        let day = todayKey
+        let result = try await onDeviceVerdict(day: day)
+        return .onDevice(
+            verdict: result?.verdict, verdictDate: result == nil ? nil : day,
+            carbWatchFloor: Self.carbWatchFloor, isStale: result == nil ? nil : false,
+            gateSignals: result.map(OnDeviceVerdictLabel.signals)
+        )
     }
 
+    /// W-ONDEVICE O-7: the verdict for `date` computed on device (`MorningVerdict`, hub shape).
+    /// Calibrating -> the verdict is still returned, `reason` labelled "Estimate — calibrating
+    /// (N/28 nights)" (Toby Q2). No night -> `ProviderError.missing(date)`.
     public func morningVerdict(date: String) async throws -> MorningVerdict {
-        throw ProviderError.notCapable(.gate)
+        try requireOnDevice(.morningVerdict)
+        guard let result = try await onDeviceVerdict(day: date) else { throw ProviderError.missing(date) }
+        return .onDevice(date: date, verdict: result.verdict, reason: OnDeviceVerdictLabel.reason(result),
+                              sessionPrescription: result.sessionPrescription, computedAt: now().ISO8601Format())
+    }
+
+    /// The hub's `_CARB_3D_WATCH` (`app/planning/router.py`), served as `carb_watch_floor`.
+    static let carbWatchFloor: Double = 120
+
+    /// HealthKit nights read this far back on every verdict call (the night itself plus slack for
+    /// a late-synced previous night); the 120-day backfill is `refreshBaseline()`'s job (pre-warm).
+    static let verdictRefreshDays = 3
+
+    /// W-ONDEVICE O-7/O-9: refresh the store from HealthKit (Apple only), then compute `day` from
+    /// the store. `nil` = no night for `day`. Errors (e.g. HealthKit's protected-data error on a
+    /// locked phone) propagate so the trigger can fall back and retry on unlock.
+    public func onDeviceVerdict(day: String) async throws -> OnDeviceVerdictResult? {
+        guard let onDevice, let baseline else { throw ProviderError.notCapable(.gate) }
+        try requireHealthData()
+        try await refreshBaseline(windowDays: Self.verdictRefreshDays)
+        let input = OnDeviceVerdictInput(day: day, nights: try baseline.nightly(through: day))
+        guard var result = try onDevice.compute(input) else { return nil }
+        result.inputsDigest = input.digest
+        result.wakeAt = try? await wakeTime(day: day)
+        return result
+    }
+
+    /// O-10: the end of `day`'s main sleep (the hub's `main_nights` rule), nil without one.
+    func wakeTime(day: String) async throws -> Date? {
+        let window = HKSampleWindow(windowDays: Self.verdictRefreshDays, now: now(), calendar: calendar)
+        let sleep = try await samples(for: .sleepAnalysis, since: window.start.addingTimeInterval(-86_400))
+        return HKRecoveryAssembler.mainNights(sleep, window: window)[day]?.end
+    }
+
+    private func requireOnDevice(_ capability: DataCapability) throws {
+        guard capabilities.contains(capability), onDevice != nil, baseline != nil else { throw ProviderError.notCapable(.gate) }
     }
 
     // MARK: - Recovery
@@ -115,6 +183,24 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
         if capabilities.contains(.hrvSDNN) { return .hrvSDNN }
         return nil
     }
+
+    // MARK: - Baseline store (W-ONDEVICE O-6)
+
+    /// Reads the last `windowDays` of HealthKit nights (Garmin Connect copies already filtered out
+    /// by `samples(for:since:)`) and upserts them into the baseline store as `apple` nights.
+    /// Returns how many nights were written; 0 with no store wired. Replay-safe: the store keys by
+    /// `(source, date)`, so a re-delivered night overwrites itself.
+    @discardableResult
+    public func refreshBaseline(windowDays: Int = 120) async throws -> Int {
+        guard let baseline else { return 0 }
+        let days = try await recovery(windowDays: windowDays)
+        let nights = OnDeviceNight.apple(from: days)
+        try baseline.record(nights, today: todayKey)
+        return nights.count
+    }
+
+    /// Today's local `YYYY-MM-DD` in this provider's calendar.
+    public var todayKey: String { HKSampleWindow(windowDays: 1, now: now(), calendar: calendar).days[0] }
 
     // MARK: - Sync
 
@@ -158,7 +244,8 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
             if let newAnchor = page.newAnchor { anchors[type.identifier] = newAnchor }
             lastAnchorFetch = now()
         }
-        return page.samples
+        // W-ONDEVICE O-6: never a Garmin Connect copy (see `HKSourceFilter`).
+        return HKSourceFilter.keep(page.samples, bundleOf: sourceBundle)
     }
 }
 #endif

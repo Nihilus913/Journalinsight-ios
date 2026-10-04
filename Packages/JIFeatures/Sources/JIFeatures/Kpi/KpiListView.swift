@@ -104,7 +104,8 @@ struct KpiCatalogueGrids: View {
             let items = kpiCatalogueItems(group: group, visible: model.visibleOrder, value: { model.value(for: $0) },
                                           today: DayKey.today(now: Date()).iso,
                                           goalCaption: { kpiListGoalCaption($0, value: $1, targets: doc) ?? nutritionGoals.caption(for: $0, value: $1) },
-                                          load: recoveryInsight?.loadReading, health: model.healthTotals)
+                                          load: recoveryInsight?.loadReading, health: model.healthTotals,
+                                          hub: model.nutrition)
             if !items.isEmpty {
                 HStack(alignment: .firstTextBaseline) {
                     JISectionHeader(kpiListGroupHeader(group, count: items.count))

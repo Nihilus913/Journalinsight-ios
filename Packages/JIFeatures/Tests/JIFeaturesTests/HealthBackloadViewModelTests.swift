@@ -30,9 +30,7 @@ nonisolated final class FakeBackloadRunner: BackloadRunning, @unchecked Sendable
     let fixedNow = Date(timeIntervalSince1970: 1_780_000_000) // fixed instant, any date
     let vm = HealthBackloadViewModel(runner: FakeBackloadRunner(), now: { fixedNow })
     let range = vm.defaultRange
-    var cal = Calendar(identifier: .gregorian)
-    cal.timeZone = TimeZone(identifier: "Europe/Zurich")!
-    let comps = cal.dateComponents([.year, .month, .day], from: range.from)
+    let comps = DayKey.calendar().dateComponents([.year, .month, .day], from: range.from) // W-FIX13 F-1: phone zone
     #expect(comps.year == 2025)
     #expect(comps.month == 5)
     #expect(comps.day == 27)

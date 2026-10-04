@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		08346F5FBA168D27176DEB00 /* ShadowLogWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5958527A14A12B9893C50209 /* ShadowLogWriter.swift */; };
 		0C40B0ABEE3B33861D672B80 /* StrengthLogViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C66279B9FA496C89CE05177 /* StrengthLogViewModelTests.swift */; };
 		0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = D393B4A4FCB5E732570A00E9 /* JIDesign */; };
 		0CCF97B2EFF7A582948B88CA /* ReadinessGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E9F65F4C5401CDA46CA524 /* ReadinessGlance.swift */; };
@@ -44,6 +45,7 @@
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		6EC61424D6E2156988CA5EB9 /* GateMediumLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA13A0C17791F561000010 /* GateMediumLayout.swift */; };
 		736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */; };
+		7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */; };
 		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
 		74229C6C308983C442714079 /* AppleWorkoutUploadSimTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4AA2AFE31332D2F3A8FAF3 /* AppleWorkoutUploadSimTests.swift */; };
 		75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */; };
@@ -93,6 +95,7 @@
 		E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E3002B92D368429BB3F69F /* MoreTabTests.swift */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		EC5311AB5875741B4CB7CE7D /* ApnsPayloadRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */; };
+		ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */; };
 		EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */; };
 		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
 		FBDC394485A35929AF056DA5 /* JIVault in Frameworks */ = {isa = PBXBuildFile; productRef = A230B1185D4D79616F44967A /* JIVault */; };
@@ -164,6 +167,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceVerdictWiring.swift; sourceTree = "<group>"; };
 		094C0C2F19C94D8B96AA2CC2 /* HealthKitUploadSpecsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitUploadSpecsTests.swift; sourceTree = "<group>"; };
 		099499E819ADFEE663B021CB /* WatchSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotStore.swift; sourceTree = "<group>"; };
 		0FB5DA3ABCBBF1ADE780C358 /* ApnsRegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsRegistrationTests.swift; sourceTree = "<group>"; };
@@ -183,6 +187,7 @@
 		33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthMirrorCoordinator.swift; sourceTree = "<group>"; };
 		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		34E9F65F4C5401CDA46CA524 /* ReadinessGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadinessGlance.swift; sourceTree = "<group>"; };
+		3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaselineStoreAdapter.swift; sourceTree = "<group>"; };
 		43B4E55EDF3D96E26FC79F31 /* SnapshotWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotWiringTests.swift; sourceTree = "<group>"; };
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsBundle.swift; sourceTree = "<group>"; };
@@ -190,6 +195,7 @@
 		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
 		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
 		58E06787E30F9A6DEE3D3C5A /* JIWorkouts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIWorkouts; path = Packages/JIWorkouts; sourceTree = SOURCE_ROOT; };
+		5958527A14A12B9893C50209 /* ShadowLogWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowLogWriter.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouter.swift; sourceTree = "<group>"; };
 		69F166FFD02B0D810992532A /* JIVault */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIVault; path = Packages/JIVault; sourceTree = SOURCE_ROOT; };
@@ -425,8 +431,11 @@
 			children = (
 				634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */,
 				9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */,
+				3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */,
 				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
 				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
+				01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */,
+				5958527A14A12B9893C50209 /* ShadowLogWriter.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -747,6 +756,7 @@
 				EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */,
 				FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */,
 				5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */,
+				7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */,
 				9C668FEB52BC8240D1D00A85 /* DebugRmssdSeeder.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
@@ -754,8 +764,10 @@
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
+				ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
+				08346F5FBA168D27176DEB00 /* ShadowLogWriter.swift in Sources */,
 				736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */,
 				D67FD48EBDFAC2DEE1F7F571 /* StrengthSessionActivityAttributes.swift in Sources */,
 				4DD5F87BB4120072A84705E3 /* StrengthSessionActivityController.swift in Sources */,

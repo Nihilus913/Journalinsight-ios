@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 import JIPersistence
 
 /// Ported verbatim from `mobile/src/journal/insights.ts`. `nonisolated` — see `JournalStreak`'s
@@ -63,7 +64,7 @@ public nonisolated enum JournalInsights {
             }
         }
         guard let date else { return 0 }
-        return JournalCalendarZurich.calendar.component(.hour, from: date)
+        return DayKey.calendar().component(.hour, from: date)
     }
 
     public static func timeOfDayDistribution(_ entries: [Entry]) -> [TimeOfDayBucket: Int] {
@@ -96,21 +97,21 @@ public nonisolated enum JournalInsights {
         let parts = iso.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return iso }
         let comps = DateComponents(year: parts[0], month: parts[1], day: parts[2] + n)
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         guard let date = calendar.date(from: comps) else { return iso }
         let out = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", out.year ?? 0, out.month ?? 0, out.day ?? 0)
     }
 
     private static func mondayOfWeek(_ dateISO: String) -> String {
-        guard let date = JournalCalendarZurich.date(fromISODay: dateISO) else { return dateISO }
-        let weekday = JournalCalendarZurich.calendar.component(.weekday, from: date) // Sun=1...Sat=7
+        guard let date = DayKey(iso: dateISO)?.startDate else { return dateISO }
+        let weekday = DayKey.calendar().component(.weekday, from: date) // Sun=1...Sat=7
         let dow = (weekday + 5) % 7 // Mon=0
         return addDaysISO(dateISO, -dow)
     }
 
     public static func weeklyStats(_ entries: [Entry], weeks: Int, today: Date) -> [WeekBucket] {
-        let todayISO = JournalCalendarZurich.isoDay(today)
+        let todayISO = DayKey(date: today).iso
         let thisMonday = mondayOfWeek(todayISO)
         let starts = (0..<weeks).map { addDaysISO(thisMonday, -7 * (weeks - 1 - $0)) }
 

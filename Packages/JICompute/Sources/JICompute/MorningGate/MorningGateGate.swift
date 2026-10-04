@@ -353,9 +353,11 @@ public nonisolated func evaluate(
     // Garmin publishes no daily-summary row for the current day, so the freshest
     // RHR obtainable at report time is ALWAYS a day behind — see rhrCarriedOver.
     let rhrCarried = rhrCarriedOver(m, today: today)
-    let hrvLowToday = m.hrvStatus == "LOW" || (hrv.map { $0 < 27 } ?? false)
-    let rhrHighToday = rhr.map { $0 >= 66 } ?? false
-    let sleepLowToday = sleep.map { $0 < 60 } ?? false
+    // W-ONDEVICE O-4 (B-65): an Apple night has its own gate inputs; the Garmin rules stay off.
+    let apple = m.apple != nil
+    let hrvLowToday = (m.hrvStatus == "LOW" || (hrv.map { $0 < 27 } ?? false)) && !apple
+    let rhrHighToday = (rhr.map { $0 >= 66 } ?? false) && !apple
+    let sleepLowToday = (sleep.map { $0 < 60 } ?? false) && !apple
     let mRhrDate = m.rhrDate
     // Unknown provenance on either side counts as a distinct reading: absence of
     // a date cannot prove a repeat, and suppressing a red line needs proof.
@@ -368,6 +370,8 @@ public nonisolated func evaluate(
     let doseDay = try consecutiveDoseIndex(today, dosed: dosedSet)
 
     var red: [String] = liftReds
+    let appleInputs = AppleGate.appleGateInputs(m, recoveryLowScore: config.recoveryLowScore)
+    if let appleInputs { red += appleInputs.red }
     // B-57 W4: a counter, not a two-morning boolean. The preset decides how many
     // consecutive low mornings turn the call red (Balanced = 2 = the old rule).
     let hrvLowN = hrvLowToday ? prevHrvLowN(state) + 1 : 0
@@ -421,24 +425,30 @@ public nonisolated func evaluate(
     }
 
     var amberReasons: [String] = []
-    if sleepLowToday {
-        amberReasons.append("sleep \(fmtValue(sleep)) — a 2nd night <60 goes REDUCED")
-    } else if let sleep, sleep < 70 {
-        amberReasons.append("sleep \(sleep)")
-    }
-    if hrvLowToday { amberReasons.append("HRV \(fmtValue(hrv))") }
-    if let rhr, rhr > 65 {
-        if rhrCarried, let mRhrDate {
-            amberReasons.append("RHR \(rhr) (measured \(String(mRhrDate.dropFirst(5))))")
-        } else {
-            amberReasons.append("RHR \(rhr)")
+    if let appleInputs {
+        // B-65: band/sleep reasons (incl. the missing-night notes) replace the Garmin
+        // sleep/HRV/RHR/duration lines and the "not synced yet" line.
+        amberReasons += appleInputs.amber
+    } else {
+        if sleepLowToday {
+            amberReasons.append("sleep \(fmtValue(sleep)) — a 2nd night <60 goes REDUCED")
+        } else if let sleep, sleep < 70 {
+            amberReasons.append("sleep \(sleep)")
         }
-    }
-    if let dur, dur > 0, dur < config.minSleepH {
-        amberReasons.append("only \(formatFixed(dur, 1))h sleep")
-    }
-    if recoveryLow, let rec = m.recoveryScore {
-        amberReasons.append("Recovery low (\(rec))")
+        if hrvLowToday { amberReasons.append("HRV \(fmtValue(hrv))") }
+        if let rhr, rhr > 65 {
+            if rhrCarried, let mRhrDate {
+                amberReasons.append("RHR \(rhr) (measured \(String(mRhrDate.dropFirst(5))))")
+            } else {
+                amberReasons.append("RHR \(rhr)")
+            }
+        }
+        if let dur, dur > 0, dur < config.minSleepH {
+            amberReasons.append("only \(formatFixed(dur, 1))h sleep")
+        }
+        if recoveryLow, let rec = m.recoveryScore {
+            amberReasons.append("Recovery low (\(rec))")
+        }
     }
     if let yResp = db.yResp, let respBase = db.respBaseline, yResp >= respBase + config.respDeltaAmber {
         amberReasons.append(
@@ -447,7 +457,7 @@ public nonisolated func evaluate(
     }
     // A metric that has not arrived is not a passing metric: the pre-wake run
     // fires before the watch uploads the night.
-    if sleep == nil || hrv == nil { amberReasons.append("overnight vitals not synced yet") }
+    if !apple && (sleep == nil || hrv == nil) { amberReasons.append("overnight vitals not synced yet") }
     let amber = !amberReasons.isEmpty
 
     let verdict: String
@@ -463,11 +473,11 @@ public nonisolated func evaluate(
         }
     } else if sessionType == .interval {
         // Fails closed on sleep and HRV: both must be PRESENT and pass.
-        var gateOk = (sleep.map { $0 >= 70 } ?? false)
+        var gateOk = appleInputs?.ok ?? ((sleep.map { $0 >= 70 } ?? false)
             && (hrv.map { $0 >= 27 } ?? false)
             && (rhr.map { $0 <= 65 } ?? true)
             && (dur.map { $0 == 0 || $0 >= config.minSleepH } ?? true)
-            && !recoveryLow
+            && !recoveryLow)
         // Day 3+ of consecutive dosing: amber counts as red for intervals only.
         if gateOk && doseDay >= 3 && amber {
             gateOk = false

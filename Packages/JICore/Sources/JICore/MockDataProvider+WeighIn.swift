@@ -9,12 +9,7 @@ extension MockDataProvider: WeighInProviding {
         WeighinResult(status: "ok", weightKg: weightKg, date: date ?? Self.mockToday(), garminConfirmed: true)
     }
 
-    /// A plain device-local `YYYY-MM-DD` stamp for the mock's own "today" default — never used by
-    /// the real hub path, which always sends the caller's date (or lets the hub itself default).
-    private static func mockToday() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone(identifier: "UTC")
-        return f.string(from: Date())
-    }
+    /// The phone's `YYYY-MM-DD` for the mock's own "today" default — never used by the real hub
+    /// path, which always sends the caller's date (or lets the hub itself default). W-FIX13 F-1.
+    private static func mockToday() -> String { DayKey.today().iso }
 }

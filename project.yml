@@ -67,7 +67,8 @@ targets:
         NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
         # W8-L4 (P-hub-watchdog): `OutboxRetryScheduler.refreshTaskIdentifier` — the BGAppRefreshTask
         # that retries pending outbox rows (weigh-in, gate respond, session feel) off-foreground.
-        BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh]
+        # W-ONDEVICE O-9: `OnDevicePrewarm.taskIdentifier` — the ~04:45 on-device verdict pre-warm.
+        BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh, toby913.JournalInsight.verdictPrewarm]
         UIBackgroundModes: [fetch]
         # W9.5-L4 (P-today): rotation is a supported feature, not an accident of a missing key —
         # portrait + both landscapes (no upside-down on a phone; NOT `UIRequiresFullScreen`, the

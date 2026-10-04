@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import JICore
 import JIPersistence
 @testable import JIFeatures
 
@@ -78,7 +79,7 @@ private func e(_ id: Int64, _ date: String, _ ts: String, _ dur: Int = 300, _ mo
 }
 
 @Suite struct WeeklyStatsTests {
-    private let today = JournalCalendarZurich.calendar.date(from: DateComponents(year: 2026, month: 8, day: 23))! // Sun
+    private let today = DayKey.calendar().date(from: DateComponents(year: 2026, month: 8, day: 23))! // Sun
 
     @Test func bucketsEntriesIntoMondayFirstWeekEmptyWeeksGetZeroRow() {
         let list = [
