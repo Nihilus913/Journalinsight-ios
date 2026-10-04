@@ -23,6 +23,15 @@ final class B43RestAlertUITests: JIUITestCase {
     func testRestEndAlertShowsWhileBackgroundedAndOpensTheLogger() {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
+        // The logger asks for notification permission the first time it opens; whenever that
+        // sheet interrupts a tap, answer Allow (plus the explicit wait below).
+        addUIInterruptionMonitor(withDescription: "notification permission") { alert in
+            let allow = alert.buttons["Allow"]
+            guard allow.exists else { return false }
+            allow.tap()
+            return true
+        }
+
         // Training › Planner › Day 1 › Log sets (the PL-5 path).
         tapId("training-open-planner")
         XCTAssertTrue(el("workouts-list").waitForExistence(timeout: 15), "Planner did not open")
