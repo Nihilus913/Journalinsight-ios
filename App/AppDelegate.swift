@@ -1,9 +1,32 @@
 import UIKit
+import JIFeatures
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // B-18 p1: uncaught-NSException + MetricKit crash capture (local only, Version screen).
+        CrashReporter.install()
+        #if DEBUG
+        installTouchOverlay()
+        scheduleForcedCrashIfRequested()
+        #endif
+        return true
+    }
+
+    #if DEBUG
+    /// B-18 p3: `-JIForceCrash YES` raises an NSException 2 s after launch so a simulator run can
+    /// prove the capture end to end (crash → relaunch → About & version shows the record). DEBUG
+    /// only — a Release build has no forced-crash path.
+    private func scheduleForcedCrashIfRequested() {
+        guard CommandLine.arguments.contains("-JIForceCrash") else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            NSException(name: .genericException, reason: "B-18 forced crash (-JIForceCrash)", userInfo: nil).raise()
+        }
+    }
+    #endif
+
     #if DEBUG
     var window: UIWindow?   // SwiftUI creates its own; the touch overlay is a second, passthrough window (Task 4)
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+    private func installTouchOverlay() {
         // BUILD-3: `queue: .main` guarantees this closure runs on the main thread, but it is
         // still `nonisolated` to the Swift 6 checker. MainActor.assumeIsolated documents/asserts
         // that guarantee so the UIKit access below is statically main-actor-isolated with no warning.
@@ -27,7 +50,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 host?.addGestureRecognizer(TouchObserverRecognizer(overlay: overlay))
             }
         }
-        return true
     }
     #endif
 }
