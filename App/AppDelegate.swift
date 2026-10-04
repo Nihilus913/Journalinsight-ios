@@ -7,9 +7,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         CrashReporter.install()
         #if DEBUG
         installTouchOverlay()
+        scheduleForcedCrashIfRequested()
         #endif
         return true
     }
+
+    #if DEBUG
+    /// B-18 p3: `-JIForceCrash YES` raises an NSException 2 s after launch so a simulator run can
+    /// prove the capture end to end (crash → relaunch → About & version shows the record). DEBUG
+    /// only — a Release build has no forced-crash path.
+    private func scheduleForcedCrashIfRequested() {
+        guard CommandLine.arguments.contains("-JIForceCrash") else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            NSException(name: .genericException, reason: "B-18 forced crash (-JIForceCrash)", userInfo: nil).raise()
+        }
+    }
+    #endif
 
     #if DEBUG
     var window: UIWindow?   // SwiftUI creates its own; the touch overlay is a second, passthrough window (Task 4)
