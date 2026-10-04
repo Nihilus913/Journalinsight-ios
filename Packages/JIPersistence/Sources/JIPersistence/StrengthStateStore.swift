@@ -3,7 +3,7 @@ import JICore
 
 /// One exercise's locally-mirrored lift state (oracle: `StrengthStateEntry` /
 /// `strength_state_local` in `mobile/src/data/StrengthStateStore.ts`). `synced` marks a row
-/// written while the hub was unreachable — a later sync pass (not this wave) could push it.
+/// written while the hub was unreachable; W-B54 replays it through the `Outbox` (`exercise_patch`).
 public struct StrengthStateEntry: Codable, Sendable, Equatable {
     public var exerciseId: Int
     public var exerciseName: String
@@ -96,10 +96,21 @@ public final class StrengthStateStore: Sendable {
     /// B-57 W1: every stored exercise, for GoalsSetup's read-only "Next working weight".
     public func entries() -> [StrengthStateEntry] { readAll().values.sorted { $0.exerciseName < $1.exerciseName } }
 
-#if DEBUG
     /// Rows written locally that haven't been confirmed pushed to the hub yet.
     public func listUnsynced() -> [StrengthStateEntry] { readAll().values.filter { !$0.synced } }
-#endif
+
+    private static let legacyHandedOverKey = "training.strengthState.legacyUnsyncedHandedOver.v1"
+
+    /// W-B54 (B54-1): the unsynced rows an OLDER build left behind (it saved an offline lift edit
+    /// here and nothing ever replayed it) — returned exactly once per install, so the caller
+    /// (`OutboxDrainer`) can enqueue them as `"exercise_patch"` rows; every later call is `[]`.
+    /// From this build on, every lift edit is an outbox row first, so the queue — not this
+    /// store's `synced` flag — is what gets replayed.
+    public func takeLegacyUnsyncedOnce() -> [StrengthStateEntry] {
+        guard let defaults, !defaults.bool(forKey: Self.legacyHandedOverKey) else { return [] }
+        defaults.set(true, forKey: Self.legacyHandedOverKey)
+        return listUnsynced().sorted { $0.updatedAt < $1.updatedAt }
+    }
 
     public func markSynced(exerciseId: Int) {
         var rows = readAll()

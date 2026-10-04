@@ -101,6 +101,9 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var loaded: some View {
+        // W-B67 R-3: "How this score is built", directly under the number — hidden when the hub
+        // serves no breakdown (old hub) and on every metric but Sleep.
+        if let rows = model.sleepBreakdownRows { SleepBreakdownSection(rows: rows, total: model.sleepBreakdownTotal) }
         if isNutritionKpi(model.metric) { KpiNutritionPanel(rows: model.nutrition,
                                                                macro: Binding(get: { model.metric }, set: { model.selectMetric($0) })) }
         // BUG-40: on nutrition the panel's 7-day NormalBar replaces the line trend.
@@ -112,11 +115,13 @@ public struct KpiDetailView: View {
             // W-GUI R2 (mockups 07 / 20): the table under the chart and the per-metric block.
             tableCard
             if let block = kpiDetailBlock(metric: model.metric, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
-                                          deepRem: kpiDetailDeepRem, sdnn: kpiDetailSdnn) {
+                                          deepRem: kpiDetailDeepRem, sdnn: kpiDetailSdnn,
+                                          scoreBreakdownShown: model.sleepBreakdownRows != nil) {
                 blockSection(block)
             }
         } else if model.metric == .sleep, let block = kpiDetailBlock(metric: .sleep, valueText: kpiDetailValueText, sleepDuration: kpiDetailSleepDuration,
-                                                                        deepRem: kpiDetailDeepRem) {
+                                                                        deepRem: kpiDetailDeepRem,
+                                                                        scoreBreakdownShown: model.sleepBreakdownRows != nil) {
             blockSection(block)
         }
         // W-TGT: Goal · Rule · Your normal, one Edit (the same sheet as Settings › Targets).

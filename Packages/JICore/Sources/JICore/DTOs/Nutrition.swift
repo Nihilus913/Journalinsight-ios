@@ -66,8 +66,13 @@ public struct NutritionDailyRow: Codable, Sendable, Equatable {
     public var date: String
     public var kcalConsumed, kcalGoal, proteinG, carbsG, fatG: Double?
     public var mealsLogged: Int?
-    public init(date: String, kcalConsumed: Double? = nil, kcalGoal: Double? = nil, proteinG: Double? = nil, carbsG: Double? = nil, fatG: Double? = nil, mealsLogged: Int? = nil) {
+    /// W-B77: grams, the SUM of the day's YAZIO food items (`fiber_g` / `sugar_g`); nil on old
+    /// hubs and on days no item carried a value — never 0 for unknown.
+    public var fiberG, sugarG: Double?
+    public init(date: String, kcalConsumed: Double? = nil, kcalGoal: Double? = nil, proteinG: Double? = nil, carbsG: Double? = nil, fatG: Double? = nil, mealsLogged: Int? = nil,
+                fiberG: Double? = nil, sugarG: Double? = nil) {
         self.date = date; self.kcalConsumed = kcalConsumed; self.kcalGoal = kcalGoal; self.proteinG = proteinG; self.carbsG = carbsG; self.fatG = fatG; self.mealsLogged = mealsLogged
+        self.fiberG = fiberG; self.sugarG = sugarG
     }
 }
 

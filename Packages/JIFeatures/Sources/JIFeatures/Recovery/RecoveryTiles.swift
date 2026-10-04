@@ -53,10 +53,9 @@ public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryT
 }
 
 public nonisolated func recoveryNightLabel(_ day: String) -> String {
-    guard let d = recoveryTrendDate(day) else { return day }
-    var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+    guard let k = DayKey(iso: day) else { return day } // W-FIX13 F-1: the key's own weekday
     let symbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    return symbols[c.component(.weekday, from: d) - 1]
+    return symbols[k.weekday - 1]
 }
 
 public nonisolated func recoveryHrvNights(days: [RecoveryDay]) -> [NormalBarPoint] { recoveryNights(days: days, metric: .hrv) }

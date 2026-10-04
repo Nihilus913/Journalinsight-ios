@@ -68,7 +68,8 @@ targets:
         NSCalendarsWriteOnlyAccessUsageDescription: "Planned training sessions go into your calendar as all-day events. JournalInsight only adds events; it never reads your calendar." # W-B96 (B-96)
         # W8-L4 (P-hub-watchdog): `OutboxRetryScheduler.refreshTaskIdentifier` — the BGAppRefreshTask
         # that retries pending outbox rows (weigh-in, gate respond, session feel) off-foreground.
-        BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh]
+        # W-ONDEVICE O-9: `OnDevicePrewarm.taskIdentifier` — the ~04:45 on-device verdict pre-warm.
+        BGTaskSchedulerPermittedIdentifiers: [toby913.JournalInsight.outboxRefresh, toby913.JournalInsight.verdictPrewarm]
         UIBackgroundModes: [fetch]
         # W9.5-L4 (P-today): rotation is a supported feature, not an accident of a missing key —
         # portrait + both landscapes (no upside-down on a phone; NOT `UIRequiresFullScreen`, the

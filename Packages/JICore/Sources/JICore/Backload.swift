@@ -3,7 +3,7 @@ import Foundation
 // W2h frozen contract: the HealthKit backloader (JIHealthKit) implements `BackloadRunning`;
 // the Settings UI (JIFeatures) drives it through the protocol only. Neither side edits this file.
 
-/// Inclusive day range to backload, hub-local dates (Europe/Zurich).
+/// Inclusive day range to backload, hub-local dates (`DayKey.hubZone`).
 public struct BackloadRange: Sendable, Equatable {
     public var from: Date
     public var to: Date

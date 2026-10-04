@@ -162,6 +162,7 @@ public enum SettingsRegistry {
         // build at all, which is what keeps the `developer` group off Toby's phone.
         #if DEBUG
         sections.append(ProviderSection())
+        sections.append(OnDeviceVerdictSection())   // W-ONDEVICE O-10: dual-run parity
         #endif
         return sections
     }()

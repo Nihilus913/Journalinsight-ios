@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 
 /// Ported verbatim from `mobile/src/journal/streak.ts`. `nonisolated` (JIFeatures defaults to
 /// `MainActor` isolation — CONTEXT §3 / memory `project_jidesign_isolation_gotcha`) since this is
@@ -15,20 +16,19 @@ public nonisolated enum JournalStreak {
 
     private static func dayKey(_ s: String) -> String { String(s.prefix(10)) }
 
-    /// Calendar-day arithmetic — `date` here is always a `yyyy-MM-dd` wall-clock day in the hub's
-    /// zone, so this goes through `JournalCalendarZurich` (W9.5 L3), never the device calendar:
-    /// RN's local `Date` getters were the porting source, but the hub's day boundary is Zurich.
+    /// Calendar-day arithmetic — `date` here is always a `yyyy-MM-dd` wall-clock day in the phone's
+    /// zone (W-FIX13 F-1: `DayKey.calendar()`, the same zone the hub keys "today" by via `X-JI-TZ`).
     private static func addDays(_ iso: String, _ n: Int) -> String {
         let parts = iso.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return iso }
         var comps = DateComponents(year: parts[0], month: parts[1], day: parts[2] + n)
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         guard let date = calendar.date(from: comps) else { return iso }
         comps = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", comps.year ?? parts[0], comps.month ?? parts[1], comps.day ?? parts[2])
     }
 
-    private static func localISO(_ d: Date) -> String { JournalCalendarZurich.isoDay(d) }
+    private static func localISO(_ d: Date) -> String { DayKey(date: d).iso }
 
     public static func computeStreak(dates: [String], today: Date) -> Stats {
         let set = Set(dates.map(dayKey))
@@ -53,7 +53,7 @@ public nonisolated enum JournalStreak {
         }
 
         // Current Mon–Sun week.
-        let weekday = JournalCalendarZurich.calendar.component(.weekday, from: today) // Sun=1...Sat=7
+        let weekday = DayKey.calendar().component(.weekday, from: today) // Sun=1...Sat=7
         let dow = (weekday + 5) % 7 // Mon=0
         let monday = addDays(todayISO, -dow)
         let sunday = addDays(monday, 6)

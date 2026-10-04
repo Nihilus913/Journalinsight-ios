@@ -60,7 +60,7 @@ public final class HealthBackloadViewModel {
         runner: any BackloadRunning,
         now: @escaping () -> Date = Date.init,
         hrvPrefs: UserDefaults? = UserDefaults(suiteName: "group.toby913.JournalInsight"),
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = DayKey.zone
     ) {
         self.runner = runner
         self.now = now
@@ -86,8 +86,8 @@ public final class HealthBackloadViewModel {
     }
 
     public var defaultRange: BackloadRange {
-        let zurich = TimeZone(identifier: "Europe/Zurich") ?? .current
-        let from = DayKey(iso: "2025-05-27")?.startDate(in: zurich) ?? now()
+        // W-FIX13 F-1: the epoch day starts at midnight in the phone's zone (injected `timeZone`).
+        let from = DayKey(iso: "2025-05-27")?.startDate(in: timeZone) ?? now()
         return BackloadRange(from: from, to: now())
     }
 

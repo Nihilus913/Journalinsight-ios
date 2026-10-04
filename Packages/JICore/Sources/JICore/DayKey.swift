@@ -8,7 +8,7 @@ import Foundation
 /// `TimeZone.current` — so days, the morning window and the training schedule move with Toby
 /// when he travels. The hub keys its own "today" by the same zone (the app sends `X-JI-TZ`, HT
 /// `app/shared/days.py`). Every zone-dependent entry point takes `in zone:` (default
-/// `DayKey.zone`) so tests inject one (`Europe/Zurich` for the card's cases).
+/// `DayKey.zone`) so tests inject one (the hub's home zone for the card's cases).
 ///
 /// Day arithmetic (`adding(days:)`, `days(to:)`, `mondayOfWeek`) is calendar-only and
 /// zone-free: it never steps by `86_400` seconds, so DST nights cannot skip or repeat a day.
@@ -19,10 +19,15 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
     /// The production zone: the phone's current time zone (D1).
     public static var zone: TimeZone { .current }
 
+    /// The hub's backload wire zone (W2h contract): `/api/v1/vitals/backload` keys bare
+    /// `yyyy-MM-dd` dates and month chunks in the hub's own zone, which does NOT follow the
+    /// phone. The one fixed-zone constant in the app (W-FIX13 F-1); never use it for a screen's day.
+    public static let hubZone = TimeZone(identifier: "Europe/Zurich")! // hub backload wire zone, not a phone day key (F-1)
+
     /// Gregorian in UTC — only used for zone-free day arithmetic on the key's components.
     private static let civil: Calendar = {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC")!
+        cal.timeZone = TimeZone(identifier: "UTC")! // civil calendar for zone-free day arithmetic + labels (F-1)
         return cal
     }()
 
@@ -30,6 +35,18 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = zone
         return cal
+    }
+
+    /// Gregorian in `zone` (default: the phone's) — for screens that bucket instants into days
+    /// (W-FIX13 F-1: the Journal, the backload range), never a fixed UTC / Zurich calendar.
+    public static func calendar(in zone: TimeZone = DayKey.zone) -> Calendar { calendar(zone) }
+
+    /// A `DateFormatter` that renders instants in `zone` (default: the phone's).
+    public static func formatter(_ format: String, in zone: TimeZone = DayKey.zone) -> DateFormatter {
+        let f = DateFormatter()
+        f.timeZone = zone
+        f.dateFormat = format
+        return f
     }
 
     private init(y: Int, m: Int, d: Int) {
@@ -91,6 +108,45 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
     public var mondayOfWeek: DayKey {
         let weekday = Self.civil.component(.weekday, from: civilDate) // 1 = Sunday … 7 = Saturday
         return adding(days: -((weekday + 5) % 7))
+    }
+
+    // MARK: - Zone-free labels (W-FIX13 F-1)
+    //
+    // A hub day key has no time zone: "2026-10-04" must print as 4 Oct in every zone. These format
+    // the key's civil anchor in the civil (UTC) calendar, so no screen re-creates a UTC formatter.
+
+    /// Noon of this day in the civil calendar — a fixed instant for labels and chart x-values;
+    /// format it only through the helpers below (or a UTC-zoned style).
+    public var labelAnchor: Date { civilDate }
+
+    /// Day of week, 1 = Sunday … 7 = Saturday.
+    public var weekday: Int { Self.civil.component(.weekday, from: civilDate) }
+
+    /// The day formatted with a fixed `dateFormat` (e.g. "d MMM").
+    public func string(format: String, locale: Locale = Locale(identifier: "en_US_POSIX")) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = Self.civil
+        f.timeZone = Self.civil.timeZone
+        f.dateFormat = format
+        return f.string(from: civilDate)
+    }
+
+    /// The day formatted from a localized template (e.g. "EEE d MMM").
+    public func string(template: String, locale: Locale = .autoupdatingCurrent) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = Self.civil
+        f.timeZone = Self.civil.timeZone
+        f.setLocalizedDateFormatFromTemplate(template)
+        return f.string(from: civilDate)
+    }
+
+    /// The day formatted with a `Date.FormatStyle` (its zone is replaced by the civil one).
+    public func formatted(_ style: Date.FormatStyle) -> String {
+        var s = style
+        s.timeZone = Self.civil.timeZone
+        return civilDate.formatted(s)
     }
 
     public static func < (a: DayKey, b: DayKey) -> Bool { a.iso < b.iso }

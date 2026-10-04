@@ -62,5 +62,7 @@ public struct RecoveryDay: Codable, Sendable, Equatable {
 }
 public struct RecoveryReport: Codable, Sendable, Equatable {
     public var days: [RecoveryDay]
-    public init(days: [RecoveryDay]) { self.days = days }
+    /// W-FIX13 F-7: the Today tile's night; nil from a hub that predates it.
+    public var lastNight: RecoveryLastNight?
+    public init(days: [RecoveryDay], lastNight: RecoveryLastNight? = nil) { self.days = days; self.lastNight = lastNight }
 }

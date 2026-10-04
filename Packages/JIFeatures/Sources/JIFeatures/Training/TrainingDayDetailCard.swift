@@ -104,9 +104,8 @@ public struct TrainingDayDetailCard: View {
     private var formattedDate: String {
         let parts = date.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return date }
-        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC") ?? .current
-        guard let d = cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) else { return date }
-        return d.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        guard let day = DayKey(iso: date) else { return date } // W-FIX13 F-1: the key's own label
+        return day.formatted(.dateTime.weekday(.wide).day().month(.wide))
     }
 }
 

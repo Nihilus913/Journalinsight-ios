@@ -281,15 +281,22 @@ public final class HealthKitUploader: Sendable {
     /// uploads on each HealthKit-delivered update. Returns the live `HKObserverQuery`s so the
     /// caller (e.g. `AppEnvironment`) can retain them for the process lifetime — `HKHealthStore`
     /// does not retain observer queries itself.
+    ///
+    /// W-ONDEVICE O-9: `onNight` (the on-device verdict trigger, nil = not enabled) is awaited
+    /// after every sleep / native-RMSSD delivery, before `completion()`, and those two types are
+    /// then observed at `.immediate` (the uploader's own `.hourly` lets iOS batch a night for hours).
     @discardableResult
-    public func startBackgroundDelivery() async throws -> [HKObserverQuery] {
+    public func startBackgroundDelivery(onNight: (@Sendable () async -> Void)? = nil) async throws -> [HKObserverQuery] {
         var queries: [HKObserverQuery] = []
         for spec in specs {
-            try await store.enableBackgroundDelivery(for: spec.sampleType, frequency: spec.backgroundFrequency)
+            let nightHook = Self.isNightType(spec.sampleType) ? onNight : nil
+            let frequency: HKUpdateFrequency = nightHook != nil ? .immediate : spec.backgroundFrequency
+            try await store.enableBackgroundDelivery(for: spec.sampleType, frequency: frequency)
             let query = store.startObserving(spec.sampleType) { [weak self] completion in
                 Task { [weak self] in
                     defer { completion() }
                     _ = try? await self?.sync(spec)
+                    await nightHook?()
                 }
             }
             queries.append(query)
@@ -306,6 +313,13 @@ public final class HealthKitUploader: Sendable {
             queries.append(query)
         }
         return queries
+    }
+
+    /// The types whose delivery completes a night for the on-device verdict (O-9).
+    static func isNightType(_ type: HKSampleType) -> Bool {
+        if type.identifier == HKCategoryTypeIdentifier.sleepAnalysis.rawValue { return true }
+        if let rmssd = HKReadKind.hrvRMSSDQuantityType, type.identifier == rmssd.identifier { return true }
+        return false
     }
 
     /// Runs every configured metric once (e.g. a manual "sync now" or the initial post-connect

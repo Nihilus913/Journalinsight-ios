@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 import JIPersistence
 
 /// Ported verbatim from `mobile/src/journal/calendar.ts` + `calendarScope.ts` (E13-2).
@@ -6,7 +7,7 @@ import JIPersistence
 public nonisolated enum JournalCalendar {
     /// 42-cell, Monday-first month grid; `nil` cells pad before day 1 / after the last day.
     public static func monthGrid(month: Date) -> [String?] {
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         let comps = calendar.dateComponents([.year, .month], from: month)
         guard let year = comps.year, let m = comps.month,
               let first = calendar.date(from: DateComponents(year: year, month: m, day: 1)),
@@ -51,11 +52,11 @@ public nonisolated enum JournalCalendar {
         }
     }
 
-    public static func toISO(_ d: Date) -> String { JournalCalendarZurich.isoDay(d) }
+    public static func toISO(_ d: Date) -> String { DayKey(date: d).iso }
 
     /// Monday of the week containing `d` (matches `monthGrid`'s Mon-first lead padding).
     public static func startOfWeek(_ d: Date) -> Date {
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         let weekday = calendar.component(.weekday, from: d) // Sun=1...Sat=7
         let dow = (weekday + 5) % 7 // Mon=0..Sun=6
         return calendar.date(byAdding: .day, value: -dow, to: calendar.startOfDay(for: d)) ?? d
@@ -65,7 +66,7 @@ public nonisolated enum JournalCalendar {
         if scope == .month { return monthGrid(month: anchor) }
         let n = dayCount(scope)
         let start = startOfWeek(anchor)
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         return (0..<n).map { i in
             guard let d = calendar.date(byAdding: .day, value: i, to: start) else { return nil }
             return toISO(d)
@@ -74,7 +75,7 @@ public nonisolated enum JournalCalendar {
 
     /// Moves `anchor` by one scope-length in `dir` (prev = -1 / next = 1).
     public static func shiftAnchor(_ scope: Scope, anchor: Date, dir: Int) -> Date {
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         if scope == .month {
             let comps = calendar.dateComponents([.year, .month], from: anchor)
             guard let year = comps.year, let m = comps.month,
@@ -88,14 +89,14 @@ public nonisolated enum JournalCalendar {
     }
 
     private static func fmtShort(_ iso: String, withYear: Bool) -> String {
-        guard let date = JournalCalendarZurich.date(fromISODay: iso) else { return iso }
-        return JournalCalendarZurich.formatter(withYear ? "MMM d, yyyy" : "MMM d").string(from: date)
+        guard let date = DayKey(iso: iso)?.startDate else { return iso }
+        return DayKey.formatter(withYear ? "MMM d, yyyy" : "MMM d").string(from: date)
     }
 
     /// Human-readable range label for the calendar header.
     public static func rangeLabel(_ scope: Scope, anchor: Date) -> String {
         if scope == .month {
-            return JournalCalendarZurich.formatter("MMMM yyyy").string(from: anchor)
+            return DayKey.formatter("MMMM yyyy").string(from: anchor)
         }
         let days = scopeDays(scope, anchor: anchor).compactMap { $0 }
         guard let first = days.first, let last = days.last else { return "" }
@@ -144,20 +145,20 @@ public nonisolated struct JournalWeekDot: Sendable, Equatable, Identifiable {
 
 public nonisolated func journalWeekDots(dates: [String], today: Date) -> [JournalWeekDot] {
     let set = Set(dates.map { String($0.prefix(10)) })
-    let calendar = JournalCalendarZurich.calendar
-    let todayISO = JournalCalendarZurich.isoDay(today)
+    let calendar = DayKey.calendar()
+    let todayISO = DayKey(date: today).iso
     let monday = JournalCalendar.startOfWeek(today)
     let initials = ["M", "T", "W", "T", "F", "S", "S"]
     return (0..<7).map { i in
         let d = calendar.date(byAdding: .day, value: i, to: monday) ?? monday
-        let iso = JournalCalendarZurich.isoDay(d)
+        let iso = DayKey(date: d).iso
         return JournalWeekDot(id: iso, initial: initials[i], written: set.contains(iso),
                               isToday: iso == todayISO, isFuture: iso > todayISO)
     }
 }
 
 public nonisolated func journalTodayWritten(dates: [String], today: Date) -> Bool {
-    let todayISO = JournalCalendarZurich.isoDay(today)
+    let todayISO = DayKey(date: today).iso
     return dates.contains { $0.hasPrefix(todayISO) }
 }
 
@@ -194,7 +195,7 @@ public nonisolated struct JournalPeriodStats: Sendable, Equatable {
 
 /// First day (inclusive) and day count of the `tab` period containing `anchor`.
 nonisolated func journalPeriod(_ tab: JournalCalendarTab, anchor: Date) -> (start: Date, days: Int) {
-    let calendar = JournalCalendarZurich.calendar
+    let calendar = DayKey.calendar()
     switch tab {
     case .week:
         return (JournalCalendar.startOfWeek(anchor), 7)
@@ -210,7 +211,7 @@ nonisolated func journalPeriod(_ tab: JournalCalendarTab, anchor: Date) -> (star
 }
 
 public nonisolated func journalShiftAnchor(_ tab: JournalCalendarTab, anchor: Date, dir: Int) -> Date {
-    let calendar = JournalCalendarZurich.calendar
+    let calendar = DayKey.calendar()
     switch tab {
     case .week: return calendar.date(byAdding: .day, value: 7 * dir, to: anchor) ?? anchor
     case .month: return JournalCalendar.shiftAnchor(.month, anchor: anchor, dir: dir)
@@ -221,15 +222,15 @@ public nonisolated func journalShiftAnchor(_ tab: JournalCalendarTab, anchor: Da
 public nonisolated func journalCalendarTitle(_ tab: JournalCalendarTab, anchor: Date) -> String {
     switch tab {
     case .week: JournalCalendar.rangeLabel(.week, anchor: anchor)
-    case .month: JournalCalendarZurich.formatter("MMMM").string(from: anchor)
-    case .year: JournalCalendarZurich.formatter("yyyy").string(from: anchor)
+    case .month: DayKey.formatter("MMMM").string(from: anchor)
+    case .year: DayKey.formatter("yyyy").string(from: anchor)
     }
 }
 
 private nonisolated func journalPeriodISOBounds(_ tab: JournalCalendarTab, anchor: Date) -> (first: String, last: String, days: Int, start: Date) {
     let (start, days) = journalPeriod(tab, anchor: anchor)
-    let end = JournalCalendarZurich.calendar.date(byAdding: .day, value: days - 1, to: start) ?? start
-    return (JournalCalendarZurich.isoDay(start), JournalCalendarZurich.isoDay(end), days, start)
+    let end = DayKey.calendar().date(byAdding: .day, value: days - 1, to: start) ?? start
+    return (DayKey(date: start).iso, DayKey(date: end).iso, days, start)
 }
 
 private nonisolated func journalAverageMood(_ entries: [Entry], first: String, last: String) -> Double? {
@@ -240,15 +241,15 @@ private nonisolated func journalAverageMood(_ entries: [Entry], first: String, l
 
 public nonisolated func journalPeriodStats(entries: [Entry], tab: JournalCalendarTab, anchor: Date, today: Date) -> JournalPeriodStats {
     let b = journalPeriodISOBounds(tab, anchor: anchor)
-    let todayISO = JournalCalendarZurich.isoDay(today)
+    let todayISO = DayKey(date: today).iso
     let upTo = min(b.last, todayISO)
     let entryDays = Set(entries.map { String($0.date.prefix(10)) }.filter { $0 >= b.first && $0 <= upTo }).count
     let elapsed: Int
     if todayISO < b.first { elapsed = 0 }
     else if todayISO > b.last { elapsed = b.days }
     else {
-        let t = JournalCalendarZurich.date(fromISODay: todayISO) ?? today
-        elapsed = (JournalCalendarZurich.calendar.dateComponents([.day], from: b.start, to: t).day ?? 0) + 1
+        let t = DayKey(iso: todayISO)?.startDate ?? today
+        elapsed = (DayKey.calendar().dateComponents([.day], from: b.start, to: t).day ?? 0) + 1
     }
     let average = journalAverageMood(entries, first: b.first, last: b.last)
     let prev = journalPeriodISOBounds(tab, anchor: journalShiftAnchor(tab, anchor: b.start, dir: -1))

@@ -41,14 +41,10 @@ public nonisolated enum GoalsBoard {
     static let kcalPerKg = 7700.0
     static let minTrackingDays = 4
 
-    /// UTC midnight of the day (paired with the UTC `short` label below).
-    private static func day(_ iso: String) -> Date? { DayKey(iso: iso)?.startDate(in: .gmt) }
+    /// W-FIX13 F-1: the hub day keys stay `DayKey`s (zone-free arithmetic and labels).
+    private static func day(_ iso: String) -> DayKey? { DayKey(iso: iso) }
 
-    private static func short(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_GB"); f.timeZone = TimeZone(identifier: "UTC"); f.dateFormat = "d MMM"
-        return f.string(from: date)
-    }
+    private static func short(_ day: DayKey) -> String { day.string(format: "d MMM", locale: Locale(identifier: "en_GB")) }
 
     private static func kg(_ v: Double) -> String { String(format: "%.1f", v) }
 
@@ -63,7 +59,7 @@ public nonisolated enum GoalsBoard {
                                paceLine: "Pace — \(JIMissingReason.noData.rawValue)")
         guard let latest = latestKg, latest.isFinite, latest > 0, let deficit = avgDeficit7d, deficit.isFinite,
               trackingDays >= minTrackingDays, let targetDate, let now = day(today) else { return noPace }
-        let daysLeft = targetDate.timeIntervalSince(now) / 86_400
+        let daysLeft = Double(now.days(to: targetDate))
         guard daysLeft > 0 else { return noPace }
         let projected = latest - deficit * daysLeft / kcalPerKg
         let perWeek = abs(latest - w.targetKg) / (daysLeft / 7)

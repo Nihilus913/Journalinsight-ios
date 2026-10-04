@@ -78,7 +78,7 @@ public nonisolated enum SettingsRoot {
         #if DEBUG
         rows.append(.init(id: "developer", group: .app,
                           kind: .push(title: "Developer", systemImage: "hammer", placeholder: nil),
-                          sectionIds: ["l3.provider"]))
+                          sectionIds: ["l3.provider", "ondevice.verdict"]))
         #endif
         return rows
     }()

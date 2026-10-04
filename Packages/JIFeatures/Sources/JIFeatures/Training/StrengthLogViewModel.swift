@@ -66,6 +66,18 @@ public nonisolated enum StrengthMuscles {
     }
 }
 
+/// W-FIX13 F-3c — how a lift is loaded. A dumbbell's logged weight is ONE dumbbell (per hand)
+/// with no bar; everything else keeps the barbell math (bar + plates on two sides).
+public nonisolated enum StrengthLoad: Sendable, Equatable {
+    case barbell
+    case dumbbell
+
+    public static func of(_ exerciseKey: String) -> StrengthLoad {
+        let name = Progression.normalizedName(exerciseKey)
+        return name.hasPrefix("db ") || name.contains("dumbbell") ? .dumbbell : .barbell
+    }
+}
+
 /// The plate inventory the logger computes with (decision: standard plates + the 1.25 / 2.5 kg
 /// microplates by default, editable). Stored in `PrefStore`.
 public nonisolated struct PlateInventory: Codable, Sendable, Equatable {
@@ -123,6 +135,7 @@ public final class StrengthLogViewModel {
     private let prefs: PrefStore?
     private let today: () -> String
     private let now: () -> Date
+    @ObservationIgnored nonisolated(unsafe) private var drainObserver: (any NSObjectProtocol)?   // unsafe: written once in init, read in deinit only
 
     public init(lifts: [StrengthLogLift], sessionId: Int?, sessionName: String?, store: StrengthSessionLogStore,
                 outbox: Outbox?, provider: (any TrainingProviding)?, prefs: PrefStore?,
@@ -132,8 +145,15 @@ public final class StrengthLogViewModel {
         self.queue = (outbox != nil && provider != nil) ? StrengthOutbox(outbox: outbox!, provider: provider!) : nil
         self.autoSuggest = progressionAutoSuggest(prefs: prefs)
         self.plates = ((try? prefs?.get(PlateInventory.prefKey, as: PlateInventory.self)) ?? nil) ?? .default
+        // F-3a: the app-wide `OutboxDrainer` holds its own `StrengthOutbox`; when ANY pass ends the
+        // pending count (and its note) is re-read, so the note never outlives the queue.
+        drainObserver = NotificationCenter.default.addObserver(forName: StrengthOutbox.didDrain, object: nil, queue: nil) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshPending() }
+        }
         self.cards = lifts.map { Card(lift: $0, sets: [], defaults: LastSetDefaults.resolve(sessionSets: [], planKg: $0.nextKg ?? $0.currentKg, planReps: progressionRepsTarget($0.repsTarget), lastSessionSets: []), lastTime: []) }
     }
+
+    deinit { if let drainObserver { NotificationCenter.default.removeObserver(drainObserver) } }
 
     // MARK: lifecycle
 
@@ -152,10 +172,27 @@ public final class StrengthLogViewModel {
     }
 
     /// Gap #29: when the phone has no earlier session of a lift, ask the hub for its last sets.
+    /// F-3b: "Last time" is never today — the hub's last-sets is its NEWEST session, which is today's
+    /// once today's sets reached it; then the newest hub session dated before today is used.
     private func fillLastTimeFromHub() async {
         guard let provider else { return }
+        let day = today()
+        let todaysIds = Set(((try? store.sessions(from: day, to: day)) ?? []).flatMap { (try? store.sets(sessionClientId: $0.clientId)) ?? [] }.map(\.clientId))
+        var earlier: [StrengthSessionOut]?
         for i in cards.indices where cards[i].lastTime.isEmpty {
-            guard let sets = try? await provider.strengthLastSets(exerciseKey: cards[i].lift.exerciseKey), !sets.isEmpty else { continue }
+            let key = cards[i].lift.exerciseKey
+            guard var sets = try? await provider.strengthLastSets(exerciseKey: key), !sets.isEmpty else { continue }
+            if sets.contains(where: { $0.clientId.map(todaysIds.contains) == true }) {
+                if earlier == nil {
+                    earlier = ((try? await provider.strengthSessions(from: "2000-01-01", to: day)) ?? [])
+                        .filter { ($0.date ?? day) < day }
+                        .sorted { ($0.date ?? "", $0.startedAt ?? "") > ($1.date ?? "", $1.startedAt ?? "") }
+                }
+                let wanted = Progression.normalizedName(key)
+                sets = (earlier ?? []).lazy.map { ($0.sets ?? []).filter { Progression.normalizedName($0.exerciseKey) == wanted } }
+                    .first { !$0.isEmpty }?.sorted { ($0.setIndex ?? 0) < ($1.setIndex ?? 0) } ?? []
+                guard !sets.isEmpty else { continue }
+            }
             cards[i].lastTime = sets.map { s in
                 StrengthSetLog(clientId: s.clientId ?? UUID().uuidString.lowercased(), sessionClientId: "", exerciseKey: s.exerciseKey,
                                exerciseId: s.exerciseId, setIndex: s.setIndex ?? 0, kind: s.kind == "timed" ? .timed : .reps,
@@ -255,6 +292,15 @@ public final class StrengthLogViewModel {
         return PlateMath.perSide(totalKg: totalKg, barKg: plates.barKg, pairs: plates.pairs)
     }
 
+    /// F-3c: the plates for `kg` as THIS lift is loaded — a dumbbell is per hand, no bar.
+    public func plates(for kg: Double?, exerciseKey: String) -> [Double]? {
+        guard let kg else { return nil }
+        switch StrengthLoad.of(exerciseKey) {
+        case .barbell: return plates(for: kg)
+        case .dumbbell: return PlateMath.perSideDumbbell(perHandKg: kg, pairs: plates.pairs)
+        }
+    }
+
     public func savePlates(_ inventory: PlateInventory) {
         guard inventory.barKg > 0, !inventory.pairs.isEmpty else { return }
         plates = inventory
@@ -311,7 +357,11 @@ public final class StrengthLogViewModel {
         Task { await sync() }
     }
 
-    private func refreshPending() { pendingCount = queue?.pendingCount ?? 0 }
+    /// F-3a: an empty queue has nothing pending — the note goes, whoever drained it.
+    private func refreshPending() {
+        pendingCount = queue?.pendingCount ?? 0
+        if pendingCount == 0, syncNote?.hasPrefix("The hub refused") != true { syncNote = nil }
+    }
 
     private static func kg(_ v: Double?) -> Double? { v.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } }
 

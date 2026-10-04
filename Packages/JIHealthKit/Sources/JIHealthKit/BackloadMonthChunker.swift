@@ -1,7 +1,7 @@
 import Foundation
 import JICore
 
-/// Splits a `BackloadRange` into calendar-month chunks (Europe/Zurich), in order, each ≤ 31 days
+/// Splits a `BackloadRange` into calendar-month chunks (hub zone, `DayKey.hubZone`), in order, each ≤ 31 days
 /// so a single hub request never exceeds the contract's 92-day cap. `resumeFrom` (the persisted
 /// cursor — the last successfully-written day) advances the start past what's already done.
 ///
@@ -37,14 +37,14 @@ enum BackloadMonthChunker {
         "workout_hr", "workout_routes", // W11 (B-30 P4), hub contract v4
     ]
 
-    private static var zurichCalendar: Calendar {
+    private static var hubCalendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = BackloadDateParsing.zurich
+        cal.timeZone = BackloadDateParsing.hubZone
         return cal
     }
 
     static func chunks(for range: BackloadRange, resumeFrom cursor: Date?) -> [Chunk] {
-        let cal = zurichCalendar
+        let cal = hubCalendar
         var start = range.from
         if let cursor, let next = cal.date(byAdding: .day, value: 1, to: cursor) {
             start = max(start, next)

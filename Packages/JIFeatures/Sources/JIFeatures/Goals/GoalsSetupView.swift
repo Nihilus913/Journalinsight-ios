@@ -38,14 +38,11 @@ public nonisolated func goalsSetupISO(_ date: Date, timeZone: TimeZone = .autoup
 
 /// "2026-10-31" → "31 Oct 2026" (the VoiceOver value and the row when no picker is shown).
 public nonisolated func goalsSetupDateLabel(_ iso: String) -> String {
-    guard let date = goalsSetupDate(iso, timeZone: TimeZone(identifier: "UTC")!) else {
-        return iso.trimmingCharacters(in: .whitespaces).isEmpty ? "No target date" : iso
+    let trimmed = iso.trimmingCharacters(in: .whitespaces)
+    guard trimmed.count == 10, let day = DayKey(iso: trimmed) else { // W-FIX13 F-1: the key's own label
+        return trimmed.isEmpty ? "No target date" : iso
     }
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_GB")
-    f.timeZone = TimeZone(identifier: "UTC")
-    f.dateFormat = "d MMM yyyy"
-    return f.string(from: date)
+    return day.string(format: "d MMM yyyy", locale: Locale(identifier: "en_GB"))
 }
 
 public struct GoalsSetupView: View {

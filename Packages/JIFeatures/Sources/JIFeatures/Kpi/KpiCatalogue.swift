@@ -21,16 +21,22 @@ public nonisolated func isNutritionKpi(_ id: KpiMetricId) -> Bool { kpiCatalogue
 /// `KpiMetricId`s, so the badge cannot put them on Today yet. W-FIX7 N-2: their value is Apple
 /// Health's newest day (YAZIO writes fibre + sugar to Health), "as of" its day when not today;
 /// "— No data" when Health has neither.
+/// W-B77: `hub` = `/nutrition/daily` days (YAZIO per-product fibre / sugar sums); Health-first per
+/// W-FIX7 N-1 — the hub's newest day only when it is newer than Health's or Health has none.
 public nonisolated let kpiCatalogueExtras: [JISquareItem] = kpiCatalogueExtras(health: [], today: "")
 
-public nonisolated func kpiCatalogueExtras(health: [HealthDailyTotals], today: String) -> [JISquareItem] {
-    func square(_ id: String, _ label: String, _ symbol: String, _ field: KeyPath<HealthDailyTotals, Double?>) -> JISquareItem {
-        let reading = HealthDailyTotals.latest(field, in: health)
+public nonisolated func kpiCatalogueExtras(health: [HealthDailyTotals], today: String, hub: [NutritionDailyRow] = []) -> [JISquareItem] {
+    func square(_ id: String, _ label: String, _ symbol: String, _ field: KeyPath<HealthDailyTotals, Double?>,
+                _ hubField: KeyPath<NutritionDailyRow, Double?>) -> JISquareItem {
+        let h = HealthDailyTotals.latest(field, in: health)
+        let y = hub.sorted { $0.date > $1.date }.lazy
+            .compactMap { r in r[keyPath: hubField].map { HealthDatedValue(value: $0, date: r.date) } }.first
+        let reading: HealthDatedValue? = if let y, !y.date.isEmpty, h.map({ y.date > $0.date }) ?? true { y } else { h }
         return JISquareItem(id: id, label: label, systemImage: symbol, value: reading?.value, decimals: 0, unit: reading == nil ? nil : "g",
                             goalText: reading.flatMap { kpiAsOfLabel(valueDate: $0.date, today: today) },
                             status: reading == nil ? .missing(.noData) : nil, badge: .none)   // W-FIX11 H2-10: display-only
     }
-    return [square("fibre", "Fibre", "leaf", \.fiberG), square("sugar", "Sugar", "drop", \.sugarG)]
+    return [square("fibre", "Fibre", "leaf", \.fiberG, \.fiberG), square("sugar", "Sugar", "drop", \.sugarG, \.sugarG)]
 }
 
 /// W-FIX1 BUG-05: a KPI square's value and the day it was read on, so a square never presents an
@@ -62,7 +68,8 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
 public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [KpiMetricId], value: (KpiMetricId) -> KpiReading?,
                                           today: String, goalCaption: (KpiMetricId, Double?) -> String?,
                                           load: RecoveryLoadReading?,
-                                          health: [HealthDailyTotals] = HealthDailyTotalsFeed.shared.latest) -> [JISquareItem] {
+                                          health: [HealthDailyTotals] = HealthDailyTotalsFeed.shared.latest,
+                                          hub: [NutritionDailyRow] = []) -> [JISquareItem] {
     func square(_ id: KpiMetricId, badge: JISquareBadge) -> JISquareItem {
         let def = KpiMetrics.def(id)
         let reading = kpiHealthFirstReading(id, hub: value(id), health: health)
@@ -82,7 +89,7 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
     // W-FIX11 H2-10: at the cap a "+" did nothing — no badge then (the On Today note says why).
     let addable: JISquareBadge = visible.count < KpiSelection.maxSelected ? .add : .none
     let rest = KpiMetricId.allCases.filter { kpiCatalogueGroup($0) == group && !visible.contains($0) }.map { square($0, badge: addable) }
-    return group == .nutrition ? rest + kpiCatalogueExtras(health: health, today: today) : rest
+    return group == .nutrition ? rest + kpiCatalogueExtras(health: health, today: today, hub: hub) : rest
 }
 
 /// W-FIX7 fixer N-1: My KPIs' Calories / Protein / Carbs / Fat read Apple Health's newest day first
