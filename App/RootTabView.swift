@@ -195,6 +195,9 @@ struct RootTabView: View {
     // onDisk()'s default name) — GRDB's `DatabasePool` supports multiple pool instances against one
     // file, same as `prefs`/`cache` already being separate pools today.
     @State private var journalDB: AppDatabase?
+    /// W-B96 (B-96): planned sessions → iPhone Calendar (write-only, all-day). Built once; the
+    /// Settings model and the foreground re-sync share it.
+    @State private var calendarExport: CalendarExportModel?
     @State private var journalVault: VaultManager?
     // B-57 W1 T27: More → Mind. Built after the vault unlocks (Export does the same), so
     // encrypted check-in / event / WHO-5 rows decode.
@@ -382,9 +385,11 @@ struct RootTabView: View {
         }
         // W-FIX2 DEV-04: the first launch (or return) after local midnight opens Decide.
         .onAppear { evaluateGate() }
+        .onAppear { syncCalendarExport() }   // W-B96: cold launch writes what is new (when on)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 evaluateGate()
+                syncCalendarExport()   // W-B96: no-op unless the Calendar toggle is on
                 if let targetsModel { Task { await targetsModel.pushIfPending() } }   // W-TGT: queued body
                 goalsSetupModel?.refreshHubPending()   // W-FIX5 DEV-15
             }
@@ -1253,11 +1258,32 @@ struct RootTabView: View {
             todayChips: { todayModel?.squareChips ?? [] },
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
             weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },
-            syncAction: { try await env.syncNow() }
+            syncAction: { try await env.syncNow() },
+            calendarExport: calendarExportModel()
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()
         }
+    }
+
+    /// W-B96 (B-96): the one calendar export model. Weeks = the hub's served `/planning/week` for
+    /// the 14-day window (cached per Monday, so a foreground without the hub still writes).
+    private func calendarExportModel() -> CalendarExportModel {
+        if let calendarExport { return calendarExport }
+        let env = env
+        let model = CalendarExportModel(writer: EventKitEventWriter(), prefs: env.prefs, weeks: {
+            let hub = env.providerStore.map { Self.hubScreensSource(hub: env.hubProvider, dataSource: $0.provider) }
+            let training = hub as? any TrainingProviding
+            return await calendarExportWeeks(today: DayKey.today(), cache: env.cache,
+                                             fetch: training.map { tp in { start in try await tp.planWeek(start: start) } })
+        })
+        calendarExport = model
+        return model
+    }
+
+    private func syncCalendarExport() {
+        let model = calendarExportModel()
+        Task { await model.sync() }
     }
 
     /// B-55 + W-FIX2 BUG-13: routed into the ORIGINATING tab's own stack, so Back returns there;
