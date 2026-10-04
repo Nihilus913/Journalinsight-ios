@@ -357,7 +357,7 @@ public struct TrainingView: View {
         let today = model.todayDateString
         strengthLog = StrengthLogViewModel(lifts: lifts, sessionId: session?.id, sessionName: session?.name, store: store,
                                            outbox: Outbox(db: deps.db), provider: deps.provider, prefs: deps.prefs,
-                                           today: { today }, restAlert: .live)
+                                           today: { today }, restAlert: .live, reminders: deps.reminders)
         Task { _ = await RestEndAlert.requestAuthorization() }   // B-43 P1: rest-end alert permission
         strengthHistory = StrengthHistoryViewModel(store: store, provider: deps.provider, today: { today })
         showStrengthLog = true

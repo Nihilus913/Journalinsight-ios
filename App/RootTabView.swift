@@ -481,7 +481,14 @@ struct RootTabView: View {
         .environment(\.trainingWeekSummary, weekSummary)
         // A weekday assignment (or a new done session) moves the widgets' plan ring and next session now.
         .onChange(of: weekSummary) { _, _ in env.republishSnapshot() }
+        // B-43 P2: the planned-session reminder follows the week (dated one-shots per planned day).
+        .task(id: weekSummary) { await trainingNudges.weekChanged(weekSummary) }
         .onChange(of: trainingModel.map(ObjectIdentifier.init)) { _, _ in installGlancePlan() }
+    }
+
+    /// B-43 P2: the training nudges (planned session / session left open) over the real centre.
+    private var trainingNudges: WorkoutSessionReminders {
+        WorkoutSessionReminders(scheduler: ReminderScheduler(center: UNUserNotificationCenter.current()), prefs: env.prefs)
     }
 
     /// B-57 W5 (A7): the live Training model's week when the tab exists, else the cached plan (B-52 keys).
@@ -663,7 +670,7 @@ struct RootTabView: View {
     private func ensureStrengthLogDeps(store: ProviderStore) {
         guard strengthLogDeps == nil,
               let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding else { return }
-        strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs) }
+        strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs, reminders: trainingNudges) }
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the

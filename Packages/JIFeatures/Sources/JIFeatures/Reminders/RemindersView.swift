@@ -53,6 +53,7 @@ public struct RemindersView: View {
             DataCheckInSection(model: model)   // W-B102 C-6
             RemindersSafetySection(model: model)
             RemindersMedicationSection(model: model)
+            TrainingNudgesSection(model: model)   // B-43 P2
             WorkoutRemindersSection(model: model)
             EditTimeSection(model: model, editing: $editing)
         }
@@ -90,6 +91,8 @@ extension ReminderKind {
         case .dose: "Medication"
         case .gateFloor: "Readiness floor"
         case .hrCapCheck: "HR cap check"
+        case .workoutDay: "Planned session"
+        case .sessionOpen: "Session left open"
         }
     }
 
@@ -100,6 +103,8 @@ extension ReminderKind {
         case .dose: "pills"
         case .gateFloor: "gauge.with.needle"
         case .hrCapCheck: "heart.text.square"
+        case .workoutDay: "dumbbell"
+        case .sessionOpen: "timer"
         }
     }
 }

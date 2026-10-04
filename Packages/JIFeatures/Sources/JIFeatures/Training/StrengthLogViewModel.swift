@@ -144,12 +144,17 @@ public final class StrengthLogViewModel {
     private let prefs: PrefStore?
     private let today: () -> String
     private let now: () -> Date
+    /// B-43 P2: sessionOpen nudge after each set, both training nudges dropped on complete.
+    private let reminders: (any WorkoutSessionReminding)?
+    @ObservationIgnored var reminderTask: Task<Void, Never>?
     @ObservationIgnored nonisolated(unsafe) private var drainObserver: (any NSObjectProtocol)?   // unsafe: written once in init, read in deinit only
 
     public init(lifts: [StrengthLogLift], sessionId: Int?, sessionName: String?, store: StrengthSessionLogStore,
                 outbox: Outbox?, provider: (any TrainingProviding)?, prefs: PrefStore?,
-                today: @escaping () -> String, now: @escaping () -> Date = Date.init, restAlert: RestEndAlert? = nil) {
+                today: @escaping () -> String, now: @escaping () -> Date = Date.init, restAlert: RestEndAlert? = nil,
+                reminders: (any WorkoutSessionReminding)? = nil) {
         self.restAlert = restAlert
+        self.reminders = reminders
         self.sessionId = sessionId; self.sessionName = sessionName; self.store = store; self.provider = provider
         self.prefs = prefs; self.today = today; self.now = now
         self.queue = (outbox != nil && provider != nil) ? StrengthOutbox(outbox: outbox!, provider: provider!) : nil
@@ -244,6 +249,10 @@ public final class StrengthLogViewModel {
         reloadSets()
         restExercise = exerciseKey
         timer = timer.startingRest(seconds: restSeconds, at: now())
+        if let reminders {
+            let at = now()
+            reminderTask = Task { await reminders.setLogged(at: at) }
+        }
         afterWrite()
         return set
     }
@@ -292,6 +301,8 @@ public final class StrengthLogViewModel {
         self.session = try? store.session(clientId: session.clientId)
         completedAdvance = advance
         timer = timer.stopped()
+        await reminderTask?.value   // a set's nudge lands before it is dropped
+        await reminders?.sessionEnded(date: session.date)
         refreshPending()
         await sync()
     }
@@ -388,8 +399,10 @@ public nonisolated struct StrengthLogDeps: Sendable {
     public let db: AppDatabase
     public let provider: (any TrainingProviding)?
     public let prefs: PrefStore?
-    public init(db: AppDatabase, provider: (any TrainingProviding)?, prefs: PrefStore?) {
-        self.db = db; self.provider = provider; self.prefs = prefs
+    /// B-43 P2: the app's training nudges (nil = none, previews / tests).
+    public let reminders: (any WorkoutSessionReminding)?
+    public init(db: AppDatabase, provider: (any TrainingProviding)?, prefs: PrefStore?, reminders: (any WorkoutSessionReminding)? = nil) {
+        self.db = db; self.provider = provider; self.prefs = prefs; self.reminders = reminders
     }
 }
 
