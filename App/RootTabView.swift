@@ -645,6 +645,20 @@ struct RootTabView: View {
             .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
             // B-57 W3: the recovery score / normals for every screen of the stack (root and pushed).
             .environment(\.recoveryInsight, recoveryInsight)
+            // W-PLANNER fixer (PL-4/PL-5): the set logger + Watch plan sender for every screen of
+            // the stack, root AND pushed — the Planner's strength detail is a nested push (Training
+            // → Planner → Day 1, Today → Your week → Day 1) that a tab root's modifier never reaches.
+            .environment(\.strengthLogDeps, strengthLogDeps)
+            .environment(\.strengthWatchPlanSender) { StrengthMirrorCoordinator.shared.sendPlan($0) }
+    }
+
+    /// W-A10 / W-PLANNER fixer: the on-disk set logger's deps, built once by whichever screen
+    /// needs them first (Training, or Today's "Your week" → Planner). `try?`: no on-disk store
+    /// only hides "Log sets".
+    private func ensureStrengthLogDeps(store: ProviderStore) {
+        guard strengthLogDeps == nil,
+              let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding else { return }
+        strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs) }
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the
@@ -716,6 +730,8 @@ struct RootTabView: View {
                 .environment(\.openCheckIn, { showCheckIn = true })
                 // W-B102 C-7: re-evaluate the check-in rules whenever the morning (re)loads.
                 .task(id: todayModel.morning?.verdictDate ?? "") { await refreshCheckIn() }
+                // W-PLANNER fixer PL-5: Today's "Your week" opens the Planner, whose Day 1 offers Log sets.
+                .task { ensureStrengthLogDeps(store: store) }
             } else {
                 ProgressView()
                     .task { makeTodayModels(store: store) }
@@ -1127,7 +1143,7 @@ struct RootTabView: View {
                             )
                             sendToWatchModel = makeSendToWatchModel()
                             // W-B38-A A-10: `try?` — no on-disk store only hides "Log sets".
-                            strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs) }
+                            ensureStrengthLogDeps(store: store)
                         }
                 }
             } else {

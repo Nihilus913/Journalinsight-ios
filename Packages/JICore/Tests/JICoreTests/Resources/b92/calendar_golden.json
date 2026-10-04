@@ -1,0 +1,155 @@
+{
+  "month": "2026-06",
+  "today": "2026-06-20",
+  "synced_through": "2026-06-11",
+  "days": [
+    {
+      "date": "2026-06-01",
+      "planned": {
+        "name": "Day 1 Full Upper + Z2 40min",
+        "type": "strength",
+        "session_type": "strength",
+        "prescription": "Day 1 Full Upper + Z2 40min",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "done",
+      "status": "done",
+      "credited": true,
+      "activities": [
+        {
+          "activity_id": 9200001,
+          "type": "strength_training",
+          "duration_sec": 3000,
+          "z2_share": null
+        },
+        {
+          "activity_id": 9200002,
+          "type": "running",
+          "duration_sec": 2700,
+          "z2_share": null
+        }
+      ]
+    },
+    {
+      "date": "2026-06-02",
+      "planned": {
+        "name": "Norwegian 4x4 intervals",
+        "type": "interval",
+        "session_type": "interval",
+        "prescription": "Norwegian 4x4 intervals",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "missed",
+      "status": "open",
+      "credited": false,
+      "activities": [
+        {
+          "activity_id": 9200003,
+          "type": "walking",
+          "duration_sec": 3600,
+          "z2_share": null
+        }
+      ]
+    },
+    {
+      "date": "2026-06-03",
+      "planned": {
+        "name": "Day 2 Full Upper + Z2 60min",
+        "type": "strength",
+        "session_type": "strength",
+        "prescription": "Day 2 Full Upper + Z2 60min",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "partial",
+      "status": "partial",
+      "credited": false,
+      "activities": [
+        {
+          "activity_id": 9200004,
+          "type": "strength_training",
+          "duration_sec": 3000,
+          "z2_share": null
+        }
+      ]
+    },
+    {
+      "date": "2026-06-04",
+      "planned": {
+        "name": "Day 2 Full Upper",
+        "type": "strength",
+        "session_type": "strength",
+        "prescription": "Day 2 Full Upper + Z2 60min",
+        "source": "snapshot",
+        "template_id": null
+      },
+      "state": "partial",
+      "status": "partial",
+      "credited": false,
+      "activities": [
+        {
+          "activity_id": 9200005,
+          "type": "running",
+          "duration_sec": 4200,
+          "z2_share": null
+        }
+      ]
+    },
+    {
+      "date": "2026-06-05",
+      "planned": {
+        "name": "Day 3 Full Upper + Z2 60min",
+        "type": "strength",
+        "session_type": "strength",
+        "prescription": "Day 3 Full Upper + Z2 60min",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "missed",
+      "status": "open",
+      "credited": false,
+      "activities": []
+    },
+    {
+      "date": "2026-06-06",
+      "planned": {
+        "name": "Norwegian 4x4 intervals",
+        "type": "interval",
+        "session_type": "interval",
+        "prescription": "Norwegian 4x4 intervals",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "missed",
+      "status": "open",
+      "credited": false,
+      "activities": []
+    },
+    {
+      "date": "2026-06-07",
+      "planned": {
+        "name": "Rest",
+        "type": "rest",
+        "session_type": "rest",
+        "prescription": "Rest",
+        "source": "table",
+        "template_id": null
+      },
+      "state": "rest",
+      "status": "open",
+      "credited": false,
+      "activities": []
+    }
+  ],
+  "summary": {
+    "done": 2,
+    "partial": 2,
+    "missed": 6,
+    "unknown": 7,
+    "planned": 9,
+    "rest": 4,
+    "owed_to_date": 17
+  }
+}
