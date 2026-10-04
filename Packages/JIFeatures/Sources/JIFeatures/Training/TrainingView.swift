@@ -111,6 +111,11 @@ public struct TrainingView: View {
         }
         // W-B38-B: today's selected training goes down to the Watch whenever it (re)loads.
         .task(id: watchPlanKey) { sendTodayPlanToWatch() }
+        // B-43 P1: a rest-end notification tap (`ji://strength-log`) re-opens the logger.
+        .onChange(of: StrengthLoggerOpenRequest.shared.pending, initial: true) { _, pending in
+            guard pending, StrengthLoggerOpenRequest.shared.consume() else { return }
+            if strengthLog != nil { showStrengthLog = true } else { openStrengthLog() }
+        }
         .navigationDestination(isPresented: $showStrengthLog) {
             if let strengthLog { StrengthLogView(model: strengthLog, history: strengthHistory) }
         }
@@ -352,7 +357,8 @@ public struct TrainingView: View {
         let today = model.todayDateString
         strengthLog = StrengthLogViewModel(lifts: lifts, sessionId: session?.id, sessionName: session?.name, store: store,
                                            outbox: Outbox(db: deps.db), provider: deps.provider, prefs: deps.prefs,
-                                           today: { today })
+                                           today: { today }, restAlert: .live)
+        Task { _ = await RestEndAlert.requestAuthorization() }   // B-43 P1: rest-end alert permission
         strengthHistory = StrengthHistoryViewModel(store: store, provider: deps.provider, today: { today })
         showStrengthLog = true
     }
