@@ -199,6 +199,7 @@ public struct PrefStore: Sendable {
 }
 ```
 `inMemory()` — despite the name — opens a `DatabasePool` on a **unique temp file** (`journalinsight-test-<UUID>.sqlite`): `DatabasePool` can't open `":memory:"` (needs a real file for WAL). Two calls never share state. `cache()` → `cache.sqlite`, excluded from backup (+ `-wal`/`-shm` siblings via `URLResourceValues.isExcludedFromBackup`). Plain `onDisk()` default `journalinsight.sqlite` **is backed up** (user prefs). One migrator shared by both files; migration `"v1_foundation"` creates **both** `cache` and `pref` tables in **both** files (each store touches only its own table) — never edit a shipped migration, append new ones. Timestamps use `Date().ISO8601Format()` / `Date(_:strategy: .iso8601)` — **`Date.ISO8601FormatStyle`, not `ISO8601DateFormatter`**. Cache keys used by Today: `"today.morning"`, `"today.gate"`, `"today.recovery"`.
+`PrefStore` conforms to `JICore.JIPrefStoring` (W-B31: the same 3 methods as a `Sendable` protocol) so JIDesign (`HapticsPrefsStore`) can persist prefs without a JIPersistence dependency.
 
 ## 7. JIDesign (`.defaultIsolation(MainActor.self)`)
 
