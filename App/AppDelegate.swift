@@ -1,9 +1,19 @@
 import UIKit
+import JIFeatures
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // B-18 p1: uncaught-NSException + MetricKit crash capture (local only, Version screen).
+        CrashReporter.install()
+        #if DEBUG
+        installTouchOverlay()
+        #endif
+        return true
+    }
+
     #if DEBUG
     var window: UIWindow?   // SwiftUI creates its own; the touch overlay is a second, passthrough window (Task 4)
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+    private func installTouchOverlay() {
         // BUILD-3: `queue: .main` guarantees this closure runs on the main thread, but it is
         // still `nonisolated` to the Swift 6 checker. MainActor.assumeIsolated documents/asserts
         // that guarantee so the UIKit access below is statically main-actor-isolated with no warning.
@@ -27,7 +37,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 host?.addGestureRecognizer(TouchObserverRecognizer(overlay: overlay))
             }
         }
-        return true
     }
     #endif
 }
