@@ -8,7 +8,7 @@ import Foundation
 /// `TimeZone.current` — so days, the morning window and the training schedule move with Toby
 /// when he travels. The hub keys its own "today" by the same zone (the app sends `X-JI-TZ`, HT
 /// `app/shared/days.py`). Every zone-dependent entry point takes `in zone:` (default
-/// `DayKey.zone`) so tests inject one (`Europe/Zurich` for the card's cases).
+/// `DayKey.zone`) so tests inject one (the hub's home zone for the card's cases).
 ///
 /// Day arithmetic (`adding(days:)`, `days(to:)`, `mondayOfWeek`) is calendar-only and
 /// zone-free: it never steps by `86_400` seconds, so DST nights cannot skip or repeat a day.
@@ -18,6 +18,11 @@ public struct DayKey: Hashable, Comparable, Codable, Sendable, CustomStringConve
 
     /// The production zone: the phone's current time zone (D1).
     public static var zone: TimeZone { .current }
+
+    /// The hub's backload wire zone (W2h contract): `/api/v1/vitals/backload` keys bare
+    /// `yyyy-MM-dd` dates and month chunks in the hub's own zone, which does NOT follow the
+    /// phone. The one fixed-zone constant in the app (W-FIX13 F-1); never use it for a screen's day.
+    public static let hubZone = TimeZone(identifier: "Europe/Zurich")! // hub backload wire zone, not a phone day key (F-1)
 
     /// Gregorian in UTC — only used for zone-free day arithmetic on the key's components.
     private static let civil: Calendar = {
