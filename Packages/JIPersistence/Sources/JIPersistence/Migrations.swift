@@ -199,6 +199,18 @@ enum Migrations {
         m.registerMigration("v5b_strength_hk_workout") { db in
             try db.alter(table: "strength_session_log") { t in t.add(column: "hk_workout_uuid", .text) }
         }
+        // W-ONDEVICE O-6 (B-20): raw nightly values behind the on-device verdict. Recompute-on-read
+        // (no aggregate columns); `(source, metric, date)` keeps a replayed night one row.
+        // Not backed up: rebuildable from HealthKit + the hub seed.
+        m.registerMigration("v6_ondevice_baseline") { db in
+            try db.create(table: "baseline_sample", ifNotExists: true) { t in
+                t.column("source", .text).notNull()
+                t.column("metric", .text).notNull()
+                t.column("date", .text).notNull()
+                t.column("value", .double).notNull()
+                t.primaryKey(["source", "metric", "date"])
+            }
+        }
         return m
     }
 }

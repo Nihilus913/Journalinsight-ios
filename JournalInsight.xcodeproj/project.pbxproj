@@ -44,6 +44,7 @@
 		68AE64019A805A6F635E4331 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50213A12F93450C6AD416BAD /* Assets.xcassets */; };
 		6EC61424D6E2156988CA5EB9 /* GateMediumLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA13A0C17791F561000010 /* GateMediumLayout.swift */; };
 		736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */; };
+		7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */; };
 		73B691AAE5F681EC48DAFD66 /* JISnapshot in Frameworks */ = {isa = PBXBuildFile; productRef = A7B6DE44371EB6609C09A2FD /* JISnapshot */; };
 		74229C6C308983C442714079 /* AppleWorkoutUploadSimTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4AA2AFE31332D2F3A8FAF3 /* AppleWorkoutUploadSimTests.swift */; };
 		75F278F75C7F57DB38EE964F /* RecoveryInsightWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88C68E52AB137EC55578E9C /* RecoveryInsightWiringTests.swift */; };
@@ -183,6 +184,7 @@
 		33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthMirrorCoordinator.swift; sourceTree = "<group>"; };
 		340EDFF564B45454426C654D /* JIDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIDesign; path = Packages/JIDesign; sourceTree = SOURCE_ROOT; };
 		34E9F65F4C5401CDA46CA524 /* ReadinessGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadinessGlance.swift; sourceTree = "<group>"; };
+		3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaselineStoreAdapter.swift; sourceTree = "<group>"; };
 		43B4E55EDF3D96E26FC79F31 /* SnapshotWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotWiringTests.swift; sourceTree = "<group>"; };
 		4BC54E4B616D60F658404378 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsBundle.swift; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 			children = (
 				634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */,
 				9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */,
+				3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */,
 				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
 				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
 			);
@@ -747,6 +750,7 @@
 				EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */,
 				FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */,
 				5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */,
+				7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */,
 				9C668FEB52BC8240D1D00A85 /* DebugRmssdSeeder.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,

@@ -41,6 +41,11 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     /// last-fetch and a future incremental path has somewhere to resume from.
     private var anchors: [String: HKQueryAnchor] = [:]
     private var lastAnchorFetch: Date?
+    /// W-ONDEVICE O-6: resolves a sample's source bundle id for `HKSourceFilter` (injectable: a
+    /// package test cannot set a sample's source).
+    private let sourceBundle: @Sendable (HKSample) -> String?
+    /// W-ONDEVICE O-6: the on-device baseline store, nil = no on-device verdict wired.
+    private let baseline: (any NightlyBaselineStoring)?
 
     /// What this provider supplies. Defaults to the frozen `appleWatchCapabilities` bitmap;
     /// injectable so a test can drive the "capability absent → `notCapable`" table without
@@ -55,12 +60,16 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
             c.timeZone = .current
             return c
         }(),
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        sourceBundle: @escaping @Sendable (HKSample) -> String? = HKSourceFilter.sampleBundle,
+        baseline: (any NightlyBaselineStoring)? = nil
     ) {
         self.store = store
         self.capabilities = capabilities
         self.calendar = calendar
         self.now = now
+        self.sourceBundle = sourceBundle
+        self.baseline = baseline
     }
 
     // MARK: - Health
@@ -116,6 +125,24 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
         return nil
     }
 
+    // MARK: - Baseline store (W-ONDEVICE O-6)
+
+    /// Reads the last `windowDays` of HealthKit nights (Garmin Connect copies already filtered out
+    /// by `samples(for:since:)`) and upserts them into the baseline store as `apple` nights.
+    /// Returns how many nights were written; 0 with no store wired. Replay-safe: the store keys by
+    /// `(source, date)`, so a re-delivered night overwrites itself.
+    @discardableResult
+    public func refreshBaseline(windowDays: Int = 120) async throws -> Int {
+        guard let baseline else { return 0 }
+        let days = try await recovery(windowDays: windowDays)
+        let nights = OnDeviceNight.apple(from: days)
+        try baseline.record(nights, today: todayKey)
+        return nights.count
+    }
+
+    /// Today's local `YYYY-MM-DD` in this provider's calendar.
+    var todayKey: String { HKSampleWindow(windowDays: 1, now: now(), calendar: calendar).days[0] }
+
     // MARK: - Sync
 
     /// T2 has no ingestion job to report on: the closest honest answer is when this provider last
@@ -158,7 +185,8 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
             if let newAnchor = page.newAnchor { anchors[type.identifier] = newAnchor }
             lastAnchorFetch = now()
         }
-        return page.samples
+        // W-ONDEVICE O-6: never a Garmin Connect copy (see `HKSourceFilter`).
+        return HKSourceFilter.keep(page.samples, bundleOf: sourceBundle)
     }
 }
 #endif
