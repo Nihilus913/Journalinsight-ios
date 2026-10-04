@@ -28,6 +28,9 @@ private struct HealthSectionRows: View {
         if let backloadModel = model.backloadModel {
             HealthBackloadSection(model: backloadModel)
         }
+        if let moodMirror = model.moodMirror {
+            MoodMirrorRows(model: moodMirror)
+        }
         WorkoutBackfillSection()
     }
 }
@@ -52,5 +55,43 @@ struct WorkoutBackfillSection: View {
             Text("A longer window sends the older workouts on the next sync. A shorter one never removes workouts the hub already has.")
         }
         .onAppear { choice = WorkoutBackfill.current(defaults) }
+    }
+}
+
+public nonisolated let moodMirrorCaption =
+    "Adds your daily check-in mood to Apple Health as State of Mind. One way, from today on: only the mood leaves JournalInsight — never your note, stress, energy or medication."
+public nonisolated let moodMirrorDeniedCopy =
+    "State of Mind access is off. Allow it in iOS Settings › Health › Data Access › JournalInsight, then switch this on again."
+
+/// B-24 P2: Settings › Apple Health › "Mirror mood to Apple Health" (off by default).
+struct MoodMirrorRows: View {
+    let model: MoodMirrorSettingsModel
+    @Environment(\.jiTheme) private var theme
+    @State private var busy = false
+
+    var body: some View {
+        SettingsRowGroup(header: "Mood") {
+            Toggle(isOn: Binding(get: { model.enabled }, set: { on in
+                busy = true
+                Task { await model.setEnabled(on); busy = false }
+            })) {
+                SettingsLinkLabel(title: "Mirror mood to Apple Health", subtitle: "Mood only · one way · daily", systemImage: "face.smiling")
+            }
+            .tint(theme.color(.info))
+            .disabled(busy)
+            .accessibilityIdentifier("settings.health.moodMirror")
+
+            if model.denied {
+                Text(moodMirrorDeniedCopy).jiFont(.caption, tint: .muted)
+                    .accessibilityIdentifier("settings.health.moodMirror.denied")
+            } else {
+                Text(moodMirrorCaption).jiFont(.caption, tint: .muted)
+                    .accessibilityIdentifier("settings.health.moodMirror.caption")
+            }
+            if let error = model.errorMessage {
+                Text(error).jiFont(.caption).foregroundStyle(theme.color(.danger))
+                    .accessibilityIdentifier("settings.health.moodMirror.error")
+            }
+        }
     }
 }

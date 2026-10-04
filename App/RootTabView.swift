@@ -1028,9 +1028,13 @@ struct RootTabView: View {
         moreMindModel = MindViewModel(
             checkins: CheckInStore(db: db, cipher: cipher),
             eventStore: EventStore(db: db, cipher: cipher),
-            who5Store: Who5Store(db: db, cipher: cipher)
+            who5Store: Who5Store(db: db, cipher: cipher),
+            moodMirror: Self.moodMirror   // B-24 P2: only acts while the Settings toggle is on
         )
     }
+
+    /// B-24 P2: the one mood -> Apple Health (State of Mind) mirror, shared by Mind and Settings.
+    private static let moodMirror = HealthKitMoodMirror()
 
     @ViewBuilder
     private var recoveryTab: some View {
@@ -1287,7 +1291,8 @@ struct RootTabView: View {
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
             weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },
             syncAction: { try await env.syncNow() },
-            calendarExport: calendarExportModel()
+            calendarExport: calendarExportModel(),
+            moodMirror: MoodMirrorSettingsModel(mirror: Self.moodMirror)
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()
