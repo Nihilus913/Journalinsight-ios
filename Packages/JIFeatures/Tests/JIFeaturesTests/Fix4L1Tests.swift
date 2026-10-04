@@ -62,13 +62,11 @@ struct Fix4L1Tests {
         #expect(dayPlannedLunchText == "Planned lunch — meal plan not on the phone yet")
     }
 
-    // MARK: PF-01
+    // MARK: PF-01 → W-DECIDE-HYBRID H-1: the scroll keeps room for the floating bar (nothing pinned)
 
-    @Test func decidesActionsArePinnedAboveTheFloatingBar() {
-        #expect(decideActionsPinned(offscreen: false))
-        #expect(!decideActionsPinned(offscreen: true))   // the sweep keeps them inline in the card
-        #expect(decideActionBarBottomClearance(.compact) == tabBarBottomClearance(.compact))
-        #expect(decideActionBarBottomClearance(.compact) > 0)
-        #expect(decideActionBarBottomClearance(.regular) == 0)
+    @Test func decideScrollKeepsRoomForTheFloatingBar() {
+        #expect(decideScrollBottomClearance(.compact) == tabBarBottomClearance(.compact))
+        #expect(decideScrollBottomClearance(.compact) > 0)
+        #expect(decideScrollBottomClearance(.regular) == 0)
     }
 }

@@ -116,6 +116,10 @@ struct NativeFixtureUnavailable: View {
     static func todayDay() -> AnyView { todayMorning(.day, screen: "Today day") }
     /// B-65: Decide on an Apple Watch night — shows the muted `context` arc (daytime HRV).
     static func todayDecideApple() -> AnyView { todayMorning(.decide, screen: "Today decide Apple", morningJSON: fixtureMorningAppleJSON) }
+    /// W-DECIDE-HYBRID H-4: Decide once the call is saved — the Strain card's after state (max 40 for Modified).
+    static func todayDecideAfterCall() -> AnyView {
+        todayMorning(.decide, screen: "Today decide after call", morningJSON: fixtureMorningAfterCallJSON)
+    }
 
     private static func todayMorning(_ state: TodayMorningState, screen: String, morningJSON: String? = nil) -> AnyView {
         guard let model = TodayViewModel.fixture(morningState: state, morningJSON: morningJSON) else { return AnyView(NativeFixtureUnavailable(screen: screen)) }

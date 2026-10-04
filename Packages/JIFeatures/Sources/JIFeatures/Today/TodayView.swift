@@ -133,7 +133,10 @@ public struct TodayView: View {
                        banner: StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable),
                        isStale: model.morning?.isStale,
                        heldReason: model.heldReason,
-                       planWeek: model.planWeek) { model.morningEvent(.gateResponded) }
+                       planWeek: model.planWeek,
+                       pageName: loadTodayPageName(prefs: model.tileOrderStore),
+                       callComputedAt: model.morning?.verdictComputedAt,
+                       strain: model.morning?.strain) { model.morningEvent(.gateResponded) }
         } else {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {

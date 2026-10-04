@@ -22,17 +22,14 @@ struct B57W5L3GuardTests {
                  currentWeightKg: kg, progressionStepKg: 2.5, weekday: weekday)
     }
 
-    // MARK: PF-01 — Go / Adjust pinned above the floating tab bar
+    // MARK: PF-01 — superseded by W-DECIDE-HYBRID H-1 (Toby 2026-10-04): Go / Adjust inside the card
 
-    @Test func pf01_decideActionsStayPinnedAboveTheBar() throws {
-        #expect(decideActionsPinned(offscreen: false))
-        #expect(decideActionBarBottomClearance(.compact) == tabBarBottomClearance(.compact))
-        #expect(decideActionBarBottomClearance(.compact) > 0)
+    @Test func pf01_decideActionsLiveInsideTheCardNow() throws {
+        #expect(decideScrollBottomClearance(.compact) == tabBarBottomClearance(.compact))
+        #expect(decideScrollBottomClearance(.compact) > 0)
         let src = try l3GuardSource("Sources/JIFeatures/Today/DecideView.swift")
-        let inset = try #require(src.range(of: ".safeAreaInset(edge: .bottom"))
-        let tail = src[inset.upperBound...].prefix(700)
-        #expect(tail.contains("decideActionBarBottomClearance("))
-        #expect(tail.contains("today.decide.actions"))
+        #expect(!src.contains(".safeAreaInset(edge: .bottom"))
+        #expect(src.contains("decideScrollBottomClearance("))
     }
 
     // MARK: BUG-17 — the session row opens Day
