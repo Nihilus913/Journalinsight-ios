@@ -1,0 +1,128 @@
+[
+  {
+    "ref": "t1",
+    "kind": "template",
+    "name": "Long Run Zone 2",
+    "sport": "running",
+    "weekdays": [
+      3,
+      6
+    ],
+    "lift_count": 0,
+    "summary": "90 min",
+    "garmin": null,
+    "editable": true,
+    "linked_refs": [
+      "s6"
+    ]
+  },
+  {
+    "ref": "t2",
+    "kind": "template",
+    "name": "Zone 2 40 min",
+    "sport": "running",
+    "weekdays": [
+      0
+    ],
+    "lift_count": 0,
+    "summary": "40 min",
+    "garmin": null,
+    "editable": true,
+    "linked_refs": []
+  },
+  {
+    "ref": "t3",
+    "kind": "template",
+    "name": "Norwegian 4×4",
+    "sport": "running",
+    "weekdays": [
+      1,
+      5
+    ],
+    "lift_count": 0,
+    "summary": "43 min",
+    "garmin": null,
+    "editable": true,
+    "linked_refs": [
+      "s5",
+      "s8"
+    ]
+  },
+  {
+    "ref": "t4",
+    "kind": "template",
+    "name": "Zone 2 60 min",
+    "sport": "running",
+    "weekdays": [
+      2,
+      4
+    ],
+    "lift_count": 0,
+    "summary": "60 min",
+    "garmin": null,
+    "editable": true,
+    "linked_refs": []
+  },
+  {
+    "ref": "t5",
+    "kind": "template",
+    "name": "Day 1 Full Upper",
+    "sport": "strength",
+    "weekdays": [
+      0
+    ],
+    "lift_count": 6,
+    "summary": "6 lifts",
+    "garmin": null,
+    "editable": false,
+    "linked_refs": [
+      "s1"
+    ]
+  },
+  {
+    "ref": "t6",
+    "kind": "template",
+    "name": "Day 2 Full Upper",
+    "sport": "strength",
+    "weekdays": [
+      2
+    ],
+    "lift_count": 6,
+    "summary": "6 lifts",
+    "garmin": null,
+    "editable": false,
+    "linked_refs": [
+      "s2"
+    ]
+  },
+  {
+    "ref": "t7",
+    "kind": "template",
+    "name": "Day 3 Full Upper",
+    "sport": "strength",
+    "weekdays": [
+      4
+    ],
+    "lift_count": 6,
+    "summary": "6 lifts",
+    "garmin": null,
+    "editable": false,
+    "linked_refs": [
+      "s3"
+    ]
+  },
+  {
+    "ref": "t8",
+    "kind": "template",
+    "name": "Day 4 Full Upper",
+    "sport": "strength",
+    "weekdays": [],
+    "lift_count": 6,
+    "summary": "6 lifts",
+    "garmin": null,
+    "editable": false,
+    "linked_refs": [
+      "s4"
+    ]
+  }
+]
