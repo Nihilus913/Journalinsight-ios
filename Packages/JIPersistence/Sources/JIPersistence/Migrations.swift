@@ -199,6 +199,21 @@ enum Migrations {
         m.registerMigration("v5b_strength_hk_workout") { db in
             try db.alter(table: "strength_session_log") { t in t.add(column: "hk_workout_uuid", .text) }
         }
+        // W-B92 C-4 (Toby Q3 2026-10-04): what was planned each day, kept on the phone so the
+        // Training Calendar (and the hub-less B-50 path) shows history as planned. One row per
+        // date, first write wins (`PlannedSnapshotStore`); the hub's twin is plan.planned_snapshot (HT 075).
+        m.registerMigration("v6_b92_planned_snapshot") { db in
+            try db.create(table: "planned_snapshot", ifNotExists: true) { t in
+                t.column("date", .text).primaryKey()
+                t.column("name", .text).notNull()
+                t.column("type", .text).notNull()
+                t.column("session_type", .text)
+                t.column("prescription", .text)
+                t.column("origin", .text).notNull()
+                t.column("template_id", .integer)
+                t.column("captured_at", .text).notNull()
+            }
+        }
         return m
     }
 }
