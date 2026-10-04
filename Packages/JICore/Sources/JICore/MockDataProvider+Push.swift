@@ -13,7 +13,7 @@ extension MockDataProvider: PushTokenProviding {
     /// path, which always echoes the hub's own stamp.
     private static func mockRegisteredAt() -> String {
         let f = ISO8601DateFormatter()
-        f.timeZone = TimeZone(identifier: "UTC")
+        f.timeZone = TimeZone(identifier: "UTC") // instant stamp, not a day key (F-1)
         return f.string(from: Date())
     }
 }

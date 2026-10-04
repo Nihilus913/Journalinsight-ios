@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 import Observation
 import JIPersistence
 
@@ -29,7 +30,7 @@ public final class EntrySheetViewModel: Identifiable {
         self.tags = entry?.tags ?? []
     }
 
-    private static func isoDate(_ d: Date) -> String { JournalCalendarZurich.isoDay(d) }
+    private static func isoDate(_ d: Date) -> String { DayKey(date: d).iso }
 
     public var canSave: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 

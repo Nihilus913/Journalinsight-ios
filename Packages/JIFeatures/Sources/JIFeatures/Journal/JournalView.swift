@@ -1,4 +1,5 @@
 import SwiftUI
+import JICore
 import JIDesign
 import JIPersistence
 
@@ -75,7 +76,7 @@ public struct JournalView: View {
 
     /// The mood of today's entry, when one exists (the streak card's Mood tile).
     private var todayMoodScore: Int? {
-        let today = JournalCalendarZurich.isoDay(model.today)
+        let today = DayKey(date: model.today).iso
         return model.filteredEntries.first { $0.date == today }.flatMap { journalMoodScore($0.mood) }
     }
 
@@ -307,9 +308,9 @@ private struct EntryRow: View {
     }
 
     private var score: Int? { journalMoodScore(entry.mood) }
-    private var day: Date? { JournalCalendarZurich.date(fromISODay: entry.date) }
-    private var weekday: String { day.map { JournalCalendarZurich.formatter("EEE").string(from: $0).uppercased() } ?? "" }
-    private var dayNumber: String { day.map { JournalCalendarZurich.formatter("d").string(from: $0) } ?? entry.date }
+    private var day: Date? { DayKey(iso: entry.date)?.startDate }
+    private var weekday: String { day.map { DayKey.formatter("EEE").string(from: $0).uppercased() } ?? "" }
+    private var dayNumber: String { day.map { DayKey.formatter("d").string(from: $0) } ?? entry.date }
 
     private var snippet: String {
         entry.text.count > 140 ? String(entry.text.prefix(140)) + "…" : (entry.text.isEmpty ? "—" : entry.text)

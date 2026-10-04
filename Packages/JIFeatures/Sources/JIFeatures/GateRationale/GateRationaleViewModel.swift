@@ -169,29 +169,11 @@ public final class GateRationaleViewModel {
         }
     }
 
-    private static var isoCalendar: Calendar {
-        var calendar = Calendar(identifier: .iso8601)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
-        return calendar
-    }
-
-    private nonisolated static func parseDay(_ date: String, _ calendar: Calendar) -> Date? {
-        let parts = date.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-    }
-
     /// The verdict day and the two before it, newest first ("2026-09-01" -> 09-01, 08-31, 08-30).
+    /// W-FIX13 F-1: plain `DayKey` arithmetic (zone-free).
     nonisolated static func lastThreeDates(anchor: String?) -> [String] {
-        var calendar = Calendar(identifier: .iso8601)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
-        guard let anchor, let day = parseDay(anchor, calendar) else { return [] }
-        return (0..<3).compactMap { back in
-            calendar.date(byAdding: .day, value: -back, to: day).map {
-                let c = calendar.dateComponents([.year, .month, .day], from: $0)
-                return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-            }
-        }
+        guard let anchor, let day = DayKey(iso: anchor) else { return [] }
+        return (0..<3).map { day.adding(days: -$0).iso }
     }
 
     /// Oracle: a real `.status === 404`, or the mock provider's stand-in plain error whose message
@@ -316,12 +298,10 @@ public final class GateRationaleViewModel {
 
     /// Board "Last 3 days": newest first, from the verdict day back.
     public func lastDays(locale: Locale = .autoupdatingCurrent) -> [GateDayRow] {
-        let calendar = Self.isoCalendar
-        return Self.lastThreeDates(anchor: morning?.verdictDate).map { date in
+        Self.lastThreeDates(anchor: morning?.verdictDate).map { date in
             // "Wed 23" (the board's form), composed so no locale reorders it into "23, Wed".
-            let label = Self.parseDay(date, calendar).map { d in
-                let weekday = d.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated))
-                return "\(weekday) \(calendar.component(.day, from: d))"
+            let label = DayKey(iso: date).map { k in
+                "\(k.formatted(Date.FormatStyle(locale: locale).weekday(.abbreviated))) \(k.string(format: "d"))"
             } ?? date
             guard let row = recentVerdicts[date] else {
                 return GateDayRow(date: date, dayLabel: label, session: nil, verdictWord: nil, tone: .muted)

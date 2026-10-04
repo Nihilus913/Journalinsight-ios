@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 
 /// Ported verbatim from `mobile/src/journal/prompts.ts` (originally QuestionsDetailView's 3/day
 /// deterministic window). `nonisolated` — see `JournalStreak`'s doc comment.
@@ -17,7 +18,7 @@ public nonisolated enum JournalPrompts {
     ]
 
     private static func dayOfYear(_ d: Date) -> Int {
-        let calendar = JournalCalendarZurich.calendar
+        let calendar = DayKey.calendar()
         let year = calendar.component(.year, from: d)
         guard let start = calendar.date(from: DateComponents(year: year, month: 1, day: 0)) else { return 0 }
         let diff = d.timeIntervalSince(start)

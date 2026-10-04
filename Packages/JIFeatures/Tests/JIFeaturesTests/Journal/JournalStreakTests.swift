@@ -1,9 +1,10 @@
 import Testing
 import Foundation
+import JICore
 @testable import JIFeatures
 
 private func date(_ y: Int, _ m: Int, _ d: Int) -> Date {
-    JournalCalendarZurich.calendar.date(from: DateComponents(year: y, month: m, day: d))!
+    DayKey.calendar().date(from: DateComponents(year: y, month: m, day: d))!
 }
 
 @Suite struct JournalStreakTests {

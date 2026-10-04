@@ -1,4 +1,5 @@
 import Foundation
+import JICore
 import Observation
 import JIPersistence
 import JIVault
@@ -94,7 +95,7 @@ public final class JournalViewModel {
 
     /// The JournalCalendar board's day card: a new entry dated the chosen day.
     public func beginNewEntry(onDay iso: String) {
-        presentingSheet = EntrySheetViewModel(today: JournalCalendarZurich.date(fromISODay: iso).map { $0.addingTimeInterval(12 * 3600) } ?? now())
+        presentingSheet = EntrySheetViewModel(today: (DayKey(iso: iso)?.startDate).map { $0.addingTimeInterval(12 * 3600) } ?? now())
     }
 
     public func beginEditEntry(_ entry: Entry) {

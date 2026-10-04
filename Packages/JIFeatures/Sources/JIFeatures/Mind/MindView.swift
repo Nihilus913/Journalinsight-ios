@@ -1,4 +1,5 @@
 import SwiftUI
+import JICore
 import JIPersistence
 import JIDesign
 
@@ -157,8 +158,8 @@ private struct Who5ScoreCard: View {
         VStack(alignment: .leading, spacing: 10) {
             BoardSummaryCard(
                 systemImage: "chart.bar", title: "Last score",
-                trailing: entry.flatMap { JournalCalendarZurich.date(fromISODay: $0.date) }
-                    .map { JournalCalendarZurich.formatter("d MMM").string(from: $0) },
+                trailing: entry.flatMap { DayKey(iso: $0.date)?.startDate }
+                    .map { DayKey.formatter("d MMM").string(from: $0) },
                 value: entry.map { "\($0.pct)" }, unit: "/ 100",
                 status: entry.map { BoardStatus(word: who5ScoreWord(pct: $0.pct), systemImage: $0.pct > 50 ? "checkmark" : "minus",
                                                  role: $0.pct > 50 ? .info : .muted) }
