@@ -242,7 +242,7 @@ struct PlannerStrengthDetail: View {
         let today = model.todayDateString
         strengthLog = StrengthLogViewModel(lifts: lifts, sessionId: ref.sessionId, sessionName: ref.name, store: store,
                                            outbox: Outbox(db: deps.db), provider: deps.provider, prefs: deps.prefs,
-                                           today: { today })
+                                           today: { today }, reminders: deps.reminders)
         strengthHistory = StrengthHistoryViewModel(store: store, provider: deps.provider, today: { today })
         showStrengthLog = true
     }

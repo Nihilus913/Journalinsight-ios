@@ -20,6 +20,9 @@ public nonisolated struct ReminderTime: Codable, Equatable, Hashable, Sendable {
 /// plus the B-57 W4 one-shot `hrCapCheck` (8-week re-check of the user's own HR cap).
 public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
     case journal, mind, dose, gateFloor, hrCapCheck
+    /// B-43 P2: "a session is planned today" (dated one-shots per planned day) and "your session is
+    /// still open" (one-shot 90 min after the last set) — `WorkoutSessionReminders.swift`.
+    case workoutDay, sessionOpen
 
     /// The four repeating daily reminders. `hrCapCheck` is a one-shot dated reminder (8-week
     /// re-check) and is scheduled only through `scheduleHrCapCheck`.
@@ -33,6 +36,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: "dose-reminder"
         case .gateFloor: "gate-floor"
         case .hrCapCheck: "hr-cap-check"
+        case .workoutDay: "workout-day"
+        case .sessionOpen: "session-open"
         }
     }
 
@@ -50,6 +55,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: "Medication"
         case .gateFloor: "Readiness floor ⏰"
         case .hrCapCheck: "Check your heart-rate cap"
+        case .workoutDay: "Session planned today 🏋️"
+        case .sessionOpen: "Session still open"
         }
     }
 
@@ -60,6 +67,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: "Log it in the check-in so the dosing count stays accurate."
         case .gateFloor: "05:10 local — check today's readiness verdict."
         case .hrCapCheck: "Is your cap still right? JI never changes it for you."
+        case .workoutDay: "Your plan has a session today. Open the logger when you start."
+        case .sessionOpen: "No set logged for 90 minutes. Finish the session or log the next set."
         }
     }
 
@@ -71,6 +80,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: ReminderTime(hour: 8, minute: 30)   // placeholder only: the medication's own usualTime is what gets scheduled (B-57 W4)
         case .gateFloor: ReminderTime(hour: 5, minute: 10)
         case .hrCapCheck: ReminderTime(hour: 9, minute: 0)
+        case .workoutDay: WorkoutNudgePrefs.defaultTime
+        case .sessionOpen: ReminderTime(hour: 0, minute: 0)   // not clock-based: 90 min after the last set
         }
     }
 
@@ -82,6 +93,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: "Medication"
         case .gateFloor: "Readiness floor"
         case .hrCapCheck: "HR cap check"
+        case .workoutDay: "Planned session"
+        case .sessionOpen: "Open session"
         }
     }
 
@@ -92,6 +105,8 @@ public nonisolated enum ReminderKind: String, CaseIterable, Codable, Sendable {
         case .dose: "A daily nudge at your medication's time — keeps the readiness gate's consecutive-dosing count accurate."
         case .gateFloor: "A 05:10 local nudge that opens straight into today's readiness rationale."
         case .hrCapCheck: "JI asks whether your cap is still right. It never changes the number for you."
+        case .workoutDay: "Only on days your plan has a session, and not once it is logged."
+        case .sessionOpen: "90 minutes after your last set while the session is not finished."
         }
     }
 }
@@ -143,7 +158,7 @@ public struct ReminderScheduler {
     public nonisolated static let workoutTitle = "Workout time 🏋️"
     public nonisolated static let workoutBody = "Today's the day — get your session in."
 
-    private let center: any ReminderNotificationCenter
+    let center: any ReminderNotificationCenter   // internal: B-43 P2's extension (WorkoutSessionReminders.swift) uses it
 
     public init(center: any ReminderNotificationCenter) { self.center = center }
 
@@ -313,6 +328,7 @@ public struct ReminderScheduler {
         for kind in ReminderKind.dailyCases where await scheduledTime(for: kind) != nil { n += 1 }
         n += await allWorkouts().count
         if await hrCapCheckDue() != nil { n += 1 }
+        if await !pendingWorkoutDays().isEmpty { n += 1 }   // B-43 P2: the planned-session reminder counts once
         return n
     }
 
