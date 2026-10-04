@@ -37,12 +37,20 @@ public struct PushTokenRegistration: Codable, Sendable, Equatable {
     public var platform: PushPlatform
     public var environment: PushEnvironment
     public var appVersion: String
+    /// B-21 (push-to-start): the per-device ActivityKit push-to-start token for the verdict Live
+    /// Activity (`Activity<VerdictActivityAttributes>.pushToStartTokenUpdates`), lowercase hex like
+    /// `token`. Optional on the wire — synthesized `Encodable` uses `encodeIfPresent`, so `nil` OMITS
+    /// the key and the W7 body stays byte-identical; the hub stores it in
+    /// `plan.push_token.live_activity_start_token` and Morning GO sends the `liveactivity` start push to it.
+    public var liveActivityStartToken: String?
 
-    public init(token: String, platform: PushPlatform = .ios, environment: PushEnvironment, appVersion: String) {
+    public init(token: String, platform: PushPlatform = .ios, environment: PushEnvironment, appVersion: String,
+                liveActivityStartToken: String? = nil) {
         self.token = token
         self.platform = platform
         self.environment = environment
         self.appVersion = appVersion
+        self.liveActivityStartToken = liveActivityStartToken
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -50,6 +58,7 @@ public struct PushTokenRegistration: Codable, Sendable, Equatable {
         case platform
         case environment
         case appVersion = "app_version"
+        case liveActivityStartToken = "live_activity_start_token"
     }
 }
 

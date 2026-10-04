@@ -47,3 +47,31 @@ import Testing
         #expect(!LiveActivityAdoption.endedPlan(ended: [(id: String, lastUpdate: Date)](), now: Self.day, calendar: Self.cal).dayFinished)
     }
 }
+
+/// B-21: a push-to-start card can appear while the app already drives its own verdict activity.
+@Suite struct LiveActivityRemoteStartAdoptionTests {
+    @Test func aRemotelyStartedCardIsAdoptedAfterARelaunch() {
+        let plan = LiveActivityAdoption.plan(running: [(id: "remote", isActive: true)], held: nil)
+        #expect(plan.adopt == "remote")
+        #expect(plan.end.isEmpty)
+    }
+
+    @Test func theHeldCardIsKeptAndTheRemoteDuplicateEnded() {
+        let plan = LiveActivityAdoption.plan(running: [(id: "remote", isActive: true), (id: "held", isActive: true)], held: "held")
+        #expect(plan.adopt == "held")
+        #expect(plan.end == ["remote"])
+    }
+
+    @Test func aHeldCardThatEndedHandsOverToTheRemoteOne() {
+        let plan = LiveActivityAdoption.plan(running: [(id: "held", isActive: false), (id: "remote", isActive: true)], held: "held")
+        #expect(plan.adopt == "remote")
+        #expect(plan.end.isEmpty)
+    }
+
+    @Test func adoptionRunsOnlyWhenNothingIsHeldOrAnotherCardAppeared() {
+        #expect(LiveActivityAdoption.needsAdoption(running: [(id: String, isActive: Bool)](), held: nil))
+        #expect(!LiveActivityAdoption.needsAdoption(running: [(id: "held", isActive: true)], held: "held"))
+        #expect(LiveActivityAdoption.needsAdoption(running: [(id: "held", isActive: true), (id: "remote", isActive: true)], held: "held"))
+        #expect(!LiveActivityAdoption.needsAdoption(running: [(id: "held", isActive: true), (id: "old", isActive: false)], held: "held"))
+    }
+}
