@@ -18,6 +18,7 @@ import UserNotifications
 /// the only verdict.
 @MainActor
 enum OnDeviceVerdictWiring {
+    /// Same key as the Developer toggle (`JIFeatures.OnDeviceVerdictSection.enabledKey`).
     nonisolated static let enabledKey = "ji.ondevice.verdict.enabled"
 
     /// The L1 compute (`HrvBand` + `mergeRecoveryDays` + `appleGateInputs` + `evaluate`) behind the
@@ -56,10 +57,13 @@ enum OnDeviceVerdictWiring {
         guard isEnabled, runner == nil else { return }
         let provider = makeProvider()
         self.provider = provider
+        // O-10: each computed morning is logged next to the hub's verdict (dual run).
+        let shadow = ShadowLogWriter.make(hub: hub)
         runner = OnDeviceVerdictRunner(
             compute: { day in try await provider.onDeviceVerdict(day: day) },
             notifier: LocalVerdictNotifier(),
-            memory: UserDefaultsVerdictMemory()
+            memory: UserDefaultsVerdictMemory(),
+            onResult: { day, result, computedAt in await shadow?(day, result, computedAt) }
         )
         unlockObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main

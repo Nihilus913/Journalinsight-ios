@@ -136,8 +136,18 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
         guard let onDevice, let baseline else { throw ProviderError.notCapable(.gate) }
         try requireHealthData()
         try await refreshBaseline(windowDays: Self.verdictRefreshDays)
-        let nights = try baseline.nightly(through: day)
-        return try onDevice.compute(OnDeviceVerdictInput(day: day, nights: nights))
+        let input = OnDeviceVerdictInput(day: day, nights: try baseline.nightly(through: day))
+        guard var result = try onDevice.compute(input) else { return nil }
+        result.inputsDigest = input.digest
+        result.wakeAt = try? await wakeTime(day: day)
+        return result
+    }
+
+    /// O-10: the end of `day`'s main sleep (the hub's `main_nights` rule), nil without one.
+    func wakeTime(day: String) async throws -> Date? {
+        let window = HKSampleWindow(windowDays: Self.verdictRefreshDays, now: now(), calendar: calendar)
+        let sleep = try await samples(for: .sleepAnalysis, since: window.start.addingTimeInterval(-86_400))
+        return HKRecoveryAssembler.mainNights(sleep, window: window)[day]?.end
     }
 
     private func requireOnDevice(_ capability: DataCapability) throws {

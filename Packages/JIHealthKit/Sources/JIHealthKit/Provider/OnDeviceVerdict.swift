@@ -22,10 +22,31 @@ public struct OnDeviceVerdictResult: Sendable, Equatable {
     /// HRV-band baseline nights available before `day` (Apple + Garmin, `hrv_band`); < 28 =
     /// calibrating (the verdict is still shown, labelled as an estimate — Toby Q2).
     public var baselineNights: Int
+    /// O-10: digest of the input nights (set by the provider, not the compute).
+    public var inputsDigest: String?
+    /// O-10: the night's wake (main sleep end) from HealthKit, for the wake -> verdict latency.
+    public var wakeAt: Date?
 
-    public init(verdict: String, reason: String?, sessionPrescription: String?, signals: [GateSignal], baselineNights: Int) {
+    public init(verdict: String, reason: String?, sessionPrescription: String?, signals: [GateSignal], baselineNights: Int,
+                inputsDigest: String? = nil, wakeAt: Date? = nil) {
         self.verdict = verdict; self.reason = reason; self.sessionPrescription = sessionPrescription
         self.signals = signals; self.baselineNights = baselineNights
+        self.inputsDigest = inputsDigest; self.wakeAt = wakeAt
+    }
+}
+
+extension OnDeviceVerdictInput {
+    /// O-10: a stable digest of what the compute read (FNV-1a 64 over a canonical rendering), so
+    /// two shadow rows with the same digest saw the same inputs.
+    public var digest: String {
+        func v(_ x: Double?) -> String { x.map { "\($0)" } ?? "-" }
+        var text = day
+        for n in nights {
+            text += "|\(n.source.rawValue),\(n.date),\(v(n.hrvRmssdMs)),\(v(n.rhrBpm)),\(v(n.sleepDurationSec)),\(v(n.sleepScore))"
+        }
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in text.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01b3 }
+        return String(hash, radix: 16)
     }
 }
 

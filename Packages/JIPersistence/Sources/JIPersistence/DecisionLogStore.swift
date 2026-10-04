@@ -55,7 +55,7 @@ public struct NewDecisionLogEntry: Sendable, Equatable {
 }
 
 public struct DecisionLogStore: Sendable {
-    private let db: AppDatabase
+    let db: AppDatabase
     public init(db: AppDatabase) { self.db = db }
 
     /// Records a decision the moment it is made, before the hub POST even resolves. Returns the

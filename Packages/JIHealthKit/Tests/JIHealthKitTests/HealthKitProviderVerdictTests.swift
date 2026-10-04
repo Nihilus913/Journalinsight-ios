@@ -146,3 +146,37 @@ final class StubVerdictCompute: OnDeviceVerdictComputing, @unchecked Sendable {
     }
 }
 #endif
+
+#if canImport(HealthKit)
+/// W-ONDEVICE O-10: the provider stamps each result with the inputs digest and the night's wake.
+@Suite struct OnDeviceShadowStampTests {
+    @Test func digestIsStableAndInputSensitive() {
+        let a = OnDeviceVerdictInput(day: "2026-10-04", nights: [OnDeviceNight(source: .apple, date: "2026-10-03", hrvRmssdMs: 40)])
+        var b = a
+        #expect(a.digest == b.digest)
+        b.nights[0].hrvRmssdMs = 41
+        #expect(a.digest != b.digest)
+    }
+
+    @Test func resultCarriesDigestAndWakeTime() async throws {
+        guard let rmssdType = HKReadKind.hrvRMSSDQuantityType else { return }
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        func at(_ d: Int, _ h: Int) -> Date { cal.date(from: DateComponents(year: 2026, month: 10, day: d, hour: h))! }
+        let reader = FakeHealthStoreReader()
+        let sleepType = HKReadKind.sleepAnalysis.sampleType!
+        let night = HKCategorySample(type: sleepType as! HKCategoryType, value: HKCategoryValueSleepAnalysis.asleepCore.rawValue, start: at(3, 22), end: at(4, 5))
+        // Two sleep reads: the refresh, then the wake-time read.
+        reader.enqueue(HKAnchoredPage(samples: [night], deletedObjectIDs: [], newAnchor: nil), for: sleepType)
+        reader.enqueue(HKAnchoredPage(samples: [night], deletedObjectIDs: [], newAnchor: nil), for: sleepType)
+        reader.enqueue(HKAnchoredPage(samples: [
+            HKQuantitySample(type: rmssdType, quantity: HKQuantity(unit: .secondUnit(with: .milli), doubleValue: 40), start: at(4, 2), end: at(4, 2)),
+        ], deletedObjectIDs: [], newAnchor: nil), for: rmssdType)
+        let fixed = at(4, 6)
+        let p = HealthKitProvider(store: reader, calendar: cal, now: { fixed }, sourceBundle: { _ in nil },
+                                  baseline: FakeBaselineStore(), onDevice: StubVerdictCompute())
+        let r = try #require(try await p.onDeviceVerdict(day: "2026-10-04"))
+        #expect(r.wakeAt == at(4, 5))
+        #expect(r.inputsDigest?.isEmpty == false)
+    }
+}
+#endif

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		08346F5FBA168D27176DEB00 /* ShadowLogWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5958527A14A12B9893C50209 /* ShadowLogWriter.swift */; };
 		0C40B0ABEE3B33861D672B80 /* StrengthLogViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C66279B9FA496C89CE05177 /* StrengthLogViewModelTests.swift */; };
 		0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = D393B4A4FCB5E732570A00E9 /* JIDesign */; };
 		0CCF97B2EFF7A582948B88CA /* ReadinessGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E9F65F4C5401CDA46CA524 /* ReadinessGlance.swift */; };
@@ -194,6 +195,7 @@
 		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
 		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
 		58E06787E30F9A6DEE3D3C5A /* JIWorkouts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIWorkouts; path = Packages/JIWorkouts; sourceTree = SOURCE_ROOT; };
+		5958527A14A12B9893C50209 /* ShadowLogWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowLogWriter.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouter.swift; sourceTree = "<group>"; };
 		69F166FFD02B0D810992532A /* JIVault */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIVault; path = Packages/JIVault; sourceTree = SOURCE_ROOT; };
@@ -433,6 +435,7 @@
 				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
 				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
 				01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */,
+				5958527A14A12B9893C50209 /* ShadowLogWriter.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -764,6 +767,7 @@
 				ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
+				08346F5FBA168D27176DEB00 /* ShadowLogWriter.swift in Sources */,
 				736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */,
 				D67FD48EBDFAC2DEE1F7F571 /* StrengthSessionActivityAttributes.swift in Sources */,
 				4DD5F87BB4120072A84705E3 /* StrengthSessionActivityController.swift in Sources */,

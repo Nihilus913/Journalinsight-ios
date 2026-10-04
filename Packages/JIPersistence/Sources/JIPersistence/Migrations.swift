@@ -211,6 +211,18 @@ enum Migrations {
                 t.primaryKey(["source", "metric", "date"])
             }
         }
+        // W-ONDEVICE O-10 (B-44): the dual-run log — one row per morning, on-device vs hub verdict.
+        // Local diagnostics only (not backed up).
+        m.registerMigration("v6b_ondevice_shadow") { db in
+            try db.create(table: "ondevice_shadow_log", ifNotExists: true) { t in
+                t.primaryKey("day", .text)
+                t.column("ondevice_verdict", .text).notNull()
+                t.column("hub_verdict", .text)
+                t.column("inputs_digest", .text).notNull()
+                t.column("computed_at", .text).notNull()
+                t.column("latency_from_wake_sec", .double)
+            }
+        }
         return m
     }
 }
