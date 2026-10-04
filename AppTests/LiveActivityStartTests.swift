@@ -140,12 +140,19 @@ private final class ObserverLog { var seen: [Data] = []; var streamsMade = 0 }
     _ = try JSONDecoder().decode(VerdictActivityAttributes.self, from: attributes)
     let stateData = try JSONSerialization.data(withJSONObject: try #require(aps["content-state"]))
     let state = try JSONDecoder().decode(VerdictActivityAttributes.ContentState.self, from: stateData)
-    #expect(state.verdictWord == "GO")
-    #expect(state.verdictTone == "go")
-    #expect(state.readiness == 78)
-    #expect(state.hrCap == 145)
-    #expect(state.nextSession == "Strength A")
-    #expect(state.signals?.map(\.key) == ["hrv", "sleep", "rhr"])
+    // The fixture is the hub's own golden (HT tests/fixtures/live_activity_start.json, B-21 p1):
+    // readiness / hrCap / nextSession are omitted by the hub and must decode as nil (the app
+    // fills them when it adopts the activity); signals carry only key/label/unit/status/value.
+    #expect(state.verdictWord == "Modified")
+    #expect(state.verdictSession == "Long Z2 45 min")
+    #expect(state.verdictTone == "amber")
+    #expect(state.readiness == nil)
+    #expect(state.hrCap == nil)
+    #expect(state.nextSession == nil)
+    #expect(state.reason == "HRV 41 ms — under 45")
+    #expect(state.signals?.map(\.key) == ["hrv", "sleep_h", "rhr"])
+    #expect(state.signals?.map(\.value) == [41, 7.2, 52])
+    #expect(state.signals?.map(\.status) == ["amber", "pass", "pass"])
     // 812862600 s after the 2001 reference date = 2026-10-05 03:10 UTC (05:10 CEST, Morning GO).
     #expect(state.lastUpdate == Date(timeIntervalSince1970: 1_791_169_800))
 }

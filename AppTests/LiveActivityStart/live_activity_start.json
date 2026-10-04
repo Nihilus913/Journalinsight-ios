@@ -5,21 +5,40 @@
     "attributes-type": "VerdictActivityAttributes",
     "attributes": {},
     "content-state": {
-      "verdictWord": "GO",
-      "verdictSession": "Z2 run 45 min",
-      "verdictTone": "go",
-      "readiness": 78.0,
+      "verdictWord": "Modified",
+      "verdictSession": "Long Z2 45 min",
+      "verdictTone": "amber",
       "lastUpdate": 812862600.0,
-      "reason": "HRV and sleep in range",
-      "hrCap": 145,
-      "nextSession": "Strength A",
       "signals": [
-        {"key": "hrv", "label": "HRV", "value": 52.0, "unit": "ms", "normalLow": 45.0, "normalHigh": 65.0, "goal": null, "status": "pass"},
-        {"key": "sleep", "label": "Sleep", "value": 7.4, "unit": "h", "normalLow": null, "normalHigh": null, "goal": 7.5, "status": "amber"},
-        {"key": "rhr", "label": "RHR", "value": 48.0, "unit": "bpm", "normalLow": 42.0, "normalHigh": 55.0, "goal": null, "status": "pass"}
-      ]
+        {
+          "key": "hrv",
+          "label": "HRV",
+          "unit": "ms",
+          "status": "amber",
+          "value": 41.0
+        },
+        {
+          "key": "sleep_h",
+          "label": "Sleep",
+          "unit": "h",
+          "status": "pass",
+          "value": 7.2
+        },
+        {
+          "key": "rhr",
+          "label": "Resting HR",
+          "unit": "bpm",
+          "status": "pass",
+          "value": 52.0
+        }
+      ],
+      "reason": "HRV 41 ms — under 45"
     },
-    "stale-date": 1791213000,
-    "alert": {"title": "GO", "body": "Z2 run 45 min"}
+    "alert": {
+      "title": "HT: GO (auto-regulated) — Long Z2 45 min",
+      "body": "HRV 41 ms — under 45",
+      "sound": "default"
+    },
+    "stale-date": 1791184200
   }
 }
