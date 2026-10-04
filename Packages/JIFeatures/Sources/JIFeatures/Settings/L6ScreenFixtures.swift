@@ -230,15 +230,47 @@ enum L6Fixtures {
         return AnyView(NavigationStack { ExportView(model: model) })
     }
 
-    static func version() -> AnyView {
+    static func version() -> AnyView { versionScreen(crashStore: emptyCrashStore) }
+
+    /// B-18 p2: the populated "Last crash" state (one uncaught exception + one older MetricKit record).
+    static func versionWithCrash() -> AnyView { versionScreen(crashStore: seededCrashStore) }
+
+    private static func versionScreen(crashStore: CrashLogStore) -> AnyView {
         guard let prefs = prefStore else { return unavailable("Version") }
         return AnyView(NavigationStack {
             VersionView(model: VersionViewModel(
                 prefs: prefs,
-                info: VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "42", bundleId: "toby913.JournalInsight")
+                info: VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "42", bundleId: "toby913.JournalInsight"),
+                crashStore: crashStore
             ), thisInstall: VersionInstallState(hub: "Not set up", hubConnected: false))
         })
     }
+
+    /// Throwaway crash-log directories under tmp — the sweep never reads the app's real CrashLogs.
+    static let emptyCrashStore: CrashLogStore = {
+        let store = CrashLogStore(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("L6CrashLogs-empty-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true))
+        try? store.clear()
+        return store
+    }()
+
+    static let seededCrashStore: CrashLogStore = {
+        let store = CrashLogStore(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("L6CrashLogs-seeded-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true))
+        try? store.clear()
+        for r in sampleCrashes { try? store.write(r) }
+        return store
+    }()
+
+    static let sampleCrashes: [CrashRecord] = [
+        CrashRecord(id: "fixture-exc", date: today.addingTimeInterval(-3_600), source: .exception, appVersion: "2.0.0", build: "42",
+                    type: "NSInvalidArgumentException",
+                    summary: "-[__NSCFNumber length]: unrecognized selector sent to instance 0x8000000000000000",
+                    callStack: ["0 CoreFoundation __exceptionPreprocess", "1 libobjc.A.dylib objc_exception_throw",
+                                "2 JournalInsight JournalView.body.getter"]),
+        CrashRecord(id: "fixture-mxk", date: today.addingTimeInterval(-86_400 * 2), source: .metricKit, appVersion: "2.0.0", build: "41",
+                    type: "SIGSEGV", summary: "EXC_BAD_ACCESS (code 1) · Namespace SIGNAL, Code 11"),
+    ]
 
     static func localMirrors() -> AnyView {
         guard let db else { return unavailable("Local mirrors") }
