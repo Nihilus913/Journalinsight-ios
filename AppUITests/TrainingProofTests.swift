@@ -29,7 +29,8 @@ final class TrainingProofTests: JIUITestCase {
     /// is a nested push; its "Log sets" / "Send to Watch" read deps the stack must still carry.
     func testPL5_plannerDay1LogSets() {
         openLibrary()
-        let day1 = element(idPrefix: "planner-row-s", labelContains: "Day 1")
+        // W-B88: post-073 the Day 1 row is its library template (planner-row-t5); an older hub lists s1.
+        let day1 = element(idPrefix: "planner-row-", labelContains: "Day 1")
         reveal(day1, "Planner row Day 1")
         tap(day1, "Planner row Day 1")
         XCTAssertTrue(el("planner-strength-detail").waitForExistence(timeout: 10), "Day 1 detail did not open")

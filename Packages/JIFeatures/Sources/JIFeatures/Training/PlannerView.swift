@@ -385,13 +385,17 @@ public struct PlannerView: View {
                 Label(library.pushDisabledReason(for: t) ?? "Push to Garmin Connect", systemImage: "arrow.up.circle")
             }
             .disabled(library.pushDisabledReason(for: t) != nil)
-            Button(role: .destructive) { pendingDelete = t } label: { Label("Delete", systemImage: "trash") }
+            // W-B88: a strength day's template mirrors its plan session — not deletable here.
+            if row.editable {
+                Button(role: .destructive) { pendingDelete = t } label: { Label("Delete", systemImage: "trash") }
+            }
         }
     }
 
     private func open(_ row: PlannerWorkout, template t: WorkoutTemplate?) {
-        if let t { editing = PlannerEditorTarget(template: t); return }
-        if row.kind == .planSession { strengthDetail = PlannerStrengthRef(row) }
+        // W-B88: a strength day's template (linked session, not editable) opens its session's detail.
+        if plannerOpensStrengthDetail(row) { strengthDetail = PlannerStrengthRef(row); return }
+        if let t { editing = PlannerEditorTarget(template: t) }
     }
 
     /// B40-V7: a library workout's "Send to Watch" — the B-37 sheet, that workout picked.

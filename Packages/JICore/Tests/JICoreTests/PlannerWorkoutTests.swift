@@ -91,10 +91,26 @@ private let cachedTemplates: [WorkoutTemplate] = [
     await #expect(throws: PlannerWorkoutsUnavailable.self) { _ = try await Bare().plannerWorkouts() }
 }
 
-@Test func mockServesTheFallbackFromItsFixtures() async throws {
+/// W-B88: the mock serves the post-073 hub — every row a template; the 4 strength days are their
+/// library workouts (t5…t8), each linked to its plan session (`linked_refs ["s<id>"]`).
+@Test func mockServesThePost073ShapeFromItsFixtures() async throws {
     let rows = try await MockDataProvider().plannerWorkouts()
-    #expect(rows.filter { $0.kind == .template }.count == 4)
-    #expect(rows.filter(\.isStrength).count == 4)
+    #expect(rows.count == 8 && rows.allSatisfy { $0.kind == .template })
+    let strength = rows.filter(\.isStrength)
+    #expect(strength.map(\.ref) == ["t5", "t6", "t7", "t8"])
+    #expect(strength.allSatisfy { !$0.editable && $0.linkedSessionIds.count == 1 && $0.strengthSessionId != nil })
+    #expect(strength.first?.liftCount ?? 0 > 0)
+}
+
+@Test func strengthDaysAsTemplatesKeepsCardioAndLinksEachSession() {
+    let rows = [
+        PlannerWorkout(ref: "s1", kind: .planSession, name: "Day 1 Full Upper", sport: "strength", weekdays: [0], liftCount: 6, editable: false),
+        PlannerWorkout(ref: "s:Mystery", kind: .planSession, name: "Mystery", sport: "strength", weekdays: [], liftCount: 2, editable: false),
+        PlannerWorkout(ref: "t3", kind: .template, name: "Tempo", sport: "running", weekdays: [1], editable: true),
+    ]
+    let out = plannerStrengthDaysAsTemplates(rows)
+    #expect(out.map(\.ref) == ["t3", "t4", "s:Mystery"])
+    #expect(out[1].linkedRefs == ["s1"] && out[1].weekdays == [0] && out[1].liftCount == 6 && out[1].summary == "6 lifts" && !out[1].editable)
 }
 
 /// PL-8 (verifier fix): a template row names the cardio sessions linked to it by id

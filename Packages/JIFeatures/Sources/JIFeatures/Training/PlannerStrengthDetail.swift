@@ -5,16 +5,30 @@ import JIPersistence
 import JIWorkouts
 
 /// The Planner's strength row, as a navigation value (a plan session: id + name + its days).
+/// W-B88: `templateId` = the strength day's library workout (HT migration 073) when the row is
+/// that template (`t5` → session 1, template 5) — its Garmin push goes by this id.
 public nonisolated struct PlannerStrengthRef: Hashable, Identifiable, Sendable {
     public let sessionId: Int?
     public let name: String
     public let weekdays: [Int]
+    public let templateId: Int?
     public var id: String { sessionId.map { "s\($0)" } ?? "s:\(name)" }
-    public init(sessionId: Int?, name: String, weekdays: [Int]) { self.sessionId = sessionId; self.name = name; self.weekdays = weekdays }
-    public init(_ row: PlannerWorkout) { self.init(sessionId: row.sessionId, name: row.name, weekdays: row.weekdays) }
+    public init(sessionId: Int?, name: String, weekdays: [Int], templateId: Int? = nil) {
+        self.sessionId = sessionId; self.name = name; self.weekdays = weekdays; self.templateId = templateId
+    }
+    public init(_ row: PlannerWorkout) {
+        self.init(sessionId: row.strengthSessionId ?? row.sessionId, name: row.name, weekdays: row.weekdays, templateId: row.templateId)
+    }
 
     /// The session as the logger and the Watch plan take it (weekday = its day, or −1 when none).
     var plannedSession: PlannedSession { PlannedSession(id: sessionId ?? 0, name: name, weekday: weekdays.first ?? -1) }
+}
+
+/// W-B88: a row opens the strength detail (not the editor) when it is a strength plan session, or
+/// a strength template linked to one (a strength day as its library workout, `editable` false).
+public nonisolated func plannerOpensStrengthDetail(_ row: PlannerWorkout) -> Bool {
+    if row.kind == .planSession { return true }
+    return row.strengthSessionId != nil && !row.editable
 }
 
 /// PL-4: a plan session's lifts with the next weights (progression), as the logger would prefill
@@ -41,6 +55,8 @@ public nonisolated func plannerLiftLine(_ lift: StrengthLogLift) -> String {
 /// W-PLANNER PL-4 — a strength session from the Planner's ALL WORKOUTS: its lifts and next weights,
 /// "Log sets" (the A-10 logger over THIS session) and "Send to Watch" (this session as the Watch's
 /// strength plan for today, W-B38-B). Its day is changed from THIS WEEK (tap or drag).
+/// W-B88: opened from a strength day's template row too (same session); + "Push to Garmin Connect"
+/// for that template (its strength segment, built by the hub from these lifts).
 struct PlannerStrengthDetail: View {
     @Bindable var model: TrainingViewModel
     let ref: PlannerStrengthRef
@@ -53,6 +69,11 @@ struct PlannerStrengthDetail: View {
     @State private var showStrengthLog = false
     @State private var sentToWatch = false
     private let theme = JITheme.native
+
+    /// W-B88: the strength day's library workout (HT migration 073), when the row was that template.
+    private var template: WorkoutTemplate? {
+        ref.templateId.flatMap { id in model.library?.templates.first { $0.templateId == id } }
+    }
 
     private var lifts: [StrengthLogLift] {
         plannerStrengthLifts(ref, exercises: model.exercises, progressions: progression?.lifts ?? [])
@@ -101,6 +122,19 @@ struct PlannerStrengthDetail: View {
                     if sentToWatch {
                         Text("On your Watch as today's strength session.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             .accessibilityIdentifier("planner-sent-to-watch")
+                    }
+                    // W-B88: the strength day IS a library workout (template id) — Garmin push by that id.
+                    if let t = template, let library = model.library {
+                        Button { Task { await library.pushToGarmin(t) } } label: {
+                            Label(library.pushDisabledReason(for: t) ?? "Push to Garmin Connect", systemImage: "arrow.up.circle")
+                        }
+                        .buttonStyle(.jiSecondary)
+                        .disabled(library.pushDisabledReason(for: t) != nil)
+                        .accessibilityIdentifier("planner-push-garmin")
+                        if let n = library.notice {
+                            Text(n.text).jiFont(.footnote).foregroundStyle(theme.color(n.isError ? .danger : .muted))
+                                .accessibilityIdentifier("planner-push-garmin-notice")
+                        }
                     }
                 }
                 .padding(.top, JISpacing.s4)

@@ -36,6 +36,7 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
     /// PL-8 (HT migration 060): on a template, the plan sessions linked to it by id (`"s<id>"`) —
     /// such a session IS this template (its weekday shows here; the hub does not list it alone).
     /// `[]` on sessions, unlinked templates and older hubs. Never inferred from names.
+    /// W-B88 (migration 073): a strength day is listed as its template with `["s<id>"]` here too.
     public var linkedRefs: [String]
 
     public var id: String { ref }
@@ -89,6 +90,14 @@ public struct PlannerWorkout: Codable, Sendable, Equatable, Identifiable {
     public var isStrength: Bool { sport.lowercased() == "strength" }
     /// The linked plan-session ids (`"s5"` → 5).
     public var linkedSessionIds: [Int] { linkedRefs.compactMap { $0.hasPrefix("s") ? Int($0.dropFirst()) : nil } }
+    /// W-B88 (HT migration 073): the strength plan session this row IS — a strength session's own
+    /// id, or a strength template's linked session (a strength day as its library workout, `t5` →
+    /// `s1`). nil for cardio rows and unlinked strength templates. Log sets, the next weights and
+    /// the day write go to this session; Send to Watch / Garmin push use `templateId`.
+    public var strengthSessionId: Int? {
+        guard isStrength else { return nil }
+        return sessionId ?? (kind == .template ? linkedSessionIds.first : nil)
+    }
 }
 
 /// PL-8: plan-session id → the template it is linked to, from the hub's rows (`linked_refs`).
@@ -97,6 +106,22 @@ public nonisolated func plannerSessionTemplateLinks(_ rows: [PlannerWorkout]) ->
     var out: [Int: Int] = [:]
     for row in rows { if let tid = row.templateId { for sid in row.linkedSessionIds where out[sid] == nil { out[sid] = tid } } }
     return out
+}
+
+/// W-B88 (HT migration 073) — the post-073 hub's shape from older rows (the mock, previews):
+/// every strength plan session with an id becomes its library template (next free template id,
+/// `linked_refs ["s<id>"]`, `editable` false, "N lifts"), listed after the existing templates;
+/// a session row with no id (name-only) cannot be linked and stays as it is, last.
+public nonisolated func plannerStrengthDaysAsTemplates(_ rows: [PlannerWorkout]) -> [PlannerWorkout] {
+    var next = (rows.compactMap(\.templateId).max() ?? 0) + 1
+    var templates = rows.filter { $0.kind == .template }, unlinked: [PlannerWorkout] = []
+    for row in rows where row.kind == .planSession {
+        guard row.isStrength, let sid = row.sessionId else { unlinked.append(row); continue }
+        templates.append(PlannerWorkout(ref: "t\(next)", kind: .template, name: row.name, sport: "strength", weekdays: row.weekdays,
+                                        liftCount: row.liftCount, summary: "\(row.liftCount) lifts", editable: false, linkedRefs: ["s\(sid)"]))
+        next += 1
+    }
+    return templates + unlinked
 }
 
 /// PL-3: the Planner's read slice (one protocol per screen's hub routes). Defaulted: a provider
