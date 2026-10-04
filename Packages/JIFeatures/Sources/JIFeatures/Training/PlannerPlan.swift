@@ -117,7 +117,8 @@ nonisolated func plannerRowSymbol(_ row: PlannerWorkout, template: WorkoutTempla
 nonisolated func plannerDayOptions(weekday wd: Int, rows: [PlannerWorkout], spine: [WeekSpineEntry], templates: [WorkoutTemplate]) -> [TrainingDayOption] {
     rows.compactMap { row in
         let days = Array(Set(row.weekdays)).sorted()
-        if let sid = row.sessionId {
+        // W-B88: a strength day's template picks its session's one weekday (never template weekdays).
+        if let sid = row.sessionId ?? (plannerOpensStrengthDetail(row) ? row.strengthSessionId : nil) {
             let kind = spine.first { $0.id == sid }?.kind ?? (row.isStrength ? .strength : .longRun)
             return TrainingDayOption(id: row.ref, title: row.name, choice: .planSession(id: sid, name: row.name),
                                      currentDays: days, isOnThisDay: days.contains(wd), kind: kind, template: nil)
@@ -160,9 +161,15 @@ public nonisolated struct PlannerDragItem: Sendable, Equatable {
 ///   • a plan session has ONE weekday: dropping it on a day moves it there (from a day or not);
 ///   • a template has many: from ALL WORKOUTS it is added to the day, from a day it leaves that
 ///     day for this one (its other days stay).
+///   • W-B88: a strength day's template moves its linked session (as a session does).
 /// Dropping where it already is, or an unknown row, writes nothing.
 nonisolated func plannerDropWrites(_ item: PlannerDragItem, toWeekday wd: Int, spine: [WeekSpineEntry], templates: [WorkoutTemplate]) -> [TrainingDayWrite] {
     guard (0...6).contains(wd) else { return [] }
+    // W-B88: a strength day's template (linked by id to a strength session, migration 073) moves
+    // as that session — its one weekday — never by writing template weekdays.
+    if let tid = item.templateId, let s = spine.first(where: { $0.templateId == tid && $0.kind == .strength }), let sid = s.id {
+        return plannerDropWrites(PlannerDragItem(ref: "s\(sid)", fromWeekday: item.fromWeekday), toWeekday: wd, spine: spine, templates: templates)
+    }
     if let sid = item.sessionId {
         guard let s = spine.first(where: { $0.id == sid }), s.weekday != wd else { return [] }
         var writes: [TrainingDayWrite] = [.sessionWeekday(id: sid, name: s.name, weekday: wd)]
