@@ -94,3 +94,16 @@ private func b88VM() async throws -> (TrainingViewModel, PlannerHub) {
     #expect(opt.choice == .planSession(id: 1, name: "Day 1 Full Upper"))
     #expect(opt.currentDays == [0] && !opt.isOnThisDay && opt.kind == .strength)
 }
+
+/// W-B88 fix (B88-5 tap path): the detail's Send to Watch opens a sheet naming the strength day's
+/// workout and its lifts; Send goes through the Watch strength plan for the linked session.
+@Test func b88SendToWatchSheetNamesTheDayAndItsLifts() {
+    let ref = PlannerStrengthRef(b88HubRows().first { $0.ref == "t5" }!)
+    let lifts = plannerStrengthLifts(ref, exercises: plannerExercises(), progressions: [])
+    let sheet = PlannerStrengthSendSummary(ref: ref, lifts: lifts)
+    #expect(sheet.title == "Day 1 Full Upper")
+    #expect(sheet.lines.count == 6)
+    #expect(sheet.lines.allSatisfy { !$0.name.isEmpty && !$0.detail.isEmpty })
+    #expect(sheet.planSessionId == 1 && sheet.templateId == 5)
+    #expect(PlannerStrengthSendSummary(ref: ref, lifts: []).canSend == false && sheet.canSend)
+}

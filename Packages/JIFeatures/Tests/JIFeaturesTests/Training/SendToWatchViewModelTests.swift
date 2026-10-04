@@ -174,4 +174,23 @@ private func makeVM(
     guard case .error(let msg) = vm.state else { Issue.record("expected .error, got \(vm.state)"); return }
     #expect(msg == "A step targets 180 bpm — inside your Zone 5 (from 176), which you chose to avoid. Fix the template on the hub.")
 }
+
+/// W-B88 fix: post-073 every strength day is a library template (all-strength segments). WorkoutKit
+/// cannot run one (`noCardioSegment`, "error 9"), so the sheet never lists it — strength goes to the
+/// Watch through the Planner detail's strength plan. A mixed (cardio + strength) template stays.
+@Test @MainActor func sendToWatchHidesStrengthOnlyTemplates() async throws {
+    let cardio = try await seedRows()
+    let strength = b88StrengthTemplate("Day 1 Full Upper", id: 5)
+    let vm = makeVM(provider: FakeTemplatesProvider(rows: cardio + [strength]))
+    vm.pickOnly(5)
+    await vm.load()
+    #expect(vm.templates.map(\.templateId) == cardio.map(\.templateId))
+    #expect(vm.selected.isEmpty && !vm.canSend)
+    #expect(!sendToWatchCanBuild(strength))
+    #expect(cardio.allSatisfy(sendToWatchCanBuild))
+    var mixed = strength
+    mixed.segments.insert(WorkoutSegment(sport: .running, steps: []), at: 0)
+    #expect(sendToWatchCanBuild(mixed))
+}
+
 #endif

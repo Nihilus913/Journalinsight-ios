@@ -52,6 +52,25 @@ public nonisolated func plannerLiftLine(_ lift: StrengthLogLift) -> String {
     return parts.isEmpty ? "—" : parts.joined(separator: " · ")
 }
 
+/// W-B88 fix (B88-5 tap path): what the detail's "Send to Watch" sheet shows — the strength day's
+/// workout by name and its lifts — and what Send sends: the Watch strength plan for the linked
+/// session (WorkoutKit has no strength type, so the template id is not a Watch path; the template
+/// id is the Garmin push's). Pure, so the sheet and its test read the same rows.
+public nonisolated struct PlannerStrengthSendSummary: Equatable, Sendable {
+    public struct Line: Equatable, Sendable { public let name: String; public let detail: String }
+    public let title: String
+    public let lines: [Line]
+    public let planSessionId: Int?
+    public let templateId: Int?
+    public var canSend: Bool { !lines.isEmpty }
+    public init(ref: PlannerStrengthRef, lifts: [StrengthLogLift]) {
+        title = ref.name
+        lines = lifts.map { Line(name: $0.exerciseKey, detail: plannerLiftLine($0)) }
+        planSessionId = ref.sessionId
+        templateId = ref.templateId
+    }
+}
+
 /// W-PLANNER PL-4 — a strength session from the Planner's ALL WORKOUTS: its lifts and next weights,
 /// "Log sets" (the A-10 logger over THIS session) and "Send to Watch" (this session as the Watch's
 /// strength plan for today, W-B38-B). Its day is changed from THIS WEEK (tap or drag).
@@ -68,6 +87,7 @@ struct PlannerStrengthDetail: View {
     @State private var strengthHistory: StrengthHistoryViewModel?
     @State private var showStrengthLog = false
     @State private var sentToWatch = false
+    @State private var showSendSheet = false
     private let theme = JITheme.native
 
     /// W-B88: the strength day's library workout (HT migration 073), when the row was that template.
@@ -114,14 +134,10 @@ struct PlannerStrengthDetail: View {
                             .accessibilityIdentifier("planner-log-sets")
                     }
                     if sendWatchPlan != nil {
-                        Button { sendToWatch() } label: { Label("Send to Watch", systemImage: "applewatch.radiowaves.left.and.right") }
+                        Button { sentToWatch = false; showSendSheet = true } label: { Label("Send to Watch", systemImage: "applewatch.radiowaves.left.and.right") }
                             .buttonStyle(.jiSecondary)
                             .disabled(lifts.isEmpty)
                             .accessibilityIdentifier("planner-send-to-watch")
-                    }
-                    if sentToWatch {
-                        Text("On your Watch as today's strength session.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                            .accessibilityIdentifier("planner-sent-to-watch")
                     }
                     // W-B88: the strength day IS a library workout (template id) — Garmin push by that id.
                     if let t = template, let library = model.library {
@@ -153,6 +169,62 @@ struct PlannerStrengthDetail: View {
         .navigationDestination(isPresented: $showStrengthLog) {
             if let strengthLog { StrengthLogView(model: strengthLog, history: strengthHistory) }
         }
+        .sheet(isPresented: $showSendSheet) { sendSheet(PlannerStrengthSendSummary(ref: ref, lifts: lifts)) }
+    }
+
+    /// The Send to Watch sheet: the day's workout by name, its lifts, Send (the Watch strength plan).
+    private func sendSheet(_ summary: PlannerStrengthSendSummary) -> some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(Array(summary.lines.enumerated()), id: \.offset) { _, line in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(line.name).foregroundStyle(theme.color(.text))
+                            Spacer(minLength: JISpacing.s2)
+                            Text(line.detail).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("planner-send-sheet-lift")
+                    }
+                } header: {
+                    Text(summary.title).accessibilityIdentifier("planner-send-sheet-title")
+                } footer: {
+                    Text("Sent as today's strength session — the Watch logs each set.")
+                }
+                if sentToWatch {
+                    Section {
+                        Label("On your Watch as today's strength session.", systemImage: "checkmark.applewatch")
+                            .foregroundStyle(theme.color(.go))
+                            .accessibilityIdentifier("planner-sent-to-watch")
+                    }
+                }
+            }
+            #if os(iOS)
+            .jiNativeFormChrome()
+            #endif
+            .jiSheetGround()
+            .navigationTitle("Send to Watch")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(sentToWatch ? "Done" : "Close") { showSendSheet = false }
+                        .accessibilityIdentifier("planner-send-sheet-close")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Send") { sendToWatch() }
+                        .disabled(!summary.canSend || sentToWatch)
+                        .accessibilityLabel("Send \(summary.title) to Watch")
+                        .accessibilityIdentifier("planner-send-sheet-send")
+                }
+            }
+        }
+        .accessibilityIdentifier("planner-send-sheet")
+        .jiTheme(.native)
+        #if os(iOS)
+        .presentationSizing(.form)
+        #endif
     }
 
     private func liftName(_ lift: StrengthLogLift) -> some View {
