@@ -162,6 +162,16 @@ public final class KpiDetailViewModel {
     /// W-FIX11 H2-04: the hub's Apple-only recovery-input days (HRV / RHR / Sleep); [] = not loaded.
     public private(set) var sourceDays: [RecoveryInputDay] = []
 
+    /// B-104 p2: the recovery-inputs window HRV asks for (the hub's maximum) — Garmin nights back
+    /// to 2025-05 for the merged chart.
+    public static let hrvSourceWindowDays = 365
+
+    /// B-104 p2: HRV's merged Watch + Garmin (est.) nights over `range`; nil for any other metric.
+    public func hrvMergedPoints(range: KpiDetailRange) -> [KpiSourcedPoint]? {
+        guard metric == .hrv, !showsLoadMinutes else { return nil }
+        return kpiHrvMergedPoints(history: history, sourceDays: sourceDays, range: range)
+    }
+
     /// BUG-22: the nutrition segment. Only switches between nutrition macros (they share one data
     /// source, so nothing refetches); any other metric is ignored.
     public func selectMetric(_ newMetric: KpiMetricId) {
@@ -288,7 +298,10 @@ public final class KpiDetailViewModel {
             // W-FIX10 R-04: HRV / RHR read the hub's calibration verdict; a failure keeps the cached one.
             if kpiCalibrationKey(metric) != nil || kpiSourceField(metric) != nil, let inputs = health as? any RecoveryInputsProviding {
                 let day = RecoveryInsightService.localDayKey(Date())
-                if let report = try? await inputs.recoveryInputsReport(date: day, windowDays: RecoveryInsightService.windowDays) {
+                // B-104 p2: HRV reads a year of nights (the Garmin era, `hrv_src`); calibration is
+                // the hub's default-window verdict whatever the window (HT router).
+                let window = metric == .hrv ? Self.hrvSourceWindowDays : RecoveryInsightService.windowDays
+                if let report = try? await inputs.recoveryInputsReport(date: day, windowDays: window) {
                     calibration = report.calibration
                     if let c = report.calibration { try? cache.put(Self.keys.calibration, c) }
                     sourceDays = report.days
