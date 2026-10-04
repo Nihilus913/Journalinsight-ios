@@ -156,7 +156,7 @@ final class RecordingNotifier: OnDeviceVerdictNotifying, @unchecked Sendable {
 
     // MARK: - Budget
 
-    /// O-9 budget: refresh + store read + compute for a 120-day (x2 sources) fixture < 2 s.
+    /// O-9 budget: refresh + store read + the real JICompute verdict for a 120-day (x2 sources) fixture < 2 s.
     @Test func computeBudgetFor120DaysIsUnderTwoSeconds() async throws {
         var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "Europe/Zurich")!
         let fixed = cal.date(from: DateComponents(year: 2026, month: 10, day: 4, hour: 6))!
@@ -170,7 +170,7 @@ final class RecordingNotifier: OnDeviceVerdictNotifying, @unchecked Sendable {
         nights.append(OnDeviceNight(source: .apple, date: "2026-10-04", hrvRmssdMs: 41))
         try store.record(nights, today: "2026-10-04")
         let p = HealthKitProvider(store: FakeHealthStoreReader(), calendar: cal, now: { fixed }, sourceBundle: { _ in nil },
-                                  baseline: store, onDevice: StubVerdictCompute())
+                                  baseline: store, onDevice: JIComputeVerdictEngine())
         let clock = ContinuousClock()
         let elapsed = try await clock.measure { _ = try await p.onDeviceVerdict(day: "2026-10-04") }
         #expect(elapsed < .seconds(2))

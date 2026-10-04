@@ -1,4 +1,5 @@
 import Foundation
+import JICompute
 import JICore
 
 /// W-ONDEVICE O-7: what the on-device compute is handed — every stored night (Apple, plus Garmin
@@ -61,13 +62,19 @@ public protocol OnDeviceVerdictComputing: Sendable {
 /// Toby Q2 (2026-10-04): while the HRV band is calibrating, the verdict is shown with its values,
 /// labelled "Estimate — calibrating (N/28 nights)".
 public enum OnDeviceVerdictLabel {
-    /// `hrv_band.BASELINE_NIGHTS`. Verifier: point at the L1 `HrvBand` constant once merged.
-    public static let baselineNights = 28
+    /// `hrv_band.BASELINE_NIGHTS` — the L1 `HrvBand` constant (one source).
+    public static let baselineNights = HrvBand.baselineNights
 
     public static func isCalibrating(nights: Int) -> Bool { nights < baselineNights }
 
     public static func calibrating(nights: Int) -> String {
         "Estimate — calibrating (\(max(0, nights))/\(baselineNights) nights)"
+    }
+
+    /// One line for the Developer screen / banner: the label in front while calibrating.
+    public static func headline(_ result: OnDeviceVerdictResult) -> String {
+        isCalibrating(nights: result.baselineNights)
+            ? "\(calibrating(nights: result.baselineNights)) · \(result.verdict)" : result.verdict
     }
 
     /// `reason` with the calibrating label in front while calibrating; unchanged otherwise.

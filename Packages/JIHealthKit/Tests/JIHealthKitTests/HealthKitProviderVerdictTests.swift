@@ -57,7 +57,7 @@ final class StubVerdictCompute: OnDeviceVerdictComputing, @unchecked Sendable {
         }
     }
 
-    private func provider(_ reader: FakeHealthStoreReader, store: FakeBaselineStore, compute: StubVerdictCompute?) -> HealthKitProvider {
+    private func provider(_ reader: FakeHealthStoreReader, store: FakeBaselineStore, compute: (any OnDeviceVerdictComputing)?) -> HealthKitProvider {
         let fixed = now
         return HealthKitProvider(store: reader, calendar: calendar, now: { fixed }, sourceBundle: { _ in nil },
                                  baseline: store, onDevice: compute)
@@ -137,6 +137,45 @@ final class StubVerdictCompute: OnDeviceVerdictComputing, @unchecked Sendable {
         #expect(m.verdict == nil)
         #expect(m.verdictDate == nil)
         #expect(m.gateSignals == nil)
+    }
+
+    // MARK: - The real L1 compute (verifier integration)
+
+    @Test func realEngineFullNightGivesAHubVerdict() async throws {
+        guard HKReadKind.hrvRMSSDTypeAvailable else { return }
+        let reader = FakeHealthStoreReader()
+        try seedTonight(reader, rmssd: 42)
+        let store = FakeBaselineStore()
+        try store.record(priorNights(28), today: "2026-10-04")
+        let p = provider(reader, store: store, compute: JIComputeVerdictEngine())
+        let v = try await p.morningVerdict(date: "2026-10-04")
+        #expect(["GO", "MODIFY", "MODIFIED", "REDUCED", "REST"].contains { v.verdict.hasPrefix($0) })
+        #expect(v.reason?.hasPrefix("Estimate") == false)
+        let m = try await p.morning()
+        #expect(m.gateSignals?.first { $0.key == "hrv" }?.status == .pass)
+    }
+
+    @Test func realEngineTenNightsShowValuesAndVerdictLabelledCalibrating() async throws {
+        guard HKReadKind.hrvRMSSDTypeAvailable else { return }
+        let reader = FakeHealthStoreReader()
+        try seedTonight(reader, rmssd: 42)
+        let store = FakeBaselineStore()
+        try store.record(priorNights(10), today: "2026-10-04")
+        let p = provider(reader, store: store, compute: JIComputeVerdictEngine())
+        let v = try await p.morningVerdict(date: "2026-10-04")
+        #expect(!v.verdict.isEmpty)
+        #expect(v.reason?.hasPrefix("Estimate — calibrating (10/28 nights)") == true)
+        let m = try await p.morning()
+        let hrv = try #require(m.gateSignals?.first { $0.key == "hrv" })
+        #expect(hrv.value == 42)
+        #expect(hrv.note?.hasPrefix("Estimate — calibrating (10/28 nights)") == true)
+    }
+
+    @Test func realEngineNoNightYetIsMissing() async throws {
+        let store = FakeBaselineStore()
+        try store.record(priorNights(28), today: "2026-10-04")
+        let p = provider(FakeHealthStoreReader(), store: store, compute: JIComputeVerdictEngine())
+        await #expect(throws: ProviderError.missing("2026-10-04")) { _ = try await p.morningVerdict(date: "2026-10-04") }
     }
 
     @Test func withoutTheEngineTheTrioStillRefuses() async {
