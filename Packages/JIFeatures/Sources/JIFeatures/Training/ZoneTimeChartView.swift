@@ -157,7 +157,14 @@ public struct ZoneTimeChartView: View {
                                    range: (1...5).map { theme.color(workoutZoneRole($0)) })
         .chartXScale(domain: labels)
         .chartXAxis {
-            AxisMarks(values: model.span == .sixMonths ? labels.enumerated().filter { $0.offset % 4 == 0 }.map(\.element) : labels)
+            // 6M: 26 weekly bars — label every 5th week so the dates stay legible.
+            let shown = Set(model.span == .sixMonths ? labels.enumerated().filter { $0.offset % 5 == 0 }.map(\.element) : labels)
+            AxisMarks { value in
+                if let s = value.as(String.self), shown.contains(s) {
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
         }
         .chartYAxis { AxisMarks(position: .trailing) }
         .chartLegend(.hidden)
