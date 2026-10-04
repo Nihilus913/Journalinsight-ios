@@ -94,6 +94,7 @@
 		E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E3002B92D368429BB3F69F /* MoreTabTests.swift */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		EC5311AB5875741B4CB7CE7D /* ApnsPayloadRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */; };
+		ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */; };
 		EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */; };
 		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
 		FBDC394485A35929AF056DA5 /* JIVault in Frameworks */ = {isa = PBXBuildFile; productRef = A230B1185D4D79616F44967A /* JIVault */; };
@@ -165,6 +166,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceVerdictWiring.swift; sourceTree = "<group>"; };
 		094C0C2F19C94D8B96AA2CC2 /* HealthKitUploadSpecsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitUploadSpecsTests.swift; sourceTree = "<group>"; };
 		099499E819ADFEE663B021CB /* WatchSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSnapshotStore.swift; sourceTree = "<group>"; };
 		0FB5DA3ABCBBF1ADE780C358 /* ApnsRegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsRegistrationTests.swift; sourceTree = "<group>"; };
@@ -430,6 +432,7 @@
 				3C019CC6580B5B5E1CF1C1DF /* BaselineStoreAdapter.swift */,
 				2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */,
 				7D6E4868C21E5E8988CFF1DD /* NtfyDeepLinkHandler.swift */,
+				01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -758,6 +761,7 @@
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
+				ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */,
 				9A52C900CE9467B5D5DA911E /* ProviderSelection.swift in Sources */,
 				D90545EB36BF30DA15F9B758 /* RootTabView.swift in Sources */,
 				736DAA72AB7BA683A4C3093F /* StrengthMirrorCoordinator.swift in Sources */,

@@ -190,7 +190,7 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     }
 
     /// Today's local `YYYY-MM-DD` in this provider's calendar.
-    var todayKey: String { HKSampleWindow(windowDays: 1, now: now(), calendar: calendar).days[0] }
+    public var todayKey: String { HKSampleWindow(windowDays: 1, now: now(), calendar: calendar).days[0] }
 
     // MARK: - Sync
 
