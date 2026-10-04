@@ -175,6 +175,8 @@ final class AppEnvironment {
         // connection's hub provider and re-apply the persisted choice. Release builds always
         // land on the hub — see `JIFeatures.ProviderSwitch.install`.
         ProviderSelection.install(store: store, hub: provider, prefs: prefs)
+        // W-ONDEVICE O-9: the on-device verdict trigger (no-op unless enabled; Release never).
+        OnDeviceVerdictWiring.install(hub: provider)
         // W5b-L1 (P-data-quality) close-out wiring: the Data Quality screen (Settings row + the
         // Today freshness-badge tap) reads its provider from this seam; nil = honest "not wired".
         DataQualityAccess.shared.install(provider)
@@ -193,7 +195,7 @@ final class AppEnvironment {
             guard let self else { return }
             do {
                 try await uploader.requestAuthorization()
-                let observers = try await uploader.startBackgroundDelivery()
+                let observers = try await uploader.startBackgroundDelivery(onNight: OnDeviceVerdictWiring.nightHook)
                 await MainActor.run { self.healthKitObservers = observers }
             } catch {
                 // Denied/unavailable: L3's permission screen is the honest-copy surface for this;
@@ -228,7 +230,7 @@ final class AppEnvironment {
                 // HealthKit never confirms a read grant beyond `.unnecessary`, so waiting for a
                 // stricter signal than "not notDetermined" would never fire (root cause).
                 if status != .notDetermined, let uploader = await MainActor.run(body: { self.healthKitUploader }) {
-                    if let observers = try? await uploader.startBackgroundDelivery() {
+                    if let observers = try? await uploader.startBackgroundDelivery(onNight: await MainActor.run { OnDeviceVerdictWiring.nightHook }) {
                         await MainActor.run { self.healthKitObservers = observers }
                     }
                     // Never awaited here: the first sync can take minutes on a deep history, and the

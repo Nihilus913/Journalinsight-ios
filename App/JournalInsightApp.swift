@@ -81,6 +81,10 @@ struct JournalInsightApp: App {
         )
         // BGTaskScheduler requires registration before launch finishes.
         scheduler.registerBackgroundTask()
+        // W-ONDEVICE O-9: the ~04:45 verdict pre-warm (registered only when the on-device verdict is enabled).
+        OnDeviceVerdictWiring.registerPrewarm()
+        // W-ONDEVICE: the Developer screen's on-device estimate line (enabled builds only).
+        OnDeviceVerdictWiring.bindPreview()
         _outboxRetry = State(initialValue: scheduler)
     }
 

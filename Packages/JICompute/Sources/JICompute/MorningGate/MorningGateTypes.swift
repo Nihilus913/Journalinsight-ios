@@ -71,6 +71,9 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
     /// (Calibrating / missing / Garmin-only night). Below `config.recoveryLowScore` it adds ONE amber
     /// reason and closes the interval gate. Nil changes nothing.
     public var recoveryScore: Int?
+    /// W-ONDEVICE O-4 (B-65): set = an Apple night (`m["source"] == "apple"`); `evaluate` then gates on
+    /// `AppleGate.appleGateInputs` instead of the Garmin sleep/HRV/RHR rules. Nil = a Garmin night.
+    public var apple: AppleNight?
 
     public init(
         sleep: Int? = nil,
@@ -81,7 +84,8 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
         rhrDate: String? = nil,
         stepsYesterday: Int? = nil,
         zoneDrift: String? = nil,
-        recoveryScore: Int? = nil
+        recoveryScore: Int? = nil,
+        apple: AppleNight? = nil
     ) {
         self.sleep = sleep
         self.sleepDurationH = sleepDurationH
@@ -92,6 +96,7 @@ public nonisolated struct MorningVitals: Hashable, Sendable {
         self.stepsYesterday = stepsYesterday
         self.zoneDrift = zoneDrift
         self.recoveryScore = recoveryScore
+        self.apple = apple
     }
 }
 
