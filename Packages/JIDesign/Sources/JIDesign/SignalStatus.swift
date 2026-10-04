@@ -14,6 +14,8 @@ public nonisolated enum JISignalStatus: Sendable, Equatable {
     case aboveGoal, belowGoal, onGoal, inNormal, belowNormal, aboveNormal
     case clear, watch, redFlag
     case contextOnly
+    /// W-B91 S1 (Bevel gap BP-11): the training-load (ACWR) status words (Toby Q2: over 1.30 reads "Overreaching").
+    case maintaining, productive, overreaching, paused
     case missing(JIMissingReason)
 
     public var word: String {
@@ -28,16 +30,20 @@ public nonisolated enum JISignalStatus: Sendable, Equatable {
         case .watch: "Watch"
         case .redFlag: "Red flag"
         case .contextOnly: "Context only"
+        case .maintaining: "Maintaining"
+        case .productive: "Productive"
+        case .overreaching: "Overreaching"
+        case .paused: "Paused"
         case .missing(let reason): reason.rawValue
         }
     }
 
     public var role: JIColorRole {
         switch self {
-        case .aboveGoal, .onGoal, .inNormal, .clear: .go
-        case .belowGoal, .belowNormal, .aboveNormal, .watch: .reduced
+        case .aboveGoal, .onGoal, .inNormal, .clear, .productive: .go
+        case .belowGoal, .belowNormal, .aboveNormal, .watch, .overreaching: .reduced
         case .redFlag: .danger
-        case .contextOnly, .missing: .muted
+        case .contextOnly, .missing, .maintaining, .paused: .muted
         }
     }
 
@@ -49,6 +55,10 @@ public nonisolated enum JISignalStatus: Sendable, Equatable {
         case .watch: "exclamationmark"
         case .redFlag: "xmark"
         case .contextOnly: "info.circle"
+        case .productive: "checkmark"
+        case .maintaining: "arrow.down"
+        case .overreaching: "arrow.up"
+        case .paused: "pause"
         case .missing: "minus"
         }
     }
