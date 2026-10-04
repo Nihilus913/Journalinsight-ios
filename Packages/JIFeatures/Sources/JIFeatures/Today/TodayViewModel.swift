@@ -363,6 +363,13 @@ public final class TodayViewModel {
         await fetchLive()
     }
 
+    /// B-107: re-fetch the hub's `/morning` + `/gate` (and the other live sections) now, without the
+    /// Health upload `refresh()` does first — Settings' "I'm on a break" toggle calls this so Decide's
+    /// Load row reads "Paused" (and the gate drops the ACWR verdict, B-110) without a relaunch.
+    public func reloadLive() async {
+        await fetchLive()
+    }
+
     private func restoreFromCache() {
         if let m = try? cache.get(Self.keys.morning, as: MorningResponse.self) {
             morning = m.value; fetchedAt = m.fetchedAt; morningFetchedAt = m.fetchedAt; everSynced = true

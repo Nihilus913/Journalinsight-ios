@@ -14,9 +14,15 @@ public final class TrainingBreakViewModel {
 
     private let provider: any TrainingBreakProviding
 
-    public init(provider: any TrainingBreakProviding, state: TrainingBreak? = nil) {
+    /// B-107: runs after every confirmed write (the app shell re-fetches Today/Decide so the Load
+    /// row reads "Paused" at once, not after a relaunch). Never runs on a failed write.
+    @ObservationIgnored public var onChanged: (@MainActor () async -> Void)?
+
+    public init(provider: any TrainingBreakProviding, state: TrainingBreak? = nil,
+                onChanged: (@MainActor () async -> Void)? = nil) {
         self.provider = provider
         self.state = state
+        self.onChanged = onChanged
     }
 
     public var paused: Bool { state?.paused == true }
@@ -40,7 +46,9 @@ public final class TrainingBreakViewModel {
             errorMessage = nil
         } catch {
             errorMessage = "Could not update the break — \(trainingBreakErrorText(error))"
+            return
         }
+        await onChanged?()
     }
 }
 
