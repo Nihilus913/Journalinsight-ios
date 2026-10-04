@@ -126,3 +126,59 @@ func recoveryScoreMatchesPython(_ c: RecoveryScoreCase) throws {
         }
     }
 }
+
+// MARK: - W-ONDEVICE O-3: Apple first, Garmin fills (recovery_merge.golden.json)
+
+/// `recovery_merge.golden.json` from `HealthTraining/scripts/parity/gen_golden_recovery_merge.py`
+/// (ground truth `merge_recovery_days` -> `recovery_score` @ cal). 39 cases; recovery.golden.json
+/// above is untouched.
+struct RecoveryMergeCase: GoldenCase, CustomTestStringConvertible {
+    static let allowedKeys: Set<String> = ["label", "apple", "garmin", "factor", "today", "merged", "expected"]
+    struct Merged: Decodable, Sendable {
+        let date: String
+        let hrv_ms, rhr_bpm, sleep_h, deep_h, rem_h, load_min: Double?
+        let source: String?
+    }
+    let label: String
+    let apple, garmin: [RecoveryScoreCase.Day]
+    let factor: Double?
+    let today: String
+    let merged: [Merged]
+    let expected: RecoveryScoreCase.Expected
+    var testDescription: String { "\(label) -> \(expected.status)" }
+}
+
+enum RecoveryMergeGolden {
+    static let cases = GoldenLoader.require(RecoveryMergeCase.self, file: "recovery_merge.golden", group: "mergeCases")
+}
+
+@Test func recoveryMergeGoldenCount() { #expect(RecoveryMergeGolden.cases.count == 39) }
+
+@Test func recoveryMergeUsesTheOneHrvBandFactor() {
+    let a: [RecoverySeriesDay] = []
+    let g = [RecoverySeriesDay(date: "2026-10-04", hrvMs: 100, rhrBpm: 50)]
+    let m = RecoveryScore.mergeRecoveryDays(apple: a, garmin: g)
+    #expect(m.first?.hrvMs == 100 * HrvBand.garminRmssdFactor)
+    #expect(m.first?.rhrBpm == 50)                       // RHR is never scaled
+    #expect(m.first?.source == .garmin)
+}
+
+@Test(arguments: RecoveryMergeGolden.cases)
+func recoveryMergeMatchesPython(_ c: RecoveryMergeCase) throws {
+    let merged = RecoveryScore.mergeRecoveryDays(apple: c.apple.map(\.series), garmin: c.garmin.map(\.series), factor: c.factor)
+    #expect(merged.count == c.merged.count)
+    for (g, e) in zip(merged, c.merged) {
+        #expect(g.date == e.date && g.source?.rawValue == e.source)
+        #expect(g.hrvMs == e.hrv_ms && g.rhrBpm == e.rhr_bpm && g.sleepH == e.sleep_h)
+        #expect(g.deepH == e.deep_h && g.remH == e.rem_h && g.loadMin == e.load_min)
+    }
+    let r = try RecoveryScore.compute(apple: c.apple.map(\.series), garmin: c.garmin.map(\.series), today: c.today, factor: c.factor)
+    #expect(r.status.rawValue == c.expected.status)
+    #expect(r.score == c.expected.score)
+    #expect(recoveryClose(r.raw, c.expected.raw))
+    #expect(r.nights == c.expected.nights)
+    #expect(r.components.map(\.status.rawValue) == c.expected.components.map(\.status))
+    for (g, e) in zip(r.components, c.expected.components) {
+        #expect(recoveryClose(g.value, e.value) && recoveryClose(g.z, e.z) && g.normalN == e.normalN)
+    }
+}
