@@ -27,12 +27,21 @@ public final class MindViewModel {
     private let eventStore: EventStore
     private let who5Store: Who5Store
     private let now: () -> Date
+    /// B-24 P2: opt-in mood -> Apple Health mirror. nil = not wired (previews, tests).
+    private let moodMirror: (any MoodMirroring)?
+    private let mirrorEnabled: () -> Bool
+    /// The last fire-and-forget mirror write (tests await it; the save never does).
+    private(set) var mirrorTask: Task<Void, Never>?
 
-    public init(checkins: CheckInStore, eventStore: EventStore, who5Store: Who5Store, now: @escaping () -> Date = Date.init) {
+    public init(checkins: CheckInStore, eventStore: EventStore, who5Store: Who5Store, now: @escaping () -> Date = Date.init,
+                moodMirror: (any MoodMirroring)? = nil,
+                mirrorEnabled: @escaping () -> Bool = { MoodMirrorPrefs.isEnabled() }) {
         self.checkins = checkins
         self.eventStore = eventStore
         self.who5Store = who5Store
         self.now = now
+        self.moodMirror = moodMirror
+        self.mirrorEnabled = mirrorEnabled
     }
 
     /// Registry/Gallery preview (B-57 W1 fixer f3): the loaded Mind board from fixture rows — the
@@ -43,6 +52,8 @@ public final class MindViewModel {
         self.eventStore = eventStore
         self.who5Store = who5Store
         self.now = now
+        self.moodMirror = nil
+        self.mirrorEnabled = { false }
         self.today = previewToday
         self.latestWho5 = previewWho5
         self.phase = .loaded
@@ -72,12 +83,24 @@ public final class MindViewModel {
     @discardableResult
     public func upsertCheckin(_ n: NewCheckIn) async -> Bool {
         do {
-            try checkins.upsertToday(n, now: now())
+            let savedAt = now()
+            try checkins.upsertToday(n, now: savedAt)
+            mirrorMood(n, savedAt: savedAt)
             await refresh()
             return true
         } catch {
             phase = .error(Self.describe(error))
             return false
+        }
+    }
+
+    /// B-24 P2: fire-and-forget — never blocks or fails the save; errors are only logged.
+    /// Mood only (the payload cannot carry note/stress/energy/dosed); no mood -> no write.
+    private func mirrorMood(_ n: NewCheckIn, savedAt: Date) {
+        guard let moodMirror, mirrorEnabled(), let payload = moodMirrorPayload(n, savedAt: savedAt) else { return }
+        mirrorTask = Task.detached(priority: .utility) {
+            do { try await moodMirror.mirror(payload) }
+            catch { moodMirrorLog.error("mood mirror failed: \(error.localizedDescription, privacy: .public)") }
         }
     }
 
