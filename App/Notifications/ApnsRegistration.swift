@@ -49,6 +49,12 @@ final class ApnsRegistration {
     /// `PushTokenProviding`, and that is reported as `.unavailable`, not swallowed.
     var providerSource: (@MainActor () -> (any PushTokenProviding)?)?
 
+    /// W-B54 (B54-2): the registration that has NOT reached the hub yet — the POST failed, or the
+    /// token arrived before a hub provider existed. Not an `Outbox` row on purpose: the token is
+    /// not user data and APNs may rotate it, so only the latest one is kept, and it is re-POSTed
+    /// by `retryPendingRegistration()` on every foreground until the hub takes it.
+    private(set) var pendingRegistration: PushTokenRegistration?
+
     private let logger = Logger(subsystem: "toby913.JournalInsight", category: "apns")
 
     init() {}
@@ -162,19 +168,35 @@ final class ApnsRegistration {
     /// hub per the push contract. A failure is logged and surfaced in `state`; it never throws into
     /// the delegate callback and never blocks anything else.
     func receive(deviceToken: Data) async {
-        let registration = Self.registration(deviceToken: deviceToken)
+        await submit(Self.registration(deviceToken: deviceToken))
+    }
+
+    /// W-B54 (B54-2): re-POSTs a registration that has not reached the hub yet. Called from the
+    /// app's single scene-phase site on `.active`, so a hub that was asleep (or not yet connected)
+    /// at launch gets the token on the next foreground instead of the next cold launch. Nothing
+    /// pending = no-op; a second failure keeps it pending (no backoff beyond foreground events).
+    func retryPendingRegistration() async {
+        guard let pendingRegistration else { return }
+        await submit(pendingRegistration)
+    }
+
+    private func submit(_ registration: PushTokenRegistration) async {
         guard let provider = providerSource?() else {
+            pendingRegistration = registration
             state = .unavailable(reason: "no hub provider to register the push token with")
-            logger.notice("APNs: token received but no hub connection yet — will re-register on the next launch")
+            logger.notice("APNs: token received but no hub connection yet — will retry on the next foreground")
             return
         }
         do {
             let ack = try await provider.registerPushToken(registration)
+            // A newer token may have arrived while this POST was in flight — clear only our own.
+            if pendingRegistration == nil || pendingRegistration == registration { pendingRegistration = nil }
             state = .registered(token: registration.token, registeredAt: ack.registeredAt)
             logger.notice("APNs: token registered with the hub (\(registration.environment.rawValue, privacy: .public))")
         } catch {
+            pendingRegistration = registration
             state = .unavailable(reason: "hub rejected the push token: \(error)")
-            logger.error("APNs: push-token registration failed: \(String(describing: error), privacy: .public)")
+            logger.error("APNs: push-token registration failed (will retry on the next foreground): \(String(describing: error), privacy: .public)")
         }
     }
 

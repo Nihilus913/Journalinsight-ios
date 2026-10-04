@@ -160,6 +160,7 @@ struct JournalInsightApp: App {
                     let mirror = GateSettingsMirror(prefs: env.prefs,
                                                     provider: (env.hubProvider ?? env.providerStore?.provider) as? any TargetsProviding)
                     Task { @MainActor in await mirror.pushIfPending() }
+                    Task { @MainActor in await ApnsRegistration.shared.retryPendingRegistration() } // W-B54 B54-2
                 } else {
                     watchdog?.stop()
                     watchdog = nil
