@@ -127,6 +127,10 @@ struct JournalInsightApp: App {
                 // prompt. The build host has no Simulator UI, so a system alert on top of
                 // Today cannot be dismissed and every scripted screenshot of a live-hub run
                 // would be taken through it.
+                // B-21 (push-to-start): observe the verdict Live Activity's push-to-start token (an
+                // ActivityKit token — no notification prompt involved, so it starts before the
+                // `-no-push` guard). `ApnsRegistration` holds it until a device token can carry it to the hub.
+                LiveActivityStartRegistration.shared.start()
                 guard !CommandLine.arguments.contains("-no-push") else { return }
                 do {
                     _ = try await UNUserNotificationCenter.current()
@@ -146,9 +150,6 @@ struct JournalInsightApp: App {
                     (env?.hubProvider ?? env?.providerStore?.provider) as? any PushTokenProviding  // W-FIX6 fixer: hub-only
                 }
                 await ApnsRegistration.shared.registerOnLaunch()
-                // B-21 (push-to-start): observe the verdict Live Activity's push-to-start token and
-                // register it alongside the device token, so Morning GO can start the card remotely.
-                LiveActivityStartRegistration.shared.start()
             }
             // The single scene-phase site (W7-L4). `initial: true` so a cold launch counts as
             // the first foreground and the app learns whether the hub is there before the user
