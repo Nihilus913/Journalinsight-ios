@@ -160,7 +160,8 @@ extension TrainingWeekPlanTests {
         let s = trainingWeekSummary(planSessions: Self.strengthMonWed, exercises: [], daily: [], today: "2026-09-23",
                                     templates: [sunday, linked])
         #expect(s.days[6].extras == ["Long Run Zone 2"])
-        #expect(s.days[3].extras.isEmpty)   // named like plan session Day 1 → that session, not an extra
+        // PL-8: a same name is NOT a link (the B-40 name match is retired) — it is an extra.
+        #expect(s.days[3].extras == ["day 1"])
         #expect(trainingWeekDayAccessibilityLabel(s.days[6]).hasSuffix("plus Long Run Zone 2"))
         #expect(trainingWeekDayGlyph(s.days[6]) == "+")
         #expect(trainingWeekDayGlyph(s.days[0]) == "S")

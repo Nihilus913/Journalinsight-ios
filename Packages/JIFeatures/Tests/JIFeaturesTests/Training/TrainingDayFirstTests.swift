@@ -122,12 +122,14 @@ private let fullSpine = trainingDaySpine(strength: spine, sessions: hubSessions)
     #expect(o.library[0].currentDays == [2, 4])
 }
 
-@Test func aLibraryWorkoutNamedLikeAPlanSessionIsThatSessionNotASecondRow() {
-    let t = run("day 1 full upper", id: 9)
-    let o = trainingDayOptions(weekday: 3, spine: spine, templates: [t])
+@Test func aLibraryWorkoutLinkedToAPlanSessionIsThatSessionNotASecondRow() {
+    // PL-8: the link is the hub's id (`linked_refs`), never the name.
+    let t = run("Norwegian 4×4", id: 9, weekdays: [])
+    let linked = spine.map { $0.id == 1 ? WeekSpineEntry(id: 1, name: $0.name, weekday: 0, templateId: 9) : $0 }
+    let o = trainingDayOptions(weekday: 3, spine: linked, templates: [t])
     #expect(o.plan.map(\.title) == ["Day 2 Full Upper", "Day 4 Full Upper"])
     #expect(o.library.count == 1)
-    #expect(o.library[0].choice == .planSession(id: 1, name: "Day 1 Full Upper"))
+    #expect(o.library[0].choice == .template(t))
     #expect(o.library[0].currentDays == [0])
 }
 

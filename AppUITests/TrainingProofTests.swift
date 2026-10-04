@@ -19,9 +19,27 @@ final class TrainingProofTests: JIUITestCase {
         XCTAssertTrue(el("training-day-sheet").waitForExistence(timeout: 10), "day sheet \(weekday) did not open")
     }
 
+    /// W-PLANNER PL-5: the library is the Planner's ALL WORKOUTS (toolbar icon → Planner).
     private func openLibrary() {
-        tapId("training-open-library")
-        XCTAssertTrue(el("workouts-list").waitForExistence(timeout: 15), "library did not open")
+        tapId("training-open-planner")
+        XCTAssertTrue(el("workouts-list").waitForExistence(timeout: 15), "Planner did not open")
+    }
+
+    /// W-PLANNER PL-5 (verifier fix): Training → Planner → Day 1 → Log sets. The strength detail
+    /// is a nested push; its "Log sets" / "Send to Watch" read deps the stack must still carry.
+    func testPL5_plannerDay1LogSets() {
+        openLibrary()
+        let day1 = element(idPrefix: "planner-row-s", labelContains: "Day 1")
+        reveal(day1, "Planner row Day 1")
+        tap(day1, "Planner row Day 1")
+        XCTAssertTrue(el("planner-strength-detail").waitForExistence(timeout: 10), "Day 1 detail did not open")
+        let logSets = el("planner-log-sets")
+        reveal(logSets, "Day 1 Log sets")
+        XCTAssertTrue(el("planner-send-to-watch").exists, "Day 1 has no Send to Watch")
+        shot("PL5-planner-day1-detail")
+        tap(logSets, "Log sets")
+        reveal(el("strength-log-add-exercise"), "the set logger after Log sets")
+        shot("PL5-planner-day1-log-sets")
     }
 
     /// B40-V5: change a day in the day sheet → the hero follows without a relaunch.
@@ -72,24 +90,12 @@ final class TrainingProofTests: JIUITestCase {
         let row = element(idPrefix: "workouts-row-", labelContains: name)
         reveal(row, "library row \(name)")
         let rowY = row.frame.midY
-        let rowCell = cell(holding: row.identifier)
-        // The swipe actions live on the List cell; tap the open action directly (a scroll would
-        // close it).
-        // (The swipe button's identifier is its SF Symbol, "trash" — match the label.)
+        // W-PLANNER: the Planner's rows carry Delete in their context menu (no List swipe there).
+        row.press(forDuration: 1.2)
         let swipeDelete = app.buttons.matching(NSPredicate(format: "label == 'Delete'")).firstMatch
-        for attempt in 0..<3 {
-            switch attempt {
-            case 0: rowCell.swipeLeft()
-            case 1: rowCell.swipeLeft(velocity: .fast)
-            default: swipeOpen(rowCell)
-            }
-            if swipeDelete.waitForExistence(timeout: 3), app.frame.contains(CGPoint(x: swipeDelete.frame.midX, y: swipeDelete.frame.midY)) { break }
-            dump("V8-swipe-\(attempt)")
-        }
-        XCTAssertTrue(swipeDelete.exists, "the trailing swipe never opened on \(name)")
-        shot("V8-red-delete-swipe-open")
-        // SwiftUI's swipe buttons report isHittable == false; tap their centre.
-        swipeDelete.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(swipeDelete.waitForExistence(timeout: 5), "no Delete in the menu of \(name)")
+        shot("V8-red-delete-menu-open")
+        swipeDelete.tap()
         let title = app.staticTexts["Delete \(name)?"]
         if !title.waitForExistence(timeout: 10) { dump("V8-confirm") }
         XCTAssertTrue(title.exists, "no confirmation for \(name)")
