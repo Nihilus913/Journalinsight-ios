@@ -51,3 +51,8 @@ import JIPersistence
         #expect(ImageRenderer(content: after).cgImage != nil)
     }
 }
+
+@Test func calendarSectionIsBehindTheHapticsAndNotificationsRow() {
+    let row = SettingsRoot.rows.first { $0.id == "haptics" }
+    #expect(row?.sectionIds.contains(CalendarSection.sectionId) == true)
+}

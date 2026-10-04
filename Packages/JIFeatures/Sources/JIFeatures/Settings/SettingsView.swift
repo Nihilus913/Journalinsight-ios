@@ -68,7 +68,7 @@ public nonisolated enum SettingsRoot {
             .init(id: "appearance", group: .phone, kind: .inline, sectionIds: ["l1.appearance"]),
             .init(id: "haptics", group: .phone,
                   kind: .push(title: "Haptics & notifications", systemImage: "iphone.radiowaves.left.and.right", placeholder: nil),
-                  sectionIds: ["w8.haptics"]),
+                  sectionIds: ["w8.haptics", CalendarSection.sectionId]),   // W-B96: planned sessions → Calendar
             .init(id: "reminders", group: .phone, kind: .inline, sectionIds: ["l2.reminders"]),
             // W-B38-B B-9: the plate calculator's bar + plate pairs.
             .init(id: "plates", group: .phone, kind: .push(title: "Plates & bar", systemImage: "scalemass", placeholder: nil),

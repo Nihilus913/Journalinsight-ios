@@ -86,7 +86,8 @@ private func at(_ iso: String) -> Date { try! Date(iso, strategy: .iso8601) }
 // their screens); `TgtFixerTests.settingsRootIsMock04` pins the new root.
 @Test @MainActor func syncNowAndHapticsLiveBehindTheirRootRows() {
     #expect(SettingsRoot.rows.first { $0.id == "hub" }?.sectionIds.contains(SyncNowSection.sectionId) == true)
-    #expect(SettingsRoot.rows.first { $0.id == "haptics" }?.sectionIds == [HapticsSection.sectionId])
+    // W-B96 (B-96, BP-24 mockup): the Calendar export joins Haptics & notifications.
+    #expect(SettingsRoot.rows.first { $0.id == "haptics" }?.sectionIds == [HapticsSection.sectionId, CalendarSection.sectionId])
     #expect(SettingsRoot.rows.first { $0.id == "targets" }?.sectionIds == ["l0.preferences"])
 }
 

@@ -9,7 +9,7 @@ import UIKit
 // directly under Reminders. One toggle (off by default), a status tag, the "Next 7 days" preview
 // and copy that says exactly what it does: one way, write-only, all-day.
 public struct CalendarSection: SettingsSection {
-    public static let sectionId = "b96.calendar"
+    public nonisolated static let sectionId = "b96.calendar"
     public let id = Self.sectionId
     public let title = "Calendar"
     public let systemImage = "calendar"
