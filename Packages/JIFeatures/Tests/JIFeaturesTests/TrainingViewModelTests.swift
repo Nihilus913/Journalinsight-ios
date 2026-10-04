@@ -230,3 +230,31 @@ private func makeLiftVM(_ hub: LiftOutboxFakeProvider, outbox: Outbox, store: St
 
     #expect(vm.exercises.first { $0.exerciseId == 19 }?.currentWeightKg == 52.5)
 }
+
+// W-B54 fixer: the screen's watcher keys on `hasPendingSync` (sessions OR lifts), so a queued lift
+// edit alone starts it and its marker clears while the screen stays open.
+@Test @MainActor func aQueuedLiftEditAloneCountsAsPendingSyncForTheWatcher() async throws {
+    let hub = LiftOutboxFakeProvider()
+    let outbox = Outbox(db: try AppDatabase.inMemory())
+    let store = StrengthStateStore(defaults: UserDefaults(suiteName: "b54.vm.\(UUID().uuidString)"))
+    let vm = makeLiftVM(hub, outbox: outbox, store: store)
+    await vm.load()
+    #expect(vm.hasPendingSync == false)
+    hub.updateError = HubError.network("hub unreachable")
+
+    await vm.updateExercise(exerciseId: 19, exerciseName: "Barbell Bench Press", patch: ExerciseUpdate(currentWeightKg: 52.5, progressionStepKg: 2.5, sets: 3))
+    #expect(vm.pendingSessionSync.isEmpty)
+    #expect(vm.hasPendingSync)
+
+    hub.updateError = nil
+    _ = await OutboxDrainer(outbox: outbox, weighIn: nil, gateRespond: nil, exercisePatch: hub, strengthStore: store).drainOnce()
+    await vm.watchPendingSync(every: .milliseconds(10))
+    #expect(vm.hasPendingSync == false)
+}
+
+// W-B54 fixer: the lift card draws its "waiting to sync" glyph when any of its rows is queued.
+@Test func liftCardIsQueuedWhenAnyRowIsInTheOutbox() {
+    #expect(liftCardQueuedForSync(rowIds: [19, 25], queued: [25]))
+    #expect(liftCardQueuedForSync(rowIds: [19, 25], queued: [31]) == false)
+    #expect(liftCardQueuedForSync(rowIds: [19], queued: []) == false)
+}

@@ -83,6 +83,10 @@ public final class TrainingViewModel {
     /// pending, exactly like `pendingSessionSync`. Recomputed from the queue (`reconcilePendingSync`).
     public private(set) var pendingExerciseSync: Set<Int> = []
 
+    /// W-B54: anything (a weekday or a lift edit) still queued — the screen's watcher keys on this,
+    /// so a queued lift edit alone keeps it re-reading the outbox until the marker can clear.
+    public var hasPendingSync: Bool { !(pendingSessionSync.isEmpty && pendingExerciseSync.isEmpty) }
+
     /// B-52: the plan sessions (id / name / weekday) this screen knows about, cached alongside
     /// gate / morning / exercises so the week strip renders from disk on a cold, offline launch.
     /// Derived from the exercise rows on every successful fetch and updated optimistically by
@@ -516,7 +520,7 @@ public final class TrainingViewModel {
     /// with no outbox wired there is nothing to watch.
     public func watchPendingSync(every interval: Duration = .seconds(2)) async {
         guard outbox != nil else { return }
-        while !(pendingSessionSync.isEmpty && pendingExerciseSync.isEmpty), !Task.isCancelled {
+        while hasPendingSync, !Task.isCancelled {
             try? await Task.sleep(for: interval)
             if Task.isCancelled { return }
             reconcilePendingSync()
