@@ -301,7 +301,14 @@ struct RootTabView: View {
             }
             .tabViewStyle(.sidebarAdaptable)   // §8.2: tab bar on iPhone, sidebar on iPad — zero code per tab
         }
-        .jiPageGround()   // W-GUI F3: the tinted ground (report §4.1), never a flat bg
+        .jiPageGround()
+        // B-52 p5: ONE global offline / "N pending" marker over every tab, just above the tab bar.
+        // Hidden while the hub is up and the outbox is empty; tap expands one row per queued kind.
+        .overlay(alignment: .bottom) {
+            PendingSyncMarker(model: PendingSyncModel.shared)
+                .padding(.bottom, 96)
+                .animation(.snappy, value: PendingSyncModel.shared.markerText)
+        }   // W-GUI F3: the tinted ground (report §4.1), never a flat bg
         // B-33 §8.0: the whole shell renders in the native language. §5: tab/selection tint is
         // the personalization accent — W-FIX3 C-c: inherited from the app root's
         // `.tint(theme.accent)` (the user's Appearance choice); a hard-coded default-accent tint

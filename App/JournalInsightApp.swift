@@ -154,6 +154,9 @@ struct JournalInsightApp: App {
                 if phase == .active {
                     watchdog = makeWatchdog()
                     watchdog?.start()
+                    // B-52 p5: the global offline / "N pending" marker follows this watchdog.
+                    PendingSyncModel.shared.watchdog = watchdog
+                    PendingSyncModel.shared.start()
                     outboxRetry.startForeground()
                     env.foregroundHealthUpload() // B-65: last night reaches the hub on open
                     // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
@@ -164,6 +167,7 @@ struct JournalInsightApp: App {
                 } else {
                     watchdog?.stop()
                     watchdog = nil
+                    PendingSyncModel.shared.stop()
                     outboxRetry.stopForeground()
                 }
             }
