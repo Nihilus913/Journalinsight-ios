@@ -38,7 +38,9 @@ nonisolated public enum SectionLoader {
         fetch: () async throws -> T
     ) async throws -> SectionResult<T> {
         do {
-            let value = try await fetch()
+            // B-52 p1: this loader keeps its own cache + stale contract, so the hub client's default
+            // read-through fallback is switched off for its fetch (it must see the failure).
+            let value = try await HubReadPolicy.$current.withValue(.networkOnly) { try await fetch() }
             try? cache.put(key, value)
             return SectionResult(value: value, fetchedAt: now(), error: nil, stale: false)
         } catch {

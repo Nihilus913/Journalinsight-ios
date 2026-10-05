@@ -40,6 +40,8 @@ struct JournalInsightApp: App {
     // `AppEnvironment` reference `env` holds (a class), so it always sees the current
     // `providerStore` even though the closure is built once in `init()`.
     @State private var outboxRetry: OutboxRetryScheduler
+    /// B-52 p1 (c): network-path regain → probe the hub + one immediate outbox pass.
+    @State private var reachability = ReachabilityDrainTrigger()
 
     // W-FIX2 BUG-15: the Appearance choice (mode, accent, text size), read from `PrefStore` at
     // launch and live after every Appearance save. Replaces the unconditional `.dark`.
@@ -158,7 +160,12 @@ struct JournalInsightApp: App {
                 if phase == .active {
                     watchdog = makeWatchdog()
                     watchdog?.start()
-                    outboxRetry.startForeground()
+                    outboxRetry.startForeground()   // B-52 p1 (c): its first tick drains now
+                    reachability.onRegain = { [watchdog, outboxRetry] in
+                        await watchdog?.probe()
+                        await outboxRetry.drainNow()
+                    }
+                    reachability.start()
                     env.foregroundHealthUpload() // B-65: last night reaches the hub on open
                     // B-57 W4: a preset/cap saved while the hub was unreachable reaches it now.
                     let mirror = GateSettingsMirror(prefs: env.prefs,
@@ -169,6 +176,7 @@ struct JournalInsightApp: App {
                     watchdog?.stop()
                     watchdog = nil
                     outboxRetry.stopForeground()
+                    reachability.stop()
                 }
             }
     }
