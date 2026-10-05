@@ -192,8 +192,9 @@ struct RootTabView: View {
     // W4-L1 (P-journal): on-device only, no hub. `journalDB`/`journalVault` are built once, lazily,
     // the first time the Journal tab is opened (never blocks app launch on a Keychain hit); the DB
     // opens the same backed-up `journalinsight.sqlite` file `env.prefs` already uses (AppDatabase.
-    // onDisk()'s default name) — GRDB's `DatabasePool` supports multiple pool instances against one
-    // file, same as `prefs`/`cache` already being separate pools today.
+    // onDisk()'s default name). W-FIX-P0 RG-01 (B-117): every `AppDatabase.onDisk()` call in this
+    // file (and app-wide) now returns the ONE shared pool for that file — separate pools collided
+    // with SQLITE_BUSY and lost the logger's session start.
     @State private var journalDB: AppDatabase?
     /// W-B96 (B-96): planned sessions → iPhone Calendar (write-only, all-day). Built once; the
     /// Settings model and the foreground re-sync share it.
