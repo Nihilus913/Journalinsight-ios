@@ -9,6 +9,8 @@ import JIDesign
 public struct NutritionView: View {
     @Bindable private var model: NutritionViewModel
     @State private var selectedMeal: MealDetail?
+    /// B-99 p5: the Diet quality "How it is calculated" sheet.
+    @State private var showDietQualityMethod = false
     /// B-57 W2 (B-73): the user's own goals, injected at the app root (never the hub document).
     @Environment(\.nutritionGoals) private var nutritionGoals
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -56,9 +58,13 @@ public struct NutritionView: View {
         .sheet(item: Binding(get: { selectedMeal.map(IdentifiedMeal.init) }, set: { selectedMeal = $0?.detail })) {
             MealDetailSheet(detail: $0.detail)
         }
+        .sheet(isPresented: $showDietQualityMethod) { DietQualitySheet(model: dietQuality) }
     }
 
     private var today: String { energyTodayISO() }
+    private var dietQuality: DietQualityPresentation {
+        model.dietQuality(proteinGoal: nutritionGoals.goal(for: .protein), kcalGoal: nutritionGoals.kcalGoal)
+    }
     private var subtitle: String { nutritionSubtitle(selected: model.selectedDate, today: today) }
 
     private var loading: some View {
@@ -86,6 +92,9 @@ public struct NutritionView: View {
             }
             JISectionHeader(nutritionSectionTitle(selected: model.selectedDate, today: today))
             MacroSummaryCard(day: model.day, today: today, source: model.daySource)
+            // B-99 p5: Diet quality under Macros (mockup BP-20 A).
+            JISectionHeader(dietQualityTitle)
+            DietQualityCard(model: dietQuality) { showDietQualityMethod = true }
             JISectionHeader(nutritionMealsTitle(selected: model.selectedDate, today: today))   // W-FIX11 H2-12
             MealTimeline(day: model.day, onSelectMeal: { selectedMeal = $0 })
             // W-GUI M2 (mockup 05): the week as bars from zero against the ±5 % goal band.

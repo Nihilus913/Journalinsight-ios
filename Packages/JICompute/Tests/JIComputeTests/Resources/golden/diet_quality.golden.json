@@ -1,0 +1,435 @@
+{
+ "_comment": "B-99 diet quality golden fixtures (JI reference formula v1). Shared by HT tests/test_diet_quality.py and the XC DietQuality.swift port (B-99 p3). Expected values hand-computed; weights compare with 1e-9 tolerance.",
+ "cases": [
+  {
+   "name": "complete_all_at_target",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 28,
+    "sugar_g": 40,
+    "sat_fat_g": 20,
+    "protein_g": 150,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 4,
+    "coverage_pct": 92
+   },
+   "expected": {
+    "score": 100,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 100.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 92,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "mixed_partial_contributors",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 14,
+    "sugar_g": 75,
+    "sat_fat_g": 30,
+    "protein_g": 120,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 3,
+    "coverage_pct": 80
+   },
+   "expected": {
+    "score": 65,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 50.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 66.7,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 65.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 80.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 80,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "sat_fat_na_renormalised_not_zero",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 14,
+    "sugar_g": 40,
+    "sat_fat_g": null,
+    "protein_g": 150,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 3,
+    "coverage_pct": 70
+   },
+   "expected": {
+    "score": 83,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 50.0,
+      "weight": 0.3333333333333333
+     },
+     {
+      "key": "sugar",
+      "score": 100.0,
+      "weight": 0.3333333333333333
+     },
+     {
+      "key": "sat_fat",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "protein",
+      "score": 100.0,
+      "weight": 0.3333333333333333
+     }
+    ],
+    "coverage_pct": 70,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "no_protein_goal_protein_na",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 28,
+    "sugar_g": 75,
+    "sat_fat_g": 20,
+    "protein_g": 100,
+    "protein_goal_g": null,
+    "kcal_goal": 2200,
+    "meal_count": 3,
+    "coverage_pct": null
+   },
+   "expected": {
+    "score": 89,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.3333333333333333
+     },
+     {
+      "key": "sugar",
+      "score": 66.7,
+      "weight": 0.3333333333333333
+     },
+     {
+      "key": "sat_fat",
+      "score": 100.0,
+      "weight": 0.3333333333333333
+     },
+     {
+      "key": "protein",
+      "score": null,
+      "weight": null
+     }
+    ],
+    "coverage_pct": null,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "gate_few_meals",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 28,
+    "sugar_g": 40,
+    "sat_fat_g": 20,
+    "protein_g": 150,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 2,
+    "coverage_pct": 95
+   },
+   "expected": {
+    "score": null,
+    "incomplete": true,
+    "reason": "few_meals",
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 100.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 95,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "gate_low_kcal_vs_goal",
+   "input": {
+    "kcal": 1200,
+    "fiber_g": 20,
+    "sugar_g": 20,
+    "sat_fat_g": 10,
+    "protein_g": 90,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 3,
+    "coverage_pct": 90
+   },
+   "expected": {
+    "score": null,
+    "incomplete": true,
+    "reason": "low_kcal",
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 60.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 90,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "no_kcal_goal_only_meal_gate",
+   "input": {
+    "kcal": 1200,
+    "fiber_g": 20,
+    "sugar_g": 20,
+    "sat_fat_g": 10,
+    "protein_g": 90,
+    "protein_goal_g": 150,
+    "kcal_goal": null,
+    "meal_count": 3,
+    "coverage_pct": 90
+   },
+   "expected": {
+    "score": 90,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 60.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 90,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "no_contributors",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": null,
+    "sugar_g": null,
+    "sat_fat_g": null,
+    "protein_g": null,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 3,
+    "coverage_pct": 0
+   },
+   "expected": {
+    "score": null,
+    "incomplete": true,
+    "reason": "no_contributors",
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sugar",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sat_fat",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "protein",
+      "score": null,
+      "weight": null
+     }
+    ],
+    "coverage_pct": 0,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "clamped_extremes",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 50,
+    "sugar_g": 150,
+    "sat_fat_g": 50,
+    "protein_g": 300,
+    "protein_goal_g": 150,
+    "kcal_goal": 2200,
+    "meal_count": 5,
+    "coverage_pct": 100
+   },
+   "expected": {
+    "score": 50,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 100.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sugar",
+      "score": 0.0,
+      "weight": 0.25
+     },
+     {
+      "key": "sat_fat",
+      "score": 0.0,
+      "weight": 0.25
+     },
+     {
+      "key": "protein",
+      "score": 100.0,
+      "weight": 0.25
+     }
+    ],
+    "coverage_pct": 100,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "rounding_half_up",
+   "input": {
+    "kcal": 2000,
+    "fiber_g": 14,
+    "sugar_g": null,
+    "sat_fat_g": null,
+    "protein_g": 51,
+    "protein_goal_g": 100,
+    "kcal_goal": 2000,
+    "meal_count": 3,
+    "coverage_pct": 86.5
+   },
+   "expected": {
+    "score": 51,
+    "incomplete": false,
+    "reason": null,
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": 50.0,
+      "weight": 0.5
+     },
+     {
+      "key": "sugar",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sat_fat",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "protein",
+      "score": 51.0,
+      "weight": 0.5
+     }
+    ],
+    "coverage_pct": 87,
+    "formula_version": 1
+   }
+  }
+ ]
+}

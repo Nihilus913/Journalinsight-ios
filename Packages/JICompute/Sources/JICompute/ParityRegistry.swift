@@ -75,6 +75,15 @@ public nonisolated enum ParityRegistry {
             notes: "One of readiness_categorical's raw hub inputs (input 2 of 2); fetched from the hub, never recomputed locally."
         ),
 
+        // --- B-99 p3: diet quality (JI reference formula v1) ------------------
+        // Swift-only for now: the RN oracle is frozen (v1.18.2) and HT's
+        // tests/test_parity_registry.py pins Python == TS key sets, so the
+        // Python/TS mirrors gain this key only if the RN freeze is lifted.
+        "diet_quality": ParityEntry(
+            source: .computed,
+            notes: "B-99 p3: diet-quality score ported from app/nutrition/diet_quality.py (formula v1, JI reference, no Bevel parity claim); golden fixture tests/fixtures/diet_quality/golden.json, exact parity incl. rounding."
+        ),
+
         // --- established hub-computed / hub-only vitals -----------------------
         "rhr": ParityEntry(
             source: .hub,
@@ -133,6 +142,7 @@ public nonisolated enum ParityRegistry {
     /// apart from `entries` so the notes stay identical to the Python/TS registries.
     public static let implementations: [String: String] = [
         "readiness_categorical": "JICompute.ReadinessComposite",
+        "diet_quality": "JICompute.DietQuality",
         "daily_strain": "JICompute.Strain",
     ]
 
