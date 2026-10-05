@@ -123,3 +123,21 @@ public nonisolated func recoverySubtitle(nights: Int) -> String {
 public nonisolated let recoveryMonitorCaption = "Trends only. Nothing on this screen decides your day, and none of it is a medical reading."
 public nonisolated let recoveryRhrCaption = "Overnight only. Daytime HR is not used."
 
+
+/// RG-35: the Sleep card's "Window" tile — "21:13–04:59" from `/vitals/sleep-summary`'s last-night
+/// window while that night is last night (≤ 36 h rule); nil = "— not read".
+public nonisolated func recoverySleepWindowText(_ summary: SleepSummary?, now: Date = Date()) -> String? {
+    guard let summary, let night = summary.lastNightDate,
+          KpiMetrics.isLastNightFresh(nightDate: night, now: now),
+          let start = clockHHMM(summary.lastNightSleepStartLocal), let end = clockHHMM(summary.lastNightSleepEndLocal)
+    else { return nil }
+    return "\(start)–\(end)"
+}
+
+/// "2026-10-04T21:13:41" (or "… 21:13:41") → "21:13"; nil when the string carries no clock.
+private nonisolated func clockHHMM(_ iso: String?) -> String? {
+    guard let iso, iso.count >= 16 else { return nil }
+    let chars = Array(iso)
+    guard chars[10] == "T" || chars[10] == " ", chars[13] == ":" else { return nil }
+    return String(chars[11..<16])
+}

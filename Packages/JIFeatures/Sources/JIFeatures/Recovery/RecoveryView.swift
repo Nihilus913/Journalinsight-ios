@@ -184,7 +184,7 @@ public struct RecoveryView: View {
                         factTile("Duration", recoverySleepDuration(seconds: recoveryLatestSleepSeconds ?? insightLastNight(.sleepH).map { $0 * 3600 }))
                         factTile("Deep", recoveryDeepText(hours: recoveryDeepHours(insightHours: insightLastNight(.deepH),
                                                                                   days: model.days, now: Date())))
-                        factTile("Window", "— not read")
+                        factTile("Window", recoverySleepWindowText(model.sleepSummary) ?? "— not read")
                     }
                 } else {
                     NormalBarChart(points: recoveryNights(days: model.days, metric: metric), normal: normal?.range,
