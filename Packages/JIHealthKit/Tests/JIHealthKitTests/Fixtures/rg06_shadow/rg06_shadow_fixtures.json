@@ -1,0 +1,3040 @@
+{
+ "planWeek": [
+  {
+   "name": "Day 1 Full Upper + Z2 40min",
+   "type": "strength"
+  },
+  {
+   "name": "Norwegian 4x4 intervals",
+   "type": "interval"
+  },
+  {
+   "name": "Day 2 Full Upper + Z2 60min",
+   "type": "strength"
+  },
+  {
+   "name": "Long Zone 2 75-90min",
+   "type": "z2"
+  },
+  {
+   "name": "Day 3 Full Upper + Z2 60min",
+   "type": "strength"
+  },
+  {
+   "name": "Norwegian 4x4 intervals",
+   "type": "interval"
+  },
+  {
+   "name": "Rest",
+   "type": "rest"
+  }
+ ],
+ "cases": [
+  {
+   "day": "2026-10-03",
+   "nights": [
+    {
+     "source": "apple",
+     "date": "2026-07-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 24480.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 31740.0,
+     "sleepScore": 98
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 26186.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-13",
+     "hrvRmssdMs": null,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31765.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-14",
+     "hrvRmssdMs": null,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 29274.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-15",
+     "hrvRmssdMs": null,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 27595.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-16",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28885.0,
+     "sleepScore": 97
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": 74.0,
+     "sleepDurationSec": 25706.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-18",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28435.0,
+     "sleepScore": 96
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-19",
+     "hrvRmssdMs": 21.66,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 23703.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-20",
+     "hrvRmssdMs": 26.2,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 25711.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-21",
+     "hrvRmssdMs": 26.47,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 32093.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-22",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 79.0,
+     "sleepDurationSec": 23587.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-23",
+     "hrvRmssdMs": 24.78,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 26822.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-24",
+     "hrvRmssdMs": 20.71,
+     "rhrBpm": 82.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-25",
+     "hrvRmssdMs": 20.68,
+     "rhrBpm": 80.0,
+     "sleepDurationSec": 30957.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-26",
+     "hrvRmssdMs": 24.21,
+     "rhrBpm": 73.0,
+     "sleepDurationSec": 25382.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-27",
+     "hrvRmssdMs": 23.72,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 30449.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-28",
+     "hrvRmssdMs": 20.5,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 29697.0,
+     "sleepScore": 94
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-29",
+     "hrvRmssdMs": 19.4,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 26673.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-30",
+     "hrvRmssdMs": 23.34,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26281.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-01",
+     "hrvRmssdMs": 23.21,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 32514.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-02",
+     "hrvRmssdMs": 17.89,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31494.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-03",
+     "hrvRmssdMs": 21.44,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 22087.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-05",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 28560.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-06",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 24000.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-07",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 31380.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-08",
+     "hrvRmssdMs": 24.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 10260.0,
+     "sleepScore": 27
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-09",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 19889.0,
+     "sleepScore": 48
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-10",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 39780.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-11",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 30176.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-12",
+     "hrvRmssdMs": 38.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-13",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 31920.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-14",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27000.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24960.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-16",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28560.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-17",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25980.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-18",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-19",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 26340.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-20",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 31260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-21",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24240.0,
+     "sleepScore": 77
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32880.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-23",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 22260.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-24",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-25",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 29700.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-26",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 29580.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-27",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 25620.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-28",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 38820.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-29",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 33000.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-30",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 21660.0,
+     "sleepScore": 75
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30960.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-02",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 21480.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-03",
+     "hrvRmssdMs": 43.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 28980.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-04",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-05",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 33079.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-06",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-07",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 22320.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30120.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-10",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25140.0,
+     "sleepScore": 70
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-12",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24300.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-13",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28860.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-14",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 31680.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-16",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-17",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26143.0,
+     "sleepScore": 64
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-18",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-19",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-20",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-21",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24120.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27657.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-23",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-24",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-25",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23580.0,
+     "sleepScore": 60
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-26",
+     "hrvRmssdMs": 40.0,
+     "rhrBpm": 58.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 72
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-27",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-28",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 34680.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-29",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-31",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-02",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32340.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-03",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 27180.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-04",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 49
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-05",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28380.0,
+     "sleepScore": 58
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-06",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-07",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 56
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-08",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 30289.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-10",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27480.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-12",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-13",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-14",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 63
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-15",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 9060.0,
+     "sleepScore": 33
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-16",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-17",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27060.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-18",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-19",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-20",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 25957.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-21",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 55
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-22",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 29940.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-23",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-24",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-25",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23880.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-26",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 62
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-27",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24720.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-28",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25560.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-29",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 22380.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-31",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25800.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-01",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26940.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-02",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29880.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-03",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-04",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27300.0,
+     "sleepScore": 51
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-05",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24780.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-06",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-07",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27240.0,
+     "sleepScore": 53
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-09",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29820.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-10",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27660.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-11",
+     "hrvRmssdMs": 23.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 24540.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-12",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26520.0,
+     "sleepScore": 79
+    }
+   ],
+   "expectedVerdict": "MODIFIED \u2014 swap intervals for easy Z2 30-40min",
+   "expectedReason": "Interval gate failed (HRV 7-day 21 ms \u2014 under band 23\u201327 ms, Recovery low (31)) \u2014 retry the 4x4 next slot.",
+   "storedHubVerdict": "MODIFIED \u2014 swap intervals for easy Z2 30-40min",
+   "storedHubReason": "Interval gate failed (HRV baseline calibrating \u2014 14/28 Apple nights, only 6.1 h sleep) \u2014 retry the 4x4 next slot.",
+   "recovery": 31
+  },
+  {
+   "day": "2026-10-04",
+   "nights": [
+    {
+     "source": "apple",
+     "date": "2026-07-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 24480.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 31740.0,
+     "sleepScore": 98
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 26186.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-13",
+     "hrvRmssdMs": null,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31765.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-14",
+     "hrvRmssdMs": null,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 29274.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-15",
+     "hrvRmssdMs": null,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 27595.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-16",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28885.0,
+     "sleepScore": 97
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": 74.0,
+     "sleepDurationSec": 25706.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-18",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28435.0,
+     "sleepScore": 96
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-19",
+     "hrvRmssdMs": 21.66,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 23703.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-20",
+     "hrvRmssdMs": 26.2,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 25711.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-21",
+     "hrvRmssdMs": 26.47,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 32093.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-22",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 79.0,
+     "sleepDurationSec": 23587.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-23",
+     "hrvRmssdMs": 24.78,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 26822.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-24",
+     "hrvRmssdMs": 20.71,
+     "rhrBpm": 82.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-25",
+     "hrvRmssdMs": 20.68,
+     "rhrBpm": 80.0,
+     "sleepDurationSec": 30957.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-26",
+     "hrvRmssdMs": 24.21,
+     "rhrBpm": 73.0,
+     "sleepDurationSec": 25382.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-27",
+     "hrvRmssdMs": 23.72,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 30449.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-28",
+     "hrvRmssdMs": 20.5,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 29697.0,
+     "sleepScore": 94
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-29",
+     "hrvRmssdMs": 19.4,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 26673.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-30",
+     "hrvRmssdMs": 23.34,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26281.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-01",
+     "hrvRmssdMs": 23.21,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 32514.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-02",
+     "hrvRmssdMs": 17.89,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31494.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-03",
+     "hrvRmssdMs": 21.44,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 22087.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-04",
+     "hrvRmssdMs": 27.74,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 36200.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-06",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 24000.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-07",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 31380.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-08",
+     "hrvRmssdMs": 24.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 10260.0,
+     "sleepScore": 27
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-09",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 19889.0,
+     "sleepScore": 48
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-10",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 39780.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-11",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 30176.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-12",
+     "hrvRmssdMs": 38.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-13",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 31920.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-14",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27000.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24960.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-16",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28560.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-17",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25980.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-18",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-19",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 26340.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-20",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 31260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-21",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24240.0,
+     "sleepScore": 77
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32880.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-23",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 22260.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-24",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-25",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 29700.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-26",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 29580.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-27",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 25620.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-28",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 38820.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-29",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 33000.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-30",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 21660.0,
+     "sleepScore": 75
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30960.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-02",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 21480.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-03",
+     "hrvRmssdMs": 43.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 28980.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-04",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-05",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 33079.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-06",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-07",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 22320.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30120.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-10",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25140.0,
+     "sleepScore": 70
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-12",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24300.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-13",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28860.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-14",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 31680.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-16",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-17",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26143.0,
+     "sleepScore": 64
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-18",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-19",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-20",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-21",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24120.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27657.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-23",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-24",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-25",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23580.0,
+     "sleepScore": 60
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-26",
+     "hrvRmssdMs": 40.0,
+     "rhrBpm": 58.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 72
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-27",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-28",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 34680.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-29",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-31",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-02",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32340.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-03",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 27180.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-04",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 49
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-05",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28380.0,
+     "sleepScore": 58
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-06",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-07",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 56
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-08",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 30289.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-10",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27480.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-12",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-13",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-14",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 63
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-15",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 9060.0,
+     "sleepScore": 33
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-16",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-17",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27060.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-18",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-19",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-20",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 25957.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-21",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 55
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-22",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 29940.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-23",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-24",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-25",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23880.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-26",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 62
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-27",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24720.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-28",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25560.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-29",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 22380.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-31",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25800.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-01",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26940.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-02",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29880.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-03",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-04",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27300.0,
+     "sleepScore": 51
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-05",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24780.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-06",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-07",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27240.0,
+     "sleepScore": 53
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-09",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29820.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-10",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27660.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-11",
+     "hrvRmssdMs": 23.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 24540.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-12",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26520.0,
+     "sleepScore": 79
+    }
+   ],
+   "expectedVerdict": "REST day",
+   "expectedReason": "Walks only \u2014 15,000 steps still on. Carbs can run lower (~120-140g).",
+   "storedHubVerdict": "REST day",
+   "storedHubReason": "Walks only \u2014 15,000 steps still on. Carbs can run lower (~120-140g).",
+   "recovery": 51
+  },
+  {
+   "day": "2026-10-05",
+   "nights": [
+    {
+     "source": "apple",
+     "date": "2026-07-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 24480.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-01",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 31740.0,
+     "sleepScore": 98
+    },
+    {
+     "source": "apple",
+     "date": "2026-08-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": null,
+     "sleepDurationSec": 26186.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-13",
+     "hrvRmssdMs": null,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31765.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-14",
+     "hrvRmssdMs": null,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 29274.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-15",
+     "hrvRmssdMs": null,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 27595.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-16",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28885.0,
+     "sleepScore": 97
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-17",
+     "hrvRmssdMs": null,
+     "rhrBpm": 74.0,
+     "sleepDurationSec": 25706.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-18",
+     "hrvRmssdMs": null,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 28435.0,
+     "sleepScore": 96
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-19",
+     "hrvRmssdMs": 21.66,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 23703.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-20",
+     "hrvRmssdMs": 26.2,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 25711.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-21",
+     "hrvRmssdMs": 26.47,
+     "rhrBpm": 84.0,
+     "sleepDurationSec": 32093.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-22",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 79.0,
+     "sleepDurationSec": 23587.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-23",
+     "hrvRmssdMs": 24.78,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 26822.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-24",
+     "hrvRmssdMs": 20.71,
+     "rhrBpm": 82.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-25",
+     "hrvRmssdMs": 20.68,
+     "rhrBpm": 80.0,
+     "sleepDurationSec": 30957.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-26",
+     "hrvRmssdMs": 24.21,
+     "rhrBpm": 73.0,
+     "sleepDurationSec": 25382.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-27",
+     "hrvRmssdMs": 23.72,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 30449.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-28",
+     "hrvRmssdMs": 20.5,
+     "rhrBpm": 70.0,
+     "sleepDurationSec": 29697.0,
+     "sleepScore": 94
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-29",
+     "hrvRmssdMs": 19.4,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 26673.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "apple",
+     "date": "2026-09-30",
+     "hrvRmssdMs": 23.34,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26281.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-01",
+     "hrvRmssdMs": 23.21,
+     "rhrBpm": 69.0,
+     "sleepDurationSec": 32514.0,
+     "sleepScore": 95
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-02",
+     "hrvRmssdMs": 17.89,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 31494.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-03",
+     "hrvRmssdMs": 21.44,
+     "rhrBpm": 71.0,
+     "sleepDurationSec": 22087.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-04",
+     "hrvRmssdMs": 27.74,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 36200.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "apple",
+     "date": "2026-10-05",
+     "hrvRmssdMs": 25.88,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26400.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-07",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 31380.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-08",
+     "hrvRmssdMs": 24.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 10260.0,
+     "sleepScore": 27
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-09",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 19889.0,
+     "sleepScore": 48
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-10",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 39780.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-11",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 30176.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-12",
+     "hrvRmssdMs": 38.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-13",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 57.0,
+     "sleepDurationSec": 31920.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-14",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27000.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24960.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-16",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28560.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-17",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25980.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-18",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-19",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 26340.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-20",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 31260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-21",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24240.0,
+     "sleepScore": 77
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32880.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-23",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 22260.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-24",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-25",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 29700.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-26",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 29580.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-27",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 25620.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-28",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 38820.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-29",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 67.0,
+     "sleepDurationSec": 33000.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-06-30",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 21660.0,
+     "sleepScore": 75
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30960.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-02",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 21480.0,
+     "sleepScore": 68
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-03",
+     "hrvRmssdMs": 43.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 28980.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-04",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-05",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 33079.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-06",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-07",
+     "hrvRmssdMs": 35.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 22320.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 30120.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 76
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-10",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 25140.0,
+     "sleepScore": 70
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27720.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-12",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24300.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-13",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28860.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-14",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 31680.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-15",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-16",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-17",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26143.0,
+     "sleepScore": 64
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-18",
+     "hrvRmssdMs": 36.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-19",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 91
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-20",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25260.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-21",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 24120.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-22",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 27657.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-23",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-24",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-25",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23580.0,
+     "sleepScore": 60
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-26",
+     "hrvRmssdMs": 40.0,
+     "rhrBpm": 58.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 72
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-27",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-28",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 34680.0,
+     "sleepScore": 69
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-29",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-07-31",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 29640.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-01",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-02",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 32340.0,
+     "sleepScore": 78
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-03",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 27180.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-04",
+     "hrvRmssdMs": 22.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26100.0,
+     "sleepScore": 49
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-05",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28380.0,
+     "sleepScore": 58
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-06",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 33660.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-07",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 56
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-08",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 28320.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-09",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 30289.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-10",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27480.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-11",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 64.0,
+     "sleepDurationSec": 28260.0,
+     "sleepScore": 86
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-12",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28800.0,
+     "sleepScore": 61
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-13",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 57
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-14",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26760.0,
+     "sleepScore": 63
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-15",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 9060.0,
+     "sleepScore": 33
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-16",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27120.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-17",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27060.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-18",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 26580.0,
+     "sleepScore": 82
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-19",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 29280.0,
+     "sleepScore": 89
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-20",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 25957.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-21",
+     "hrvRmssdMs": 25.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 55
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-22",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 29940.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-23",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 30600.0,
+     "sleepScore": 90
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-24",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 27540.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-25",
+     "hrvRmssdMs": 26.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 23880.0,
+     "sleepScore": 54
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-26",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 62
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-27",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24720.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-28",
+     "hrvRmssdMs": 30.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25560.0,
+     "sleepScore": 81
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-29",
+     "hrvRmssdMs": 34.0,
+     "rhrBpm": 59.0,
+     "sleepDurationSec": 22380.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-30",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25500.0,
+     "sleepScore": 80
+    },
+    {
+     "source": "garmin",
+     "date": "2026-08-31",
+     "hrvRmssdMs": 32.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 25800.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-01",
+     "hrvRmssdMs": 31.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 26940.0,
+     "sleepScore": 88
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-02",
+     "hrvRmssdMs": 37.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29880.0,
+     "sleepScore": 92
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-03",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 28200.0,
+     "sleepScore": 84
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-04",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 65.0,
+     "sleepDurationSec": 27300.0,
+     "sleepScore": 51
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-05",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 24780.0,
+     "sleepScore": 79
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-06",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 61.0,
+     "sleepDurationSec": 26160.0,
+     "sleepScore": 83
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-07",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 26880.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-08",
+     "hrvRmssdMs": 27.0,
+     "rhrBpm": 63.0,
+     "sleepDurationSec": 27240.0,
+     "sleepScore": 53
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-09",
+     "hrvRmssdMs": 33.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 29820.0,
+     "sleepScore": 85
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-10",
+     "hrvRmssdMs": 28.0,
+     "rhrBpm": 60.0,
+     "sleepDurationSec": 27660.0,
+     "sleepScore": 87
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-11",
+     "hrvRmssdMs": 23.0,
+     "rhrBpm": 66.0,
+     "sleepDurationSec": 24540.0,
+     "sleepScore": 74
+    },
+    {
+     "source": "garmin",
+     "date": "2026-09-12",
+     "hrvRmssdMs": 29.0,
+     "rhrBpm": 62.0,
+     "sleepDurationSec": 26520.0,
+     "sleepScore": 79
+    }
+   ],
+   "expectedVerdict": "GO (auto-regulated) \u2014 Day 1 Full Upper + Z2 40min",
+   "expectedReason": "Amber (HRV 7-day 22 ms \u2014 under band 23\u201327 ms): lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk.",
+   "storedHubVerdict": "GO (auto-regulated) \u2014 Day 1 Full Upper + Z2 40min",
+   "storedHubReason": "Amber (HRV 7-day 22 ms \u2014 under band 23\u201327 ms): lift at current weights 1-2 reps shy of failure; trim Z2 to ~25min or walk.",
+   "recovery": 44
+  }
+ ]
+}

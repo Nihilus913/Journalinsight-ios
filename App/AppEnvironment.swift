@@ -174,6 +174,9 @@ final class AppEnvironment {
         // hub WITHOUT the overlay (shadow log's hub column, upload target); then the hub provider
         // every screen reads, whose verdict is the on-device one when the phone has it.
         OnDeviceVerdictWiring.install(hub: HubDataProvider(client: hubClient))
+        // RG-06 / B-112: the engine's sleep row reads the Targets sleep goal (read per compute).
+        let targetsPrefs = prefs
+        OnDeviceVerdictWiring.gateRules.setTargetsSource { TargetsStore(prefs: targetsPrefs).loadIfPresent() }
         let provider = HubDataProvider(client: hubClient, verdictOverlay: OnDeviceVerdictWiring.overlay)
         hubProvider = provider
         let store: ProviderStore

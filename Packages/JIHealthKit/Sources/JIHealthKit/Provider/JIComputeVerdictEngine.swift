@@ -118,6 +118,9 @@ public final class OnDeviceGateRulesBox: OnDeviceGateRulesProviding, @unchecked 
     private let lock = NSLock()
     private var plan: [GateSession]?
     private var sleepGoalH: Double?
+    /// RG-06 (W-FIX-P2 l10): the Targets document, read at each compute (`goal(.sleep)`) — the
+    /// same document `morning_go.main()` passes as `targets`; wins over `setSleepGoal`.
+    private var targets: (@Sendable () -> TargetsDocument?)?
     private var config: MorningGateConfig = .default
     private var lastState: MorningGateNewState?
 
@@ -125,6 +128,7 @@ public final class OnDeviceGateRulesBox: OnDeviceGateRulesProviding, @unchecked 
 
     public func setPlan(_ week: [ScheduledSession]?) { lock.withLock { plan = Self.gatePlan(week) } }
     public func setSleepGoal(_ hours: Double?) { lock.withLock { sleepGoalH = hours } }
+    public func setTargetsSource(_ source: @escaping @Sendable () -> TargetsDocument?) { lock.withLock { targets = source } }
 
     /// The fallback weekday table in the resolver's vocabulary (session names for plan rows).
     public static let fixedWeek: [ScheduledSession] = sessionByWeekday.map {
@@ -138,12 +142,15 @@ public final class OnDeviceGateRulesBox: OnDeviceGateRulesProviding, @unchecked 
     }
 
     public func rules(day: String) -> OnDeviceGateRules {
-        lock.withLock {
+        let source = lock.withLock { targets }
+        let doc = source?()   // outside the lock: the source may read a store
+        return lock.withLock {
             let state = lastState.map {
                 MorningGateState(date: $0.date, hrvLow: $0.hrvLow, rhrHigh: $0.rhrHigh, rhrDate: $0.rhrDate, sleepLow: $0.sleepLow, hrvLowN: $0.hrvLowN)
             }
             let prev = (state.flatMap { try? prevFromState($0, today: day) }) ?? MorningGatePrevState()
-            return OnDeviceGateRules(plan: plan, prev: prev, sleepGoalH: sleepGoalH, config: config)
+            let goal = source != nil ? doc?.goal(.sleep) : sleepGoalH
+            return OnDeviceGateRules(plan: plan, prev: prev, sleepGoalH: goal, config: config)
         }
     }
 
