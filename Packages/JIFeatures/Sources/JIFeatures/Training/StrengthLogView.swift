@@ -248,6 +248,7 @@ struct StrengthExerciseCard: View {
                                  durationS: timed ? seconds : nil, rpe: rpe)
                 } label: { Text("Log set \(card.sets.count + 1)") }
                 .buttonStyle(.borderedProminent).tint(theme.color(.info))
+                .disabled(!model.canLogSet)
                 .accessibilityIdentifier("strength-log-set-\(card.lift.exerciseKey)")
             }
             if let error = model.error {

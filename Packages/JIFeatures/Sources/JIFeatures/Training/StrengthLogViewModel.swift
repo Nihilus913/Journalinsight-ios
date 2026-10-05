@@ -226,6 +226,8 @@ public final class StrengthLogViewModel {
     @discardableResult
     public func logSet(exerciseKey: String, weightKg: Double?, reps: Int?, durationS: Int? = nil, rpe: Double? = nil) -> StrengthSetLog? {
         guard let card = cards.first(where: { $0.lift.exerciseKey == exerciseKey }) else { return nil }
+        // W-FIX-P2 RG-26 (B-52): a completed session takes no more sets — no orphan second session.
+        guard canLogSet else { error = "This session is complete."; return nil }
         let timed = card.lift.isTimed
         guard timed ? (durationS ?? 0) > 0 : (reps ?? 0) > 0 else { error = timed ? "Enter the time held." : "Enter the reps."; return nil }
         error = nil
@@ -281,6 +283,9 @@ public final class StrengthLogViewModel {
             return StrengthAdvance(exerciseId: id, currentWeightKg: next)
         }
     }
+
+    /// W-FIX-P2 RG-26: false once this screen's session is complete (the Log-set button disables).
+    public var canLogSet: Bool { session?.isComplete != true }
 
     public var canComplete: Bool { session != nil && session?.isComplete == false && cards.contains { !$0.sets.isEmpty } }
 
