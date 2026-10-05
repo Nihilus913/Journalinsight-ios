@@ -101,3 +101,50 @@ public nonisolated func kpiHrvTableRows(_ rows: [KpiDetailTableRow], merged: [Kp
         r.id == "counted" ? KpiDetailTableRow(id: r.id, title: "Watch nights (28 d)", subtitle: "the normal's nights · missing ones stay missing", value: r.value) : r
     } + [source]
 }
+
+// MARK: - RG-36 (B-104): RHR / Sleep sources
+
+/// The night's source for a source-labelled metric: Garmin when the hub says the value is a
+/// Garmin fill (`rhr_src` / `sleep_src` / `hrv_src` "garmin"), else the Watch; nil = no value.
+nonisolated func kpiNightSource(_ d: RecoveryInputDay, metric: KpiMetricId) -> HrvNightSource? {
+    switch metric {
+    case .hrv: d.hrvMs == nil ? nil : (d.hrvSrc == "garmin" ? .garmin : .apple)
+    case .rhr: d.rhrBpm == nil ? nil : (d.rhrSrc == "garmin" ? .garmin : .apple)
+    case .sleep: d.sleepH == nil ? nil : (d.sleepSrc == "garmin" ? .garmin : .apple)
+    default: nil
+    }
+}
+
+/// RG-36: the detail subtitle names the sources its 28-day window actually counts — "Apple Watch"
+/// alone only when no counted night is a Garmin fill ("Apple Watch + Garmin" with 6 Garmin + 22
+/// Watch nights; "Garmin" when every night is Garmin's). No source rows = the plain subtitle.
+public nonisolated func kpiDetailSubtitle(_ metric: KpiMetricId, sourceDays: [RecoveryInputDay], today: String) -> String {
+    let base = kpiDetailSubtitle(metric)
+    guard [.hrv, .rhr, .sleep].contains(metric), let t = trainingStripDate(today),
+          let start = trainingStripCalendar.date(byAdding: .day, value: -27, to: t) else { return base }
+    let sources = Set(sourceDays.compactMap { d -> HrvNightSource? in
+        guard let date = trainingStripDate(d.date), date >= start, date <= t else { return nil }
+        return kpiNightSource(d, metric: metric)
+    })
+    guard sources.contains(.garmin) else { return base }
+    return base.replacingOccurrences(of: "Apple Watch", with: sources.contains(.apple) ? "Apple Watch + Garmin" : "Garmin")
+}
+
+/// RG-36: RHR / Sleep nights as the chart draws them — the plotted history tagged with each
+/// night's source, so Garmin fills are drawn in the Garmin style (dashed), never as Watch nights.
+public nonisolated func kpiSourcedNightPoints(history: [(date: String, value: Double?)], sourceDays: [RecoveryInputDay],
+                                              metric: KpiMetricId, range: KpiDetailRange) -> [KpiSourcedPoint] {
+    let src = Dictionary(sourceDays.compactMap { d in kpiNightSource(d, metric: metric).map { (d.date, $0) } },
+                         uniquingKeysWith: { a, _ in a })
+    let dated = history.compactMap { h -> KpiSourcedPoint? in
+        guard let v = h.value, let date = trainingStripDate(h.date) else { return nil }
+        return KpiSourcedPoint(date: date, value: v, source: src[h.date] ?? .apple)
+    }
+    guard let newest = dated.map(\.date).max(),
+          let cutoff = trainingStripCalendar.date(byAdding: .day, value: -(range.days - 1), to: newest) else { return [] }
+    return dated.filter { $0.date >= cutoff }.sorted { $0.date < $1.date }
+}
+
+/// RG-36: the legend / caption for RHR and Sleep's Garmin nights (not scaled, unlike HRV's × 0.95).
+public nonisolated let kpiNightGarminLegend = "dashed grey = Garmin"
+public nonisolated let kpiNightMixCaption = "Watch first, Garmin where the Watch has none — both count in the band, average and night count."

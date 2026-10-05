@@ -19,13 +19,19 @@ public struct RecoveryInputDay: Codable, Sendable, Equatable {
     /// nightly RMSSD, already × 0.95 hub-side = an estimate) | nil (no HRV that night, or an older
     /// hub that does not send it — then an `hrvMs` is the Watch's, as before).
     public var hrvSrc: String?
+    /// RG-36 (HT RG-36): where `rhrBpm` / `sleepH` came from after the hub's Watch-first,
+    /// Garmin-fills merge — "apple" | "garmin" | nil (older hub: treated as the Watch's).
+    public var rhrSrc: String?
+    public var sleepSrc: String?
 
     public init(date: String, hrvMs: Double? = nil, rhrBpm: Double? = nil, sleepH: Double? = nil,
                 deepH: Double? = nil, remH: Double? = nil, loadMin: Double? = nil,
-                respBpm: Double? = nil, wristTempC: Double? = nil, hrvSrc: String? = nil) {
+                respBpm: Double? = nil, wristTempC: Double? = nil, hrvSrc: String? = nil,
+                rhrSrc: String? = nil, sleepSrc: String? = nil) {
         self.date = date; self.hrvMs = hrvMs; self.rhrBpm = rhrBpm; self.sleepH = sleepH
         self.deepH = deepH; self.remH = remH; self.loadMin = loadMin
         self.respBpm = respBpm; self.wristTempC = wristTempC; self.hrvSrc = hrvSrc
+        self.rhrSrc = rhrSrc; self.sleepSrc = sleepSrc
     }
 
     /// B-104 p2: this night's HRV is a Garmin estimate (never true for an older hub's rows).
