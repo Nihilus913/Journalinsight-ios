@@ -28,6 +28,11 @@ public struct GateSignal: Codable, Sendable, Equatable, Identifiable {
     /// W-B91 S1 (key "load" only): the hub's named ACWR status — "maintaining" | "productive" |
     /// "overreaching" | "paused" (HT `app/vitals/load_status.py`). Absent from an older hub.
     public var loadStatus: String?
+    /// W-B91 S3 b91p2 (key "load" only): the 7 d / 28 d average daily load (effort x hours) behind
+    /// the ratio — the Strain sheet's acute / chronic tiles. Absent from an older hub or without a
+    /// current ACWR.
+    public var acuteLoad: Double?
+    public var chronicLoad: Double?
 
     public var id: String { key }
 

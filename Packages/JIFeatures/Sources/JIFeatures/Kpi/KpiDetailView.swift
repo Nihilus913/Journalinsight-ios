@@ -22,6 +22,8 @@ public struct KpiDetailView: View {
     private let theme = JITheme.native
     /// W-FIX4 PF-04 (B-57 W3): the shell's one sync instant for the source line's pill.
     @Environment(\.jiSyncedAt) private var syncedAt
+    /// W-B91 S3: the user's break is on → the Load (ACWR) hero reads "Paused".
+    @Environment(\.loadPaused) private var loadPaused
 
     public init(model: KpiDetailViewModel) { _model = State(initialValue: model) }
 
@@ -70,11 +72,14 @@ public struct KpiDetailView: View {
             KpiDetailValueCard(
                 valueText: kpiDetailNumber(model.value, decimals: model.def.decimals) + (unit.isEmpty ? "" : " \(unit)"),
                 label: model.def.label,
-                status: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals,
-                                        hubCalibrating: model.calibrationCaption != nil,
-                                        normalSet: kpiNormal.normal != nil,   // W-FIX12 F12-3: the 28-day row's own rule
-                                        valueDate: model.showsLoadMinutes ? nil : model.latest?.date,
-                                        today: RecoveryInsightService.localDayKey(Date())),
+                // W-B91 S3: the ACWR hero carries its named word (Overreaching / Paused …), not Up/Down.
+                status: kpiDetailLoadStatus(metric: model.metric, value: model.value, showsLoadMinutes: model.showsLoadMinutes,
+                                            paused: loadPaused,
+                                            base: kpiDetailStatus(history: model.history, value: model.value, unit: unit, decimals: model.def.decimals,
+                                                                  hubCalibrating: model.calibrationCaption != nil,
+                                                                  normalSet: kpiNormal.normal != nil,   // W-FIX12 F12-3: the 28-day row's own rule
+                                                                  valueDate: model.showsLoadMinutes ? nil : model.latest?.date,
+                                                                  today: RecoveryInsightService.localDayKey(Date()))),
                 asOf: model.asOfLabel,
                 tint: metricTintRole(model.metric.rawValue),
                 heroTint: model.metric == .sleep ? theme.color(.sleep) : nil

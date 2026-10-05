@@ -664,6 +664,8 @@ struct RootTabView: View {
             .environment(\.jiSyncedAt, Self.tabSyncedAt(todayModel))
             // B-57 W3: the recovery score / normals for every screen of the stack (root and pushed).
             .environment(\.recoveryInsight, recoveryInsight)
+            // W-B91 S3: the user's break (hub `/morning` load row) → every Load surface reads "Paused".
+            .environment(\.loadPaused, todayModel?.loadPaused ?? false)
             // W-PLANNER fixer (PL-4/PL-5): the set logger + Watch plan sender for every screen of
             // the stack, root AND pushed — the Planner's strength detail is a nested push (Training
             // → Planner → Day 1, Today → Your week → Day 1) that a tab root's modifier never reaches.
