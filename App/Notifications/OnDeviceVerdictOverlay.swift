@@ -19,43 +19,34 @@ nonisolated struct OnDeviceVerdictOverlay: MorningVerdictOverlay {
     static let startDay = "2026-10-05"
     /// DEBUG only: `-ji.ondevice.overlayFrom yyyy-MM-dd` moves the start (simulator exit check).
     static let startOverrideKey = "ji.ondevice.overlayFrom"
-    /// Today's verdict is recomputed at most this often (a late-synced night can still change it).
-    static let todayTTL: TimeInterval = 15 * 60
-
     let startDay: String
     let today: @Sendable () -> String
     let compute: Compute
     /// Each freshly computed result for TODAY (shadow log + upload).
     let onResult: ShadowLogWriter.Write?
-    let cache = OverlayCache()
+    /// RG-12 / B-127: the day's FIRST verdict is frozen (UserDefaults, survives relaunch) — later
+    /// overlays never rewrite "YOUR CALL FOR TODAY · HH:mm", the word or the rows.
+    var frozen: any FrozenMorningStoring = UserDefaultsFrozenMorningStore()
+    var now: @Sendable () -> Date = { Date() }
 
     var todayKey: String { today() }
 
     func verdict(day: String) async -> OnDeviceMorning? {
         let today = todayKey
         guard day >= startDay, day <= today else { return nil }
-        let now = Date()
-        if let hit = await cache.get(day, now: now, ttl: day == today ? Self.todayTTL : .infinity) { return hit }
-        guard let result = try? await compute(day) else { return nil }
-        // Decision (4): no UI change — the hub's verdict vocabulary as is, no calibrating label.
-        let morning = OnDeviceMorning(day: day, verdict: result.verdict, reason: result.reason,
-                                      sessionPrescription: result.sessionPrescription,
-                                      gateSignals: result.signals, computedAt: now.ISO8601Format())
-        await cache.put(day, morning, at: now)
-        if day == today { await onResult?(day, result, now) }
-        return morning
-    }
-
-    actor OverlayCache {
-        private var entries: [String: (OnDeviceMorning, Date)] = [:]
-        func get(_ day: String, now: Date, ttl: TimeInterval) -> OnDeviceMorning? {
-            guard let (m, at) = entries[day], now.timeIntervalSince(at) < ttl else { return nil }
-            return m
+        let at = now()
+        var computed: OnDeviceVerdictResult?
+        let resolved = await OnDeviceMorningFreeze.resolve(day: day, store: frozen) {
+            guard let result = try? await compute(day) else { return nil }
+            computed = result
+            // Decision (4): no UI change — the hub's verdict vocabulary as is, no calibrating label.
+            return OnDeviceMorning(day: day, verdict: result.verdict, reason: result.reason,
+                                   sessionPrescription: result.sessionPrescription,
+                                   gateSignals: result.signals, computedAt: at.ISO8601Format())
         }
-        func put(_ day: String, _ m: OnDeviceMorning, at: Date) {
-            entries[day] = (m, at)
-            if entries.count > 14, let oldest = entries.keys.min() { entries[oldest] = nil }
-        }
+        guard let resolved else { return nil }
+        if resolved.fresh, day == today, let computed { await onResult?(day, computed, at) }
+        return resolved.morning
     }
 }
 
