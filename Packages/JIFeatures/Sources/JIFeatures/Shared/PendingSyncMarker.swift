@@ -55,14 +55,12 @@ public nonisolated func pendingSyncLines(_ rows: [OutboxRow]) -> [PendingSyncLin
     return order.compactMap { byKind[$0] }
 }
 
-/// The marker's face, or `nil` when there is nothing to say (hub up, queue empty).
+/// The marker's face, or `nil` when there is nothing queued.
+/// W-FIX-P2 RG-23 (B-52): offline is said ONCE, by the screen's `OfflinePill` — this floating
+/// capsule only counts the queue, so an offline phone with nothing queued draws nothing over
+/// sheet text, the Log-set row or chart legends.
 public nonisolated func pendingSyncMarkerText(pending: Int, offline: Bool) -> String? {
-    switch (offline, pending) {
-    case (false, 0): nil
-    case (true, 0): "Offline"
-    case (true, let n): "Offline · \(n) pending"
-    case (false, let n): "\(n) waiting to sync"
-    }
+    pending == 0 ? nil : "\(pending) waiting to sync"
 }
 
 /// Observable state behind the marker: the outbox queue and the watchdog's reachability, polled
