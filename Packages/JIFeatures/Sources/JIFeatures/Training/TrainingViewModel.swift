@@ -180,6 +180,15 @@ public final class TrainingViewModel {
         return ZoneTimeModel(provider: provider as? any ZoneTimeProviding, span: span, today: { DayKey.today(now: now()) })
     }
 
+    /// B-94 b94p4 (BP-4): Training › Progress over this screen's provider (strength records +
+    /// cardio series) and the phone's strength log / prefs when the app wired them.
+    public func makeProgressModel(deps: StrengthLogDeps?) -> ProgressViewModel {
+        let now = self.now
+        return ProgressViewModel(store: deps.map { StrengthSessionLogStore(db: $0.db) }, provider: deps?.provider ?? provider,
+                                 cardioProvider: provider as? any CardioSeriesProviding, prefStore: deps?.prefs,
+                                 today: { DayKey.today(now: now()).iso })
+    }
+
     /// W-B92 C-5: the Planner's Month view over this screen's provider (hub calendar route), the
     /// phone's planned snapshots (same database as the cache) and the plan as the offline answer.
     public func makeMonthModel() -> TrainingMonthModel {

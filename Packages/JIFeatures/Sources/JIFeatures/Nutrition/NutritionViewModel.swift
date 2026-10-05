@@ -37,6 +37,21 @@ public final class NutritionViewModel {
         let keep = Set(merged.map(\.date).sorted().suffix(7))
         return merged.filter { keep.contains($0.date) }
     }
+    /// B-99 p5: the hub's own `/nutrition/daily` row for the selected day — it carries the hub's
+    /// `diet_quality`, which the Health merge (`week`) replaces away. Falls back to the day
+    /// detail's totals (no fibre / sugar) when the week has no row for the day.
+    public var hubDayRow: NutritionDailyRow? {
+        if let row = hubWeek.first(where: { $0.date == selectedDate }) { return row }
+        guard let t = hubDay?.total else { return nil }
+        return NutritionDailyRow(date: selectedDate, kcalConsumed: t.kcal, kcalGoal: t.kcalGoal, proteinG: t.proteinG,
+                                 carbsG: t.carbsG, fatG: t.fatG, mealsLogged: t.mealsLogged)
+    }
+    /// B-99 p5: Apple Health's totals for the selected day (the hub-less diet-quality fallback).
+    public var healthDay: HealthDailyTotals? { health.totals.last { $0.date == selectedDate } }
+    /// B-99 p5: the selected day's Diet quality card (hub first, Apple Health fallback).
+    public func dietQuality(proteinGoal: Double?, kcalGoal: Double?) -> DietQualityPresentation {
+        dietQualityPresentation(date: selectedDate, hubRow: hubDayRow, health: healthDay, proteinGoal: proteinGoal, kcalGoal: kcalGoal)
+    }
     private var hubDay: NutritionDayDetail?
     private var hubWeek: [NutritionDailyRow] = []
     private var health: HealthTotalsSource

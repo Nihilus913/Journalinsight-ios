@@ -69,10 +69,48 @@ public struct NutritionDailyRow: Codable, Sendable, Equatable {
     /// W-B77: grams, the SUM of the day's YAZIO food items (`fiber_g` / `sugar_g`); nil on old
     /// hubs and on days no item carried a value — never 0 for unknown.
     public var fiberG, sugarG: Double?
+    /// B-99 p1: saturated fat grams (`sat_fat_g`, SUM of items) and the kcal-weighted share of
+    /// logged kcal whose items carry fibre/sugar/sat-fat detail (`coverage_pct`, 0-100). nil on
+    /// old hubs / unknown.
+    public var satFatG, coveragePct: Double?
+    /// B-99 p4: the hub's JI-owned diet quality for the day (`diet_quality`); nil on old hubs and
+    /// on days without a nutrition row.
+    public var dietQuality: DietQualityDTO?
     public init(date: String, kcalConsumed: Double? = nil, kcalGoal: Double? = nil, proteinG: Double? = nil, carbsG: Double? = nil, fatG: Double? = nil, mealsLogged: Int? = nil,
-                fiberG: Double? = nil, sugarG: Double? = nil) {
+                fiberG: Double? = nil, sugarG: Double? = nil, satFatG: Double? = nil, coveragePct: Double? = nil,
+                dietQuality: DietQualityDTO? = nil) {
         self.date = date; self.kcalConsumed = kcalConsumed; self.kcalGoal = kcalGoal; self.proteinG = proteinG; self.carbsG = carbsG; self.fatG = fatG; self.mealsLogged = mealsLogged
         self.fiberG = fiberG; self.sugarG = sugarG
+        self.satFatG = satFatG; self.coveragePct = coveragePct; self.dietQuality = dietQuality
+    }
+}
+
+/// B-99 p4 — `days[].diet_quality` of `GET /api/v1/nutrition/daily` (HT
+/// `app/nutrition/diet_quality.py`, "JI reference" formula). Decoded through `JSON.decoder`
+/// (`.convertFromSnakeCase`). `score` is nil when `incomplete` (gate: <3 meals or <60 % of the
+/// kcal goal); a contributor's `score`/`weight` is nil when it is n/a (no data) — never 0.
+public struct DietQualityDTO: Codable, Sendable, Equatable {
+    public struct Contributor: Codable, Sendable, Equatable {
+        /// `fibre` | `sugar` | `sat_fat` | `protein` (wire values, not keys — not case-converted).
+        public var key: String
+        public var score: Double?
+        public var weight: Double?
+        public init(key: String, score: Double? = nil, weight: Double? = nil) {
+            self.key = key; self.score = score; self.weight = weight
+        }
+    }
+    public var score: Int?
+    public var incomplete: Bool
+    /// `few_meals` | `low_kcal` | `no_contributors`; nil when complete.
+    public var reason: String?
+    public var contributors: [Contributor]
+    /// For the "based on N% of logged kcal" caption; nil when unknown.
+    public var coveragePct: Int?
+    public var formulaVersion: Int?
+    public init(score: Int? = nil, incomplete: Bool, reason: String? = nil, contributors: [Contributor] = [],
+                coveragePct: Int? = nil, formulaVersion: Int? = nil) {
+        self.score = score; self.incomplete = incomplete; self.reason = reason; self.contributors = contributors
+        self.coveragePct = coveragePct; self.formulaVersion = formulaVersion
     }
 }
 

@@ -109,6 +109,9 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Target editor cap") { TargetsFixtures.editorCap() },
         ScreenEntry(name: "Sync & hub") { L6Fixtures.settingsSyncHub() },
         ScreenEntry(name: "Home & widgets") { L6Fixtures.homeWidgets() },
+        // MARK: B-99 p5 — Nutrition › Diet quality card (mockup BP-20 A/C) + its method sheet (B)
+        ScreenEntry(name: "Diet quality") { AnyView(DietQualityNativePreview()) },
+        ScreenEntry(name: "Diet quality method") { AnyView(DietQualityMethodNativePreview()) },
     ]
 }
 #endif
