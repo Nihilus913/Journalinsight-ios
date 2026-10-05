@@ -61,7 +61,7 @@ public protocol MorningVerdictOverlay: Sendable {
 }
 
 /// One morning's on-device verdict in the hub's vocabulary.
-public struct OnDeviceMorning: Sendable, Equatable {
+public struct OnDeviceMorning: Codable, Sendable, Equatable {
     public var day: String
     public var verdict: String
     public var reason: String?
@@ -100,5 +100,49 @@ extension MorningResponse {
 extension OnDeviceMorning {
     public var asMorningVerdict: MorningVerdict {
         .onDevice(date: day, verdict: verdict, reason: reason, sessionPrescription: sessionPrescription, computedAt: computedAt)
+    }
+}
+
+/// RG-12 / B-127: the day's FIRST on-device verdict, frozen — later nights, overlays and relaunches
+/// never rewrite "YOUR CALL FOR TODAY · HH:mm", the word or the rows.
+public protocol FrozenMorningStoring: Sendable {
+    func frozen(day: String) -> OnDeviceMorning?
+    func freeze(_ morning: OnDeviceMorning)
+}
+
+/// `UserDefaults`-backed (survives relaunch and background wakes); keeps the last 7 days.
+public struct UserDefaultsFrozenMorningStore: FrozenMorningStoring {
+    public static let key = "ji.ondevice.verdict.frozen"
+    // UserDefaults is thread-safe by documented contract (not annotated Sendable on this SDK).
+    private nonisolated(unsafe) let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    private func map() -> [String: Data] { (defaults.dictionary(forKey: Self.key) as? [String: Data]) ?? [:] }
+
+    public func frozen(day: String) -> OnDeviceMorning? {
+        guard let data = map()[day] else { return nil }
+        return try? JSONDecoder().decode(OnDeviceMorning.self, from: data)
+    }
+
+    public func freeze(_ morning: OnDeviceMorning) {
+        guard let data = try? JSONEncoder().encode(morning) else { return }
+        var m = map()
+        m[morning.day] = data
+        let keep = Set(m.keys.sorted().suffix(7))
+        defaults.set(m.filter { keep.contains($0.key) }, forKey: Self.key)
+    }
+}
+
+public enum OnDeviceMorningFreeze {
+    /// The frozen verdict for `day` when one exists (`fresh == false`, `make` is not called);
+    /// otherwise `make()` and, when it yields a verdict, freezes it (`fresh == true`).
+    /// `nil` = no verdict yet (nothing frozen, the next call tries again).
+    public static func resolve(day: String, store: any FrozenMorningStoring,
+                               make: () async -> OnDeviceMorning?) async -> (morning: OnDeviceMorning, fresh: Bool)? {
+        if let hit = store.frozen(day: day) { return (hit, false) }
+        guard let m = await make() else { return nil }
+        store.freeze(m)
+        return (m, true)
     }
 }
