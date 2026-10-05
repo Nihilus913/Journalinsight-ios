@@ -64,9 +64,13 @@ public struct TrainingMonthView: View {
             if let detail = trainingMonthDetail(m) {
                 Text(detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
             }
+            if let since = model.staleSince {
+                Text(offlineReadCaption(since: since)).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                    .accessibilityIdentifier("training.month.offline")
+            }
             if let sync = trainingMonthSyncLine(m) {
-                Text(model.isOffline ? "\(sync) · offline" : sync).jiFont(.caption).foregroundStyle(theme.color(.muted))
-            } else if model.isOffline {
+                Text(model.isOffline && model.staleSince == nil ? "\(sync) · offline" : sync).jiFont(.caption).foregroundStyle(theme.color(.muted))
+            } else if model.isOffline && model.staleSince == nil {
                 Text("Offline — planned days only").jiFont(.caption).foregroundStyle(theme.color(.muted))
             }
         }

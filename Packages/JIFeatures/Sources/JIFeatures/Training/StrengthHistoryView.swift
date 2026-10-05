@@ -13,6 +13,10 @@ public struct StrengthHistoryView: View {
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                if let offline = model.offlineText {
+                    Text(offline).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("strength-history-offline")
+                }
                 if let error = model.hubError {
                     Text("Showing what this phone has — \(error)").jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)

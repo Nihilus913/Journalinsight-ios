@@ -11,6 +11,10 @@ public final class TrainingBreakViewModel {
     public private(set) var state: TrainingBreak?
     public private(set) var busy = false
     public private(set) var errorMessage: String?
+    /// B-52 p2: when the last read came from the offline cache (hub unreachable), the fetch time of
+    /// that copy — the row shows the last-known state with an "Offline — showing data from …" line
+    /// instead of an empty, disabled toggle. nil = the hub answered.
+    public private(set) var staleSince: Date?
 
     private let provider: any TrainingBreakProviding
 
@@ -33,9 +37,20 @@ public final class TrainingBreakViewModel {
         return "On a break since \(trainingBreakDayText(since))"
     }
 
+    /// B-52 p2: reads through the hub's offline cache — offline with a stored copy = that state +
+    /// `staleSince`; offline with a cold cache = the explicit error (no fabricated "off").
     public func load() async {
-        do { state = try await provider.trainingBreak(); errorMessage = nil } catch { errorMessage = "Hub unreachable — the break can't be read right now" }
+        let provider = self.provider
+        do {
+            let (value, since) = try await HubReadTrace.collect { try await provider.trainingBreak() }
+            state = value; staleSince = since; errorMessage = nil
+        } catch {
+            errorMessage = state == nil ? "Hub unreachable — the break can't be read right now" : nil
+        }
     }
+
+    /// "Offline — showing data from 07:41" while the shown state is the cached copy.
+    public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
 
     /// On = a break from `since` (nil = the hub's today); off = the break ends today.
     public func set(paused: Bool, since: String? = nil) async {
@@ -43,7 +58,7 @@ public final class TrainingBreakViewModel {
         defer { busy = false }
         do {
             state = try await provider.setTrainingBreak(paused: paused, since: since)
-            errorMessage = nil
+            errorMessage = nil; staleSince = nil
         } catch {
             errorMessage = "Could not update the break — \(trainingBreakErrorText(error))"
             return

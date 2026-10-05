@@ -38,6 +38,10 @@ struct TrainingBreakToggle: View {
                         .foregroundStyle(.primary)
                     Text(model.sinceText ?? "Load reads Paused while this is on")
                         .font(.footnote).foregroundStyle(.secondary)
+                    if let offline = model.offlineText {
+                        Text(offline).font(.footnote).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("settings.trainingBreak.offline")
+                    }
                     if let error = model.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
@@ -55,7 +59,7 @@ struct TrainingBreakToggle: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("I'm on a break")
         .accessibilityValue(model.paused ? "On" : "Off")
-        .accessibilityHint(model.sinceText ?? "Load reads Paused while this is on")
+        .accessibilityHint(model.offlineText ?? model.sinceText ?? "Load reads Paused while this is on")
         .accessibilityAddTraits(.isToggle)
         .accessibilityIdentifier("settings.trainingBreak.toggle")
         .task { if model.state == nil { await model.load() } }
