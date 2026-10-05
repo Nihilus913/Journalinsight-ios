@@ -81,9 +81,19 @@ extension MorningResponse {
         r.verdict = morning.verdict
         r.verdictDate = morning.day
         r.isStale = false
-        r.gateSignals = morning.gateSignals
+        r.gateSignals = Self.mergedSignals(hub: gateSignals, phone: morning.gateSignals)
         r.verdictComputedAt = morning.computedAt
         return r
+    }
+
+    /// RG-05 / B-121: per-key merge — the phone replaces only the keys it computes (hrv, sleep_h,
+    /// rhr, …) in the hub's order; hub-only rows (`load` with its "Paused · since …" note) stay;
+    /// phone-only keys follow in the phone's order.
+    static func mergedSignals(hub: [GateSignal]?, phone: [GateSignal]) -> [GateSignal] {
+        guard let hub, !hub.isEmpty else { return phone }
+        let byKey = Dictionary(phone.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        let hubKeys = Set(hub.map(\.key))
+        return hub.map { byKey[$0.key] ?? $0 } + phone.filter { !hubKeys.contains($0.key) }
     }
 }
 
