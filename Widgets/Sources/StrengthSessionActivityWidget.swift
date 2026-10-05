@@ -13,6 +13,7 @@ struct StrengthSessionActivityWidget: Widget {
             StrengthSessionLockScreenView(attributes: context.attributes, state: context.state)
                 .activityBackgroundTint(widgetTheme.color(.bg))
                 .activitySystemActionForegroundColor(widgetTheme.color(.text))
+                .widgetURL(strengthLoggerURL)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -45,9 +46,13 @@ struct StrengthSessionActivityWidget: Widget {
             } minimal: {
                 Image(systemName: "dumbbell.fill").foregroundStyle(strengthBandColor(context.state.capBand))
             }
+            .widgetURL(strengthLoggerURL)
         }
     }
 }
+
+/// B-43 P1: a tap on the activity opens the set logger (`ji://strength-log`, the app's `DeepLink`).
+nonisolated let strengthLoggerURL = URL(string: "ji://strength-log")
 
 /// The band's colour; the band is always ALSO named in words (never colour alone).
 @MainActor func strengthBandColor(_ band: StrengthSessionActivityState.CapBand) -> Color {

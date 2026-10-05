@@ -85,6 +85,7 @@ public nonisolated enum ScreenRegistry {
         ScreenEntry(name: "Backup") { L6Fixtures.backup() },
         ScreenEntry(name: "Export") { L6Fixtures.export() },
         ScreenEntry(name: "Version") { L6Fixtures.version() },
+        ScreenEntry(name: "Version crash") { L6Fixtures.versionWithCrash() },
         ScreenEntry(name: "Local mirrors") { L6Fixtures.localMirrors() },
         ScreenEntry(name: "Data quality") { L6Fixtures.dataQuality() },
         ScreenEntry(name: "Reminders") { L6Fixtures.reminders() },

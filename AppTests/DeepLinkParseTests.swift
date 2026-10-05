@@ -42,3 +42,10 @@ import Foundation
     #expect(DeepLink.parse(URL(string: "ji://checkin?trigger=")!) == .checkIn(trigger: nil))
     #expect(RootRoute.destination(for: .checkIn(trigger: "amber2")) == nil)
 }
+
+// B-43 P1: the rest-end alert / strength Live Activity open the set logger.
+@Test func strengthLogParses() {
+    #expect(DeepLink.parse(URL(string: "ji://strength-log")!) == .strengthLog)
+    #expect(DeepLink.parse(URL(string: "ji:///strength-log")!) == .strengthLog)
+    #expect(RootRoute.destination(for: .strengthLog) == nil)
+}

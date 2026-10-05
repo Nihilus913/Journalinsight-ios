@@ -2,6 +2,7 @@ import SwiftUI
 import JIWorkouts
 #if os(watchOS)
 import WatchKit
+import UserNotifications
 #endif
 
 /// W-B38-B B-4: wires the Watch strength logger — HealthKit engine → session controller,
@@ -13,6 +14,7 @@ final class StrengthLogComposition {
     #if os(watchOS)
     private let engine: HealthKitStrengthWorkoutEngine
     private let transport: WatchConnectivityStrengthTransport
+    private let notificationDelegate = WatchRestAlertDelegate()
     #endif
 
     init() {
@@ -24,11 +26,18 @@ final class StrengthLogComposition {
         bridge.receive(applicationContext: transport.receivedApplicationContext)
         self.engine = engine
         self.transport = transport
+        // B-43 P1: rest/timed-set end = haptic always (in-app tick) + a local notification that only
+        // shows when the app is not frontmost (wrist down / another app) — `WatchRestAlertDelegate`
+        // swallows it in the foreground, where the haptic already played (Toby 2026-10-04).
+        let center = UNUserNotificationCenter.current()
+        center.delegate = notificationDelegate
+        Task { _ = await RestEndAlert.requestAuthorization(center) }
         model = StrengthLogViewModel(
             controller: StrengthWorkoutSessionController(engine: engine), bridge: bridge,
             haptic: { kind in
                 WKInterfaceDevice.current().play(kind == .restDone ? .stop : .success)
-            })
+            },
+            restAlert: RestEndAlert(center: center))
         #else
         model = StrengthLogViewModel(
             controller: StrengthWorkoutSessionController(engine: FakeStrengthWorkoutEngine()),
@@ -45,3 +54,14 @@ final class StrengthLogComposition {
         #endif
     }
 }
+
+#if os(watchOS)
+/// B-43 P1: frontmost → the rest-end alert is not presented (the in-app haptic covered it); any
+/// other notification keeps the system's banner. A tap opens the app, whose root is the logger.
+final class WatchRestAlertDelegate: NSObject, UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler(RestEndAlert.isRestEnd(notification.request) ? [] : [.banner, .sound, .list])
+    }
+}
+#endif

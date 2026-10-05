@@ -53,9 +53,9 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: JournalInsight
-        # W-FIX3 fixer BUG-43: the shipped release (Changelog's installed entry). W-FIX11 H2-22: 2.1.0. The Watch app and
+        # W-FIX3 fixer BUG-43: the shipped release (Changelog's installed entry). W-FIX11 H2-22: 2.1.0; B-18 p3: 2.2.0. The Watch app and
         # the widget extension carry the same version — an embedded bundle must match its host.
-        CFBundleShortVersionString: "2.1.0"
+        CFBundleShortVersionString: "2.2.0"
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -64,7 +64,7 @@ targets:
           - CFBundleURLSchemes: [ji, journalinsight]
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: "JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, resting and active energy and workouts, plus the food totals (energy, protein, carbs, fat) your food app writes to Health. It uses them for your readiness gate, KPIs and energy balance. Watch data is sent to your own hub; JI never writes food."
-        NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing." # W2h (B-9)
+        NSHealthUpdateUsageDescription: "JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing. If you turn on Mirror mood to Apple Health, it also adds your daily check-in mood as State of Mind (mood only, never your notes)." # W2h (B-9)
         NSCalendarsWriteOnlyAccessUsageDescription: "Planned training sessions go into your calendar as all-day events. JournalInsight only adds events; it never reads your calendar." # W-B96 (B-96)
         # W8-L4 (P-hub-watchdog): `OutboxRetryScheduler.refreshTaskIdentifier` — the BGAppRefreshTask
         # that retries pending outbox rows (weigh-in, gate respond, session feel) off-foreground.
@@ -116,7 +116,7 @@ targets:
       path: WatchApp/Info.plist
       properties:
         CFBundleDisplayName: JournalInsight
-        CFBundleShortVersionString: "2.1.0" # W-FIX3 fixer BUG-43: = the host app
+        CFBundleShortVersionString: "2.2.0" # W-FIX3 fixer BUG-43: = the host app
         WKApplication: true
         WKCompanionAppBundleIdentifier: toby913.JournalInsight
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
@@ -146,7 +146,7 @@ targets:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: Widgets
-        CFBundleShortVersionString: "2.1.0" # W-FIX3 fixer BUG-43: = the host app
+        CFBundleShortVersionString: "2.2.0" # W-FIX3 fixer BUG-43: = the host app
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

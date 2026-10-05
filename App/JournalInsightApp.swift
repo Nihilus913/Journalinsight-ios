@@ -129,6 +129,10 @@ struct JournalInsightApp: App {
                 // prompt. The build host has no Simulator UI, so a system alert on top of
                 // Today cannot be dismissed and every scripted screenshot of a live-hub run
                 // would be taken through it.
+                // B-21 (push-to-start): observe the verdict Live Activity's push-to-start token (an
+                // ActivityKit token — no notification prompt involved, so it starts before the
+                // `-no-push` guard). `ApnsRegistration` holds it until a device token can carry it to the hub.
+                LiveActivityStartRegistration.shared.start()
                 guard !CommandLine.arguments.contains("-no-push") else { return }
                 do {
                     _ = try await UNUserNotificationCenter.current()

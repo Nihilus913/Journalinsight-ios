@@ -41,9 +41,15 @@ struct KpiDetailTrend: View {
     /// W-FIX5 fixer (KPI-legend): the band + median the legend names, drawn under the line (the
     /// same `KpiNormal` band the NormalBar shows). nil = no band yet, and the legend says so.
     var normal: PersonalNormalResult? = nil
+    /// B-104 p2: HRV's merged Watch + Garmin runs (`kpiHrvSegments`); nil = draw `points` as one
+    /// line, as every other metric does. Garmin runs are dashed in the muted tint ("est.").
+    var segments: [KpiTrendSegment]? = nil
+    /// B-104 p2: the extra caption under the legend (what the band / average are built from).
+    var caption: String? = nil
     private let theme = JITheme.native
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
+    private var isEmpty: Bool { segments.map { $0.isEmpty } ?? points.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -56,7 +62,7 @@ struct KpiDetailTrend: View {
                 VStack(alignment: .leading, spacing: 8) {
                 Chart {
                     // "shaded = your normal": the 28-day band across the plot, under the line.
-                    if let normal, !points.isEmpty {
+                    if let normal, !isEmpty {
                         RectangleMark(yStart: .value("Normal low", normal.low), yEnd: .value("Normal high", normal.high))
                             .foregroundStyle(theme.color(tint).opacity(0.14))
                             .accessibilityLabel("Your normal")
@@ -67,12 +73,29 @@ struct KpiDetailTrend: View {
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                             .accessibilityLabel("Median")
                     }
-                    ForEach(points) { p in
-                        LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
-                            .foregroundStyle(theme.color(tint))
-                            .interpolationMethod(.monotone)
-                        if points.count == 1 {
-                            PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
+                    if let segments {
+                        ForEach(segments) { seg in
+                            let color = theme.color(seg.isEstimate ? .muted : tint)
+                            ForEach(seg.points) { p in
+                                LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value),
+                                         series: .value("Run", seg.id))
+                                    .foregroundStyle(color)
+                                    .lineStyle(StrokeStyle(lineWidth: seg.isEstimate ? 1.5 : 2, dash: seg.isEstimate ? [4, 3] : []))
+                                    .interpolationMethod(.monotone)
+                                if seg.points.count == 1 {
+                                    PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                                        .foregroundStyle(color).symbolSize(seg.isEstimate ? 10 : 20)
+                                }
+                            }
+                        }
+                    } else {
+                        ForEach(points) { p in
+                            LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                                .foregroundStyle(theme.color(tint))
+                                .interpolationMethod(.monotone)
+                            if points.count == 1 {
+                                PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
+                            }
                         }
                     }
                 }
@@ -86,13 +109,19 @@ struct KpiDetailTrend: View {
                 .chartXAxis { AxisMarks(values: .automatic(desiredCount: typeSize.isAccessibilitySize ? 2 : 4)) }
                 .frame(minHeight: chartHeight)
                 .overlay {
-                    if points.isEmpty { Text("No data yet").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
+                    if isEmpty { Text("No data yet").jiFont(.footnote).foregroundStyle(theme.color(.muted)) }
                 }
                 .accessibilityLabel("\(label) trend")
                 .accessibilityIdentifier("kpi-detail-chart")
                 // W-GUI R2 (mockup 07): the legend is honest until W3 lands the band.
                 Text(legend).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("kpi-detail-legend")
+                if let caption {
+                    Text(caption).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("kpi-detail-chart-caption")
+                }
                 }
             }
         }
@@ -240,7 +269,7 @@ public nonisolated func kpiSourceFilteredHistory(_ history: [(date: String, valu
 /// The Apple input that marks a night as the labelled source's for `metric` (nil = not filtered).
 nonisolated func kpiSourceField(_ metric: KpiMetricId) -> ((RecoveryInputDay) -> Double?)? {
     switch metric {
-    case .hrv: { $0.hrvMs }
+    case .hrv: { $0.isWatchHrv ? $0.hrvMs : nil }   // B-104 p2: a Garmin estimate is not a Watch night
     case .rhr: { $0.rhrBpm }
     case .sleep: { $0.sleepH }
     default: nil
