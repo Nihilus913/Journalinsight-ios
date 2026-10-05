@@ -26,6 +26,8 @@ public struct TrainingView: View {
     @State private var dayPreview: TrainingDayRef?
     /// B-95 (BP-26): the pushed Time in zone screen (W / M / 6M).
     @State private var zoneTime: ZoneTimeModel?
+    /// B-94 (BP-4): the pushed Progress screen (strength + cardio charts).
+    @State private var progressCharts: ProgressViewModel?
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -125,6 +127,15 @@ public struct TrainingView: View {
         }
         #endif
         .navigationDestination(item: $zoneTime) { ZoneTimeChartView(model: $0) }
+        .navigationDestination(item: $progressCharts) { ProgressChartsView(model: $0) }
+        #if DEBUG
+        // B-94 dev affordance: `-progress-open` pushes Progress once Training is up (sim screenshots).
+        .task {
+            guard CommandLine.arguments.contains("-progress-open") else { return }
+            try? await Task.sleep(for: .seconds(2))
+            progressCharts = model.makeProgressModel(deps: strengthLogDeps)
+        }
+        #endif
         #if DEBUG
         // B-95 dev affordance: `-zone-time <W|M|6M>` pushes Time in zone at that range (sim screenshots).
         .task {
@@ -293,6 +304,16 @@ public struct TrainingView: View {
                 .buttonStyle(.plain)
             }
             .accessibilityIdentifier("training-zone-time")
+            // B-94 (BP-4): per-lift strength and run / VO₂ max charts, pinned and reordered by the user.
+            JISectionHeader("Progress")
+            Surface(level: 1, padding: 0) {
+                Button { progressCharts = model.makeProgressModel(deps: strengthLogDeps) } label: {
+                    JIChevronRow(title: "Progress charts", value: "Strength · Cardio", systemImage: "chart.xyaxis.line")
+                        .padding(.horizontal, JISpacing.s4).padding(.vertical, JIChevronRowMetrics.verticalPadding)
+                }
+                .buttonStyle(.plain)
+            }
+            .accessibilityIdentifier("training-progress")
             // W-GUI TR1 (mockup 04, plan §B): zones are the user's input (W-FIX5: read from their settings).
             JISectionHeader("Zones · your input")
             Surface(level: 1, padding: 0) {
