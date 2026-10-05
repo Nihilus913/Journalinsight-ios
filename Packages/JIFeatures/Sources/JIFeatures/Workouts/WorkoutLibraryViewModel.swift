@@ -6,8 +6,8 @@ import JIPersistence
 /// W-B40 L2 (B-40b-2/-3) — the workout library: the hub's `plan.workout_template` rows (spec §3
 /// GET), rendered from `OfflineCache` when the hub is unreachable, with every queued template
 /// write (`WorkoutLibraryOutbox`) laid over them so an offline edit shows at once and is marked
-/// pending. Push to Garmin and Import are hub-only: disabled offline with a reason, never queued
-/// (spec §10.4).
+/// pending. B-52 p4: Push to Garmin is queued too (outbox kind `garmin_push`, the hub pushes when
+/// it gets the row); Import stays hub-only — disabled offline with a reason, never queued (card Q2).
 ///
 /// X-1 (exit-plan change 1): loading NEVER writes. The only writes this model sends are rows the
 /// user queued (save / delete) — a cold cache, an empty first launch or an empty hub answer can
@@ -46,6 +46,8 @@ public final class WorkoutLibraryViewModel {
     /// Templates with a queued (not yet delivered) write — the library marks them.
     public private(set) var pendingTemplateIds: Set<Int> = []
     public private(set) var busyGarminIds: Set<Int> = []
+    /// B-52 p4: templates with a queued (not yet delivered) push to Garmin.
+    public private(set) var pendingPushIds: Set<Int> = []
     public private(set) var isImporting = false
     public private(set) var lastImport: GarminImportReport?
     public var notice: Notice?
@@ -54,6 +56,10 @@ public final class WorkoutLibraryViewModel {
     private let provider: any WorkoutLibraryProviding
     private let cache: OfflineCache?
     private let queue: WorkoutLibraryOutbox?
+    /// B-52 p4: the `garmin_push` queue (the app's outbox; an in-memory one for fixtures) and the
+    /// in-tap drainer that only knows that kind over THIS model's provider.
+    private let pushOutbox: Outbox?
+    private let pushDrainer: OutboxDrainer?
     private let now: () -> Date
     /// The hub's (or the cached hub's) rows — never the overlay; this is what the cache holds.
     private var base: [WorkoutTemplate] = []
@@ -65,11 +71,20 @@ public final class WorkoutLibraryViewModel {
         self.cache = cache
         self.queue = outbox.map { WorkoutLibraryOutbox(outbox: $0, provider: provider) }
         self.now = now
+        (pushOutbox, pushDrainer) = Self.pushQueue(outbox, provider: provider)
+    }
+
+    private static func pushQueue(_ outbox: Outbox?, provider: any WorkoutLibraryProviding) -> (Outbox?, OutboxDrainer?) {
+        let box = outbox ?? (try? AppDatabase.inMemory()).map { Outbox(db: $0) }
+        let handler = B52WriteKinds.garminPushHandler(provider: { provider })
+        return (box, box.map { B52WriteKinds.localDrainer(outbox: $0, handler: handler) })
     }
 
     /// Fixture screens (previews, the sweep): rows given, no hub, no queue.
     public init(seeded: [WorkoutTemplate], provider: (any WorkoutLibraryProviding)? = nil, hubReachable: Bool = true) {
-        self.provider = provider ?? SeededWorkoutProvider(rows: seeded); self.cache = nil; self.queue = nil; self.now = Date.init
+        let source = provider ?? SeededWorkoutProvider(rows: seeded)
+        self.provider = source; self.cache = nil; self.queue = nil; self.now = Date.init
+        (pushOutbox, pushDrainer) = Self.pushQueue(nil, provider: source)
         self.base = seeded; self.templates = seeded; self.state = .loaded; self.hubReachable = hubReachable
     }
 
@@ -96,14 +111,16 @@ public final class WorkoutLibraryViewModel {
         return count + (onGarmin > 0 ? " · \(onGarmin) on Garmin Connect" : "")
     }
 
-    /// Why Push / Import are disabled right now (nil = enabled).
+    /// Why Import is disabled right now (nil = enabled). Import needs the hub by nature (card Q2).
     public var garminDisabledReason: String? {
-        hubReachable ? nil : "Offline — Push to Garmin and Import need the hub."
+        hubReachable ? nil : "Offline — Import from Garmin needs the hub."
     }
 
+    /// B-52 p4: Push works offline (it is queued), so only an unsynced template edit — or a push
+    /// already queued for it — blocks it: the hub must hold the version that gets pushed.
     public func pushDisabledReason(for template: WorkoutTemplate) -> String? {
-        if let reason = garminDisabledReason { return reason }
         if template.templateId < 0 || pendingTemplateIds.contains(template.templateId) { return "Your edit is still syncing to the hub." }
+        if pendingPushIds.contains(template.templateId) { return "Push queued — it goes to Garmin when the hub is reachable." }
         return nil
     }
 
@@ -206,17 +223,28 @@ public final class WorkoutLibraryViewModel {
 
     // MARK: hub-only Garmin actions
 
+    /// B-52 p4: queued first (outbox kind `garmin_push`), then one in-tap attempt. Offline the
+    /// row waits and the template is marked "Push queued"; the hub pushes when it gets it.
     public func pushToGarmin(_ template: WorkoutTemplate) async {
         if let reason = pushDisabledReason(for: template) { notice = Notice(text: reason, isError: true); return }
+        guard let pushOutbox else { notice = Notice(text: "Couldn't save the push on this phone.", isError: true); return }
         busyGarminIds.insert(template.templateId)
         defer { busyGarminIds.remove(template.templateId) }
-        do {
-            _ = try await provider.pushWorkoutTemplateToGarmin(id: template.templateId)
+        let outcome = await OutboxFirst(outbox: pushOutbox, drainer: pushDrainer)
+            .submit(kind: B52WriteKinds.garminPush, payload: GarminPushWrite(templateId: template.templateId))
+        applyOverlay()
+        switch outcome {
+        case .delivered:
             notice = Notice(text: "\(template.name) is on Garmin Connect.", isError: false)
             await refresh()
-        } catch {
-            if case HubError.network = error { hubReachable = false }
-            notice = Notice(text: Self.describeGarmin(error), isError: true)
+        case .queued(let reason):
+            let offline = reason == WorkoutLibraryViewModel.describeGarmin(HubError.network(""))
+                || reason == OutboxFirstError.noProvider(B52WriteKinds.garminPush).message
+            if offline { hubReachable = false }
+            notice = Notice(text: offline ? "Push queued — \(template.name) goes to Garmin when the hub is reachable."
+                                          : "Push queued — \(reason)", isError: !offline)
+        case .rejected(let reason), .notQueued(let reason):
+            notice = Notice(text: reason, isError: true)
         }
     }
 
@@ -250,6 +278,7 @@ public final class WorkoutLibraryViewModel {
     // MARK: overlay
 
     private func applyOverlay() {
+        pendingPushIds = Set(B52WriteKinds.allPending(B52WriteKinds.garminPush, in: pushOutbox, as: GarminPushWrite.self).map(\.templateId))
         guard let queue else { templates = base; return }
         var rows = base
         var pending = Set<Int>()

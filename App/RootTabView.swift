@@ -1292,7 +1292,9 @@ struct RootTabView: View {
             // W-B91: Settings › Today "I'm on a break" (Decide's Load row reads Paused while on).
             // B-107: a confirmed toggle re-fetches Today/Decide at once (Paused without a relaunch).
             trainingBreakModel: (hub as? any TrainingBreakProviding).map {
-                TrainingBreakViewModel(provider: $0, onChanged: { await todayModel?.reloadLive() })
+                // B-52 p4: the app's outbox — a flip made offline is queued (`training_break`).
+                TrainingBreakViewModel(provider: $0, outbox: try? Outbox(db: .onDisk()),
+                                       onChanged: { await todayModel?.reloadLive() })
             },
             todayChips: { todayModel?.squareChips ?? [] },
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
