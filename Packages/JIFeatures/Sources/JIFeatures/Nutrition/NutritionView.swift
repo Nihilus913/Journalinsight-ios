@@ -159,9 +159,13 @@ struct NutritionPreviousDayCards: View {
     private func card(value: String, unit: String, role: JIColorRole, missing: Bool, status: String, id: String) -> some View {
         Surface {
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(verbatim: value).jiNumeral(.numeralMedium).foregroundStyle(theme.color(missing ? .muted : role))
-                    if !missing { Text(unit).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true) }
+                // RG-42: the title always shows; a missing value draws no "—" numeral (read as a skeleton).
+                Text(nutritionPreviousDayCardTitle(unit)).jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(.muted))
+                if !missing {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(verbatim: value).jiNumeral(.numeralMedium).foregroundStyle(theme.color(role))
+                        Text(unit).jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Text(status).jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
