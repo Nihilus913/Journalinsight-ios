@@ -49,21 +49,11 @@ public nonisolated func strengthLogLifts(exercises: [Exercise], session: Planned
 }
 
 /// Decision (Toby 2026-10-03): the exercise preview is the targeted muscle(s), no animation.
-/// Keys = `WorkoutExerciseCatalogue.known`; an unknown exercise shows no preview (never a guess).
+/// B-90 p1: the muscles come from the ONE table, `JICompute.MuscleMap` (keys = the catalogue + its
+/// short aliases); an unknown exercise shows no preview (never a guess).
 public nonisolated enum StrengthMuscles {
     public static func targets(for exerciseKey: String) -> [String]? {
-        switch Progression.normalizedName(exerciseKey) {
-        case "barbell bench press", "bench press", "bench": ["Chest", "Front delts", "Triceps"]
-        case "barbell row", "row": ["Upper back", "Lats", "Biceps"]
-        case "db shoulder press", "dumbbell shoulder press", "shoulder press": ["Shoulders", "Triceps"]
-        case "db biceps curl", "dumbbell biceps curl", "biceps curl": ["Biceps", "Forearms"]
-        case "diamond push up", "diamond push-up": ["Triceps", "Chest"]
-        case "dead bug": ["Deep core", "Hip flexors"]
-        case "plank": ["Core", "Shoulders"]
-        case "kb overhead triceps extension": ["Triceps"]
-        case "ab roller": ["Abs", "Lats"]
-        default: nil
-        }
+        MuscleMap.weights(forExercise: exerciseKey).map(MuscleMap.displayNames)
     }
 }
 
