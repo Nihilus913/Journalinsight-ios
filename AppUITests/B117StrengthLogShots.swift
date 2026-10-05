@@ -67,4 +67,51 @@ final class B117StrengthLogShots: JIUITestCase {
         el("strength-set-\(key)-1").swipeDown(velocity: .slow)
         shot("B117-1-three-sets-rest-running")
     }
+
+    /// W-FIX-P2 RG-26 (B-52) sim proof: Day 1 › Log sets · log one set · Complete session → the
+    /// 'Log set' button is disabled and the logged set stays on the card (no orphan second session).
+    /// `bash AppUITests/fixture-hub.sh test -only-testing:AppUITests/B117StrengthLogShots/testRG26LogSetDisabledAfterComplete`
+    func testRG26LogSetDisabledAfterComplete() {
+        launch()
+        passGate()
+        tab("Training")
+        XCTAssertTrue(el("training-hero").waitForExistence(timeout: 20))
+        addUIInterruptionMonitor(withDescription: "notification permission") { alert in
+            let allow = alert.buttons["Allow"]
+            guard allow.exists else { return false }
+            allow.tap()
+            return true
+        }
+        tapId("training-open-planner")
+        XCTAssertTrue(el("workouts-list").waitForExistence(timeout: 15), "Planner did not open")
+        let post073 = element(idPrefix: "workouts-row-", labelContains: "Day 1")
+        let day1 = post073.waitForExistence(timeout: 10) ? post073 : element(idPrefix: "planner-row-s", labelContains: "Day 1")
+        tap(day1, "Planner row Day 1")
+        XCTAssertTrue(el("planner-strength-detail").waitForExistence(timeout: 10), "Day 1 detail did not open")
+        tap(el("planner-log-sets"), "Log sets")
+        reveal(el("strength-log-add-exercise"), "the set logger after Log sets")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons["Allow"].firstMatch
+        if allow.waitForExistence(timeout: 8) { allow.tap() }
+
+        let logSet = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'strength-log-set-'")).firstMatch
+        reveal(logSet, "a Log set button")
+        let key = String(logSet.identifier.dropFirst("strength-log-set-".count))
+        let reps = app.steppers["strength-reps-\(key)"].firstMatch
+        if reps.waitForExistence(timeout: 5), (reps.value as? String)?.hasPrefix("not set") == true {
+            for _ in 0..<8 { reps.buttons["Increment"].tap() }
+        }
+        tap(logSet, "Log set 1")
+        XCTAssertTrue(el("strength-set-\(key)-1").waitForExistence(timeout: 10), "set 1 not shown")
+        let complete = el("strength-log-complete")
+        reveal(complete, "Complete session")
+        tap(complete, "Complete session")
+        XCTAssertTrue(el("strength-log-completed").waitForExistence(timeout: 15), "session did not complete")
+        let logSetAfter = el("strength-log-set-\(key)")
+        reveal(logSetAfter, "the Log set button after Complete")
+        XCTAssertFalse(logSetAfter.isEnabled, "Log set is still enabled after Complete")
+        XCTAssertTrue(el("strength-set-\(key)-1").exists, "the completed set left the card")
+        shot("RG26-log-set-disabled-after-complete")
+    }
 }
