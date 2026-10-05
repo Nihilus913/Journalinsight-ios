@@ -35,7 +35,7 @@
       "reason": "HRV 41 ms — under 45"
     },
     "alert": {
-      "title": "HT: GO (auto-regulated) — Long Z2 45 min",
+      "title": "HT: Modified — Long Z2 45 min",
       "body": "HRV 41 ms — under 45",
       "sound": "default"
     },
