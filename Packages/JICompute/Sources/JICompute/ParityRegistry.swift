@@ -97,6 +97,12 @@ public nonisolated enum ParityRegistry {
             notes: "TRIMP training load; hub-computed, read as-is."
         ),
 
+        // --- B-91 S3: daily Strain parity port ----------------------------------
+        "daily_strain": ParityEntry(
+            source: .computed,
+            notes: "B-91 S3 (b91p1): daily Strain 0-100 (app/vitals/strain.py strain_summary); golden tests/fixtures/strain.golden.json, 1e-9 match. Display/shadow only, not wired into Decide; hub stays source until B-44 dual-run."
+        ),
+
         // --- R6c-6 local-first write surfaces (F5b/R6d-1 implements later) ----
         // Pre-registered ahead of implementation so the registry stays
         // forward-complete; F5b's R6d-1 will flip each of these to its actual
@@ -141,6 +147,7 @@ public nonisolated enum ParityRegistry {
     /// apart from `entries` so the notes stay identical to the Python/TS registries.
     public static let implementations: [String: String] = [
         "readiness_categorical": "JICompute.ReadinessComposite",
+        "daily_strain": "JICompute.Strain",
         "muscle_map": "JICompute.MuscleMap",
         "muscle_load": "JICompute.MuscleLoad",
         "muscle_freshness": "JICompute.MuscleFreshness",
