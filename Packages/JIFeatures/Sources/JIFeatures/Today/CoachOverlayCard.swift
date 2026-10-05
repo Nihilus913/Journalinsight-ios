@@ -18,6 +18,7 @@ public struct CoachOverlayCard: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.jiReduceTransparencyOverride) private var rtOverride
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// A downward drag past this many points dismisses; anything shorter springs back.
     nonisolated static let dismissDistance: CGFloat = 60
@@ -76,17 +77,36 @@ public struct CoachOverlayCard: View {
                     .accessibilityLabel("Dismiss")
                     .accessibilityIdentifier("today.coach.dismiss")
                 }
-                Text(change).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("today.coach.change")
-                if let note {
-                    Text(note).jiFont(.footnote).foregroundStyle(theme.color(.muted))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("today.coach.note")
+                // W-FIX-P2 RG-21: at AX sizes the sentence grew the card up over the Today title and
+                // pushed ✕ under the toolbar — the body is capped and scrolls; the header stays put.
+                ViewThatFits(in: .vertical) {
+                    bodyTexts
+                    ScrollView { bodyTexts }.scrollBounceBehavior(.basedOnSize)
                 }
+                .frame(maxHeight: coachOverlayBodyMaxHeight(typeSize))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var bodyTexts: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(change).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("today.coach.change")
+            if let note {
+                Text(note).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("today.coach.note")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// W-FIX-P2 RG-21: the most height the Coach card's sentence + note take before they scroll —
+/// small enough at AX sizes that the card never reaches the Today title and ✕ stays reachable.
+public nonisolated func coachOverlayBodyMaxHeight(_ size: DynamicTypeSize) -> CGFloat {
+    size.isAccessibilitySize ? 220 : 360
 }
 
 /// The overlay's material: Liquid Glass (regular) in a 26 pt rect, or — under Reduce

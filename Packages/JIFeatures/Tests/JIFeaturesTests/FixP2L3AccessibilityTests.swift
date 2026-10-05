@@ -12,4 +12,10 @@ import Testing
         #expect(!decideSessionRowStacked(.large, title: "Today's session", detail: "Rest", hasLift: false))
         #expect(decideSessionRowStacked(.accessibility3, title: "Today's session", detail: "Rest", hasLift: false))
     }
+
+    /// RG-21: the Coach card's body is capped (it scrolls) so at AX3 it never covers the title.
+    @Test func coachOverlayBodyIsCappedAtAccessibilitySizes() {
+        #expect(coachOverlayBodyMaxHeight(.accessibility3) <= 240)
+        #expect(coachOverlayBodyMaxHeight(.accessibility3) < coachOverlayBodyMaxHeight(.large))
+    }
 }
