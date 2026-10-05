@@ -40,9 +40,24 @@ public nonisolated func trendAverage(_ points: [TrendPoint]) -> Double? {
 /// a baseline metric stays a line with the dashed average.
 public nonisolated enum TrendChartKind: Sendable, Equatable { case baseline, sum }
 
+/// RG-11 / B-126 — one named line per data source (e.g. VO₂ max "Apple" solid vs "Garmin est."
+/// dashed), so two sources on different scales never join into one saw-tooth line.
+public nonisolated struct TrendSeries: Sendable, Equatable, Identifiable {
+    public let name: String
+    public let points: [TrendPoint]
+    public let dashed: Bool
+    public var id: String { name }
+    public init(name: String, points: [TrendPoint], dashed: Bool) {
+        self.name = name; self.points = points; self.dashed = dashed
+    }
+}
+
 public struct TrendChart: View {
     let points: [TrendPoint], tint: Color, unit: String?, showAll: (() -> Void)?
     let kind: TrendChartKind, goal: Double?
+    /// RG-11: when non-empty, draws one line per series (dashed where asked) instead of `points`,
+    /// with a point mark per reading and no cross-source average rule.
+    let series: [TrendSeries]
     @Binding var range: TrendRange
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -53,9 +68,9 @@ public struct TrendChart: View {
     private var xAxisLabelCount: Int { typeSize.isAccessibilitySize ? 2 : 4 }
 
     public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?,
-                kind: TrendChartKind = .baseline, goal: Double? = nil) {
+                kind: TrendChartKind = .baseline, goal: Double? = nil, series: [TrendSeries] = []) {
         self.points = points; self.tint = tint; self.unit = unit; self._range = range; self.showAll = showAll
-        self.kind = kind; self.goal = goal
+        self.kind = kind; self.goal = goal; self.series = series
     }
 
     public var body: some View {
@@ -64,7 +79,19 @@ public struct TrendChart: View {
             rangePicker
 
             Chart {
-                ForEach(shown) { p in
+                ForEach(series) { s in
+                    ForEach(downsample(s.points)) { p in
+                        LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value),
+                                 series: .value("Source", s.name))
+                            .foregroundStyle(tint)
+                            .lineStyle(StrokeStyle(lineWidth: 2, dash: s.dashed ? [5, 4] : []))
+                            .interpolationMethod(.monotone)
+                        PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
+                            .foregroundStyle(tint)
+                            .symbolSize(18)
+                    }
+                }
+                ForEach(series.isEmpty ? shown : []) { p in
                     if kind == .sum {
                         BarMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
                             .foregroundStyle(tint)
@@ -82,7 +109,7 @@ public struct TrendChart: View {
                         .annotation(position: .top, alignment: .leading) {
                             Text("goal \(goal.formatted(.number.precision(.fractionLength(0))))").jiFont(.micro).foregroundStyle(theme.color(.muted))
                         }
-                } else if let avg = trendAverage(shown) {
+                } else if series.isEmpty, let avg = trendAverage(shown) {
                     RuleMark(y: .value("Average", avg))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(theme.color(.muted))

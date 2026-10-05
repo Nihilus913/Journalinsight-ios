@@ -22,6 +22,11 @@ public nonisolated struct ProgressCard: Sendable, Equatable, Identifiable {
     public let pinned: Bool
     /// Caption under the chart ("Est. 1RM (Epley) · 6 months · heaviest session per week").
     public let caption: String
+    /// RG-11 / B-126: one line per source (VO₂ max: Apple solid, Garmin dashed "est."); empty =
+    /// draw `points` as one line.
+    public var series: [TrendSeries] = []
+    /// Source of the newest reading, appended to the headline ("25.0 Apple").
+    public var headlineSource: String? = nil
 
     /// "Not enough data yet" — fewer than 3 sessions / runs / readings in range (rule 5: never a
     /// false zero, never a one-point line).
@@ -29,7 +34,8 @@ public nonisolated struct ProgressCard: Sendable, Equatable, Identifiable {
     /// Headline = the newest value in range, formatted (U+202F groups); nil when thin.
     public var headline: String? {
         guard !thin, let last = points.last else { return nil }
-        return ProgressFormat.value(last.value, metric: id)
+        let v = ProgressFormat.value(last.value, metric: id)
+        return headlineSource.map { "\(v) \($0)" } ?? v
     }
 }
 
@@ -228,12 +234,25 @@ public final class ProgressViewModel {
                                 count: pts.count, pinned: pinned,
                                 caption: "\(ProgressFormat.runCaption(metric)) · \(StrengthRecordsFormat.rangeName(range)) · runs ≥ 1\u{202F}km")
         case .vo2max:
-            let pts = (cardio?.vo2max ?? []).filter { $0.date >= from }.compactMap { v in
-                ProgressFormat.date(v.date).map { TrendPoint(date: $0, value: v.vo2max) }
+            // RG-11 / B-126: Garmin (~40) and Apple (~25) estimate on different scales — never one line.
+            let readings = (cardio?.vo2max ?? []).filter { $0.date >= from }
+                .compactMap { v in ProgressFormat.date(v.date).map { (point: TrendPoint(date: $0, value: v.vo2max), source: v.source) } }
+                .sorted { $0.point.date < $1.point.date }
+            let pts = readings.map(\.point)
+            var names: [String] = []
+            for r in readings where !names.contains(ProgressFormat.vo2SourceName(r.source)) {
+                names.append(ProgressFormat.vo2SourceName(r.source))
             }
+            let series = names.map { n in
+                TrendSeries(name: n, points: readings.filter { ProgressFormat.vo2SourceName($0.source) == n }.map(\.point),
+                            dashed: n != ProgressFormat.vo2SourceName("apple"))
+            }
+            let sources = names.joined(separator: " + ")
             return ProgressCard(id: id, section: .cardio, title: "VO₂ max", points: pts, unit: ProgressFormat.unit(id),
                                 kind: .baseline, count: pts.count, pinned: pinned,
-                                caption: "VO₂ max · \(StrengthRecordsFormat.rangeName(range)) · watch estimate")
+                                caption: "VO₂ max · \(StrengthRecordsFormat.rangeName(range)) · \(sources.isEmpty ? "watch estimate" : sources)"
+                                    + (series.count > 1 ? " · one line per source" : ""),
+                                series: series, headlineSource: readings.last.map { ProgressFormat.vo2SourceName($0.source) })
         }
     }
 
@@ -341,6 +360,15 @@ public nonisolated enum ProgressFormat {
         case .vo2max: n = grouped(v, fractionDigits: 1)
         }
         return u.isEmpty ? n : n + nnbsp + u
+    }
+
+    /// RG-11: "apple" → "Apple" (solid line); "garmin" → "Garmin est." (dashed — Garmin's own estimate).
+    public static func vo2SourceName(_ source: String) -> String {
+        switch source.lowercased() {
+        case "apple": "Apple"
+        case "garmin": "Garmin est."
+        default: source.capitalized
+        }
     }
 
     public static func unit(_ id: ProgressChartID) -> String {
