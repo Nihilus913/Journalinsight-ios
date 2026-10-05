@@ -72,6 +72,9 @@ struct JournalInsightApp: App {
                 settings: { GateSettingsStore(prefs: prefs).load() })
         }
         _theme = State(initialValue: AppThemeModel(prefs: builtEnv.prefs))
+        // B-52 p4: `training_break` + `garmin_push` rows are replayed by every drainer (regain,
+        // retry scheduler, BG refresh) over whichever hub is current at replay time.
+        B52WriteKinds.registerAll(hub: { [weak builtEnv] in builtEnv?.hubProvider ?? builtEnv?.providerStore?.provider })
 
         let scheduler = OutboxRetryScheduler(
             drainerSource: {

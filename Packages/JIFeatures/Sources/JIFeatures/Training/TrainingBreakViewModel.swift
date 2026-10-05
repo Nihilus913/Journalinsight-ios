@@ -1,11 +1,15 @@
 import Foundation
 import Observation
 import JICore
+import JIPersistence
 
 /// W-B91 (Toby 2026-10-04: "B91 pause should be a manual status") — Settings' "I'm on a break"
 /// toggle. The hub holds the state (`GET/PUT /api/v1/planning/training-break`); Decide's Load row
-/// reads "Paused" + the start date from the hub's `/morning` while it is on. No outbox: the
-/// toggle shows the hub's confirmed state, and a failed write reverts it with the hub's reason.
+/// reads "Paused" + the start date from the hub's `/morning` while it is on.
+///
+/// B-52 p4: offline-first. A flip is queued as outbox kind `training_break` (last-write-wins) and
+/// shown at once, marked pending ("Saved on this phone"); the drainer sends it when the hub is
+/// back. Only a hub REFUSAL (4xx) reverts the toggle, with the hub's reason.
 @Observable @MainActor
 public final class TrainingBreakViewModel {
     public private(set) var state: TrainingBreak?
@@ -15,18 +19,37 @@ public final class TrainingBreakViewModel {
     /// that copy — the row shows the last-known state with an "Offline — showing data from …" line
     /// instead of an empty, disabled toggle. nil = the hub answered.
     public private(set) var staleSince: Date?
+    /// B-52 p4: a flip is queued on this phone and not yet on the hub.
+    public private(set) var pending = false
 
     private let provider: any TrainingBreakProviding
+    private let outbox: Outbox?
+    private let drainer: OutboxDrainer?
+    private let now: () -> Date
 
     /// B-107: runs after every confirmed write (the app shell re-fetches Today/Decide so the Load
     /// row reads "Paused" at once, not after a relaunch). Never runs on a failed write.
     @ObservationIgnored public var onChanged: (@MainActor () async -> Void)?
 
-    public init(provider: any TrainingBreakProviding, state: TrainingBreak? = nil,
+    /// `outbox` nil (previews, fixtures) = a throwaway in-memory queue: the write path is the
+    /// same OutboxFirst path either way — there is no direct hub write in this model.
+    public init(provider: any TrainingBreakProviding, state: TrainingBreak? = nil, outbox: Outbox? = nil,
+                now: @escaping () -> Date = Date.init,
                 onChanged: (@MainActor () async -> Void)? = nil) {
         self.provider = provider
         self.state = state
         self.onChanged = onChanged
+        self.now = now
+        let queue = outbox ?? (try? AppDatabase.inMemory()).map { Outbox(db: $0) }
+        self.outbox = queue
+        let handler = B52WriteKinds.trainingBreakHandler(provider: { provider })
+        self.drainer = queue.map { B52WriteKinds.localDrainer(outbox: $0, handler: handler) }
+        applyPending()
+    }
+
+    /// "Saved on this phone — …" while a flip is queued; nil otherwise.
+    public var pendingText: String? {
+        pending ? "Saved on this phone — syncs when the hub is reachable" : nil
     }
 
     public var paused: Bool { state?.paused == true }
@@ -47,23 +70,53 @@ public final class TrainingBreakViewModel {
         } catch {
             errorMessage = state == nil ? "Hub unreachable — the break can't be read right now" : nil
         }
+        applyPending()
     }
 
     /// "Offline — showing data from 07:41" while the shown state is the cached copy.
     public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
 
-    /// On = a break from `since` (nil = the hub's today); off = the break ends today.
+    /// A queued flip wins over the hub's (or the cache's) older answer until it is delivered.
+    private func applyPending() {
+        if let queued = B52WriteKinds.newestPending(B52WriteKinds.trainingBreak, in: outbox, as: TrainingBreak.self) {
+            state = queued
+            pending = true
+            errorMessage = nil
+        } else {
+            pending = false
+        }
+    }
+
+    /// On = a break from `since` (nil = the phone's today, stamped at the tap so a replay days
+    /// later still starts the break on the day it was set); off = the break ends (hub's today).
     public func set(paused: Bool, since: String? = nil) async {
+        guard let outbox else { errorMessage = "Could not update the break — couldn't save it on this phone"; return }
         busy = true
         defer { busy = false }
-        do {
-            state = try await provider.setTrainingBreak(paused: paused, since: since)
-            errorMessage = nil; staleSince = nil
-        } catch {
-            errorMessage = "Could not update the break — \(trainingBreakErrorText(error))"
-            return
+        let previous = state, wasPending = pending
+        let body = TrainingBreak(paused: paused, since: paused ? (since ?? B52WriteKinds.localDay(now())) : nil)
+        state = body          // shown at once; marked pending until the hub has it
+        pending = true
+        errorMessage = nil
+        let outcome = await OutboxFirst(outbox: outbox, drainer: drainer)
+            .submit(kind: B52WriteKinds.trainingBreak, payload: body)
+        switch outcome {
+        case .delivered:
+            pending = false
+            staleSince = nil
+            if let confirmed = try? await provider.trainingBreak() { state = confirmed }
+            applyPending()
+            await onChanged?()
+        case .queued:
+            applyPending()
+        case .rejected(let reason):
+            state = previous; pending = wasPending
+            errorMessage = "Could not update the break — \(reason)"
+            applyPending()
+        case .notQueued(let reason):
+            state = previous; pending = wasPending
+            errorMessage = "Could not update the break — \(reason)"
         }
-        await onChanged?()
     }
 }
 
