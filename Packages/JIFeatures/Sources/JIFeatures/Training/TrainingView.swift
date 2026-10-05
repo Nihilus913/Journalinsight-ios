@@ -1,5 +1,6 @@
 import SwiftUI
 import JICore
+import JICompute
 import JIDesign
 import JIPersistence
 import JIWorkouts
@@ -26,6 +27,9 @@ public struct TrainingView: View {
     @State private var dayPreview: TrainingDayRef?
     /// B-95 (BP-26): the pushed Time in zone screen (W / M / 6M).
     @State private var zoneTime: ZoneTimeModel?
+    /// B-90 p5: per-muscle freshness + load (card → pushed Muscles screen → detail sheet).
+    @State private var muscles: MusclesModel?
+    @State private var showMuscles = false
     /// B-33: a screen root's own token reads resolve to the theme it installs below —
     /// `.jiTheme(.native)` applies to descendants, never to the view that applies it, so reading
     /// `\.jiTheme` here would see the presenter's value rather than this screen's.
@@ -125,6 +129,11 @@ public struct TrainingView: View {
         }
         #endif
         .navigationDestination(item: $zoneTime) { ZoneTimeChartView(model: $0) }
+        .navigationDestination(isPresented: $showMuscles) {
+            if let muscles { MusclesScreen(model: muscles, initialDetail: musclesLaunchDetail()) }
+        }
+        .task { setUpMuscles() }
+        .onAppear { muscles?.reload() }
         #if DEBUG
         // B-95 dev affordance: `-zone-time <W|M|6M>` pushes Time in zone at that range (sim screenshots).
         .task {
@@ -269,6 +278,11 @@ public struct TrainingView: View {
                 .padding(.horizontal, JISpacing.s4).padding(.top, JISpacing.s2)
             JISectionHeader("Readiness")
             GateDetailCard(morning: model.morning, gate: model.gate, isStale: model.verdictIsStale, override: currentOverride)
+            // B-90 p5 (mockup BP-2-3): the gate answers "can I train", Muscles "what can I load".
+            if let muscles, let summary = muscles.summary {
+                JISectionHeader("Muscles").id("training-muscles")
+                MusclesCard(summary: summary, calendar: muscles.calendar) { showMuscles = true }
+            }
             JISectionHeader("This day").id("training-this-day")
             TrainingDayDetailCard(
                 date: model.selectedDate,
@@ -317,6 +331,21 @@ public struct TrainingView: View {
             }
             .accessibilityIdentifier("training-zones")
         }
+    }
+
+    /// B-90 p5: the live model over the on-disk strength log; DEBUG `-muscles-fixture <kind>` swaps in
+    /// a fixture and `-muscles-open` pushes the screen (sim screenshots without a tap).
+    private func setUpMuscles() {
+        if muscles == nil {
+            #if DEBUG
+            if let kind = musclesLaunchFixture() { muscles = .fixture(kind) }
+            #endif
+            if muscles == nil, let deps = strengthLogDeps { muscles = .live(store: StrengthSessionLogStore(db: deps.db)) }
+        }
+        muscles?.reload()
+        #if DEBUG
+        if CommandLine.arguments.contains("-muscles-open"), muscles != nil { showMuscles = true }
+        #endif
     }
 
     /// PL-6: the selected day as the Planner shows it (its sessions + library workouts).
@@ -392,4 +421,19 @@ nonisolated func trainingLaunchSendToWatch(_ arguments: [String] = CommandLine.a
 nonisolated func trainingLaunchDaySheetOpens(_ arguments: [String] = CommandLine.arguments) -> Bool {
     guard let i = arguments.firstIndex(of: "-training-day-sheet"), i + 1 < arguments.count else { return true }
     return arguments[i + 1] != "off"
+}
+
+/// B-90 p5 DEBUG routes: `-muscles-fixture populated|calibrating|empty`, `-muscles-detail <muscle raw>`.
+nonisolated func musclesLaunchFixture(_ arguments: [String] = CommandLine.arguments) -> MusclesFixture.Kind? {
+    guard let i = arguments.firstIndex(of: "-muscles-fixture"), i + 1 < arguments.count else { return nil }
+    return MusclesFixture.Kind(rawValue: arguments[i + 1])
+}
+
+nonisolated func musclesLaunchDetail(_ arguments: [String] = CommandLine.arguments) -> Muscle? {
+    #if DEBUG
+    guard let i = arguments.firstIndex(of: "-muscles-detail"), i + 1 < arguments.count else { return nil }
+    return Muscle(rawValue: arguments[i + 1])
+    #else
+    return nil
+    #endif
 }
