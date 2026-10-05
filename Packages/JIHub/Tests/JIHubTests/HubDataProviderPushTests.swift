@@ -88,3 +88,28 @@ extension HubClientTests {
         }
     }
 }
+
+extension HubClientTests {
+    /// B-21: the optional `live_activity_start_token` rides the same POST when present.
+    @Test func registerPushTokenSendsTheLiveActivityStartTokenWhenPresent() async throws {
+        StubURLProtocol.reset()
+        StubURLProtocol.responses["/api/v1/planning/push-token"] = (200, Data("""
+        {"ok":true,"registered_at":"2026-10-05T03:10:00+00:00"}
+        """.utf8))
+        let config = ConnectionConfig(baseURL: URL(string: "http://hub.test:8000")!, token: "t0k")
+        let provider = HubDataProvider(client: HubClient(config: config, session: StubURLProtocol.session()))
+        _ = try await provider.registerPushToken(
+            PushTokenRegistration(token: "00ff10", environment: .sandbox, appVersion: "1.0 (42)", liveActivityStartToken: "0a0bff")
+        )
+        let request = try #require(StubURLProtocol.lastRequest)
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open(); defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable { let n = stream.read(&buffer, maxLength: buffer.count); if n <= 0 { break }; data.append(contentsOf: buffer[0..<n]) }
+        }
+        let body = try #require(try JSONSerialization.jsonObject(with: data) as? [String: String])
+        #expect(body == ["token": "00ff10", "platform": "ios", "environment": "sandbox", "app_version": "1.0 (42)",
+                         "live_activity_start_token": "0a0bff"])
+    }
+}

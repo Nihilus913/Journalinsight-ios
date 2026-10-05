@@ -35,9 +35,24 @@ public enum LiveActivityAdoption {
         public var end: [ID]
     }
 
-    public static func plan<ID: Hashable>(running: [(id: ID, isActive: Bool)]) -> Plan<ID> {
+    /// B-21: `held` = the activity the controller already drives (nil after a relaunch). A verdict
+    /// activity can now also be started REMOTELY (APNs push-to-start at Morning GO) while the app holds
+    /// its own — keep the held one while it is still active (no flicker, it gets today's content on the
+    /// same update) and end the extra; if the held one is gone, adopt the first active (e.g. the
+    /// remotely-started card). Never a second card either way.
+    public static func plan<ID: Hashable>(running: [(id: ID, isActive: Bool)], held: ID? = nil) -> Plan<ID> {
         let active = running.filter(\.isActive).map(\.id)
+        if let held, active.contains(held) {
+            return Plan(adopt: held, end: active.filter { $0 != held })
+        }
         return Plan(adopt: active.first, end: Array(active.dropFirst()))
+    }
+
+    /// B-21: does the controller need to (re)run adoption? Yes when it holds nothing, or when an
+    /// active verdict activity other than the held one exists (a push-to-start card appeared).
+    public static func needsAdoption<ID: Hashable>(running: [(id: ID, isActive: Bool)], held: ID?) -> Bool {
+        guard let held else { return true }
+        return running.contains { $0.isActive && $0.id != held }
     }
 
     /// W-FIX7 fixer F7-4: the ended ("Done") cards still on the Lock Screen. Keep today's newest one

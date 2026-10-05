@@ -82,11 +82,14 @@ public final class RemindersViewModel {
     private let scheduler: ReminderScheduler
     private let prefs: PrefStore
     private let today: () -> String
+    private let now: () -> Date
     private var medicationStore: MedicationStore { MedicationStore(prefs: prefs) }
     private var gateSettingsStore: GateSettingsStore { GateSettingsStore(prefs: prefs) }
 
-    public init(scheduler: ReminderScheduler, prefs: PrefStore, today: @escaping () -> String = { ReminderScheduler.todayISO() }) {
+    public init(scheduler: ReminderScheduler, prefs: PrefStore, today: @escaping () -> String = { ReminderScheduler.todayISO() },
+                now: @escaping () -> Date = Date.init) {
         self.scheduler = scheduler
+        self.now = now
         self.prefs = prefs
         self.today = today
         var daily: [ReminderKind: DailyState] = [:]
@@ -130,7 +133,85 @@ public final class RemindersViewModel {
         hrCapCheckDue = await scheduler.hrCapCheckDue()
         permissionDenied = await scheduler.isDenied()
         loadDataCheckIn()
+        await loadTrainingNudges()
         loaded = true
+    }
+
+    // MARK: training nudges (B-43 P2)
+
+    /// Toggles + time of the two training nudges (`WorkoutNudgePrefs`).
+    public private(set) var trainingNudges = WorkoutNudgePrefs()
+    /// Planned days that currently have a pending workoutDay request.
+    public private(set) var workoutDayPending: [String] = []
+    public private(set) var trainingNotice: String?
+
+    public var workoutDayTimeLabel: String {
+        ReminderScheduler.formatTime(hour: trainingNudges.workoutDayTime.hour, minute: trainingNudges.workoutDayTime.minute)
+    }
+
+    /// "Next: 2026-10-06 · 17:30", or why nothing is pending.
+    public var workoutDayStatusLine: String {
+        guard trainingNudges.workoutDayEnabled else { return "Off" }
+        guard let next = workoutDayPending.first else { return "No planned session left this week." }
+        return "Next: \(next) · \(workoutDayTimeLabel)"
+    }
+
+    public func loadTrainingNudges() async {
+        trainingNudges = WorkoutNudgePrefs.load(prefs)
+        workoutDayPending = await scheduler.pendingWorkoutDays()
+    }
+
+    public func setWorkoutDayEnabled(_ on: Bool) async {
+        trainingNotice = nil
+        if on {
+            guard await scheduler.requestPermission() else {
+                trainingNotice = RemindersCopy.permissionDenied
+                permissionDenied = await scheduler.isDenied()
+                return
+            }
+        }
+        saveNudges { $0.workoutDayEnabled = on }
+        await relayWorkoutDays()
+    }
+
+    /// ±15 min, wraps across midnight; re-lays the pending days when on.
+    public func shiftWorkoutDayTime(minutes delta: Int) async {
+        let t = trainingNudges.workoutDayTime
+        let total = ReminderScheduler.wrapMinutesOfDay(t.hour * 60 + t.minute + delta)
+        saveNudges { $0.workoutDayTime = ReminderTime(hour: total / 60, minute: total % 60) }
+        await relayWorkoutDays()
+    }
+
+    /// Off also drops a pending nudge at once.
+    public func setSessionOpenEnabled(_ on: Bool) async {
+        trainingNotice = nil
+        if on, !(await scheduler.requestPermission()) {
+            trainingNotice = RemindersCopy.permissionDenied
+            permissionDenied = await scheduler.isDenied()
+            return
+        }
+        saveNudges { $0.sessionOpenEnabled = on }
+        if !on { scheduler.cancelSessionOpen() }
+    }
+
+    /// Read-modify-write on the stored prefs: the week hook owns `planned` / `doneDate`, this screen
+    /// only its toggles and time — never a stale copy of the planned days.
+    private func saveNudges(_ change: (inout WorkoutNudgePrefs) -> Void) {
+        var p = WorkoutNudgePrefs.load(prefs)
+        change(&p)
+        p.save(prefs)
+        trainingNudges = p
+    }
+
+    private func relayWorkoutDays() async {
+        if trainingNudges.workoutDayEnabled {
+            let current = WorkoutNudgePrefs.load(prefs)   // the planned days the week summary last cached
+            let days = current.planned.filter { $0.key >= today() && $0.key != current.doneDate }
+            await scheduler.scheduleWorkoutDays(days, at: trainingNudges.workoutDayTime, now: now())
+        } else {
+            await scheduler.cancelWorkoutDays()
+        }
+        workoutDayPending = await scheduler.pendingWorkoutDays()
     }
 
     // MARK: data-triggered check-in (W-B102 C-6, BP-23a)

@@ -43,6 +43,8 @@ public final class SettingsViewModel {
     /// W-B96 (B-96): the planned-sessions → iPhone Calendar export. nil = not wired (previews,
     /// tests) → the Calendar section says "Not available in this build".
     public let calendarExport: CalendarExportModel?
+    /// B-24 P2: "Mirror mood to Apple Health" (off by default). nil = not wired → no row.
+    public let moodMirror: MoodMirrorSettingsModel?
     /// RN `saved` — "Using hub — saved." after a successful save; nil until then.
     public private(set) var savedMessage: String?
 
@@ -76,11 +78,13 @@ public final class SettingsViewModel {
         sections: [any SettingsSection] = SettingsRegistry.sections,
         syncAction: (@MainActor () async throws -> Void)? = nil,
         calendarExport: CalendarExportModel? = nil,
+        moodMirror: MoodMirrorSettingsModel? = nil,
         now: @escaping () -> Date = Date.init,
         onSaved: @escaping (ConnectionConfig) -> Void
     ) {
         self.syncAction = syncAction
         self.calendarExport = calendarExport
+        self.moodMirror = moodMirror
         self.now = now
         self.connection = ConnectionSheetModel(store: store)
         self.prefs = prefs
