@@ -27,7 +27,7 @@ public nonisolated struct TrendsCardModel: Identifiable, Sendable, Equatable {
 /// the KPI detail show; ACWR stays the fallback for a hub that serves one.
 public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?,
                                     today: String = RecoveryInsightService.localDayKey(Date()),
-                                    load: RecoveryLoadReading? = nil) -> [TrendsCardModel] {
+                                    load: RecoveryLoadReading? = nil, loadPaused: Bool = false) -> [TrendsCardModel] {
     typealias Series = (value: Double?, points: [(date: String, value: Double?)])
     func rec(_ f: @escaping (RecoveryDay) -> Double?) -> Series {
         let pts = recovery.map { (date: $0.date, value: f($0)) }
@@ -52,7 +52,12 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
     }
     /// W-FIX6 F6-8: an ACWR the hub really sent keeps the card; else the gate-input minutes.
     func loadCard() -> TrendsCardModel {
-        let acwr = card("load", .recovery, "Load", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
+        var acwr = card("load", .recovery, "Load", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
+        // W-B91 S3: an ACWR card reads its named status (or Paused), not the normal-band word.
+        if let named = acwrNamedStatus(acwr.value, paused: loadPaused), acwr.value != nil || load == nil {
+            acwr = TrendsCardModel(id: acwr.id, group: acwr.group, name: acwr.name, systemImage: acwr.systemImage, unit: acwr.unit,
+                                   decimals: acwr.decimals, value: acwr.value, tint: acwr.tint, status: named, normal: acwr.normal, asOf: acwr.asOf)
+        }
         guard acwr.value == nil, let load else { return acwr }
         return TrendsCardModel(id: "load", group: .recovery, name: "Load", systemImage: acwr.systemImage, unit: recoveryLoadUnit, decimals: 0,
                                value: load.minutes.rounded(), tint: metricTintRole("load"),
@@ -132,13 +137,15 @@ public struct TrendsView: View {
     @Environment(\.nutritionGoals) private var nutritionGoals
     /// W-FIX6 F6-8: the gate-input Load (the number Today's Load square shows).
     @Environment(\.recoveryInsight) private var recoveryInsight
+    /// W-B91 S3: the user's break is on → the Load card reads "Paused".
+    @Environment(\.loadPaused) private var loadPaused
 
     public init(recovery: [RecoveryDay], daily: [DailyKpiRow], averages: GateAverages?, onSelectKpi: ((String) -> Void)? = nil) {
         self.recovery = recovery; self.daily = daily; self.averages = averages; self.onSelectKpi = onSelectKpi
     }
 
     public var body: some View {
-        let all = trendsCards(recovery: recovery, daily: daily, averages: averages, load: recoveryInsight?.loadReading)
+        let all = trendsCards(recovery: recovery, daily: daily, averages: averages, load: recoveryInsight?.loadReading, loadPaused: loadPaused)
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Your last 7 days against your normal from the 28 days before.")

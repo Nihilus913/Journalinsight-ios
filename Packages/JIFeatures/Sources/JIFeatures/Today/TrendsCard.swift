@@ -10,10 +10,13 @@ public nonisolated struct TodayTrend: Identifiable, Sendable, Equatable {
     public let decimals: Int
     public let recent: Double?, baseline: Double?
     public let colorRole: JIColorRole
+    /// W-B91 S3: Load's named ACWR status (Maintaining / Productive / Overreaching / Paused); nil elsewhere.
+    public var status: JISignalStatus? = nil
 
-    public init(id: String, name: String, unit: String? = nil, decimals: Int = 0, recent: Double?, baseline: Double?, colorRole: JIColorRole) {
+    public init(id: String, name: String, unit: String? = nil, decimals: Int = 0, recent: Double?, baseline: Double?, colorRole: JIColorRole,
+                status: JISignalStatus? = nil) {
         self.id = id; self.name = name; self.unit = unit; self.decimals = decimals
-        self.recent = recent; self.baseline = baseline; self.colorRole = colorRole
+        self.recent = recent; self.baseline = baseline; self.colorRole = colorRole; self.status = status
     }
 
     public var direction: JITrendDirection { trendDirection(recent: recent, baseline: baseline) }
@@ -37,7 +40,7 @@ public nonisolated let trendBaselineDays = 28
 /// The six trends the card shows, in reading order. Pure: everything comes from the two series
 /// Today already holds. Load is ACWR (unitless, 2 dp) and Weight comes off `gate.daily`'s
 /// `weight_kg` column, the same source `KpiMetrics` reads.
-public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow]) -> [TodayTrend] {
+public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow], loadPaused: Bool = false) -> [TodayTrend] {
     func rec(_ value: @escaping (RecoveryDay) -> Double?) -> [(date: String, value: Double?)] {
         recovery.map { (date: $0.date, value: value($0)) }
     }
@@ -50,12 +53,16 @@ public nonisolated func todayTrends(recovery: [RecoveryDay], daily: [DailyKpiRow
                    baseline: trendAverage(series, days: trendBaselineDays),
                    colorRole: role)
     }
+    // W-B91 S3: the ratio carries its named word, not the bare number.
+    func namedLoad(_ t: TodayTrend) -> TodayTrend {
+        var t = t; t.status = acwrNamedStatus(t.recent, paused: loadPaused); return t
+    }
     return [
         trend("hrv", "HRV", rec { KpiMetrics.nightlyHrvMs($0) }, unit: "ms", role: .hrv),   // W-FIX1 BUG-06; W-FIX3 C-d: HRV's own role, not the accent
         trend("rhr", "Resting HR", rec(\.rhrBpm), unit: "bpm", role: .reduced),
         trend("sleep", "Sleep score", rec(\.sleepScore), role: .sleep),
         trend("steps", "Steps", day("steps"), role: .info),
-        trend("load", "Load (ACWR)", rec { KpiMetrics.honestAcwr($0.acwr) }, decimals: 2, role: .reduced),   // W-FIX1 BUG-12
+        namedLoad(trend("load", "Load (ACWR)", rec { KpiMetrics.honestAcwr($0.acwr) }, decimals: 2, role: .reduced)),   // W-FIX1 BUG-12
         trend("weight", "Weight", day("weight_kg"), unit: "kg", decimals: 1, role: .muted),
     ]
 }

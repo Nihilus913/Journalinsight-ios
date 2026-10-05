@@ -279,6 +279,8 @@ public final class TodayViewModel {
     /// W-FIX1 BUG-12: the Day hero's Load ring — the newest real ACWR only while it is current
     /// (`KpiMetrics.currentAcwr`, ≤ 36 h); the ring has no room for a date, so older is "—".
     public var heroLoad: Double? { KpiMetrics.currentAcwr(recovery, now: now()) }
+    /// W-B91 S3: the user's break is on (the hub's `/morning` Load row says paused).
+    public var loadPaused: Bool { morningLoadPaused(morning) }
 
     public var chips: [TodayChip] {
         let caps = provider.capabilities

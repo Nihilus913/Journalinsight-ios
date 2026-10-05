@@ -29,7 +29,8 @@ private nonisolated func newest(_ days: [RecoveryDay], _ f: (RecoveryDay) -> Dou
 /// (≤ 36 h, `KpiMetrics.isLastNightFresh`), with its date when that is not today; older is "— No
 /// data", never a stale number passed off as current. HRV is the nightly value (never the hub's
 /// 7-day `hrv_weekly_avg` mix) and Load a real ACWR (never the hub's invented 0.00).
-public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryTileLayout, editing: Bool, now: Date = Date()) -> [JISquareItem] {
+public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryTileLayout, editing: Bool, now: Date = Date(),
+                                          loadPaused: Bool = false) -> [JISquareItem] {
     let today = String(now.ISO8601Format().prefix(10))
     func night(_ f: (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
         newest(days, f).flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0 : nil }
@@ -45,11 +46,21 @@ public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryT
         let symbol = KpiMetricId(normalizing: id).map { KpiMetrics.def($0).symbol } ?? "square"
         let value = reading?.value
         // W1: a real value carries no status word (the normal is W3); missing = "— No data".
+        // W-B91 S3: Load is the exception — its ratio carries the named word (or Paused, even with no ratio).
+        let named = id == "load" ? acwrNamedStatus(value, paused: loadPaused) : nil
         return JISquareItem(id: id, label: label, systemImage: symbol, tint: metricTintRole(id), value: value, decimals: decimals,
                             unit: unit, goalText: kpiAsOfLabel(valueDate: reading?.date, today: today),
-                            status: value == nil ? .missing(.noData) : nil, badge: editing ? .hide : .none)
+                            status: named ?? (value == nil ? .missing(.noData) : nil), badge: editing ? .hide : .none)
     }
     return layout.visible.map(item)
+}
+
+/// W-B91 S3: the Recovery "Load" tile's caption — the named ACWR word first ("Overreaching"),
+/// then the reading's date when it is not today ("Overreaching · as of 3 Oct"); "— No data" alone.
+public nonisolated func recoveryLoadTileCaption(_ item: JISquareItem) -> String {
+    let word: String? = switch item.status { case .maintaining?, .productive?, .overreaching?, .paused?: item.status?.word; default: nil }
+    guard let word else { return item.goalText ?? item.status?.word ?? "" }
+    return [word, item.goalText].compactMap { $0 }.joined(separator: " · ")
 }
 
 public nonisolated func recoveryNightLabel(_ day: String) -> String {

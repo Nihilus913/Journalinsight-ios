@@ -20,6 +20,8 @@ public struct RecoveryView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// B-57 W3: the gate's own Apple-night inputs (HRV / RHR normals, deep sleep); nil = inert.
     @Environment(\.recoveryInsight) private var insight
+    /// W-B91 S3: the user's break is on → the Load tile reads "Paused".
+    @Environment(\.loadPaused) private var loadPaused
 
     public init(model: RecoveryViewModel) { self.model = model }
 
@@ -106,7 +108,7 @@ public struct RecoveryView: View {
             let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
             if editing {
                 // Edit mode keeps the squares' hide / reorder / add-back behaviour (RecoveryTiles prefs).
-                SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing), editing: editing, columns: recoveryGridColumns,
+                SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing, loadPaused: loadPaused), editing: editing, columns: recoveryGridColumns,
                            family: .tile,
                            onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
                            onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
@@ -253,7 +255,7 @@ public struct RecoveryView: View {
     /// resp rate / wrist temp / body battery / recovery time from `/vitals/recovery` — dated, or
     /// "—" + a reason word (`recoveryWatchReadings`) — and Add a metric, all `.tile`.
     private func alsoWatching(layout: RecoveryTileLayout) -> some View {
-        let items = recoveryTileItems(days: model.days, layout: layout, editing: false).filter { $0.id == "load" }
+        let items = recoveryTileItems(days: model.days, layout: layout, editing: false, loadPaused: loadPaused).filter { $0.id == "load" }
         // W-DATA fixer R9: no hub ACWR (Apple never sends one) → the gate-input load with its band.
         let load = items.first?.value == nil ? insight?.loadReading : nil
         return Columns(minimum: 100, spacing: JISpacing.tileGap, tileHeight: .tile) {
@@ -265,7 +267,7 @@ public struct RecoveryView: View {
                             Text(load?.valueText ?? jiValueText(item.value, decimals: item.decimals))
                                 .jiNumeral(.numeralSmall, tint: item.value == nil && load == nil ? .muted : item.tint)
                                 .lineLimit(1).minimumScaleFactor(0.6)
-                            Text(load?.caption ?? item.goalText ?? item.status?.word ?? "").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                            Text(load?.caption ?? recoveryLoadTileCaption(item)).jiFont(.micro).foregroundStyle(theme.color(.muted))
                                 .lineLimit(1).minimumScaleFactor(0.8)
                         }
                     }
