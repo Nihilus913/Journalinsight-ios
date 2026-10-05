@@ -101,3 +101,20 @@ public final class MoodMirrorSettingsModel {
         MoodMirrorPrefs.setEnabled(enabled, defaults)
     }
 }
+
+/// RG-52 (B-24): Mind's subtitle + footer privacy copy. With the mood mirror ON the mood also
+/// leaves the app (into Apple Health), so "on this phone only" / "everything stays" would be false.
+public nonisolated struct MindPrivacyCopy: Equatable, Sendable {
+    public let subtitle: String
+    public let footer: String
+}
+
+public nonisolated func mindPrivacyCopy(mirrorOn: Bool) -> MindPrivacyCopy {
+    let lead = "A quiet place to note how you're doing and log the odd rough patch — for spotting patterns over time, nothing more."
+    if mirrorOn {
+        return MindPrivacyCopy(
+            subtitle: "On this phone · mood also in Apple Health",
+            footer: "\(lead) Check-ins and events stay on this phone; your mood is also written to Apple Health (Settings › Apple Health › Mirror mood).")
+    }
+    return MindPrivacyCopy(subtitle: "On this phone only", footer: "\(lead) Everything stays on your device.")
+}

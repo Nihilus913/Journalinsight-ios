@@ -12,6 +12,8 @@ public struct MindView: View {
     @State private var checkInOpen = false
     @State private var eventOpen = false
     @State private var who5Open = false
+    /// RG-52: live mood-mirror toggle (Settings › Apple Health) so the privacy copy stays true.
+    @AppStorage(MoodMirrorPrefs.key) private var mirrorOn = false
 
     public init(model: MindViewModel) { self.model = model }
 
@@ -33,7 +35,7 @@ public struct MindView: View {
         .readableColumn()
         .jiTheme(.native)
         .navigationTitle("Mind")
-        .navigationSubtitle("On this phone only")   // B-57 W1 board 4/03
+        .navigationSubtitle(mindPrivacyCopy(mirrorOn: mirrorOn).subtitle)   // B-57 W1 board 4/03 · RG-52
         .task { if model.phase == .idle { await model.load() } }
         .sheet(isPresented: $checkInOpen) { CheckInSheet(model: model).jiNativeSheetSizing() }
         .sheet(isPresented: $eventOpen) { EventSheet(model: model).jiNativeSheetSizing() }
@@ -118,7 +120,8 @@ public struct MindView: View {
                     .accessibilityIdentifier("mind-log-event")
             }
         } footer: {
-            Text("A quiet place to note how you're doing and log the odd rough patch — for spotting patterns over time, nothing more. Everything stays on your device.")
+            Text(mindPrivacyCopy(mirrorOn: mirrorOn).footer)
+                .accessibilityIdentifier("mind-privacy-footer")
         }
     }
 
