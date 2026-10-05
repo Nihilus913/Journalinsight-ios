@@ -10,10 +10,28 @@ public struct HubClient: Sendable {
     /// hub stores the latest value (`app_settings.phone_tz`) for the morning window.
     private let timeZone: @Sendable () -> TimeZone
     public static let timeZoneHeader = "X-JI-TZ"
+    /// B-52 p1 (b): the default read-through cache for EVERY `get` (nil = no cache, e.g. tests and
+    /// `ConnectionTest`). See `HubReadCache` and `getRead`.
+    public let readCache: (any HubReadCache)?
+    /// Paths never served from cache: `/health` is the watchdog's reachability probe — answering it
+    /// from a stored copy would report a dead hub as alive.
+    public static let uncachedPaths: Set<String> = ["/health"]
 
     public init(config: ConnectionConfig, session: URLSession = HubClient.makeDefaultSession(),
-                timeZone: @escaping @Sendable () -> TimeZone = { DayKey.zone }) {
-        self.config = config; self.session = session; self.timeZone = timeZone
+                timeZone: @escaping @Sendable () -> TimeZone = { DayKey.zone },
+                readCache: (any HubReadCache)? = nil) {
+        self.config = config; self.session = session; self.timeZone = timeZone; self.readCache = readCache
+    }
+
+    /// Whether a failed read may be answered from cache: only "the hub is not there" (no
+    /// connection, timeout, a proxy 503/504/500). Named hub answers (401, 409, 502 YAZIO, 404, 422…)
+    /// are the hub speaking — they are load-bearing UI contracts and are never masked by a copy.
+    public static func isOfflineFailure(_ error: Error) -> Bool {
+        switch error as? HubError {
+        case .network: true
+        case .http(let status, _): status == 500 || status == 503 || status == 504
+        default: false
+        }
     }
 
     /// Headers every hub request carries: bearer, JSON accept, the phone's zone.
@@ -34,7 +52,37 @@ public struct HubClient: Sendable {
         URLSession(configuration: .ephemeral)
     }
 
+    /// B-52 p1 (b): every hub GET reads through `readCache` by default. Fresh read → value, bytes
+    /// stored, key marked fresh. Offline failure (`isOfflineFailure`) with a stored copy → that copy,
+    /// key marked stale in `HubReadStaleness.shared`. No copy (cold cache) or any other failure →
+    /// the original error, unchanged.
     public func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+        try await getRead(path, query: query).value
+    }
+
+    /// `get` with provenance (`stale`, `fetchedAt`) for a screen that shows "offline, as of …".
+    public func getRead<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> HubRead<T> {
+        guard let readCache, !Self.uncachedPaths.contains(path), HubReadPolicy.current == .cacheFallback else {
+            let (value, _): (T, Data) = try await fetch(path, query: query)
+            return HubRead(value: value, fetchedAt: Date(), stale: false)
+        }
+        let key = HubReadKey.make(path: path, query: query)
+        do {
+            let (value, data): (T, Data) = try await fetch(path, query: query)
+            readCache.storeRead(key, data)
+            HubReadStaleness.shared.markFresh(key)
+            return HubRead(value: value, fetchedAt: Date(), stale: false)
+        } catch {
+            guard Self.isOfflineFailure(error), let hit = readCache.loadRead(key),
+                  let value = try? JSON.decoder.decode(T.self, from: hit.data) else { throw error }
+            HubReadStaleness.shared.markStale(key, fetchedAt: hit.fetchedAt)
+            HubReadTrace.current?.record(key, fetchedAt: hit.fetchedAt)
+            return HubRead(value: value, fetchedAt: hit.fetchedAt, stale: true)
+        }
+    }
+
+    /// The network GET itself: decoded value + the raw bytes it decoded from (what the cache stores).
+    private func fetch<T: Decodable>(_ path: String, query: [String: String]) async throws -> (T, Data) {
         var comps = URLComponents(url: config.baseURL.appending(path: path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) } }
         var req = URLRequest(url: comps.url!)
@@ -47,7 +95,7 @@ public struct HubClient: Sendable {
             let detail = (try? JSON.decoder.decode([String: String].self, from: data))?["detail"]
             throw HubError.from(status: status, detail: detail)
         }
-        do { return try JSON.decoder.decode(T.self, from: data) } catch { throw HubError.decoding("\(path): \(error)") }
+        do { return (try JSON.decoder.decode(T.self, from: data), data) } catch { throw HubError.decoding("\(path): \(error)") }
     }
 
     /// POSTs `body` as JSON and decodes the response, mirroring `get`'s status-mapping and error

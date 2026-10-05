@@ -158,9 +158,15 @@ private func makeLibrary(_ hub: FakeWorkoutHub, db: AppDatabase? = nil) throws -
         #expect(vm.templates.map(\.name) == ["Zone 2"])
         #expect(vm.state == .loaded && !vm.hubReachable)
         #expect(vm.garminDisabledReason != nil)
-        await vm.pushToGarmin(vm.templates[0])
         _ = await vm.importFromGarmin()
-        #expect(!hub.calls.contains { $0.hasPrefix("PUSH") || $0 == "IMPORT" }, "Garmin actions are never attempted or queued offline")
+        #expect(!hub.calls.contains("IMPORT"), "import needs the hub: never attempted or queued offline")
+        // B-52 p4: push is queued offline (kind garmin_push), marked, and not re-tappable.
+        hub.garminError = HubError.network("offline")
+        #expect(vm.pushDisabledReason(for: vm.templates[0]) == nil)
+        await vm.pushToGarmin(vm.templates[0])
+        #expect(vm.pendingPushIds == [1])
+        #expect(vm.pushDisabledReason(for: vm.templates[0])?.hasPrefix("Push queued") == true)
+        #expect(vm.notice?.isError == false)
     }
 
     @Test func offlineNoCacheIsAnHonestFailureNotAnEmptyLibrary() async throws {
@@ -248,7 +254,7 @@ private func makeLibrary(_ hub: FakeWorkoutHub, db: AppDatabase? = nil) throws -
         #expect(vm.pendingTemplateIds.isEmpty)
     }
 
-    // MARK: Garmin (hub-only)
+    // MARK: Garmin (push queued — B-52 p4; import hub-only)
 
     @Test func pushIsBlockedWhileAnEditIsPendingThenGoesThrough() async throws {
         let hub = FakeWorkoutHub(rows: [run("Zone 2", id: 1, garmin: GarminLink(workoutId: 9, current: true, pushedAt: nil))])
@@ -270,7 +276,9 @@ private func makeLibrary(_ hub: FakeWorkoutHub, db: AppDatabase? = nil) throws -
         let (vm, _, _) = try makeLibrary(hub)
         await vm.load()
         await vm.pushToGarmin(vm.templates[0])
-        #expect(vm.notice == .init(text: "Garmin session expired — re-auth on the mini", isError: true))
+        // B-52 p4: a 503 keeps the push queued (the hub retries once the mini is re-authed).
+        #expect(vm.notice == .init(text: "Push queued — Garmin session expired — re-auth on the mini", isError: true))
+        #expect(vm.pendingPushIds == [1])
         #expect(vm.hubReachable, "a 503 from Garmin is not the hub being offline")
     }
 

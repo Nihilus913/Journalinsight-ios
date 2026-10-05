@@ -15,6 +15,10 @@ public final class TrainingMonthModel {
     public private(set) var data: TrainingCalendarMonth?
     /// true when `data` was built on the phone (no hub answer) — the header says so.
     public private(set) var isOffline = false
+    /// B-52 p2: the hub was unreachable but this month's last hub answer was cached — `data` is that
+    /// answer (done/missed as the hub last knew them, not the phone-built planned-only month) and
+    /// this is when it was fetched. nil = a fresh hub answer or the phone-built month.
+    public private(set) var staleSince: Date?
     public private(set) var isLoading = false
 
     @ObservationIgnored private let provider: (any TrainingCalendarProviding)?
@@ -38,13 +42,14 @@ public final class TrainingMonthModel {
         isLoading = true
         defer { isLoading = false }
         let month = self.month
-        if let provider, let served = try? await provider.trainingCalendar(month: month) {
+        if let provider, let (served, since) = try? await HubReadTrace.collect({ try await provider.trainingCalendar(month: month) }) {
             guard month == self.month else { return }
-            data = served; isOffline = false
+            data = served; isOffline = since != nil; staleSince = since
             _ = try? store?.recordMonth(served)
             return
         }
         guard month == self.month else { return }
+        staleSince = nil
         let range = (month + "-01", month + "-31")
         let device = (try? store?.snapshots(from: range.0, to: range.1)) ?? [:]
         let fallback = self.fallback

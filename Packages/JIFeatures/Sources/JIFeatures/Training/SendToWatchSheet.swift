@@ -68,9 +68,13 @@ public struct SendToWatchSheet: View {
                 HStack { ProgressView(); Text("Loading templates…").foregroundStyle(theme.color(.muted)) }
                     .accessibilityIdentifier("send-to-watch-loading")
             } else if model.templates.isEmpty {
-                Text("No workout templates on the hub.").foregroundStyle(theme.color(.muted))
+                Text(sendToWatchEmptyText(state: model.state)).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("send-to-watch-empty")
             } else {
+                if let offline = model.offlineText {
+                    Text(offline).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("send-to-watch-offline")
+                }
                 ForEach(model.templates) { template in
                     Button { model.toggle(template.templateId) } label: {
                         HStack(spacing: 12) {
@@ -147,3 +151,10 @@ extension EnvironmentValues {
     @Entry public var sendToWatchModel: SendToWatchViewModel?
 }
 #endif
+
+/// B-52 p2: the empty list's line — a failed first load with nothing cached says so (cold cache),
+/// never "no templates on the hub" (the hub was not asked successfully).
+nonisolated func sendToWatchEmptyText(state: SendToWatchViewModel.State) -> String {
+    if case .error = state { return "No cached workout templates yet — they load once the hub is reachable." }
+    return "No workout templates on the hub."
+}

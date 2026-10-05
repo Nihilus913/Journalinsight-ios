@@ -7,22 +7,28 @@ import JICore
 private actor StubBreakProvider: TrainingBreakProviding {
     var stored = TrainingBreak(paused: false)
     var fail = false
+    var reject = false
     var calls: [(Bool, String?)] = []
     func setFail(_ f: Bool) { fail = f }
+    func setReject(_ r: Bool) { reject = r }
     func trainingBreak() async throws -> TrainingBreak { stored }
     func setTrainingBreak(paused: Bool, since: String?) async throws -> TrainingBreak {
         calls.append((paused, since))
         if fail { throw HubError.network("offline") }
+        if reject { throw HubError.http(status: 422, detail: "since cannot be in the future") }
         stored = TrainingBreak(paused: paused, since: paused ? (since ?? "2026-10-04") : nil)
         return stored
     }
 }
 
+/// 2026-10-04 12:00 in the phone's calendar (B-52 p4 stamps `since` with the phone's day).
+private let oct4 = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 4, hour: 12))!
+
 @MainActor
 struct B91TrainingBreakTests {
     @Test func loadsThenTogglesOnAndOff() async {
         let provider = StubBreakProvider()
-        let m = TrainingBreakViewModel(provider: provider)
+        let m = TrainingBreakViewModel(provider: provider, now: { oct4 })
         await m.load()
         #expect(m.paused == false && m.sinceText == nil)
         await m.set(paused: true)
@@ -32,13 +38,23 @@ struct B91TrainingBreakTests {
         #expect(await provider.calls.map(\.0) == [true, false])
     }
 
-    @Test func failedWriteKeepsTheHubStateAndSaysWhy() async {
+    // B-52 p4: hub unreachable = queued (shown on, pending), not reverted.
+    @Test func offlineWriteIsQueuedAndShownPending() async {
         let provider = StubBreakProvider()
         await provider.setFail(true)
+        let m = TrainingBreakViewModel(provider: provider, state: TrainingBreak(paused: false), now: { oct4 })
+        await m.set(paused: true)
+        #expect(m.paused && m.pending && m.errorMessage == nil)
+        #expect(m.pendingText != nil && m.sinceText == "On a break since 4 Oct")
+    }
+
+    @Test func refusedWriteKeepsTheHubStateAndSaysWhy() async {
+        let provider = StubBreakProvider()
+        await provider.setReject(true)
         let m = TrainingBreakViewModel(provider: provider, state: TrainingBreak(paused: false))
         await m.set(paused: true)
-        #expect(!m.paused)
-        #expect(m.errorMessage?.hasPrefix("Could not update the break") == true)
+        #expect(!m.paused && !m.pending)
+        #expect(m.errorMessage == "Could not update the break — since cannot be in the future")
     }
 
     // B-107: a confirmed write re-fetches Decide at once (no relaunch); a failed one does not.
