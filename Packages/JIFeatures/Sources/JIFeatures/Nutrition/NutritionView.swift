@@ -101,7 +101,7 @@ public struct NutritionView: View {
             JISectionHeader("7 days vs your goal")
             Surface(level: 1, padding: JISpacing.cardPadding) {
                 VStack(alignment: .leading, spacing: JISpacing.s2) {
-                    NutritionWeekBars(days: model.week, goal: nutritionGoals.kcalGoal)
+                    NutritionWeekBars(days: model.week, goal: nutritionGoals.kcalGoal, today: today)
                     if let avg = nutritionWeekAverageText(days: model.week, today: today) {
                         Text(avg).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     }
