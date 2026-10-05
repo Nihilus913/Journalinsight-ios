@@ -102,6 +102,9 @@ public final class StrengthLogViewModel {
         public var lastTime: [StrengthSetLog]
         public var id: String { lift.id }
         public var muscles: [String]? { StrengthMuscles.targets(for: lift.exerciseKey) }
+        /// W-FIX-P2 RG-27: the next set's number = max(set_index)+1 (never `count+1`, which reuses
+        /// an existing number after a middle set is deleted).
+        public var nextSetIndex: Int { (sets.map(\.setIndex).max() ?? 0) + 1 }
     }
 
     public private(set) var cards: [Card] = []
@@ -235,7 +238,7 @@ public final class StrengthLogViewModel {
         // the set's FK would orphan it and the hub would get a createSession the phone never kept.
         guard let session = ensureSession() else { return nil }
         let set = StrengthSetLog(sessionClientId: session.clientId, exerciseKey: exerciseKey, exerciseId: card.lift.exerciseId,
-                                 setIndex: card.sets.count + 1, kind: timed ? .timed : .reps,
+                                 setIndex: card.nextSetIndex, kind: timed ? .timed : .reps,
                                  reps: timed ? nil : reps, weightKg: Self.kg(weightKg), durationS: timed ? durationS : nil,
                                  rpe: rpe, performedAt: now().ISO8601Format())
         do { try store.upsertSet(set) } catch { self.error = "Could not save the set on this phone."; return nil }
