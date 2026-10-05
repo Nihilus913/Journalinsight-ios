@@ -19,8 +19,16 @@ import JIHealthKit
     @Test func calibratingPhoneRowDetailNamesThePhoneBaseline() throws {
         let row = try #require(OnDeviceVerdictLabel.sourceLabelled(result(nights: 2)).first)
         let detail = try #require(decideSignalRowModel(row).detail)
-        #expect(detail.contains("phone baseline 2/28"))
-        #expect(detail.contains("Calibrating (2/28 nights)"))
+        #expect(detail == "phone baseline 2/28 — calibrating")
+    }
+
+    @Test func aHubBandIsNamedAsTheHubsNotShownAsTheRowsNormal() throws {
+        var r = result(nights: 2)
+        r.signals[0].bandLo = 23; r.signals[0].bandHi = 27
+        let row = try #require(OnDeviceVerdictLabel.sourceLabelled(r).first)
+        let m = decideSignalRowModel(row, recoveryNormal: 20...30)
+        #expect(m.normal == nil)
+        #expect(m.detail == "phone baseline 2/28 — hub normal 23–27")
     }
 
     @Test func calibratedPhoneRowIsUnchanged() {

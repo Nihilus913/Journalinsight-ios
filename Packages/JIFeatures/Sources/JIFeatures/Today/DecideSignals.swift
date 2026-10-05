@@ -116,6 +116,12 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         }
     } else if s.value == nil {
         detail = "no overnight value yet"
+    } else if let tag = decidePhoneBaselineTag(s) {
+        // W-FIX-P2 RG-16 (B-44od): the phone's own HRV baseline is still calibrating — say whose
+        // baseline the status is, and name any other normal as such, never a silent disagreement.
+        let other = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal
+        detail = other.map { "\(tag) — hub normal \(jiNumber($0.lowerBound, 0))–\(jiNumber($0.upperBound, 0))" }
+            ?? "\(tag) — \(JIMissingReason.calibrating.rawValue.lowercased())"
     } else if let band = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
         shownNormal = band; detail = nil
     } else if s.status == .missing, let note = s.note, !note.isEmpty {
@@ -126,6 +132,13 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
     }
     return DecideSignalRowModel(id: s.key, label: decideSignalLabel(s), value: s.value, unit: s.unit, decimals: decimals,
                                 status: status, detail: detail, normal: shownNormal)
+}
+
+/// W-FIX-P2 RG-16: "phone baseline N/28" when the on-device overlay tagged this row
+/// (`OnDeviceVerdictLabel.sourceLabelled`, JIHealthKit) — the phone's baseline is calibrating.
+nonisolated func decidePhoneBaselineTag(_ s: GateSignal) -> String? {
+    guard s.key == "hrv", s.status == .missing, let note = s.note, note.hasPrefix("phone baseline") else { return nil }
+    return note.components(separatedBy: " · ").first
 }
 
 /// W-B91 S1 (Bevel gap BP-11): the hub's ACWR context row — the ratio at 2 decimals, the named
