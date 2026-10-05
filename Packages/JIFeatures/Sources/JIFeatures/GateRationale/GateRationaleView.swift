@@ -471,7 +471,8 @@ public struct GateRationaleView: View {
     private var recoveryScoreCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             boardHeader("Recovery score", trailing: "last night")
-            RecoveryScoreCard()
+            // W-FIX-P2 RG-38: the call's own gate rows — the same 39 / "Overreaching" Decide shows.
+            RecoveryScoreCard(gateRows: model.morning?.gateSignals)
         }
     }
 

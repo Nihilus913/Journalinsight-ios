@@ -8,10 +8,13 @@ import JIDesign
 /// The score may wear verdict green (rule 6: 0–100 score); a low one is amber.
 /// W-FIX7 F7-2: `hubRecovery` (the hub's `gate_signals` recovery, `decideHubRecovery`) wins — the
 /// row then says the same number as Decide's ring (36, not the phone's 37 on 2026-09-28).
-public nonisolated func recoveryScoreCardText(result: RecoveryScoreResult?, reasonWord: String?, hubRecovery: Double? = nil)
+/// W-FIX-P2 RG-38: `hubStatus` = the gate row's own status — an amber/red "Recovery score" row in
+/// "What drove it" is "Recovery low" here too, never "In your normal range" beside it.
+public nonisolated func recoveryScoreCardText(result: RecoveryScoreResult?, reasonWord: String?, hubRecovery: Double? = nil,
+                                              hubStatus: GateSignalStatus? = nil)
     -> (numeral: String, caption: String, role: JIColorRole) {
     if let hubRecovery, hubRecovery.isFinite {
-        let low = hubRecovery < Double(RecoveryScore.lowScore)
+        let low = hubStatus.map { $0 == .amber || $0 == .red } ?? (hubRecovery < Double(RecoveryScore.lowScore))
         return (jiNumber(hubRecovery, 0), low ? "Recovery low" : "In your normal range", low ? .reduced : .go)
     }
     guard let result else { return ("—", reasonWord ?? JIMissingReason.noData.rawValue, .muted) }
@@ -43,8 +46,14 @@ public struct RecoveryScoreCard: View {
     /// W-FIX7 F7-2: the hub's recovery for the call (`decideHubRecovery(gateSignals)`); nil = the
     /// on-device score.
     private let hubRecovery: Double?
+    /// W-FIX-P2 RG-38: the call's gate rows (`morning.gate_signals`): the full card's headline and
+    /// driver words then say what Decide's "What drove it" says. nil = the on-device card.
+    private let gateRows: [GateSignal]?
 
-    public init(compact: Bool = false, hubRecovery: Double? = nil) { self.compact = compact; self.hubRecovery = hubRecovery }
+    public init(compact: Bool = false, hubRecovery: Double? = nil, gateRows: [GateSignal]? = nil) {
+        self.compact = compact; self.gateRows = gateRows
+        self.hubRecovery = hubRecovery ?? decideHubRecovery(gateRows)
+    }
 
     /// The gate's own `recovery` signal: the card shows it, so no second SignalRow / counted row.
     public nonisolated static func visibleSignals(_ signals: [GateSignal]) -> [GateSignal] {
@@ -54,11 +63,12 @@ public struct RecoveryScoreCard: View {
     private var model: RecoveryCardModel {
         RecoveryCardModel.make(result: insight?.result, reasonWord: insight == nil ? JIMissingReason.noData.rawValue : insight?.reasonWord,
                                sleepGoalH: targets?.goal(.sleep))   // W-TGT: the user's goal, nil until typed
+            .applyingGateRows(gateRows)
     }
 
     public var body: some View {
         let text = recoveryScoreCardText(result: insight?.result, reasonWord: insight == nil ? nil : insight?.reasonWord,
-                                         hubRecovery: hubRecovery)
+                                         hubRecovery: hubRecovery, hubStatus: decideHubRecoveryStatus(gateRows))
         Group {
             if compact {
                 compactRow(text)
