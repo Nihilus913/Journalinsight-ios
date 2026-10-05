@@ -101,6 +101,10 @@ public final class KpiDetailViewModel {
     public var calibrationCaption: String? {
         kpiCalibrationKey(metric).flatMap { recoveryCalibrationCaption(calibration, key: $0) }
     }
+    /// W-FIX-P1 RG-09: HRV's band, night count and 7-day value are the hub's one band (the gate's).
+    public var hrvHubBand: PersonalNormalResult? { metric == .hrv ? hrvHubNormal(calibration) : nil }
+    public var hrvHubSevenDay: Double? { metric == .hrv ? calibration?.hrv?.rolling7dMs : nil }
+    public var hrvHubCaption: String? { metric == .hrv ? kpiHrvHubCaption(calibration) : nil }
 
     public init(
         metric: KpiMetricId,
@@ -372,8 +376,11 @@ public final class KpiDetailViewModel {
 
 /// W-FIX10 R-04: the KPI detail's one normal — none while the hub calibrates the metric (the
 /// 7-day mean stays: it is a plain average of real nights, not a band).
+/// W-FIX-P1 RG-09: `hubNormal` / `hubSevenDay` (HRV: the hub's one band + its 7-day value) win.
 public nonisolated func kpiDetailNormal(points: [(date: String, value: Double?)], today: String,
-                                        hubCalibrating: Bool) -> (normal: PersonalNormalResult?, sevenDay: Double?) {
+                                        hubCalibrating: Bool, hubNormal: PersonalNormalResult? = nil,
+                                        hubSevenDay: Double? = nil) -> (normal: PersonalNormalResult?, sevenDay: Double?) {
     let r = KpiNormal.make(points: points, today: today)
-    return hubCalibrating ? (nil, r.sevenDay) : r
+    if let hubNormal { return (hubNormal, hubSevenDay ?? r.sevenDay) }
+    return hubCalibrating ? (nil, hubSevenDay ?? r.sevenDay) : r
 }

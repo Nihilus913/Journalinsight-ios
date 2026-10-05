@@ -45,6 +45,30 @@ public struct RecoveryCalibrationComponent: Codable, Sendable, Equatable {
     public var isCalibrating: Bool { status == "calibrating" }
 }
 
+/// W-FIX-P1 RG-09 (B-124): THE HRV band (`calibration.hrv`, HT `hrv_band.band_from_db`) — the
+/// gate's 28 nights (Watch + Garmin × 0.95), its ln-RMSSD band and 7-day value. Nil from an older hub.
+public struct RecoveryHrvBand: Codable, Sendable, Equatable {
+    public var nights: Int
+    public var nightsNeeded: Int
+    public var calibrating: Bool
+    public var nApple: Int?
+    public var nGarmin: Int?
+    public var bandLo: Double?
+    public var bandHi: Double?
+    public var rolling7dMs: Double?
+    public init(nights: Int, nightsNeeded: Int, calibrating: Bool, nApple: Int? = nil, nGarmin: Int? = nil,
+                bandLo: Double? = nil, bandHi: Double? = nil, rolling7dMs: Double? = nil) {
+        self.nights = nights; self.nightsNeeded = nightsNeeded; self.calibrating = calibrating
+        self.nApple = nApple; self.nGarmin = nGarmin; self.bandLo = bandLo; self.bandHi = bandHi
+        self.rolling7dMs = rolling7dMs
+    }
+    // `JSON.decoder`'s convertFromSnakeCase turns `rolling_7d_ms` into "rolling7DMs" ("7d".capitalized).
+    enum CodingKeys: String, CodingKey {
+        case nights, nightsNeeded, calibrating, nApple, nGarmin, bandLo, bandHi
+        case rolling7dMs = "rolling7DMs"
+    }
+}
+
 public struct RecoveryCalibration: Codable, Sendable, Equatable {
     /// "ok" | "calibrating" | "missing".
     public var status: String
@@ -52,11 +76,13 @@ public struct RecoveryCalibration: Codable, Sendable, Equatable {
     public var nights: Int
     public var nightsNeeded: Int
     public var components: [String: RecoveryCalibrationComponent]
+    /// W-FIX-P1 RG-09: the one HRV band; nil from an older hub.
+    public var hrv: RecoveryHrvBand? = nil
 
     public init(status: String, calibrating: Bool, nights: Int, nightsNeeded: Int,
-                components: [String: RecoveryCalibrationComponent] = [:]) {
+                components: [String: RecoveryCalibrationComponent] = [:], hrv: RecoveryHrvBand? = nil) {
         self.status = status; self.calibrating = calibrating; self.nights = nights
-        self.nightsNeeded = nightsNeeded; self.components = components
+        self.nightsNeeded = nightsNeeded; self.components = components; self.hrv = hrv
     }
 
     /// Tolerant: a missing `components` is empty, never a decode failure of the whole route.
@@ -67,6 +93,7 @@ public struct RecoveryCalibration: Codable, Sendable, Equatable {
         nights = try c.decodeIfPresent(Int.self, forKey: .nights) ?? 0
         nightsNeeded = try c.decodeIfPresent(Int.self, forKey: .nightsNeeded) ?? 14
         components = try c.decodeIfPresent([String: RecoveryCalibrationComponent].self, forKey: .components) ?? [:]
+        hrv = try? c.decodeIfPresent(RecoveryHrvBand.self, forKey: .hrv)
     }
 
     public func component(_ key: String) -> RecoveryCalibrationComponent? { components[key] }

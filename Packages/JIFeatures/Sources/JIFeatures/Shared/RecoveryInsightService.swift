@@ -138,12 +138,15 @@ public final class RecoveryInsightService {
     /// The 28-day personal normal (days `today−34 … today−7`); nil while fewer than 14 values.
     /// W-FIX10 R-04: nil while the hub says this metric's normal is calibrating.
     public func normal(for metric: RecoveryMetric) -> PersonalNormalResult? {
+        // W-FIX-P1 RG-09 (B-124): HRV's normal is the hub's one band (the gate's 23–27, 28 nights).
+        if metric == .hrv, let hub = hrvHubNormal(calibration) { return hub }
         guard !today.isEmpty, !(calibration?.isCalibrating(Self.calibrationKey(metric)) ?? false) else { return nil }
         return try? PersonalNormal.normal(series(metric), today: today)
     }
 
     /// The 7-day mean ending today; nil when the window has no value.
     public func sevenDay(for metric: RecoveryMetric) -> Double? {
+        if metric == .hrv, hrvHubNormal(calibration) != nil, let v = calibration?.hrv?.rolling7dMs { return v }   // RG-09
         guard !today.isEmpty else { return nil }
         return try? PersonalNormal.windowMean(series(metric), today: today)
     }

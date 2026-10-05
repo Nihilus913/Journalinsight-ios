@@ -157,7 +157,8 @@ public struct KpiDetailView: View {
     /// W-FIX10 R-04: no band while the hub calibrates this metric (`model.calibrationCaption`).
     private var kpiNormal: (normal: PersonalNormalResult?, sevenDay: Double?) {
         kpiDetailNormal(points: model.history, today: RecoveryInsightService.localDayKey(Date()),
-                        hubCalibrating: model.calibrationCaption != nil)
+                        hubCalibrating: model.calibrationCaption != nil,
+                        hubNormal: model.hrvHubBand, hubSevenDay: model.hrvHubSevenDay)
     }
 
     /// B-57 W3 S2: the metric's 28-day personal normal from the history the chart plots —
@@ -170,7 +171,7 @@ public struct KpiDetailView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Last 7 days").jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.text))
                     Spacer(minLength: 8)
-                    Text(model.calibrationCaption ?? KpiNormal.caption(r.normal, decimals: model.def.decimals)).jiFont(.caption)
+                    Text(model.calibrationCaption ?? model.hrvHubCaption ?? KpiNormal.caption(r.normal, decimals: model.def.decimals)).jiFont(.caption)
                         .foregroundStyle(theme.color(.muted)).multilineTextAlignment(.trailing)
                 }
                 NormalBar(value: r.sevenDay, normal: r.normal?.range, median: r.normal?.median, unit: unit,
