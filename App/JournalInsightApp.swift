@@ -17,7 +17,12 @@ struct JournalInsightApp: App {
     @State private var notificationDelegate = NotificationRoutingDelegate()
     // Built in `init()` (see its doc comment) — needs to happen there now alongside
     // `outboxRetry`'s construction so both respect struct definite-initialization order.
-    @State private var env: AppEnvironment
+    // RG-02 / B-118: nil only when even the in-memory fallback could not open (Storage-full screen alone).
+    @State private var env: AppEnvironment?
+    /// RG-02 / B-118: `.storageFull` = local SQLite could not open; hub-only read mode.
+    @State private var storageState: AppStorageState
+    /// The Storage-full screen stays up until the user picks "Continue read-only".
+    @State private var storageAcknowledged = false
 
     // Held by the App struct (not RootTabView's own @State) so a cold-start deep link — the
     // Info.plist-registered `ji`/`journalinsight` URL types resolve to `.onOpenURL` before
@@ -45,40 +50,39 @@ struct JournalInsightApp: App {
 
     // W-FIX2 BUG-15: the Appearance choice (mode, accent, text size), read from `PrefStore` at
     // launch and live after every Appearance save. Replaces the unconditional `.dark`.
-    @State private var theme: AppThemeModel
+    @State private var theme: AppThemeModel?
 
     // CODE-2: a boot-time Keychain READ error (e.g. transient Secure Enclave/first-unlock failure)
     // must not crash launch — treat it like "no token yet" and let RootTabView present the
     // Connection sheet (env.needsConnection) instead. Only a failure to construct the environment
-    // itself (cache/prefs storage) is still fatal.
+    // itself (cache/prefs storage) no longer traps either (RG-02 / B-118): it is written to the
+    // CrashLog and the app shows the Storage-full screen over an in-memory, hub-only environment.
     init() {
-        let builtEnv: AppEnvironment = {
-            do {
-                let e = try AppEnvironment()
-                // W-FIX12 F12-4: a unit-test host never boots (no Keychain read, no hub connection).
-                guard AppLaunchMode.current == .app else { return e }
-                do { try e.boot() } catch { e.needsConnection = true }
-                return e
-            } catch { fatalError("AppEnvironment init failed: \(error)") }
-        }()
+        let boot = AppEnvironmentBootstrap.make()
+        let builtEnv = boot.env
+        // W-FIX12 F12-4: a unit-test host never boots (no Keychain read, no hub connection).
+        if let e = builtEnv, AppLaunchMode.current == .app {
+            do { try e.boot() } catch { e.needsConnection = true }
+        }
         _env = State(initialValue: builtEnv)
+        _storageState = State(initialValue: boot.state)
         // W-B38-B B-8: the Watch's mirrored strength session must find its handler even when
         // HealthKit launches the app in the background for it — so it is installed here, not in a view task.
-        if AppLaunchMode.current == .app {
+        if AppLaunchMode.current == .app, let builtEnv {
             let prefs = builtEnv.prefs
             StrengthMirrorCoordinator.shared.install(
                 prefs: builtEnv.prefs,
                 provider: { [weak builtEnv] in (builtEnv?.hubProvider ?? builtEnv?.providerStore?.provider) as? any TrainingProviding },
                 settings: { GateSettingsStore(prefs: prefs).load() })
         }
-        _theme = State(initialValue: AppThemeModel(prefs: builtEnv.prefs))
+        _theme = State(initialValue: builtEnv.map { AppThemeModel(prefs: $0.prefs) })
         // B-52 p4: `training_break` + `garmin_push` rows are replayed by every drainer (regain,
         // retry scheduler, BG refresh) over whichever hub is current at replay time.
         B52WriteKinds.registerAll(hub: { [weak builtEnv] in builtEnv?.hubProvider ?? builtEnv?.providerStore?.provider })
 
         let scheduler = OutboxRetryScheduler(
             drainerSource: {
-                guard let provider = builtEnv.providerStore?.provider,
+                guard let provider = builtEnv?.providerStore?.provider,
                       let outbox = try? Outbox(db: .onDisk()) else { return nil }
                 return OutboxDrainer(outbox: outbox, hub: provider)
             },
@@ -98,20 +102,22 @@ struct JournalInsightApp: App {
             // W-FIX12 F12-4: the AppTests host shows nothing and runs no launch work (see `AppLaunchMode`).
             if AppLaunchMode.current == .unitTestHost {
                 Color.clear
-            } else {
-                appRoot
+            } else if let env, storageState == .ready || storageAcknowledged {
+                appRoot(env: env)
+            } else if case .storageFull(let reason) = storageState {
+                StorageFullView(reason: reason, onContinue: env == nil ? nil : { storageAcknowledged = true })
             }
         }
     }
 
-    @ViewBuilder private var appRoot: some View {
+    @ViewBuilder private func appRoot(env: AppEnvironment) -> some View {
         RootTabView(env: env, pendingDeepLink: $pendingDeepLink)
             // W-FIX2 BUG-15: system / Light / Dark from Appearance, set as the window override
             // (`.unspecified` = follow the device). Not `.preferredColorScheme`: once forced, its
             // nil does not reliably hand the window back to the system.
-            .onChange(of: theme.mode, initial: true) { _, _ in theme.applyToWindows() }
-            .tint(theme.accent)
-            .dynamicTypeSize(theme.dynamicTypeRange)
+            .onChange(of: theme?.mode, initial: true) { _, _ in theme?.applyToWindows() }
+            .tint(theme?.accent)
+            .dynamicTypeSize(theme?.dynamicTypeRange ?? .xSmall ... .accessibility5)
             .onOpenURL { url in
                 guard let link = DeepLink.parse(url) else { return }
                 pendingDeepLink = link
@@ -161,7 +167,7 @@ struct JournalInsightApp: App {
             // has to find out from a blank screen.
             .onChange(of: scenePhase, initial: true) { _, phase in
                 if phase == .active {
-                    watchdog = makeWatchdog()
+                    watchdog = makeWatchdog(env: env)
                     watchdog?.start()
                     // B-52 p5: the global offline / "N pending" marker follows this watchdog.
                     PendingSyncModel.shared.watchdog = watchdog
@@ -193,7 +199,7 @@ struct JournalInsightApp: App {
     /// reachable-again transition. `nil` before a connection exists (`needsConnection`) — there is
     /// no hub to probe yet, and `ConnectionSheet` is the honest surface for that, not a banner.
     @MainActor
-    private func makeWatchdog() -> HubWatchdog? {
+    private func makeWatchdog(env: AppEnvironment) -> HubWatchdog? {
         guard let provider = env.providerStore?.provider else { return nil }
         let watchdog = HubWatchdog(provider: provider)
         // W8-L4: drain every kind this hub can deliver (weigh-in + gate-respond/feel), not just
