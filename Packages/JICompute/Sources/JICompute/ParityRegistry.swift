@@ -127,6 +127,10 @@ public nonisolated enum ParityRegistry {
             source: .computed,
             notes: "B-90 p1: canonical exercise -> {muscle: weight} table (primary 1.0 / secondary 0.5); app/training/muscle_map.py and JICompute MuscleMap must match tests/fixtures/muscle_map.json exactly."
         ),
+        "muscle_freshness": ParityEntry(
+            source: .computed,
+            notes: "B-90 p4: per-muscle Recovered/Fatigued/Depleted estimate (48 h / 72 h above the muscle's own P75, <3 workouts -> not_enough_data); app/training/muscle_freshness.py and JICompute MuscleFreshness must reproduce tests/fixtures/muscle_freshness.json."
+        ),
     ]
 
     /// Swift-only: which JICompute type implements a `.computed` metric (W-ONDEVICE O-5). Kept
@@ -134,6 +138,7 @@ public nonisolated enum ParityRegistry {
     public static let implementations: [String: String] = [
         "readiness_categorical": "JICompute.ReadinessComposite",
         "muscle_map": "JICompute.MuscleMap",
+        "muscle_freshness": "JICompute.MuscleFreshness",
     ]
 
     /// The implementing JICompute type for `metric`, or nil when none is ported.
