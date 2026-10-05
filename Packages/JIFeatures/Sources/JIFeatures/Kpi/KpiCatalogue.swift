@@ -80,7 +80,7 @@ public nonisolated func kpiCatalogueItems(group: KpiCatalogueGroup, visible: [Kp
         }
         let caption = [goalCaption(id, reading?.value), kpiAsOfLabel(valueDate: reading?.date, today: today)]
             .compactMap { $0 }.joined(separator: " · ")
-        return JISquareItem(id: id.rawValue, label: def.label, systemImage: def.symbol, tint: metricTintRole(id.rawValue),
+        return JISquareItem(id: id.rawValue, label: kpiSquareLabel(id), systemImage: def.symbol, tint: metricTintRole(id.rawValue),
                             value: reading?.value, decimals: def.decimals, unit: def.unit.isEmpty ? nil : def.unit,
                             goalText: caption.isEmpty ? nil : caption,
                             status: reading == nil ? .missing(.noData) : nil, badge: badge)
@@ -107,6 +107,12 @@ public nonisolated func kpiHealthFirstReading(_ id: KpiMetricId, hub: KpiReading
     guard let h = HealthDailyTotals.latest(field, in: health) else { return hub }
     if let hub, !hub.date.isEmpty, hub.date > h.date { return hub }
     return KpiReading(value: h.value, date: h.date)
+}
+
+/// RG-50: the My KPIs square label. Readiness is the watch's own morning score (Garmin); Decide's
+/// "Readiness" ring is the recovery score — same word, two numbers — so the square names its source.
+public nonisolated func kpiSquareLabel(_ id: KpiMetricId) -> String {
+    id == .readiness ? "Watch readiness" : KpiMetrics.def(id).label
 }
 
 /// Undated values (fixtures and previews): no "as of" caption.
