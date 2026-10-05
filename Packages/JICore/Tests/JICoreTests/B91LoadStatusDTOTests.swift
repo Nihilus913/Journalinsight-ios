@@ -22,3 +22,13 @@ import Testing
     let old = Data(#"{"key":"rhr","label":"RHR","value":55,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass"}"#.utf8)
     #expect(try JSON.decoder.decode(GateSignal.self, from: old).loadStatus == nil)
 }
+
+// W-B91 S3 b91p2: the load row's acute / chronic daily load (Strain sheet tiles).
+@Test func gateSignalDecodesAcuteAndChronicLoad() throws {
+    let json = Data(#"{"key":"load","label":"Load","value":1.84,"unit":"","threshold":null,"direction":"max","scale_min":0,"scale_max":2.5,"status":"context","note":"x","load_status":"overreaching","acute_load":1.21,"chronic_load":0.66}"#.utf8)
+    let s = try JSON.decoder.decode(GateSignal.self, from: json)
+    #expect(s.acuteLoad == 1.21 && s.chronicLoad == 0.66)
+    let old = Data(#"{"key":"rhr","label":"RHR","value":55,"unit":"bpm","threshold":65,"direction":"max","scale_min":40,"scale_max":80,"status":"pass"}"#.utf8)
+    let o = try JSON.decoder.decode(GateSignal.self, from: old)
+    #expect(o.acuteLoad == nil && o.chronicLoad == nil)
+}
