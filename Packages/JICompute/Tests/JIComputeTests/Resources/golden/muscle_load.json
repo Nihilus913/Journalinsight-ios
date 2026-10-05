@@ -1,0 +1,1411 @@
+{
+  "dedupe": {
+    "expected": {
+      "as_of": "2026-10-04",
+      "deduped_garmin_activities": [
+        1
+      ],
+      "estimate": true,
+      "method": {
+        "acute_days": 7,
+        "bands": {
+          "high_above": 1.3,
+          "low_below": 0.8
+        },
+        "bodyweight_coef": 0.65,
+        "cardio_scale": 1000.0,
+        "chronic_days": 28,
+        "seconds_per_rep": 3.0,
+        "unit": "kg_volume"
+      },
+      "muscles": [
+        {
+          "acute": 1500.0,
+          "band": null,
+          "chronic": 375.0,
+          "first_load": "2026-10-04",
+          "last_load": "2026-10-04",
+          "muscle": "chest",
+          "name": "Chest",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 750.0,
+          "band": null,
+          "chronic": 187.5,
+          "first_load": "2026-10-04",
+          "last_load": "2026-10-04",
+          "muscle": "front_delts",
+          "name": "Front delts",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "shoulders",
+          "name": "Shoulders",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 750.0,
+          "band": null,
+          "chronic": 187.5,
+          "first_load": "2026-10-04",
+          "last_load": "2026-10-04",
+          "muscle": "triceps",
+          "name": "Triceps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 1200.0,
+          "band": null,
+          "chronic": 300.0,
+          "first_load": "2026-10-03",
+          "last_load": "2026-10-04",
+          "muscle": "upper_back",
+          "name": "Upper back",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 600.0,
+          "band": null,
+          "chronic": 150.0,
+          "first_load": "2026-10-03",
+          "last_load": "2026-10-04",
+          "muscle": "lats",
+          "name": "Lats",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "traps",
+          "name": "Traps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 600.0,
+          "band": null,
+          "chronic": 150.0,
+          "first_load": "2026-10-03",
+          "last_load": "2026-10-04",
+          "muscle": "biceps",
+          "name": "Biceps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "forearms",
+          "name": "Forearms",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "core",
+          "name": "Core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "abs",
+          "name": "Abs",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "deep_core",
+          "name": "Deep core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hip_flexors",
+          "name": "Hip flexors",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "lower_back",
+          "name": "Lower back",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "glutes",
+          "name": "Glutes",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "quads",
+          "name": "Quads",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hamstrings",
+          "name": "Hamstrings",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "calves",
+          "name": "Calves",
+          "ratio": null,
+          "status": "not_enough_data"
+        }
+      ],
+      "skipped": {
+        "bodyweight_sets_no_weight": 0,
+        "unmapped_sets": 0
+      }
+    },
+    "inputs": {
+      "activities": [
+        {
+          "date": "2026-10-04",
+          "duration_sec": 3000,
+          "id": 1,
+          "sets": [
+            {
+              "exercise_category": "BENCH_PRESS",
+              "exercise_name": "BARBELL_BENCH_PRESS",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "exercise_category": "BENCH_PRESS",
+              "exercise_name": "BARBELL_BENCH_PRESS",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "exercise_category": "BENCH_PRESS",
+              "exercise_name": "BARBELL_BENCH_PRESS",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "start_utc": "2026-10-04T17:05:00+00:00",
+          "te_aerobic": null,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-10-04",
+          "duration_sec": 1800,
+          "id": 2,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": "2026-10-04T07:00:00+00:00",
+          "te_aerobic": null,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-10-03",
+          "duration_sec": null,
+          "id": 3,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": null,
+          "te_aerobic": null,
+          "type": "strength_training"
+        }
+      ],
+      "as_of": "2026-10-04",
+      "body_weight": [],
+      "logged_sessions": [
+        {
+          "date": "2026-10-04",
+          "ended_at": "2026-10-04T18:00:00+00:00",
+          "id": 1,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": "2026-10-04T17:00:00+00:00"
+        }
+      ]
+    }
+  },
+  "mixed": {
+    "expected": {
+      "as_of": "2026-10-04",
+      "deduped_garmin_activities": [],
+      "estimate": true,
+      "method": {
+        "acute_days": 7,
+        "bands": {
+          "high_above": 1.3,
+          "low_below": 0.8
+        },
+        "bodyweight_coef": 0.65,
+        "cardio_scale": 1000.0,
+        "chronic_days": 28,
+        "seconds_per_rep": 3.0,
+        "unit": "kg_volume"
+      },
+      "muscles": [
+        {
+          "acute": 3520.0,
+          "band": "high",
+          "chronic": 2005.0,
+          "first_load": "2026-09-06",
+          "last_load": "2026-10-04",
+          "muscle": "chest",
+          "name": "Chest",
+          "ratio": 1.76,
+          "status": "ok"
+        },
+        {
+          "acute": 1500.0,
+          "band": "high",
+          "chronic": 937.5,
+          "first_load": "2026-09-06",
+          "last_load": "2026-10-04",
+          "muscle": "front_delts",
+          "name": "Front delts",
+          "ratio": 1.6,
+          "status": "ok"
+        },
+        {
+          "acute": 520.0,
+          "band": null,
+          "chronic": 130.0,
+          "first_load": "2026-10-04",
+          "last_load": "2026-10-04",
+          "muscle": "shoulders",
+          "name": "Shoulders",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 2540.0,
+          "band": "high",
+          "chronic": 1197.5,
+          "first_load": "2026-09-06",
+          "last_load": "2026-10-04",
+          "muscle": "triceps",
+          "name": "Triceps",
+          "ratio": 2.12,
+          "status": "ok"
+        },
+        {
+          "acute": 0.0,
+          "band": "low",
+          "chronic": 900.0,
+          "first_load": "2026-08-30",
+          "last_load": "2026-09-27",
+          "muscle": "upper_back",
+          "name": "Upper back",
+          "ratio": 0.0,
+          "status": "ok"
+        },
+        {
+          "acute": 0.0,
+          "band": "low",
+          "chronic": 450.0,
+          "first_load": "2026-08-30",
+          "last_load": "2026-09-27",
+          "muscle": "lats",
+          "name": "Lats",
+          "ratio": 0.0,
+          "status": "ok"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "traps",
+          "name": "Traps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": "low",
+          "chronic": 450.0,
+          "first_load": "2026-08-30",
+          "last_load": "2026-09-27",
+          "muscle": "biceps",
+          "name": "Biceps",
+          "ratio": 0.0,
+          "status": "ok"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "forearms",
+          "name": "Forearms",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 1040.0,
+          "band": null,
+          "chronic": 260.0,
+          "first_load": "2026-10-04",
+          "last_load": "2026-10-04",
+          "muscle": "core",
+          "name": "Core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "abs",
+          "name": "Abs",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "deep_core",
+          "name": "Deep core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hip_flexors",
+          "name": "Hip flexors",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "lower_back",
+          "name": "Lower back",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 1000.0,
+          "band": "balanced",
+          "chronic": 1000.0,
+          "first_load": "2026-08-29",
+          "last_load": "2026-10-03",
+          "muscle": "glutes",
+          "name": "Glutes",
+          "ratio": 1.0,
+          "status": "ok"
+        },
+        {
+          "acute": 2000.0,
+          "band": "balanced",
+          "chronic": 2000.0,
+          "first_load": "2026-08-29",
+          "last_load": "2026-10-03",
+          "muscle": "quads",
+          "name": "Quads",
+          "ratio": 1.0,
+          "status": "ok"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hamstrings",
+          "name": "Hamstrings",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 2000.0,
+          "band": "balanced",
+          "chronic": 2000.0,
+          "first_load": "2026-08-29",
+          "last_load": "2026-10-03",
+          "muscle": "calves",
+          "name": "Calves",
+          "ratio": 1.0,
+          "status": "ok"
+        }
+      ],
+      "skipped": {
+        "bodyweight_sets_no_weight": 0,
+        "unmapped_sets": 1
+      }
+    },
+    "inputs": {
+      "activities": [
+        {
+          "date": "2026-08-30",
+          "duration_sec": 1800,
+          "id": 1000,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "LEG_RAISE",
+              "exercise_name": null,
+              "reps": 10,
+              "weight_kg": null
+            }
+          ],
+          "start_utc": "2026-08-30T07:00:00+00:00",
+          "te_aerobic": 1.5,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-09-06",
+          "duration_sec": 1800,
+          "id": 1001,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": "2026-09-06T07:00:00+00:00",
+          "te_aerobic": 1.5,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-09-13",
+          "duration_sec": 1800,
+          "id": 1002,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": "2026-09-13T07:00:00+00:00",
+          "te_aerobic": 1.5,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-09-20",
+          "duration_sec": 1800,
+          "id": 1003,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": "2026-09-20T07:00:00+00:00",
+          "te_aerobic": 1.5,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-09-27",
+          "duration_sec": 1800,
+          "id": 1004,
+          "sets": [
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            },
+            {
+              "exercise_category": "ROW",
+              "exercise_name": "BARBELL_ROW",
+              "reps": 10,
+              "weight_kg": 40.0
+            }
+          ],
+          "start_utc": "2026-09-27T07:00:00+00:00",
+          "te_aerobic": 1.5,
+          "type": "strength_training"
+        },
+        {
+          "date": "2026-08-29",
+          "duration_sec": 3600,
+          "id": 2000,
+          "sets": [],
+          "start_utc": "2026-08-29T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-09-05",
+          "duration_sec": 3600,
+          "id": 2001,
+          "sets": [],
+          "start_utc": "2026-09-05T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-09-12",
+          "duration_sec": 3600,
+          "id": 2002,
+          "sets": [],
+          "start_utc": "2026-09-12T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-09-19",
+          "duration_sec": 3600,
+          "id": 2003,
+          "sets": [],
+          "start_utc": "2026-09-19T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-09-26",
+          "duration_sec": 3600,
+          "id": 2004,
+          "sets": [],
+          "start_utc": "2026-09-26T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-10-03",
+          "duration_sec": 3600,
+          "id": 2005,
+          "sets": [],
+          "start_utc": "2026-10-03T06:00:00+00:00",
+          "te_aerobic": 2.0,
+          "type": "running"
+        },
+        {
+          "date": "2026-10-01",
+          "duration_sec": 3600,
+          "id": 2100,
+          "sets": [],
+          "start_utc": null,
+          "te_aerobic": 1.0,
+          "type": "walking"
+        }
+      ],
+      "as_of": "2026-10-04",
+      "body_weight": [
+        {
+          "date": "2026-09-01",
+          "weight_kg": 82.0
+        },
+        {
+          "date": "2026-10-01",
+          "weight_kg": 80.0
+        }
+      ],
+      "logged_sessions": [
+        {
+          "date": "2026-09-06",
+          "ended_at": "2026-09-06T18:00:00+00:00",
+          "id": 1,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": "2026-09-06T17:00:00+00:00"
+        },
+        {
+          "date": "2026-09-13",
+          "ended_at": "2026-09-13T18:00:00+00:00",
+          "id": 2,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": "2026-09-13T17:00:00+00:00"
+        },
+        {
+          "date": "2026-09-20",
+          "ended_at": "2026-09-20T18:00:00+00:00",
+          "id": 3,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": "2026-09-20T17:00:00+00:00"
+        },
+        {
+          "date": "2026-09-27",
+          "ended_at": "2026-09-27T18:00:00+00:00",
+          "id": 4,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": "2026-09-27T17:00:00+00:00"
+        },
+        {
+          "date": "2026-10-04",
+          "ended_at": "2026-10-04T18:00:00+00:00",
+          "id": 5,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Diamond Push-Up",
+              "kind": "reps",
+              "reps": 20,
+              "weight_kg": null
+            },
+            {
+              "duration_s": 60,
+              "exercise_key": "Plank",
+              "kind": "timed",
+              "reps": null,
+              "weight_kg": null
+            }
+          ],
+          "started_at": "2026-10-04T17:00:00+00:00"
+        },
+        {
+          "date": "2026-10-05",
+          "ended_at": null,
+          "id": 99,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            }
+          ],
+          "started_at": null
+        }
+      ]
+    }
+  },
+  "short_history": {
+    "expected": {
+      "as_of": "2026-10-04",
+      "deduped_garmin_activities": [],
+      "estimate": true,
+      "method": {
+        "acute_days": 7,
+        "bands": {
+          "high_above": 1.3,
+          "low_below": 0.8
+        },
+        "bodyweight_coef": 0.65,
+        "cardio_scale": 1000.0,
+        "chronic_days": 28,
+        "seconds_per_rep": 3.0,
+        "unit": "kg_volume"
+      },
+      "muscles": [
+        {
+          "acute": 1500.0,
+          "band": null,
+          "chronic": 1500.0,
+          "first_load": "2026-09-15",
+          "last_load": "2026-09-30",
+          "muscle": "chest",
+          "name": "Chest",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 750.0,
+          "band": null,
+          "chronic": 750.0,
+          "first_load": "2026-09-15",
+          "last_load": "2026-09-30",
+          "muscle": "front_delts",
+          "name": "Front delts",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "shoulders",
+          "name": "Shoulders",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 750.0,
+          "band": null,
+          "chronic": 750.0,
+          "first_load": "2026-09-15",
+          "last_load": "2026-09-30",
+          "muscle": "triceps",
+          "name": "Triceps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "upper_back",
+          "name": "Upper back",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "lats",
+          "name": "Lats",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "traps",
+          "name": "Traps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "biceps",
+          "name": "Biceps",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "forearms",
+          "name": "Forearms",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "core",
+          "name": "Core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "abs",
+          "name": "Abs",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "deep_core",
+          "name": "Deep core",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hip_flexors",
+          "name": "Hip flexors",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "lower_back",
+          "name": "Lower back",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "glutes",
+          "name": "Glutes",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "quads",
+          "name": "Quads",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "hamstrings",
+          "name": "Hamstrings",
+          "ratio": null,
+          "status": "not_enough_data"
+        },
+        {
+          "acute": 0.0,
+          "band": null,
+          "chronic": 0.0,
+          "first_load": null,
+          "last_load": null,
+          "muscle": "calves",
+          "name": "Calves",
+          "ratio": null,
+          "status": "not_enough_data"
+        }
+      ],
+      "skipped": {
+        "bodyweight_sets_no_weight": 4,
+        "unmapped_sets": 0
+      }
+    },
+    "inputs": {
+      "activities": [],
+      "as_of": "2026-10-04",
+      "body_weight": [],
+      "logged_sessions": [
+        {
+          "date": "2026-09-15",
+          "ended_at": null,
+          "id": 0,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Diamond Push-Up",
+              "kind": "reps",
+              "reps": 15,
+              "weight_kg": 0
+            }
+          ],
+          "started_at": null
+        },
+        {
+          "date": "2026-09-20",
+          "ended_at": null,
+          "id": 1,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Diamond Push-Up",
+              "kind": "reps",
+              "reps": 15,
+              "weight_kg": 0
+            }
+          ],
+          "started_at": null
+        },
+        {
+          "date": "2026-09-25",
+          "ended_at": null,
+          "id": 2,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Diamond Push-Up",
+              "kind": "reps",
+              "reps": 15,
+              "weight_kg": 0
+            }
+          ],
+          "started_at": null
+        },
+        {
+          "date": "2026-09-30",
+          "ended_at": null,
+          "id": 3,
+          "sets": [
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Barbell Bench Press",
+              "kind": "reps",
+              "reps": 10,
+              "weight_kg": 50.0
+            },
+            {
+              "duration_s": null,
+              "exercise_key": "Diamond Push-Up",
+              "kind": "reps",
+              "reps": 15,
+              "weight_kg": 0
+            }
+          ],
+          "started_at": null
+        }
+      ]
+    }
+  }
+}

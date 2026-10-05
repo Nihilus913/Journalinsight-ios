@@ -136,6 +136,20 @@ public nonisolated enum ParityRegistry {
             source: .hub,
             notes: "R6c-6 local-first write surface (nutrition log redirect); pre-registered ahead of F5b/R6d-1, which will flip this per-metric."
         ),
+
+        // --- B-90 p1: muscular load (post RN freeze: Python + Swift only) -----
+        "muscle_map": ParityEntry(
+            source: .computed,
+            notes: "B-90 p1: canonical exercise -> {muscle: weight} table (primary 1.0 / secondary 0.5); app/training/muscle_map.py and JICompute MuscleMap must match tests/fixtures/muscle_map.json exactly."
+        ),
+        "muscle_load": ParityEntry(
+            source: .computed,
+            notes: "B-90 p2: per-muscle 7 d acute / 28 d chronic load ratio + band (estimate); hub oracle app/training/muscle_load.py (GET /api/v1/training/muscle-load), JICompute MuscleLoad (p3) must reproduce tests/fixtures/muscle_load.json."
+        ),
+        "muscle_freshness": ParityEntry(
+            source: .computed,
+            notes: "B-90 p4: per-muscle Recovered/Fatigued/Depleted estimate (48 h / 72 h above the muscle's own P75, <3 workouts -> not_enough_data); app/training/muscle_freshness.py and JICompute MuscleFreshness must reproduce tests/fixtures/muscle_freshness.json."
+        ),
     ]
 
     /// Swift-only: which JICompute type implements a `.computed` metric (W-ONDEVICE O-5). Kept
@@ -144,6 +158,9 @@ public nonisolated enum ParityRegistry {
         "readiness_categorical": "JICompute.ReadinessComposite",
         "diet_quality": "JICompute.DietQuality",
         "daily_strain": "JICompute.Strain",
+        "muscle_map": "JICompute.MuscleMap",
+        "muscle_load": "JICompute.MuscleLoad",
+        "muscle_freshness": "JICompute.MuscleFreshness",
     ]
 
     /// The implementing JICompute type for `metric`, or nil when none is ported.

@@ -1,0 +1,292 @@
+{
+  "categories": {
+    "BENCH_PRESS": [
+      {
+        "muscle": "chest",
+        "weight": 1.0
+      },
+      {
+        "muscle": "triceps",
+        "weight": 0.5
+      }
+    ],
+    "CALF_RAISE": [
+      {
+        "muscle": "calves",
+        "weight": 1.0
+      }
+    ],
+    "CORE": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      }
+    ],
+    "CRUNCH": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      }
+    ],
+    "CURL": [
+      {
+        "muscle": "biceps",
+        "weight": 1.0
+      }
+    ],
+    "DEADLIFT": [
+      {
+        "muscle": "hamstrings",
+        "weight": 1.0
+      },
+      {
+        "muscle": "glutes",
+        "weight": 0.5
+      },
+      {
+        "muscle": "lower_back",
+        "weight": 0.5
+      }
+    ],
+    "FLYE": [
+      {
+        "muscle": "chest",
+        "weight": 1.0
+      }
+    ],
+    "HIP_RAISE": [
+      {
+        "muscle": "glutes",
+        "weight": 1.0
+      }
+    ],
+    "HIP_STABILITY": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      }
+    ],
+    "LATERAL_RAISE": [
+      {
+        "muscle": "shoulders",
+        "weight": 1.0
+      }
+    ],
+    "LUNGE": [
+      {
+        "muscle": "quads",
+        "weight": 1.0
+      },
+      {
+        "muscle": "glutes",
+        "weight": 0.5
+      }
+    ],
+    "PLANK": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      }
+    ],
+    "PULL_UP": [
+      {
+        "muscle": "lats",
+        "weight": 1.0
+      },
+      {
+        "muscle": "biceps",
+        "weight": 0.5
+      }
+    ],
+    "PUSH_UP": [
+      {
+        "muscle": "chest",
+        "weight": 1.0
+      },
+      {
+        "muscle": "triceps",
+        "weight": 0.5
+      }
+    ],
+    "ROW": [
+      {
+        "muscle": "upper_back",
+        "weight": 1.0
+      },
+      {
+        "muscle": "lats",
+        "weight": 0.5
+      }
+    ],
+    "SHOULDER_PRESS": [
+      {
+        "muscle": "shoulders",
+        "weight": 1.0
+      }
+    ],
+    "SHRUG": [
+      {
+        "muscle": "traps",
+        "weight": 1.0
+      }
+    ],
+    "SIT_UP": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      }
+    ],
+    "SQUAT": [
+      {
+        "muscle": "quads",
+        "weight": 1.0
+      },
+      {
+        "muscle": "glutes",
+        "weight": 0.5
+      }
+    ],
+    "TRICEPS_EXTENSION": [
+      {
+        "muscle": "triceps",
+        "weight": 1.0
+      }
+    ]
+  },
+  "exercise_aliases": {
+    "bench": "Barbell Bench Press",
+    "bench press": "Barbell Bench Press",
+    "biceps curl": "DB Biceps Curl",
+    "dumbbell biceps curl": "DB Biceps Curl",
+    "dumbbell shoulder press": "DB Shoulder Press",
+    "row": "Barbell Row",
+    "shoulder press": "DB Shoulder Press"
+  },
+  "exercises": {
+    "Ab Roller": [
+      {
+        "muscle": "abs",
+        "weight": 1.0
+      },
+      {
+        "muscle": "lats",
+        "weight": 0.5
+      }
+    ],
+    "Barbell Bench Press": [
+      {
+        "muscle": "chest",
+        "weight": 1.0
+      },
+      {
+        "muscle": "front_delts",
+        "weight": 0.5
+      },
+      {
+        "muscle": "triceps",
+        "weight": 0.5
+      }
+    ],
+    "Barbell Row": [
+      {
+        "muscle": "upper_back",
+        "weight": 1.0
+      },
+      {
+        "muscle": "lats",
+        "weight": 0.5
+      },
+      {
+        "muscle": "biceps",
+        "weight": 0.5
+      }
+    ],
+    "DB Biceps Curl": [
+      {
+        "muscle": "biceps",
+        "weight": 1.0
+      },
+      {
+        "muscle": "forearms",
+        "weight": 0.5
+      }
+    ],
+    "DB Shoulder Press": [
+      {
+        "muscle": "shoulders",
+        "weight": 1.0
+      },
+      {
+        "muscle": "triceps",
+        "weight": 0.5
+      }
+    ],
+    "Dead Bug": [
+      {
+        "muscle": "deep_core",
+        "weight": 1.0
+      },
+      {
+        "muscle": "hip_flexors",
+        "weight": 0.5
+      }
+    ],
+    "Diamond Push-Up": [
+      {
+        "muscle": "triceps",
+        "weight": 1.0
+      },
+      {
+        "muscle": "chest",
+        "weight": 0.5
+      }
+    ],
+    "KB Overhead Triceps Extension": [
+      {
+        "muscle": "triceps",
+        "weight": 1.0
+      }
+    ],
+    "Plank": [
+      {
+        "muscle": "core",
+        "weight": 1.0
+      },
+      {
+        "muscle": "shoulders",
+        "weight": 0.5
+      }
+    ]
+  },
+  "garmin_names": {
+    "BARBELL_BENCH_PRESS": "Barbell Bench Press",
+    "BARBELL_ROLLOUT": "Ab Roller",
+    "BARBELL_ROW": "Barbell Row",
+    "DEAD_BUG": "Dead Bug",
+    "DIAMOND_PUSH_UP": "Diamond Push-Up",
+    "DUMBBELL_BICEPS_CURL": "DB Biceps Curl",
+    "DUMBBELL_SHOULDER_PRESS": "DB Shoulder Press",
+    "PLANK": "Plank",
+    "SEATED_DUMBBELL_OVERHEAD_TRICEPS_EXTENSION": "KB Overhead Triceps Extension"
+  },
+  "muscles": {
+    "abs": "Abs",
+    "biceps": "Biceps",
+    "calves": "Calves",
+    "chest": "Chest",
+    "core": "Core",
+    "deep_core": "Deep core",
+    "forearms": "Forearms",
+    "front_delts": "Front delts",
+    "glutes": "Glutes",
+    "hamstrings": "Hamstrings",
+    "hip_flexors": "Hip flexors",
+    "lats": "Lats",
+    "lower_back": "Lower back",
+    "quads": "Quads",
+    "shoulders": "Shoulders",
+    "traps": "Traps",
+    "triceps": "Triceps",
+    "upper_back": "Upper back"
+  }
+}
