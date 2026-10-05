@@ -13,6 +13,10 @@
     "band_lo": 41,
     "band_hi": 52,
     "band_method": "ln_rmssd_28n_mean_0.5sd",
+    "load_status": null,
+    "paused_since": null,
+    "acute_load": null,
+    "chronic_load": null,
     "nights": 28,
     "calibrating": false,
     "nights_needed": 28
@@ -30,7 +34,11 @@
     "note": "7.5 h sleep — 7 h+ passes",
     "band_lo": null,
     "band_hi": null,
-    "band_method": null
+    "band_method": null,
+    "load_status": null,
+    "paused_since": null,
+    "acute_load": null,
+    "chronic_load": null
   },
   {
     "key": "hrv_day",
@@ -45,6 +53,10 @@
     "note": "daytime HRV 30 ms vs 36 (dosed weekdays) — context only",
     "band_lo": null,
     "band_hi": null,
-    "band_method": null
+    "band_method": null,
+    "load_status": null,
+    "paused_since": null,
+    "acute_load": null,
+    "chronic_load": null
   }
 ]
