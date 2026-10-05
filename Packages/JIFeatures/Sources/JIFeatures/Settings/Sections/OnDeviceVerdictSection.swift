@@ -18,6 +18,13 @@ public nonisolated func onDeviceShadowRowLine(_ row: ShadowVerdictRow) -> String
     return "\(row.day) · \(ShadowParity.verdictClass(row.onDeviceVerdict)) vs hub \(hub) · \(latency)"
 }
 
+/// W-FIX-P2 RG-53 (B-44od): the Developer copy for the verdict source — since 2026-10-05 the
+/// phone computes the verdict the gate and Decide show; the hub keeps computing as the oracle.
+public nonisolated enum DeveloperVerdictCopy {
+    public static let gateNote = "Today's verdict and gate are computed on this iPhone. The hub keeps computing the same morning as the oracle; both are compared in the database."
+    public static let onDeviceToggleSubtitle = "Verdict computed on this iPhone · hub = oracle · takes effect at next launch"
+}
+
 /// The Developer screen's current on-device estimate ("Estimate — calibrating (N/28 nights) ·
 /// GO — …"). The App binds `load` at launch when the on-device verdict is enabled (DEBUG only);
 /// nil = the line is not shown.
@@ -53,7 +60,7 @@ private struct OnDeviceVerdictRows: View {
         Section("On-device verdict (debug)") {
             Toggle(isOn: $enabled) {
                 SettingsLinkLabel(title: "Compute the verdict on this iPhone",
-                                  subtitle: "Shadow run next to the hub · takes effect at next launch")
+                                  subtitle: DeveloperVerdictCopy.onDeviceToggleSubtitle)
             }
             .tint(theme.color(.info))
             .accessibilityIdentifier("settings.toggle.ondevice.verdict")
