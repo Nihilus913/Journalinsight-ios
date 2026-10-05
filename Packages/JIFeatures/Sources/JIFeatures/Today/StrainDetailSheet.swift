@@ -110,7 +110,8 @@ struct StrainDetailSheet: View {
             }
         }
         .jiTheme(theme)
-        .presentationDetents([.medium, .large])
+        // Full height: the three tiles and the hub caption must be on screen without a drag.
+        .presentationDetents([.large])
     }
 
     private var strainSection: some View {

@@ -101,6 +101,7 @@
 		E27245D5DB1D363CFA1D0144 /* GateWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */; };
 		E27D45B8AE065886C965D49D /* JIFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = A090031B35A5F024DF8691CF /* JIFeatures */; };
 		E3E511358A125BAD4A7FAAE8 /* LiveActivityStartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CDABEC7F1B0141C8246DCB /* LiveActivityStartTests.swift */; };
+		E4D5643FA00DB1967C768456 /* B91StrainSheetShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA9EC553FEEEBECA2131700 /* B91StrainSheetShots.swift */; };
 		E70F6F8C98F73DCF05CB0894 /* JICompute in Frameworks */ = {isa = PBXBuildFile; productRef = BBFE6322659149502ACF2389 /* JICompute */; };
 		E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E3002B92D368429BB3F69F /* MoreTabTests.swift */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
@@ -233,6 +234,7 @@
 		9457A6EC4E99D109BB19F494 /* Fix6L1AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix6L1AppTests.swift; sourceTree = "<group>"; };
 		9592E400266E0385BE90930E /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		96B3229A2D3C3EF99BBE5167 /* JIHub */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIHub; path = Packages/JIHub; sourceTree = SOURCE_ROOT; };
+		9BA9EC553FEEEBECA2131700 /* B91StrainSheetShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B91StrainSheetShots.swift; sourceTree = "<group>"; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsRegistration.swift; sourceTree = "<group>"; };
 		A4FA13A0C17791F561000010 /* GateMediumLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateMediumLayout.swift; sourceTree = "<group>"; };
@@ -379,6 +381,7 @@
 			children = (
 				0564B2A409EF6A34849857C0 /* B24HealthGrantUITests.swift */,
 				0E2C5DCECE1F93F43F6A0643 /* B43RestAlertUITests.swift */,
+				9BA9EC553FEEEBECA2131700 /* B91StrainSheetShots.swift */,
 				3FBFDD546DA8F56193C4DF19 /* B104HrvDetailShots.swift */,
 				77793FB1D2752C56C52B4D6C /* Fix9Fix10ScreenTests.swift */,
 				7584AC7835BD23D74891580B /* JIUITestCase.swift */,
@@ -831,6 +834,7 @@
 				60F197447450266D575A1787 /* B104HrvDetailShots.swift in Sources */,
 				C435E092A52620FEEE195011 /* B24HealthGrantUITests.swift in Sources */,
 				549E426006D88DF5CF41FEC2 /* B43RestAlertUITests.swift in Sources */,
+				E4D5643FA00DB1967C768456 /* B91StrainSheetShots.swift in Sources */,
 				5580CAE6353EA2045BAD3DFD /* Fix9Fix10ScreenTests.swift in Sources */,
 				208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */,
 				4FACE29EF46BA01697617F98 /* TrainingProofTests.swift in Sources */,
