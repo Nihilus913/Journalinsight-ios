@@ -291,11 +291,15 @@ public struct RecoveryView: View {
         JITile(family: .tile) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(reading.label).jiFont(.caption).foregroundStyle(theme.color(.muted))
-                Text(reading.value).jiNumeral(.numeralSmall, tint: reading.missing ? .muted : .text)
+                Text(reading.value).jiNumeral(.numeralSmall, tint: reading.missing || reading.stale ? .muted : .text)
                     .lineLimit(1).minimumScaleFactor(0.6)
-                Text(reading.caption).jiFont(.micro).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
+                // RG-34: a dated (stale) caption wraps instead of truncating to "as of 28…".
+                Text(reading.caption).jiFont(.micro).foregroundStyle(theme.color(.muted))
+                    .lineLimit(reading.stale ? 2 : 1).minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: reading.stale)
             }
         }
+        .opacity(reading.stale ? 0.6 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(reading.missing ? "\(reading.label), \(reading.caption)" : "\(reading.label) \(reading.value), \(reading.caption)")
         .accessibilityIdentifier("recovery.watch.\(reading.id)")
@@ -339,6 +343,9 @@ public nonisolated func recoveryTrendDate(_ day: String, calendar: Calendar = Ca
 /// One "Also watching" tile: `value` is the number as shown, or "—" with the reason in `caption`.
 public nonisolated struct RecoveryWatchReading: Equatable, Sendable {
     public let id: String, label: String, value: String, caption: String
+    /// RG-34: the reading is from an older night than last night ("as of 21 Sep") — the tile is
+    /// dimmed and its dated caption is never truncated, so it is not read as a last-night value.
+    public var stale: Bool = false
     public var missing: Bool { value == "—" }
 }
 
@@ -356,12 +363,14 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
     func night(_ day: RecoveryDay) -> String {
         kpiAsOfLabel(valueDate: day.date, today: today) ?? "last night"
     }
+    func isStale(_ day: RecoveryDay) -> Bool { kpiAsOfLabel(valueDate: day.date, today: today) != nil }
     func notRead(_ id: String, _ label: String) -> RecoveryWatchReading {
         RecoveryWatchReading(id: id, label: label, value: "—", caption: "not read")
     }
 
     let resp: RecoveryWatchReading = newest { $0.respSleepAvg != nil }.map {
-        RecoveryWatchReading(id: "resp", label: "Resp. rate", value: jiNumber($0.respSleepAvg ?? 0, 1), caption: "br/min · \(night($0))")
+        RecoveryWatchReading(id: "resp", label: "Resp. rate", value: jiNumber($0.respSleepAvg ?? 0, 1), caption: "br/min · \(night($0))",
+                             stale: isStale($0))
     } ?? notRead("resp", "Resp. rate")
 
     let temp: RecoveryWatchReading
@@ -369,7 +378,8 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
         if let dev = d.wristTempDevC {
             let text = jiNumber(abs(dev), 1)
             let sign = text == jiNumber(0, 1) ? "±" : (dev > 0 ? "+" : "−")
-            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: sign + text + "°", caption: "vs normal · \(night(d))")
+            temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: sign + text + "°", caption: "vs normal · \(night(d))",
+                                        stale: isStale(d))
         } else {
             let n = Int(d.wristTempBaselineNights ?? 0)
             temp = RecoveryWatchReading(id: "wristTemp", label: "Wrist temp", value: "—",
@@ -382,13 +392,14 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
     let battery: RecoveryWatchReading = newest { $0.bodyBatteryMin != nil && $0.bodyBatteryMax != nil }.map {
         RecoveryWatchReading(id: "bodyBattery", label: "Body Battery",
                              value: "\(jiNumber($0.bodyBatteryMin ?? 0, 0))–\(jiNumber($0.bodyBatteryMax ?? 0, 0))",
-                             caption: "low–high · \(night($0))")
+                             caption: "low–high · \(night($0))", stale: isStale($0))
     } ?? notRead("bodyBattery", "Body Battery")
 
     let recoveryTime: RecoveryWatchReading = newest { $0.recoveryTimeMin != nil }.map {
         let m = Int(($0.recoveryTimeMin ?? 0).rounded())
         let text = m % 60 == 0 ? "\(m / 60) h" : "\(m / 60) h \(String(format: "%02d", m % 60))"
-        return RecoveryWatchReading(id: "recoveryTime", label: "Recovery time", value: text, caption: "to recover · \(night($0))")
+        return RecoveryWatchReading(id: "recoveryTime", label: "Recovery time", value: text, caption: "to recover · \(night($0))",
+                                    stale: isStale($0))
     } ?? notRead("recoveryTime", "Recovery time")
 
     return [resp, temp, battery, recoveryTime]
