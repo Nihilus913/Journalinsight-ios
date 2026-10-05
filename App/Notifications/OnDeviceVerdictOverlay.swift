@@ -42,7 +42,9 @@ nonisolated struct OnDeviceVerdictOverlay: MorningVerdictOverlay {
             // Decision (4): no UI change — the hub's verdict vocabulary as is, no calibrating label.
             return OnDeviceMorning(day: day, verdict: result.verdict, reason: result.reason,
                                    sessionPrescription: result.sessionPrescription,
-                                   gateSignals: result.signals, computedAt: at.ISO8601Format())
+                                   // RG-16: the HRV row names the phone baseline while it calibrates.
+                                   gateSignals: OnDeviceVerdictLabel.sourceLabelled(result),
+                                   computedAt: at.ISO8601Format())
         }
         guard let resolved else { return nil }
         if resolved.fresh, day == today, let computed { await onResult?(day, computed, at) }
