@@ -134,7 +134,7 @@ struct ProgressChartCard: View {
                     }
                 } else {
                     TrendChart(points: card.points, tint: theme.color(.text), unit: card.unit.isEmpty ? nil : card.unit,
-                               range: $range, showAll: nil, kind: card.kind)
+                               range: $range, showAll: nil, kind: card.kind, series: card.series)
                 }
                 Text(card.caption).jiFont(.micro).foregroundStyle(theme.color(.muted))
                     .fixedSize(horizontal: false, vertical: true)
