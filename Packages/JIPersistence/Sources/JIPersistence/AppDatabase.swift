@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Synchronization
 
 /// One pool per file. `journalinsight.sqlite` = backed-up user data; `cache.sqlite` = disposable
 /// server cache (excluded from backup, exactly like RN's manifest.ts).
@@ -25,10 +26,28 @@ public final class AppDatabase: Sendable {
 
     /// Opens (or creates) `name` under Application Support. Pass `excludedFromBackup: true`
     /// for disposable stores so iCloud/iTunes backups skip the file and its WAL/SHM siblings.
+    /// W-FIX-P0 RG-01 (B-117): returns the ONE process-wide pool for that file (see `shared(at:)`) —
+    /// the ~25 `onDisk()` call sites no longer each open their own pool.
     public static func onDisk(name: String = "journalinsight.sqlite", excludedFromBackup: Bool = false) throws -> AppDatabase {
         let dir = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        return try open(at: dir.appending(path: name), excludedFromBackup: excludedFromBackup)
+        return try shared(at: dir.appending(path: name), excludedFromBackup: excludedFromBackup)
     }
+
+    /// W-FIX-P0 RG-01 (B-117): ONE `DatabasePool` per file for the whole process. Separate pools on
+    /// one file each own a writer connection, so concurrent writes across them failed with
+    /// SQLITE_BUSY (the logger's session start was the visible casualty). A shared pool serialises
+    /// every write through its single writer; the busy timeout covers other processes (widgets).
+    public static func shared(at url: URL, excludedFromBackup: Bool = false) throws -> AppDatabase {
+        let key = url.standardizedFileURL.path
+        return try registry.withLock { pools in
+            if let db = pools[key] { return db }
+            let db = try open(at: url, excludedFromBackup: excludedFromBackup)
+            pools[key] = db
+            return db
+        }
+    }
+
+    private static let registry = Mutex<[String: AppDatabase]>([:])
 
     /// The disposable server cache — never backed up, mirroring RN's manifest split.
     public static func cache() throws -> AppDatabase { try onDisk(name: "cache.sqlite", excludedFromBackup: true) }
@@ -37,6 +56,7 @@ public final class AppDatabase: Sendable {
     /// real Application Support directory.
     static func open(at url: URL, excludedFromBackup: Bool) throws -> AppDatabase {
         var config = Configuration()
+        config.busyMode = .timeout(5)
         config.prepareDatabase { db in try db.execute(sql: "PRAGMA journal_mode = WAL") }
         let db = try AppDatabase(pool: DatabasePool(path: url.path, configuration: config))
         if excludedFromBackup {

@@ -229,7 +229,9 @@ public final class StrengthLogViewModel {
         let timed = card.lift.isTimed
         guard timed ? (durationS ?? 0) > 0 : (reps ?? 0) > 0 else { error = timed ? "Enter the time held." : "Enter the reps."; return nil }
         error = nil
-        let session = ensureSession()
+        // W-FIX-P0 RG-01 (B-117): a session row that could not be written means no set either —
+        // the set's FK would orphan it and the hub would get a createSession the phone never kept.
+        guard let session = ensureSession() else { return nil }
         let set = StrengthSetLog(sessionClientId: session.clientId, exerciseKey: exerciseKey, exerciseId: card.lift.exerciseId,
                                  setIndex: card.sets.count + 1, kind: timed ? .timed : .reps,
                                  reps: timed ? nil : reps, weightKg: Self.kg(weightKg), durationS: timed ? durationS : nil,
@@ -336,10 +338,14 @@ public final class StrengthLogViewModel {
 
     // MARK: helpers
 
-    private func ensureSession() -> StrengthSessionLog {
+    /// nil (with `error` set) when the session row could not be saved — never swallowed (B-117).
+    private func ensureSession() -> StrengthSessionLog? {
         if let session, !session.isComplete { return session }
         let s = StrengthSessionLog(sessionId: sessionId, sessionName: sessionName, date: today(), startedAt: now().ISO8601Format())
-        try? store.startSession(s)
+        do { try store.startSession(s) } catch {
+            self.error = "Could not start the session on this phone. Try again."
+            return nil
+        }
         queue?.enqueue(.createSession(StrengthSessionCreate(clientId: s.clientId, date: s.date, startedAt: s.startedAt, sessionId: sessionId)))
         session = s
         return s
