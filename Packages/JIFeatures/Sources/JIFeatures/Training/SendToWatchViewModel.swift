@@ -28,6 +28,11 @@ public final class SendToWatchViewModel {
 
     public private(set) var state: State = .idle
     public private(set) var templates: [WorkoutTemplate] = []
+    /// B-52 p2: the list came from the offline read-through cache (hub unreachable) — when that copy
+    /// was fetched. Sending still works (WorkoutKit is on the phone); nil = the hub answered.
+    public private(set) var staleSince: Date?
+    /// B-52 p2: "Offline — showing data from 07:41" while the list is the cached copy.
+    public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
     /// `WorkoutTemplate.templateId`s picked for sending.
     public private(set) var selected: Set<Int> = []
     /// Names scheduled by the last successful `send()`, in template order (the "scheduled" rows).
@@ -72,10 +77,17 @@ public final class SendToWatchViewModel {
         do {
             // W-B88: a strength-only template (a strength day, post-073) cannot become a WorkoutKit
             // plan (`noCardioSegment`) — never listed; strength reaches the Watch from the Planner.
-            templates = try await provider.workoutTemplates().filter(sendToWatchCanBuild)
+            let provider = self.provider
+            let (rows, since) = try await HubReadTrace.collect { try await provider.workoutTemplates() }
+            templates = rows.filter(sendToWatchCanBuild)
+            staleSince = since
             selected = selected.intersection(templates.map(\.templateId))
             state = .idle
         } catch {
+            // Cold cache + hub unreachable: an honest error, never a fabricated list. A list
+            // already on screen (an earlier load) stays — the error only says the refresh failed.
+            if templates.isEmpty { staleSince = nil }
+            guard templates.isEmpty else { state = .error(describe(error)); return }
             templates = []
             state = .error(describe(error))
         }

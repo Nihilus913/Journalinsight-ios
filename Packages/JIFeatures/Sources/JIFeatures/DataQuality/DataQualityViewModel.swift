@@ -283,7 +283,7 @@ public final class DataQualityViewModel {
     static func describe(_ error: HubError) -> String {
         switch error {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
-        case .network: "Hub unreachable — is the Mac awake and on the same network?"
+        case .network: OfflineReadCopy.coldCache  // B-52 p3: describe() only runs with nothing to show
         case .yazioAuthExpired(let detail): "Hub error: \(detail)"
         default: "Couldn't load data quality."
         }

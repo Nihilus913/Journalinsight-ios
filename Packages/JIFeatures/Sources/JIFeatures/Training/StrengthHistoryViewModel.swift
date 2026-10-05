@@ -28,6 +28,11 @@ public final class StrengthHistoryViewModel {
     public private(set) var entries: [Entry] = []
     public private(set) var hubError: String?
     public private(set) var loadedFromHub = false
+    /// B-52 p2: the hub was unreachable and its answer came from the offline read cache (fetched
+    /// then). History already renders from the phone's own store; the stale copy is NOT merged
+    /// (it could only replay an older hub state over newer local rows) — the screen says offline.
+    public private(set) var staleSince: Date?
+    public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
 
     private let store: StrengthSessionLogStore
     private let provider: (any TrainingProviding)?
@@ -52,10 +57,14 @@ public final class StrengthHistoryViewModel {
         readCache()
         guard let provider else { return }
         do {
-            let hub = try await provider.strengthSessions(from: range.from, to: range.to)
-            try store.mergeFromHub(hub.compactMap(Self.local))
+            let range = self.range
+            let (hub, since) = try await HubReadTrace.collect { try await provider.strengthSessions(from: range.from, to: range.to) }
+            staleSince = since
             hubError = nil
-            loadedFromHub = true
+            if since == nil {
+                try store.mergeFromHub(hub.compactMap(Self.local))
+                loadedFromHub = true
+            }
         } catch {
             hubError = StrengthOutbox.describe(error)
         }
