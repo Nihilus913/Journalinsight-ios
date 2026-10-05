@@ -99,3 +99,71 @@ private let rnChangelogDigest = "322cb458e0e15992e20ec7da5f37718ecedbbf50d2cb324
     let dev = VersionInfo(appName: "JournalInsight", appVersion: "2.0.0", build: "1", bundleId: "toby913.JournalInsight")
     #expect(settingsVersionTrailing(dev) == "2.0.0")
 }
+
+// MARK: - B-18 p2: "Last crash" section
+
+@MainActor
+private func makeCrashModel(_ records: [CrashRecord]) throws -> (VersionViewModel, CrashLogStore) {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VersionVMCrash-\(UUID().uuidString)", isDirectory: true)
+    let store = CrashLogStore(directory: dir)
+    for r in records { try store.write(r) }
+    let prefs = PrefStore(db: try AppDatabase.inMemory())
+    let info = VersionInfo(appName: Changelog.appName, appVersion: "2.0.0", build: "42", bundleId: "toby913.JournalInsight")
+    return (VersionViewModel(prefs: prefs, info: info, crashStore: store), store)
+}
+
+private let crashT0 = Date(timeIntervalSince1970: 1_791_000_000) // 2026-10-03 04:00 UTC
+
+@Test @MainActor func versionCrashEmptyStateHasNoLastCrash() throws {
+    let (m, _) = try makeCrashModel([])
+    #expect(m.lastCrash == nil)
+    #expect(m.crashes.isEmpty)
+    #expect(m.crashReportText.isEmpty)
+    // No store at all (e.g. a preview) is also the empty state, and Clear is a no-op.
+    let none = VersionViewModel(prefs: PrefStore(db: try AppDatabase.inMemory()),
+                                info: VersionInfo(appName: "x", appVersion: "1", build: "1", bundleId: "b"), crashStore: nil)
+    #expect(none.lastCrash == nil)
+    none.clearCrashes()
+    #expect(none.crashes.isEmpty && none.crashClearError == nil)
+}
+
+@Test @MainActor func versionCrashPopulatedShowsNewestFirstWithReport() throws {
+    let older = CrashRecord(id: "a", date: crashT0, source: .metricKit, appVersion: "2.0.0", build: "41", type: "SIGSEGV", summary: "EXC_BAD_ACCESS (code 1)")
+    let newer = CrashRecord(id: "b", date: crashT0.addingTimeInterval(60), source: .exception, appVersion: "2.0.0", build: "42",
+                            type: "NSInvalidArgumentException", summary: "unrecognized selector", callStack: ["0 CoreFoundation", "1 libobjc"])
+    let (m, _) = try makeCrashModel([older, newer])
+    #expect(m.crashes.map(\.id) == ["b", "a"])
+    #expect(m.lastCrash?.type == "NSInvalidArgumentException")
+    #expect(VersionViewModel.crashBuildLine(newer) == "2.0.0 · build 42")
+    #expect(VersionViewModel.crashSourceLine(newer) == "Uncaught exception")
+    #expect(VersionViewModel.crashSourceLine(older) == "MetricKit")
+    #expect(VersionViewModel.crashDateLine(crashT0, timeZone: TimeZone(identifier: "UTC")!) == "3 Oct 2026, 04:00")
+    let text = m.crashReportText
+    #expect(text.hasPrefix("JournalInsight crash report"))
+    #expect(text.contains("Type: NSInvalidArgumentException"))
+    #expect(text.contains("Call stack:\n0 CoreFoundation"))
+    #expect(text.contains("\n\n---\n\n"))
+    #expect(text.range(of: "NSInvalidArgumentException")!.lowerBound < text.range(of: "SIGSEGV")!.lowerBound)
+}
+
+@Test @MainActor func versionCrashReloadPicksUpNewRecordsAndClearEmptiesStore() throws {
+    let (m, store) = try makeCrashModel([])
+    #expect(m.lastCrash == nil)
+    try store.write(CrashRecord(id: "late", date: crashT0, source: .metricKit, appVersion: "2.0.0", build: "42", type: "SIGABRT", summary: "x"))
+    #expect(m.lastCrash == nil, "list is a snapshot until reload")
+    m.reloadCrashes()
+    #expect(m.lastCrash?.id == "late")
+
+    m.clearCrashes()
+    #expect(m.crashes.isEmpty)
+    #expect(m.lastCrash == nil)
+    #expect(m.crashClearError == nil)
+    #expect(store.list().isEmpty)
+}
+
+@Test @MainActor func versionCrashFixturesRenderBothStates() {
+    let names = ScreenRegistry.entries.map(\.name)
+    #expect(names.contains("Version") && names.contains("Version crash"))
+    #expect(L6Fixtures.emptyCrashStore.list().isEmpty)
+    #expect(L6Fixtures.seededCrashStore.list().map(\.id) == ["fixture-exc", "fixture-mxk"])
+}

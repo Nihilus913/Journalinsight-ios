@@ -228,3 +228,28 @@ private func sweepImage(_ entry: ScreenEntry, _ cell: SweepCell) -> CGImage? {
     }
 }
 #endif
+
+#if canImport(UIKit) && !os(watchOS)
+/// B-18 p2 proof: Version empty + "Last crash" populated, light/dark at default size and AX3.
+/// Always renders; writes PNGs only when `JI_B18_PROOF_DIR` is set.
+@Test @MainActor func versionCrashProofRender() throws {
+    let outDir = ProcessInfo.processInfo.environment["JI_B18_PROOF_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+    if let outDir { try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true) }
+    let entries = ScreenRegistry.entries.filter { ["version", "version-crash"].contains($0.slug) }
+    #expect(entries.count == 2)
+    for entry in entries {
+        for dark in [false, true] {
+            for ax in [false, true] {
+                let cell = SweepCell(device: "proof-tall", width: 393, height: ax ? 3000 : 1400, dark: dark, ax: ax)
+                let image = try #require(sweepImage(entry, cell), "\(entry.name) @ \(cell.fileStem)")
+                if let outDir {
+                    let url = outDir.appendingPathComponent("\(entry.slug)-\(cell.fileStem).png")
+                    let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+                    CGImageDestinationAddImage(dest, image, nil)
+                    #expect(CGImageDestinationFinalize(dest))
+                }
+            }
+        }
+    }
+}
+#endif

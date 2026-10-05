@@ -481,7 +481,14 @@ struct RootTabView: View {
         .environment(\.trainingWeekSummary, weekSummary)
         // A weekday assignment (or a new done session) moves the widgets' plan ring and next session now.
         .onChange(of: weekSummary) { _, _ in env.republishSnapshot() }
+        // B-43 P2: the planned-session reminder follows the week (dated one-shots per planned day).
+        .task(id: weekSummary) { await trainingNudges.weekChanged(weekSummary) }
         .onChange(of: trainingModel.map(ObjectIdentifier.init)) { _, _ in installGlancePlan() }
+    }
+
+    /// B-43 P2: the training nudges (planned session / session left open) over the real centre.
+    private var trainingNudges: WorkoutSessionReminders {
+        WorkoutSessionReminders(scheduler: ReminderScheduler(center: UNUserNotificationCenter.current()), prefs: env.prefs)
     }
 
     /// B-57 W5 (A7): the live Training model's week when the tab exists, else the cached plan (B-52 keys).
@@ -663,7 +670,7 @@ struct RootTabView: View {
     private func ensureStrengthLogDeps(store: ProviderStore) {
         guard strengthLogDeps == nil,
               let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding else { return }
-        strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs) }
+        strengthLogDeps = (try? AppDatabase.onDisk()).map { StrengthLogDeps(db: $0, provider: provider, prefs: env.prefs, reminders: trainingNudges) }
     }
 
     // W2i: the connection sheet used to be reachable only before a hub was configured or from the
@@ -1028,9 +1035,13 @@ struct RootTabView: View {
         moreMindModel = MindViewModel(
             checkins: CheckInStore(db: db, cipher: cipher),
             eventStore: EventStore(db: db, cipher: cipher),
-            who5Store: Who5Store(db: db, cipher: cipher)
+            who5Store: Who5Store(db: db, cipher: cipher),
+            moodMirror: Self.moodMirror   // B-24 P2: only acts while the Settings toggle is on
         )
     }
+
+    /// B-24 P2: the one mood -> Apple Health (State of Mind) mirror, shared by Mind and Settings.
+    private static let moodMirror = HealthKitMoodMirror()
 
     @ViewBuilder
     private var recoveryTab: some View {
@@ -1287,7 +1298,8 @@ struct RootTabView: View {
             // W-SSOT-2 S2-3: the Weekly plan reads Today's served week (then the rows).
             weeklyPlanSchedule: { (todayModel?.planSessions, todayModel?.planWeek) },
             syncAction: { try await env.syncNow() },
-            calendarExport: calendarExportModel()
+            calendarExport: calendarExportModel(),
+            moodMirror: MoodMirrorSettingsModel(mirror: Self.moodMirror)
         ) { config in
             env.apply(config)
             invalidateProviderScopedModels()
@@ -1468,6 +1480,8 @@ struct RootTabView: View {
         if link == .gate { openGate(); return }
         // W-B102 C-5: `ji://checkin` opens the mind check-in (with the live prompt's "why") over Today.
         if case .checkIn = link { selectedTab = .today; showCheckIn = true; return }
+        // B-43 P1: `ji://strength-log` (rest-end alert / Live Activity tap) opens the set logger.
+        if link == .strengthLog { selectedTab = .training; StrengthLoggerOpenRequest.shared.request(); return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)

@@ -135,11 +135,17 @@ public struct KpiDetailView: View {
 
     @ViewBuilder
     private var chartSection: some View {
+        // B-104 p2: HRV draws the Watch nights plus the Garmin era (dashed, "est."), split at holes.
+        let merged = model.hrvMergedPoints(range: range)
+        let hasGarmin = merged?.contains(where: \.isEstimate) ?? false
+        let legend = kpiDetailLegendText(kpiNormal.normal, decimals: model.def.decimals)
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
                        unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
                        tint: metricTintRole(model.metric.rawValue),
-                       legend: kpiDetailLegendText(kpiNormal.normal, decimals: model.def.decimals),
-                       normal: kpiNormal.normal)
+                       legend: hasGarmin ? legend + " · " + kpiHrvGarminLegend : legend,
+                       normal: kpiNormal.normal,
+                       segments: merged.map(kpiHrvSegments),
+                       caption: hasGarmin ? kpiHrvMixCaption : nil)
     }
 
     /// W-B57-W3 fixer: one normal for the NormalBar, the chart legend and the table row.
@@ -194,8 +200,10 @@ public struct KpiDetailView: View {
     }
 
     private var tableCard: some View {
-        let rows = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
+        let base = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
                                       isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal)
+        // B-104 p2: "Nights counted: N Watch + M Garmin" for the nights the HRV chart draws.
+        let rows = kpiHrvTableRows(base, merged: model.hrvMergedPoints(range: range), range: range)
         return Surface(level: 1, padding: 0) {
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in

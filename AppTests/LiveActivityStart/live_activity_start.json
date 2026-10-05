@@ -1,0 +1,44 @@
+{
+  "aps": {
+    "timestamp": 1791169800,
+    "event": "start",
+    "attributes-type": "VerdictActivityAttributes",
+    "attributes": {},
+    "content-state": {
+      "verdictWord": "Modified",
+      "verdictSession": "Long Z2 45 min",
+      "verdictTone": "amber",
+      "lastUpdate": 812862600.0,
+      "signals": [
+        {
+          "key": "hrv",
+          "label": "HRV",
+          "unit": "ms",
+          "status": "amber",
+          "value": 41.0
+        },
+        {
+          "key": "sleep_h",
+          "label": "Sleep",
+          "unit": "h",
+          "status": "pass",
+          "value": 7.2
+        },
+        {
+          "key": "rhr",
+          "label": "Resting HR",
+          "unit": "bpm",
+          "status": "pass",
+          "value": 52.0
+        }
+      ],
+      "reason": "HRV 41 ms — under 45"
+    },
+    "alert": {
+      "title": "HT: GO (auto-regulated) — Long Z2 45 min",
+      "body": "HRV 41 ms — under 45",
+      "sound": "default"
+    },
+    "stale-date": 1791184200
+  }
+}

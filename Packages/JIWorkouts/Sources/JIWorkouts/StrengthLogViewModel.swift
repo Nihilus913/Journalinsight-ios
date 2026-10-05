@@ -27,7 +27,10 @@ public final class StrengthLogViewModel {
     public private(set) var selected: StrengthWatchExercise?
     public private(set) var loggedSets: [StrengthBridgeSet] = []
     public private(set) var editingSetId: UUID?
-    public private(set) var timer = SetTimer()
+    public private(set) var timer = SetTimer() {
+        // B-43 P1: every countdown change re-plans the background rest/timed-set end alert.
+        didSet { if timer != oldValue { restAlert?.sync(timer, exercise: selected?.name, now: clock()) } }
+    }
     /// Recomputed on `tick()` so the view redraws each second.
     public private(set) var remainingSeconds: Int?
 
@@ -38,16 +41,20 @@ public final class StrengthLogViewModel {
 
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let haptic: (StrengthLogHaptic) -> Void
+    /// B-43 P1: the local notification at the countdown's end (nil in tests that don't check it).
+    @ObservationIgnored public let restAlert: RestEndAlert?
     @ObservationIgnored private var timedSetSeconds: Int?
     @ObservationIgnored private var timedSetStartedAt: Date?
     @ObservationIgnored var lastLiveSend: Task<Void, Never>?
 
     public init(controller: StrengthWorkoutSessionController, bridge: StrengthSessionWatchBridge,
-                clock: @escaping () -> Date = { .now }, haptic: @escaping (StrengthLogHaptic) -> Void = { _ in }) {
+                clock: @escaping () -> Date = { .now }, haptic: @escaping (StrengthLogHaptic) -> Void = { _ in },
+                restAlert: RestEndAlert? = nil) {
         self.controller = controller
         self.bridge = bridge
         self.clock = clock
         self.haptic = haptic
+        self.restAlert = restAlert
         controller.onHeartRate = { [weak self] bpm in
             guard let self else { return }
             let at = self.controller.heartRateAt ?? self.clock()

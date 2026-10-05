@@ -22,7 +22,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.1.0</string>
+	<string>2.2.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -45,7 +45,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>JournalInsight reads your Apple Watch sleep, heart rate, HRV, steps, resting and active energy and workouts, plus the food totals (energy, protein, carbs, fat) your food app writes to Health. It uses them for your readiness gate, KPIs and energy balance. Watch data is sent to your own hub; JI never writes food.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing.</string>
+	<string>JournalInsight writes your Garmin sleep, heart rate, steps, energy, VO2 max and workouts into Health to fill gaps from when Garmin Connect wasn't syncing. If you turn on Mirror mood to Apple Health, it also adds your daily check-in mood as State of Mind (mood only, never your notes).</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>JournalInsight talks to your HealthTraining hub on the local network.</string>
 	<key>NSSupportsLiveActivities</key>

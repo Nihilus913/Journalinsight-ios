@@ -15,7 +15,7 @@ import JIFeatures
 /// shipped release (the Changelog's installed entry), not Xcode's template `1.0`. W-FIX11 H2-22: 2.1.0,
 /// and always the newest Swift changelog entry.
 @Test func infoPlistShipsMarketingVersion200() {
-    #expect(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "2.1.0")
+    #expect(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == "2.2.0")   // B-18 p3: 2.2.0
     #expect(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == Changelog.swiftEntries[0].version)
 }
 
