@@ -15,7 +15,11 @@ final class B91CallStatesShots: JIUITestCase {
             if app != nil { app.terminate() }
             launch()
             XCTAssertTrue(awaitDecide(), "Decide did not open (\(choice))")
-            let card = el("today.decide.strain")
+            // Scoped to the gate screen ("today.gate"): the Today day view behind it carries its own
+            // `today.decide.strain` card, and an unscoped firstMatch can read that one instead.
+            let gate = app.descendants(matching: .any)["today.gate"].firstMatch
+            XCTAssertTrue(gate.waitForExistence(timeout: 10), "gate screen missing (\(choice))")
+            let card = gate.descendants(matching: .any)["today.decide.strain"].firstMatch
             // Decide can paint first from the SectionLoader's cached /morning (no override yet) and
             // only then re-seed from the fresh fetch — wait for the after-call state, never assert
             // on the first frame.
@@ -23,7 +27,7 @@ final class B91CallStatesShots: JIUITestCase {
                                         evaluatedWith: card)
             wait(for: [afterCall], timeout: 40)
             reveal(card, "Strain card (\(choice))")
-            let range = el("today.decide.strain.range")
+            let range = gate.descendants(matching: .any)["today.decide.strain.range"].firstMatch
             let label = range.exists ? range.label : card.label
             XCTAssertTrue(label.contains("Max today \(max)"), "\(choice): expected Max today \(max), got \(label)")
             XCTAssertTrue(card.label.contains("after your call"), "\(choice): card not in the after-call state: \(card.label)")
