@@ -163,10 +163,14 @@ struct JournalInsightApp: App {
                 if phase == .active {
                     watchdog = makeWatchdog()
                     watchdog?.start()
+                    // B-52 p5: the global offline / "N pending" marker follows this watchdog.
+                    PendingSyncModel.shared.watchdog = watchdog
+                    PendingSyncModel.shared.start()
                     outboxRetry.startForeground()   // B-52 p1 (c): its first tick drains now
                     reachability.onRegain = { [watchdog, outboxRetry] in
                         await watchdog?.probe()
                         await outboxRetry.drainNow()
+                        PendingSyncModel.shared.refresh()
                     }
                     reachability.start()
                     env.foregroundHealthUpload() // B-65: last night reaches the hub on open
@@ -178,6 +182,7 @@ struct JournalInsightApp: App {
                 } else {
                     watchdog?.stop()
                     watchdog = nil
+                    PendingSyncModel.shared.stop()
                     outboxRetry.stopForeground()
                     reachability.stop()
                 }
