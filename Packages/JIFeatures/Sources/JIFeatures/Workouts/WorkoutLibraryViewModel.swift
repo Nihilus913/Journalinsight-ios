@@ -124,11 +124,15 @@ public final class WorkoutLibraryViewModel {
     /// Re-read the hub (no writes).
     public func refresh() async {
         do {
-            let rows = try await provider.workoutTemplates()
+            // B-52 p2: the hub read goes through the offline read-through cache; a copy served
+            // while the hub is unreachable must still read as OFFLINE (Push to Garmin / Import stay
+            // disabled, the stale line shows its real fetch time) — never as a fresh answer.
+            let provider = self.provider
+            let (rows, staleSince) = try await HubReadTrace.collect { try await provider.workoutTemplates() }
             base = rows
-            hubReachable = true
-            fetchedAt = now()
-            try? cache?.put(Self.cacheKey, rows)
+            hubReachable = staleSince == nil
+            fetchedAt = staleSince ?? now()
+            if staleSince == nil { try? cache?.put(Self.cacheKey, rows) }
             state = .loaded
         } catch {
             if case HubError.network = error { hubReachable = false }
