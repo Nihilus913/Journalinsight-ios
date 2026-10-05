@@ -42,9 +42,9 @@ public struct HKSleepNight: Sendable, Equatable {
 
 /// Groups HealthKit sleep-analysis category samples into nights.
 public enum HKSleepAssembler {
-    /// A night is attributed to the local calendar day of its sample's **end** time — the same
-    /// convention the W2d upload path uses (`HKSampleMapping.sleepAnalysis`), so an Apple night
-    /// lands on the morning you wake up, matching the hub's per-night `sleepEnd` reading.
+    /// A night is attributed to the local calendar day its main sleep period **ends** on (RG-04:
+    /// the whole period, not each sample's own end day), so an Apple night lands on the morning
+    /// you wake up, matching the hub's `main_nights` reading.
     ///
     /// Samples whose end falls outside `window` are dropped. Durations are summed in whole
     /// seconds (rounded per sample) so the result is integral, as `computeSleepScore` expects.
@@ -54,8 +54,16 @@ public enum HKSleepAssembler {
             var hasStageDetail = false
         }
         var byDay: [String: Accumulator] = [:]
+        // RG-04 / B-120: a sample belongs to the wake day of the MAIN sleep period it lies in (hub
+        // `sleep_periods` + `main_nights`, B-65) — not to its own end day, which split a night at
+        // midnight (2026-10-05: 7.3 h on the hub, 5.0 h on the phone). Samples outside every main
+        // period (naps, a shorter second period) are not part of any night.
+        let spans = HKRecoveryAssembler.mainNights(samples, window: window).compactMap { day, p -> (String, Date, Date)? in
+            guard let start = p.segments.map(\.start).min() else { return nil }
+            return (day, start, p.end)
+        }
         for case let sample as HKCategorySample in samples {
-            guard let day = window.dayKey(for: sample.endDate) else { continue }
+            guard let day = spans.first(where: { sample.endDate > $0.1 && sample.startDate < $0.2 })?.0 else { continue }
             let seconds = sample.endDate.timeIntervalSince(sample.startDate)
             guard seconds > 0 else { continue }
             var acc = byDay[day] ?? Accumulator()

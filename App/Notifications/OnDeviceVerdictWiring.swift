@@ -15,7 +15,7 @@ import UserNotifications
 ///
 /// B-44 Option B (Toby 2026-10-04): ON in Release (every morning from 2026-10-05) whenever a
 /// compute engine is wired (`engine`, the L1 JICompute adapter); DEBUG builds keep the Developer
-/// flag. Baselines come from Apple nights only (no hub seed, O-8 off). The gate and Decide read
+/// flag. Baselines: Apple nights + the hub's Garmin nights (RG-04 seed). The gate and Decide read
 /// the on-device verdict through `overlay` (`OnDeviceVerdictOverlay`); each morning's verdict is
 /// uploaded to the hub (`OnDeviceVerdictUploadQueue`) and logged beside the hub's (O-10).
 @MainActor
@@ -86,7 +86,8 @@ enum OnDeviceVerdictWiring {
         ) { _ in
             Task { @MainActor in _ = await OnDeviceVerdictWiring.runner?.protectedDataBecameAvailable() }
         }
-        // B-44 decision (3): NO hub seed (O-8 off) — the phone calibrates on Apple nights only.
+        // RG-04 (supersedes B-44 decision (3)): the hub's Garmin nights seed the baseline on the
+        // first compute (`seedGarminNights`), so the phone reads the hub's 28 nights.
         schedulePrewarm()
     }
 
@@ -111,7 +112,18 @@ enum OnDeviceVerdictWiring {
             return result
         }
         #endif
+        await seedGarminNights(day: day)
         return try await provider.onDeviceVerdict(day: day)
+    }
+
+    /// RG-04 / B-120: before the first compute, the hub's Garmin nights complete the 28-night
+    /// baseline exactly as the hub's own gate does (`OnDeviceSeed.runGarmin`, idempotent — a
+    /// store that holds a Garmin night is never re-seeded). Without a hub: skipped (Apple only).
+    nonisolated static func seedGarminNights(day: String) async {
+        guard let hub = await MainActor.run(body: { OnDeviceVerdictWiring.currentHub }),
+              let store = baselineStore() else { return }
+        _ = try? await OnDeviceSeed.runGarmin(hub: { n in try await hub.recoveryInputs(date: day, windowDays: n) },
+                                              store: store, today: day)
     }
 
     /// The uploader's `onNight` hook: nil when disabled (the uploader then keeps `.hourly`).

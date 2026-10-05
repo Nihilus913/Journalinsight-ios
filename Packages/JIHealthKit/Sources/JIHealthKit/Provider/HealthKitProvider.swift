@@ -2,6 +2,7 @@
 import Foundation
 import HealthKit
 import JICore
+import JICompute
 
 /// Why a T2 (on-device) provider refused a call.
 ///
@@ -128,6 +129,8 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     /// HealthKit nights read this far back on every verdict call (the night itself plus slack for
     /// a late-synced previous night); the 120-day backfill is `refreshBaseline()`'s job (pre-warm).
     static let verdictRefreshDays = 3
+    /// RG-04: a cold store's one-time read (the store's retention window).
+    static let coldRefreshDays = 120
 
     /// W-ONDEVICE O-7/O-9: refresh the store from HealthKit (Apple only), then compute `day` from
     /// the store. `nil` = no night for `day`. Errors (e.g. HealthKit's protected-data error on a
@@ -135,7 +138,12 @@ public final class HealthKitProvider: HealthDataProvider, @unchecked Sendable {
     public func onDeviceVerdict(day: String) async throws -> OnDeviceVerdictResult? {
         guard let onDevice, let baseline else { throw ProviderError.notCapable(.gate) }
         try requireHealthData()
-        try await refreshBaseline(windowDays: Self.verdictRefreshDays)
+        // RG-04 / B-120: a cold store (no Apple night older than the short refresh — the 04:45
+        // pre-warm never ran) reads the full window once, else the band saw 2/28 nights.
+        let stored = try baseline.nightly(through: day)
+        let cutoff = (try? CalendarMath.addDays(day, -Self.verdictRefreshDays)) ?? day
+        let warm = stored.contains { $0.source == .apple && $0.date < cutoff }
+        try await refreshBaseline(windowDays: warm ? Self.verdictRefreshDays : Self.coldRefreshDays)
         let input = OnDeviceVerdictInput(day: day, nights: try baseline.nightly(through: day))
         guard var result = try onDevice.compute(input) else { return nil }
         result.inputsDigest = input.digest
