@@ -16,21 +16,19 @@ final class B91CallStatesShots: JIUITestCase {
             launch()
             XCTAssertTrue(awaitDecide(), "Decide did not open (\(choice))")
             // Scoped to the gate screen ("today.gate"): the Today day view behind it carries its own
-            // `today.decide.strain` card, and an unscoped firstMatch can read that one instead.
+            // `today.decide.strain` card. Decide can paint first from the cached /morning (no override)
+            // and only then re-seed from the fresh fetch, so the after-call texts are awaited (never
+            // asserted on the first frame) and matched on ANY element's label: the card combines its
+            // children, so which element carries the text is an implementation detail.
             let gate = app.descendants(matching: .any)["today.gate"].firstMatch
             XCTAssertTrue(gate.waitForExistence(timeout: 10), "gate screen missing (\(choice))")
-            let card = gate.descendants(matching: .any)["today.decide.strain"].firstMatch
-            // Decide can paint first from the SectionLoader's cached /morning (no override yet) and
-            // only then re-seed from the fresh fetch — wait for the after-call state, never assert
-            // on the first frame.
-            let afterCall = expectation(for: NSPredicate(format: "label CONTAINS 'after your call'"),
-                                        evaluatedWith: card)
-            wait(for: [afterCall], timeout: 40)
-            reveal(card, "Strain card (\(choice))")
-            let range = gate.descendants(matching: .any)["today.decide.strain.range"].firstMatch
-            let label = range.exists ? range.label : card.label
-            XCTAssertTrue(label.contains("Max today \(max)"), "\(choice): expected Max today \(max), got \(label)")
-            XCTAssertTrue(card.label.contains("after your call"), "\(choice): card not in the after-call state: \(card.label)")
+            let maxText = gate.descendants(matching: .any)
+                .matching(NSPredicate(format: "label CONTAINS %@", "Max today \(max)")).firstMatch
+            XCTAssertTrue(maxText.waitForExistence(timeout: 40), "\(choice): no 'Max today \(max)' on the gate")
+            let afterText = gate.descendants(matching: .any)
+                .matching(NSPredicate(format: "label CONTAINS %@", "after your call")).firstMatch
+            XCTAssertTrue(afterText.exists, "\(choice): card not in the after-call state")
+            if !maxText.isHittable { app.swipeUp(velocity: .slow) }
             sleep(1)
             shot(name)
         }
