@@ -141,8 +141,26 @@ public nonisolated func gateRationaleLoadMissingReason(_ recovery: RecoveryScore
     recovery?.component(.load)?.status == .calibrating ? .calibrating : .noData
 }
 
+/// W-FIX-P2 RG-25 (B-52): the error face of the rationale — a title saying which screen this is,
+/// the Decide row the user tapped (its value is already on screen, so it is shown again here),
+/// then the message (offline cold cache: "No cached data yet …"). nil outside the error phase.
+public nonisolated struct GateRationaleErrorFace: Equatable, Sendable {
+    public let title: String
+    public let row: DecideSignalRowModel?
+    public let message: String
+}
+
+public nonisolated let gateRationaleErrorTitle = "Why today"
+
+public nonisolated func gateRationaleErrorFace(phase: GateRationaleViewModel.Phase, seed: DecideSignalRowModel?) -> GateRationaleErrorFace? {
+    guard case .error(let message) = phase else { return nil }
+    return GateRationaleErrorFace(title: gateRationaleErrorTitle, row: seed, message: message)
+}
+
 public struct GateRationaleView: View {
     @Bindable var model: GateRationaleViewModel
+    /// W-FIX-P2 RG-25: the Decide row this screen was opened from (nil from the verdict hero).
+    var seed: DecideSignalRowModel? = nil
     @Environment(\.jiTheme) private var theme
     /// B-33 §8.5: no hub fetch while the sweep renders this screen.
     @Environment(\.jiOffscreenRender) private var offscreen
@@ -150,7 +168,7 @@ public struct GateRationaleView: View {
     @Environment(\.gateRespondModel) private var respondModel
     @Environment(\.recoveryInsight) private var recoveryInsight
 
-    public init(model: GateRationaleViewModel) { self.model = model }
+    public init(model: GateRationaleViewModel, seed: DecideSignalRowModel? = nil) { self.model = model; self.seed = seed }
 
     public var body: some View {
         ScreenScroll {
@@ -165,6 +183,17 @@ public struct GateRationaleView: View {
                             .accessibilityIdentifier("gateRationale.noVerdict")
                     }
                 case .error(let message):
+                    if let face = gateRationaleErrorFace(phase: model.phase, seed: seed) {
+                        Text(face.title).jiFont(.cardTitleLarge, weight: .bold).foregroundStyle(theme.color(.text))
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityIdentifier("gateRationale.errorTitle")
+                        if let m = face.row {
+                            Surface {
+                                SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, normal: m.normal, status: m.status, detail: m.detail)
+                            }
+                            .accessibilityIdentifier("gateRationale.seedRow")
+                        }
+                    }
                     errorCard(message)
                 case .loaded:
                     verdictCard
@@ -516,8 +545,8 @@ extension EnvironmentValues {
 /// explicitly, because a `navigationDestination` is not guaranteed to inherit the environment of
 /// the view that declared it.
 @MainActor
-func gateRationaleScreen(model: GateRationaleViewModel, respondModel: GateRespondViewModel?) -> some View {
-    GateRationaleView(model: model).environment(\.gateRespondModel, respondModel)
+func gateRationaleScreen(model: GateRationaleViewModel, respondModel: GateRespondViewModel?, seed: DecideSignalRowModel? = nil) -> some View {
+    GateRationaleView(model: model, seed: seed).environment(\.gateRespondModel, respondModel)
 }
 
 /// Makes the whole verdict hero the tap target into the rationale — the oracle's `VerdictCard`

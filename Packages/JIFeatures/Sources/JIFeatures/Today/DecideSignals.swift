@@ -213,6 +213,8 @@ public struct DecideSignalsSection: View {
     @Environment(\.targets) private var targets
     @Environment(\.jiTheme) private var theme
     @State private var showRationale = false
+    /// W-FIX-P2 RG-25: the row that opened the rationale (offline: its title + this value).
+    @State private var tappedRow: DecideSignalRowModel?
 
     public init(signals: [GateSignal], normals: [String: ClosedRange<Double>] = [:]) { self.signals = signals; self.normals = normals }
 
@@ -231,7 +233,7 @@ public struct DecideSignalsSection: View {
         let rows = VStack(alignment: .leading, spacing: 0) {
             whyNote.fixedSize(horizontal: false, vertical: true).padding(.vertical, JISpacing.s1)
             ForEach(Array(models.enumerated()), id: \.element.id) { index, m in
-                Button { if rationaleModel != nil { showRationale = true } } label: {
+                Button { if rationaleModel != nil { tappedRow = m; showRationale = true } } label: {
                     SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, normal: m.normal, status: m.status, detail: m.detail)
                         .padding(.vertical, JISpacing.s2)
                         .contentShape(Rectangle())
@@ -246,7 +248,7 @@ public struct DecideSignalsSection: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.decide.signals")
         if let rationaleModel {
-            rows.navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: rationaleModel, respondModel: respondModel) }
+            rows.navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: rationaleModel, respondModel: respondModel, seed: tappedRow) }
         } else {
             rows
         }
