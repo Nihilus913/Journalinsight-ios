@@ -343,7 +343,7 @@ public final class GateRationaleViewModel {
     private static func describe(_ error: HubError) -> String {
         switch error {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
-        case .network: "Hub unreachable — is the Mac awake and on the same network?"
+        case .network: OfflineReadCopy.coldCache  // B-52 p3: describe() only runs with nothing to show
         default: "Couldn't load the readiness rationale."
         }
     }

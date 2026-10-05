@@ -144,7 +144,7 @@ private struct FakeDataQualityProvider: DataQualityProviding {
     @Test func networkFailureWithNoCacheIsErrorAndHubUnreachable() async {
         let model = DataQualityViewModel(provider: FakeDataQualityProvider(behaviour: .fail(.network("offline"))))
         await model.load()
-        #expect(model.phase == .error("Hub unreachable — is the Mac awake and on the same network?"))
+        #expect(model.phase == .error(OfflineReadCopy.coldCache))  // B-52 p3
         #expect(model.hubReachable == false)
         #expect(model.lastError == .network("offline"))
         #expect(model.report == nil)

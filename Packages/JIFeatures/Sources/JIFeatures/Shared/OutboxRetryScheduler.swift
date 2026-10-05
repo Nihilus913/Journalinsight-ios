@@ -158,6 +158,13 @@ public final class OutboxRetryScheduler {
         }
     }
 
+    /// B-52 p1 (c): one immediate pass outside the loop's sleep — the reachability-regain trigger
+    /// (`ReachabilityDrainTrigger`). Updates the backoff streak like any other pass.
+    @discardableResult
+    public func drainNow() async -> Int {
+        await pass().delivered
+    }
+
     /// Cancels the loop; if rows remain, hands over to a BG refresh at the current backoff.
     public func stopForeground() {
         loop?.cancel()
