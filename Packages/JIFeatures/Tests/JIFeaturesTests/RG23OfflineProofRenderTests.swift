@@ -38,7 +38,7 @@ import UIKit
 
     host.view.setNeedsLayout()
     host.view.layoutIfNeeded()
-    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    RunLoop.current.run(until: Date().addingTimeInterval(0.6))
     host.view.setNeedsLayout()
     host.view.layoutIfNeeded()
     CATransaction.flush()
