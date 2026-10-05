@@ -6,7 +6,7 @@ import JIPersistence
 
 /// B-52 p5: the global offline / "N pending" marker and its per-kind rows.
 @MainActor
-struct B52PendingSyncMarkerTests {
+@Suite struct B52PendingSyncMarkerTests {
     @Test func markerTextCoversAllFourStates() {
         #expect(pendingSyncMarkerText(pending: 0, offline: false) == nil)
         #expect(pendingSyncMarkerText(pending: 0, offline: true) == "Offline")
@@ -18,7 +18,7 @@ struct B52PendingSyncMarkerTests {
         var kinds = OutboxDrainer.knownKinds
         kinds.insert(StrengthOutbox.kind)
         kinds.insert(WorkoutLibraryOutbox.kind)
-        kinds.formUnion(["training_break", "garmin_push"])   // B-52 p4 kinds
+        kinds.formUnion([B52WriteKinds.trainingBreak, B52WriteKinds.garminPush])   // B-52 p4 kinds
         for kind in kinds {
             #expect(pendingSyncKindLabel(kind) != kind, "kind \(kind) has no label")
         }
