@@ -16,6 +16,12 @@ final class B91CallStatesShots: JIUITestCase {
             launch()
             XCTAssertTrue(awaitDecide(), "Decide did not open (\(choice))")
             let card = el("today.decide.strain")
+            // Decide can paint first from the SectionLoader's cached /morning (no override yet) and
+            // only then re-seed from the fresh fetch — wait for the after-call state, never assert
+            // on the first frame.
+            let afterCall = expectation(for: NSPredicate(format: "label CONTAINS 'after your call'"),
+                                        evaluatedWith: card)
+            wait(for: [afterCall], timeout: 40)
             reveal(card, "Strain card (\(choice))")
             let range = el("today.decide.strain.range")
             let label = range.exists ? range.label : card.label
