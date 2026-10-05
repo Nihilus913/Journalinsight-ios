@@ -38,6 +38,16 @@ struct TrainingBreakToggle: View {
                         .foregroundStyle(.primary)
                     Text(model.sinceText ?? "Load reads Paused while this is on")
                         .font(.footnote).foregroundStyle(.secondary)
+                    if let offline = model.offlineText {
+                        Text(offline).font(.footnote).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("settings.trainingBreak.offline")
+                    }
+                    // B-52 p4: a flip made offline is on this phone, queued for the hub.
+                    if let queued = model.pendingText {
+                        Label(queued, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.footnote).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("settings.trainingBreak.pending")
+                    }
                     if let error = model.errorMessage {
                         Text(error).font(.footnote).foregroundStyle(.red)
                     }
@@ -54,8 +64,8 @@ struct TrainingBreakToggle: View {
         .disabled(model.busy || model.state == nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("I'm on a break")
-        .accessibilityValue(model.paused ? "On" : "Off")
-        .accessibilityHint(model.sinceText ?? "Load reads Paused while this is on")
+        .accessibilityValue((model.paused ? "On" : "Off") + (model.pending ? ", waiting to sync" : ""))
+        .accessibilityHint(model.offlineText ?? model.sinceText ?? "Load reads Paused while this is on")
         .accessibilityAddTraits(.isToggle)
         .accessibilityIdentifier("settings.trainingBreak.toggle")
         .task { if model.state == nil { await model.load() } }

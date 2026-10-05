@@ -20,6 +20,8 @@ public nonisolated enum OutboxDelivery: Sendable, Equatable {
     case exercisePatch(ExerciseUpdateResult)
     /// B-44 Option B: the phone's morning verdict the hub has now stored beside its own.
     case onDeviceVerdict(OnDeviceVerdictStored)
+    /// B-52 p1: a row of a kind registered through `OutboxFirstRegistry` the hub has now stored.
+    case registered(kind: String)
 }
 
 /// Drains `Outbox` rows against the hub, one attempt per row per call, for every kind the app
@@ -60,6 +62,8 @@ public final class OutboxDrainer {
     /// gate-respond). An overlapping caller now awaits and returns THIS task's result instead of
     /// starting its own pass; the guard is per-pass, not sticky (cleared before the task returns).
     private var inFlight: Task<[Int64: Result<OutboxDelivery, Error>], Never>?
+    /// B-52 p1 (a): kinds added through `OutboxFirst` handlers (process-wide by default).
+    private let registry: OutboxFirstRegistry
 
     /// The multi-kind initialiser. Pass `nil` for a kind this app instance cannot deliver (e.g.
     /// `MockDataProvider` in previews) — its rows then stay pending rather than being attempted
@@ -74,8 +78,10 @@ public final class OutboxDrainer {
         strength: (any TrainingProviding)? = nil,
         exercisePatch: (any ExercisePatchProviding)? = nil,
         strengthStore: StrengthStateStore? = nil,
-        onDeviceVerdict: (any OnDeviceVerdictUploading)? = nil
+        onDeviceVerdict: (any OnDeviceVerdictUploading)? = nil,
+        registry: OutboxFirstRegistry? = nil
     ) {
+        self.registry = registry ?? .shared
         self.outbox = outbox
         self.weighIn = weighIn
         self.gateRespond = gateRespond
@@ -161,6 +167,7 @@ public final class OutboxDrainer {
         if strength != nil { kinds.insert(StrengthOutbox.kind) }
         if exercisePatch != nil { kinds.insert(Self.exercisePatchKind) }
         if onDeviceVerdict != nil { kinds.insert(Self.onDeviceVerdictKind) }
+        kinds.formUnion(registry.kinds)
         return kinds
     }
 
@@ -316,7 +323,10 @@ public final class OutboxDrainer {
                     results[row.id] = .failure(error)
                 }
             default:
-                continue   // incl. `StrengthOutbox.kind`: replayed below, as one ordered lane
+                // B-52 p1 (a): a kind registered through `OutboxFirstRegistry`; anything else
+                // (incl. `StrengthOutbox.kind`, replayed below as one ordered lane) is left alone.
+                guard let handler = registry.handler(for: row.kind) else { continue }
+                await replayRegistered(row: row, rows: rows, handler: handler, into: &results)
             }
         }
         // W-B38-A: the strength lane's own in-order pass (serialised process-wide with the Log
@@ -326,6 +336,30 @@ public final class OutboxDrainer {
             _ = await strength.drainOnce()
         }
         return results
+    }
+
+    /// B-52 p1 (a): one registered-kind row. Coalesced rows (same `coalesceKey`) go out once, as
+    /// the newest; success retires the whole group; a permanent 4xx retires it (never retried);
+    /// anything else keeps the row queued with its `describe` text as `lastError`.
+    private func replayRegistered(row: OutboxRow, rows: [OutboxRow], handler: OutboxReplayHandler,
+                                  into results: inout [Int64: Result<OutboxDelivery, Error>]) async {
+        var group = [row]
+        if let coalesceKey = handler.coalesceKey, let key = coalesceKey(row.payload) {
+            group = rows.filter { $0.kind == row.kind && coalesceKey($0.payload) == key }
+            guard row.id == group.last?.id else { return }
+        }
+        do {
+            try await handler.replay(row.payload)
+            for q in group { try? outbox.markSent(id: q.id) }
+            results[row.id] = .success(.registered(kind: row.kind))
+        } catch {
+            if Self.isPermanentRejection(error) {
+                for q in group { try? outbox.markSent(id: q.id) }
+            } else {
+                try? outbox.markFailed(id: row.id, error: handler.describe(error))
+            }
+            results[row.id] = .failure(error)
+        }
     }
 
     /// W-B54 (B54-1): offline lift edits an OLDER build saved only in `StrengthStateStore` (nothing
