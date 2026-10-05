@@ -147,8 +147,8 @@ struct Fix6L1OneVerdictTests {
         #expect(decideRingScore(readiness: nil, recovery: nil, hubRecovery: hub) == 36)
         #expect(decideReadinessCaption(score: 36, nights: nil, recovery: nil, hubRecovery: hub) == "Recovery")
         #expect(decideReadinessCaption(score: 20, nights: nil, recovery: nil, hubRecovery: 20) == "Recovery low")
-        // Garmin readiness still wins when the hub sends it.
-        #expect(decideRingScore(readiness: 70, recovery: nil, hubRecovery: hub) == 70)
+        // W-FIX-P1 RG-08: the call's recovery score wins over readiness.
+        #expect(decideRingScore(readiness: 70, recovery: nil, hubRecovery: hub) == 36)
         #expect(decideHubRecovery(nil) == nil)
     }
 

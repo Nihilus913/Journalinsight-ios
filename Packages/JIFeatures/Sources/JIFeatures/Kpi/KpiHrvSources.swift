@@ -34,7 +34,9 @@ public nonisolated let kpiHrvGapDays = 2
 /// The legend's words for the Garmin style (Toby 2026-10-04: scaled × 0.95, labelled "est.").
 public nonisolated let kpiHrvGarminLegend = "dashed grey = Garmin × 0.95 (est.)"
 /// The caption under the legend: what the band / average are built from.
-public nonisolated let kpiHrvMixCaption = "Band, 7-day average and 28-day count use Watch nights only; Garmin nights are shown for continuity."
+/// W-FIX-P1 RG-09 (B-124): the band is the hub's one band — the gate's 28 nights (Watch first,
+/// Garmin × 0.95 on nights without a Watch value); the Watch-only 28-night rule is gone.
+public nonisolated let kpiHrvMixCaption = "Band, 7-day average and night count are the morning call's: your last 28 nights, Watch first, Garmin × 0.95 where the Watch has none."
 
 /// The merged series over `range`: every Watch night of `history` (already Watch-only via
 /// `kpiSourceFilteredHistory`) plus every Garmin night of `sourceDays` the Watch has no value for.

@@ -282,11 +282,12 @@ public nonisolated func decideHubRecovery(_ signals: [GateSignal]?) -> Double? {
     signals?.first { $0.key == "recovery" }?.value
 }
 
-/// W-B57-W3 fixer: the ring's number — the hub's readiness when present, then (W-FIX6 F6-11) the
-/// hub's recovery score for the call, else the on-device recovery score.
+/// W-B57-W3 fixer: the ring's number. W-FIX-P1 RG-08 (B-123): the call's recovery score (the
+/// gate's "Recovery score" row) wins — "44 Readiness" next to "Recovery score 39" was two numbers
+/// for one night; the hub's readiness only when the hub sent no score, else the on-device score.
 public nonisolated func decideRingScore(readiness: Double?, recovery: RecoveryScoreResult?, hubRecovery: Double? = nil) -> Double? {
-    if let readiness { return readiness }
     if let hubRecovery { return hubRecovery }
+    if let readiness { return readiness }
     guard let recovery, recovery.status == .ok, let s = recovery.score else { return nil }
     return Double(s)
 }
@@ -554,7 +555,7 @@ public struct DecideView: View {
                     let hubRecovery = decideHubRecovery(gateSignals)
                     DecideReadinessRing(score: decideRingScore(readiness: readiness, recovery: recoveryInsight?.result, hubRecovery: hubRecovery),
                                         nights: calibrationNights, recovery: readiness == nil ? recoveryInsight?.result : nil,
-                                        hubRecovery: readiness == nil ? hubRecovery : nil)
+                                        hubRecovery: hubRecovery)   // RG-08: caption "Recovery" with the call's score
                 }
                 if !syncing, let wasCaption {
                     Text(wasCaption).jiFont(.caption).foregroundStyle(theme.color(.muted))

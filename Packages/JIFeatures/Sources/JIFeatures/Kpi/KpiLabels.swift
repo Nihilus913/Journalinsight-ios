@@ -111,8 +111,31 @@ public nonisolated func kpiCalibrationKey(_ metric: KpiMetricId) -> String? {
 /// "Calibrating · 4 of 14 nights" when the hub says `key`'s normal is still calibrating, else nil
 /// (then the phone's own band stands). Never a band built on too few real nights (rule 5).
 public nonisolated func recoveryCalibrationCaption(_ calibration: RecoveryCalibration?, key: String) -> String? {
+    // W-FIX-P1 RG-09 (B-124): HRV calibrates on the hub's ONE band (the gate's nights), never a
+    // Watch-only count of its own.
+    if key == "hrv", let band = calibration?.hrv {
+        guard band.calibrating else { return nil }
+        let n = max(0, min(band.nights, band.nightsNeeded))
+        return "\(JIMissingReason.calibrating.rawValue) · \(n) of \(band.nightsNeeded) nights"
+    }
     guard let calibration, calibration.isCalibrating(key) else { return nil }
     let need = key == "load" ? RecoveryScore.loadMinNormalN : calibration.nightsNeeded
     let n = max(0, min(calibration.component(key)?.nights ?? calibration.nights, need))
     return "\(JIMissingReason.calibrating.rawValue) · \(n) of \(need) nights"
+}
+
+
+// MARK: - W-FIX-P1 RG-09 (B-124): ONE HRV band
+
+/// The hub's HRV band (`calibration.hrv`) as the normal the Recovery card and the HRV detail draw;
+/// nil while it calibrates, without both edges, or from an older hub (the phone's own band stands).
+public nonisolated func hrvHubNormal(_ calibration: RecoveryCalibration?) -> PersonalNormalResult? {
+    guard let b = calibration?.hrv, !b.calibrating, let lo = b.bandLo, let hi = b.bandHi, lo <= hi else { return nil }
+    return PersonalNormalResult(median: (lo + hi) / 2, low: lo, high: hi, sd: (hi - lo) / 2, n: b.nights)
+}
+
+/// "your normal 23–27 · 28 nights" — the HRV detail's caption from the hub's band; nil without one.
+public nonisolated func kpiHrvHubCaption(_ calibration: RecoveryCalibration?) -> String? {
+    guard let n = hrvHubNormal(calibration) else { return nil }
+    return "your normal \(jiNumber(n.low, 0))–\(jiNumber(n.high, 0)) · \(n.n) nights"
 }

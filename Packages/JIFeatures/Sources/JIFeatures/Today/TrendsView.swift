@@ -53,6 +53,15 @@ public nonisolated func trendsCards(recovery: [RecoveryDay], daily: [DailyKpiRow
     /// W-FIX6 F6-8: an ACWR the hub really sent keeps the card; else the gate-input minutes.
     func loadCard() -> TrendsCardModel {
         var acwr = card("load", .recovery, "Load", rec { KpiMetrics.honestAcwr($0.acwr) }, unit: nil, decimals: 2)
+        // W-FIX-P1 RG-07 (B-122): ONE number — the newest ratio the hub served (Decide's Load row,
+        // the last complete day), never a 7-day mean of ratios; "as of <date>" when not today.
+        if let newest = recovery.filter({ KpiMetrics.honestAcwr($0.acwr) != nil }).max(by: { $0.date < $1.date }),
+           let ratio = KpiMetrics.honestAcwr(newest.acwr) {
+            acwr = TrendsCardModel(id: acwr.id, group: acwr.group, name: acwr.name, systemImage: acwr.systemImage, unit: acwr.unit,
+                                   decimals: acwr.decimals, value: ratio, tint: acwr.tint,
+                                   status: KpiNormal.status(value: ratio, normal: acwr.normal), normal: acwr.normal,
+                                   asOf: kpiAsOfLabel(valueDate: newest.acwrAsOf ?? newest.date, today: today))
+        }
         // W-B91 S3: an ACWR card reads its named status (or Paused), not the normal-band word.
         if let named = acwrNamedStatus(acwr.value, paused: loadPaused), acwr.value != nil || load == nil {
             acwr = TrendsCardModel(id: acwr.id, group: acwr.group, name: acwr.name, systemImage: acwr.systemImage, unit: acwr.unit,
