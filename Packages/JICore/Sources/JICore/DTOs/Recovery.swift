@@ -5,6 +5,9 @@ public struct RecoveryDay: Codable, Sendable, Equatable {
     /// `core.daily_vitals.hrv_rmssd_ms`). A night — unlike `hrvWeeklyAvg`, the hub's 7-day mix.
     /// Optional on the wire: a hub that predates the field decodes to nil ("—").
     public var hrvRmssdMs: Double?
+    /// W-FIX-P1 RG-07 (B-122): the complete day `acwr` is for (`acwr_as_of`). Today's row carries
+    /// the gate's last-complete-day ratio, so this names yesterday. Nil from an older hub.
+    public var acwrAsOf: String? = nil
     /// W-DATA R6: fields `/vitals/recovery` already serves (FM-09) — sleep stages, Garmin body
     /// battery low/high and recovery time. Optional on the wire; nil = "— not read", never 0.
     public var deepSleepSec, lightSleepSec, remSleepSec: Double?
