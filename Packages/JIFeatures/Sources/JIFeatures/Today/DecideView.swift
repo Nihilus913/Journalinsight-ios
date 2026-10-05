@@ -347,6 +347,8 @@ public struct DecideView: View {
     let strain: MorningStrain?
     @State private var showAdjust = false
     @State private var showGateConfig = false
+    /// W-B91 S3 b91p2: the Strain detail sheet (tap the Strain card).
+    @State private var showStrainDetail = false
     @Environment(\.gateConfigModel) private var gateConfigModel
     @Environment(\.recoveryInsight) private var recoveryInsight
     /// B-57 W5 C4: the session row's next working weight (nil in previews → not shown).
@@ -469,6 +471,11 @@ public struct DecideView: View {
             .readableColumn()
         }
         .sheet(isPresented: $showAdjust) { adjustSheet }
+        .sheet(isPresented: $showStrainDetail) {
+            StrainDetailSheet(model: strainDetailModel(state: decideStrainState(strain: strain, override: override, verdict: verdict),
+                                                       strain: strain, load: strainDetailLoadSignal(gateSignals),
+                                                       minutes: recoveryInsight?.loadReading)) { showStrainDetail = false }
+        }
         // Advance only when the write actually settled (`.logged` or `.queued`) — never on `.failed`.
         .onChange(of: overrideModel?.settled ?? false) { _, settled in
             if settled { showAdjust = false; advance() }
@@ -581,7 +588,12 @@ public struct DecideView: View {
         }
         if !syncing {
             // W-DECIDE-HYBRID H-3/H-4: yesterday vs your usual before the call; today vs the call's max after.
-            DecideStrainCard(state: decideStrainState(strain: strain, override: override, verdict: verdict))
+            // W-B91 S3 b91p2: tap → the Strain detail sheet (minutes Load + acute / chronic / ratio).
+            Button { showStrainDetail = true } label: {
+                DecideStrainCard(state: decideStrainState(strain: strain, override: override, verdict: verdict))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows strain, your usual range and training load")
             HStack(alignment: .firstTextBaseline) {
                 JISectionHeader("What drove it")
                 Spacer(minLength: 8)
