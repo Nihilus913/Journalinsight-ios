@@ -208,7 +208,8 @@ public struct KpiDetailView: View {
 
     private var tableCard: some View {
         let base = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
-                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal)
+                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal,
+                                      hubSevenDay: model.hrvHubSevenDay)
         // B-104 p2: "Nights counted: N Watch + M Garmin" for the nights the HRV chart draws.
         let rows = kpiHrvTableRows(base, merged: model.hrvMergedPoints(range: range), range: range)
         return Surface(level: 1, padding: 0) {
