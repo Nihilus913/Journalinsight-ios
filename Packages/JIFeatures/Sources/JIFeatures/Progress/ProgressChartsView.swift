@@ -44,6 +44,8 @@ public struct ProgressChartsView: View {
         .task {
             if let i = CommandLine.arguments.firstIndex(of: "-progress-range"), i + 1 < CommandLine.arguments.count,
                let r = TrendRange(rawValue: CommandLine.arguments[i + 1]) { model.range = r }
+            // `-progress-reset` clears every pin / hide first (a clean default screenshot).
+            if CommandLine.arguments.contains("-progress-reset") { model.resetPrefs() }
             // `-progress-pin <id,id,…>` pins those charts in that order, as the menu's Pin does
             // (written through to PrefStore — a later launch without it shows the order persisted).
             if let i = CommandLine.arguments.firstIndex(of: "-progress-pin"), i + 1 < CommandLine.arguments.count {

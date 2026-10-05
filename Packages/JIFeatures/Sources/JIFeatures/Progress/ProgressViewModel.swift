@@ -263,6 +263,9 @@ public final class ProgressViewModel {
     }
     public func move(_ id: ProgressChartID, direction: Int) { apply(ProgressChartSelection.move(prefs, id, direction: direction)) }
 
+    /// Back to the default (nothing pinned or hidden).
+    public func resetPrefs() { apply(ProgressChartSelection.defaultPrefs()) }
+
     public func isHidden(_ id: ProgressChartID) -> Bool { prefs.hidden.contains(id) }
 
     private func apply(_ next: ProgressChartPrefs) {
