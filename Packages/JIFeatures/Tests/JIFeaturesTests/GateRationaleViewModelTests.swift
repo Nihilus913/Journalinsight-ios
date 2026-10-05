@@ -148,7 +148,7 @@ private struct GateRationaleProvider: HealthDataProvider {
     p.liveError = HubError.network("simulated")
     let vm = GateRationaleViewModel(provider: p)
     await vm.load()
-    #expect(vm.phase == .error("Hub unreachable — is the Mac awake and on the same network?"))
+    #expect(vm.phase == .error(OfflineReadCopy.coldCache))  // B-52 p3
     #expect(vm.lastError == .network("simulated"))
 }
 

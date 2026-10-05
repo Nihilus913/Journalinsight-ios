@@ -1444,7 +1444,23 @@ struct RootTabView: View {
                 ScreenScroll {
                     VStack(alignment: .leading, spacing: 16) {
                         StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
-                        ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                        // B-52 p3: a failed first load (hub down + nothing cached = the cold-cache
+                        // line) is said, not spun on forever — this branch used to show a spinner
+                        // for EVERY non-loaded phase, so a fresh install offline never settled.
+                        if case .error(let message) = model.phase {
+                            Surface {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text(message).foregroundStyle(theme.color(.text))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .accessibilityIdentifier("today.gate.error")
+                                    Button("Retry") { Task { await model.reloadLive() } }
+                                        .buttonStyle(.pressableScale).tint(theme.color(.info))
+                                        .accessibilityIdentifier("today.gate.retry")
+                                }
+                            }
+                        } else {
+                            ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                        }
                     }
                     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 32)
                     .readableColumn()
