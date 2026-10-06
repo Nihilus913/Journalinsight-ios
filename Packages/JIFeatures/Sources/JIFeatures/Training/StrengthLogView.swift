@@ -25,6 +25,13 @@ public struct StrengthLogView: View {
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                // W-FIX-P3 RG-66: the session name wraps here instead of truncating in the bar.
+                if let header = strengthLogTitles(sessionName: model.sessionName).header {
+                    Text(header).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("strength-log-title")
+                }
                 if model.timer.phase != .idle { StrengthRestTimer(model: model) }
                 if model.cards.isEmpty {
                     Surface { Text("No exercises in this training yet — add them to the plan first.")
@@ -46,7 +53,10 @@ public struct StrengthLogView: View {
         }
         .jiPageGround()
         .jiTheme(.native)
-        .navigationTitle(model.sessionName ?? "Log sets")
+        .navigationTitle(strengthLogTitles(sessionName: model.sessionName).nav)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { showLibrary = true } label: { Label("Add exercise", systemImage: "plus") }
@@ -115,6 +125,13 @@ public struct StrengthLogView: View {
         }
         return "Session complete. Next time: " + names.joined(separator: ", ") + "."
     }
+}
+
+/// W-FIX-P3 RG-66: the bar shows "Log sets" (four toolbar buttons leave it little room); the
+/// session name ("Day 1 Full Upper + Zone 2 40 min") is the screen's wrapping header instead.
+nonisolated func strengthLogTitles(sessionName: String?) -> (nav: String, header: String?) {
+    let name = sessionName?.trimmingCharacters(in: .whitespaces)
+    return ("Log sets", (name?.isEmpty ?? true) ? nil : name)
 }
 
 nonisolated enum StrengthFormat {

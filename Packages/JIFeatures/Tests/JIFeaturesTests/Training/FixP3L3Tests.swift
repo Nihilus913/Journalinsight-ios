@@ -146,6 +146,30 @@ import JICompute
         #expect(e[0].lifts[0].line == "50 kg × 5  ·  50 kg × 5")
         #expect(StrengthHistoryViewModel.garminEntries(out, excludingDates: ["2026-09-04"]).map(\.date) == ["2026-08-28"])
     }
+
+    // MARK: RG-66 — Planner Week vs Month one kind letter; legend pairs never wrap; logger title whole
+
+    @Test func rg66WeekAndMonthUseOneLetterForTheLongZ2Day() {
+        #expect(TrainingWeekDayKind.longRun.letter == TrainingCalendarPlanned.letter(forType: "z2"))
+        #expect(TrainingWeekDayKind.longRun.letter == "Z")
+        #expect(TrainingWeekDayKind.strength.letter == "S")
+        #expect(TrainingWeekDayKind.interval.letter == "I")
+        #expect(trainingWeekLegend.contains("Z\u{00A0}zone 2"))
+        #expect(trainingMonthLegendKinds.contains("Z\u{00A0}zone 2"))
+    }
+
+    @Test func rg66LegendKeepsGlyphAndWordTogether() {
+        #expect(trainingMonthLegendStates.contains("–\u{00A0}Rest"))
+        #expect(!trainingMonthLegendStates.contains("– Rest"))
+        #expect(!trainingMonthLegendStates.contains("● Done"))
+    }
+
+    @Test func rg66LoggerTitleIsNeverTruncated() {
+        let t = strengthLogTitles(sessionName: "Day 1 Full Upper + Zone 2 40 min")
+        #expect(t.nav == "Log sets")
+        #expect(t.header == "Day 1 Full Upper + Zone 2 40 min")
+        #expect(strengthLogTitles(sessionName: nil).header == nil)
+    }
 }
 
 @MainActor final class ZoneFake: ZoneTimeProviding {

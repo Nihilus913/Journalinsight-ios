@@ -11,6 +11,9 @@ import JICompute
 /// yet (B-38), so a day with no row is unknown (nil), never "missed".
 public nonisolated enum TrainingWeekDayKind: String, Sendable, Equatable {
     case strength = "S", interval = "I", longRun = "R", rest = "–"
+    /// W-FIX-P3 RG-66: the letter drawn — the SAME as the Month grid's (`TrainingCalendarPlanned.letter`):
+    /// the long Zone 2 day is "Z" in Week and Month. (`rawValue` stays the gate's session type key.)
+    public var letter: String { self == .longRun ? "Z" : rawValue }
     public var word: String {
         switch self {
         case .strength: "strength"

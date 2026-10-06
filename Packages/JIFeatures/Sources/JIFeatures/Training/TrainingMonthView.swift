@@ -125,8 +125,8 @@ public struct TrainingMonthView: View {
 
     private var legend: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("● Done   ◐ Partial   ○ Planned   ✕ Missed   ? Not synced   – Rest")
-            Text("S strength · I intervals · Z zone 2")
+            Text(trainingMonthLegendStates)
+            Text(trainingMonthLegendKinds)
         }
         .jiFont(.caption).foregroundStyle(theme.color(.muted))
         .fixedSize(horizontal: false, vertical: true)
@@ -176,3 +176,8 @@ struct TrainingMonthDayRecord: View {
         .presentationDetents([.medium, .large])
     }
 }
+
+/// W-FIX-P3 RG-66: glyph and word joined by a no-break space so a line never ends on a bare "–".
+nonisolated let trainingMonthLegendStates = ["● Done", "◐ Partial", "○ Planned", "✕ Missed", "? Not synced", "– Rest"]
+    .map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") }.joined(separator: "   ")
+nonisolated let trainingMonthLegendKinds = "S\u{00A0}strength · I\u{00A0}intervals · Z\u{00A0}zone 2"
