@@ -102,6 +102,9 @@ public final class StrengthLogViewModel {
         public var lastTime: [StrengthSetLog]
         public var id: String { lift.id }
         public var muscles: [String]? { StrengthMuscles.targets(for: lift.exerciseKey) }
+        /// W-FIX-P2 RG-27: the next set's number = max(set_index)+1 (never `count+1`, which reuses
+        /// an existing number after a middle set is deleted).
+        public var nextSetIndex: Int { (sets.map(\.setIndex).max() ?? 0) + 1 }
     }
 
     public private(set) var cards: [Card] = []
@@ -226,6 +229,8 @@ public final class StrengthLogViewModel {
     @discardableResult
     public func logSet(exerciseKey: String, weightKg: Double?, reps: Int?, durationS: Int? = nil, rpe: Double? = nil) -> StrengthSetLog? {
         guard let card = cards.first(where: { $0.lift.exerciseKey == exerciseKey }) else { return nil }
+        // W-FIX-P2 RG-26 (B-52): a completed session takes no more sets — no orphan second session.
+        guard canLogSet else { error = "This session is complete."; return nil }
         let timed = card.lift.isTimed
         guard timed ? (durationS ?? 0) > 0 : (reps ?? 0) > 0 else { error = timed ? "Enter the time held." : "Enter the reps."; return nil }
         error = nil
@@ -233,7 +238,7 @@ public final class StrengthLogViewModel {
         // the set's FK would orphan it and the hub would get a createSession the phone never kept.
         guard let session = ensureSession() else { return nil }
         let set = StrengthSetLog(sessionClientId: session.clientId, exerciseKey: exerciseKey, exerciseId: card.lift.exerciseId,
-                                 setIndex: card.sets.count + 1, kind: timed ? .timed : .reps,
+                                 setIndex: card.nextSetIndex, kind: timed ? .timed : .reps,
                                  reps: timed ? nil : reps, weightKg: Self.kg(weightKg), durationS: timed ? durationS : nil,
                                  rpe: rpe, performedAt: now().ISO8601Format())
         do { try store.upsertSet(set) } catch { self.error = "Could not save the set on this phone."; return nil }
@@ -281,6 +286,9 @@ public final class StrengthLogViewModel {
             return StrengthAdvance(exerciseId: id, currentWeightKg: next)
         }
     }
+
+    /// W-FIX-P2 RG-26: false once this screen's session is complete (the Log-set button disables).
+    public var canLogSet: Bool { session?.isComplete != true }
 
     public var canComplete: Bool { session != nil && session?.isComplete == false && cards.contains { !$0.sets.isEmpty } }
 
