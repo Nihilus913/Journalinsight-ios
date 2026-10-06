@@ -15,9 +15,10 @@ private func source(_ relative: String) throws -> String {
 
 // MARK: - BUG-43: the changelog reaches the current build
 
-@Test func bug43_theChangelogLeadsWithTheInstalledReleaseAndReachesThisWeek() {
+@Test func bug43_theChangelogLeadsWithTheInstalledReleaseAndReachesThisWeek() throws {
+    let installed = try installedAppVersion()   // B-131: project.yml, not a literal
     let latest = Changelog.swiftEntries[0]
-    #expect(latest.version == "2.1.0")   // W-FIX11 H2-22
+    #expect(latest.version == installed)   // W-FIX11 H2-22
     #expect(latest.date >= "2026-09-25")
     #expect(Changelog.entries.first == latest)
     // One entry per Swift milestone, newest first, every version unique.
@@ -25,8 +26,8 @@ private func source(_ relative: String) throws -> String {
     #expect(dates == dates.sorted(by: >))
     #expect(Changelog.swiftEntries.count >= 3)
     #expect(Set(Changelog.entries.map(\.id)).count == Changelog.entries.count)
-    // The 2.1.0 install row is marked "Installed" on the board.
-    #expect(versionHighlights(Changelog.entries, appVersion: "2.1.0").first?.installed == true)
+    // The installed release's row is marked "Installed" on the board.
+    #expect(versionHighlights(Changelog.entries, appVersion: installed).first?.installed == true)
 }
 
 // MARK: - BUG-46: widgets have shipped
