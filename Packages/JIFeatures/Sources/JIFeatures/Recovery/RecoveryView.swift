@@ -146,7 +146,10 @@ public struct RecoveryView: View {
                         // W-FIX11 H2-24: at AX sizes the title broke mid-word ("Overnig / ht HRV"): the
                         // icon gives way and the title shrinks to fit one line instead.
                         if !typeSize.isAccessibilitySize {
-                            Image(systemName: metric.symbol).foregroundStyle(theme.color(metric.tint)).accessibilityHidden(true)
+                            Image(systemName: metric.symbol).foregroundStyle(theme.color(metric.tint))
+                                // RG-87: the app's word, never the symbol's ("Love", "Do Not Disturb").
+                                .accessibilityLabel(jiSymbolAccessibilityLabel(metric.symbol, title: metric.title))
+                                .accessibilityHidden(true)
                         }
                         Text(metric.title).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
                             .lineLimit(1).minimumScaleFactor(0.5)

@@ -133,7 +133,7 @@ struct HubSnapshotGlanceTests {
         let none = SnapshotSignal(key: "rhr", label: "Resting HR", value: nil, unit: "bpm", normalLow: nil, normalHigh: nil, goal: nil, status: "missing")
         #expect(none.word == "No reading" && none.caption == "left out" && none.valueText == "—")
         let calibrating = SnapshotSignal(key: "hrv", label: "HRV", value: 25, unit: "ms", normalLow: nil, normalHigh: nil, goal: nil, status: "amber")
-        #expect(calibrating.word == "Watch" && calibrating.caption == "Calibrating")
+        #expect(calibrating.word == "Caution" && calibrating.caption == "Calibrating")
     }
 
     @Test func glanceSignalsAlwaysThreeInOrder() {
