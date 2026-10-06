@@ -149,6 +149,18 @@ public struct StrengthBridgeEnvelope: Codable, Sendable, Equatable {
 public enum StrengthBridgeKeys {
     public static let event = "strength"
     public static let plan = "strengthPlan"
+    /// W-B78 (B-78): the HubSnapshot glance wire — must equal `SnapshotWire.key` (JISnapshot).
+    public static let snapshot = "ji.snapshot"
+}
+
+/// W-B78 (B-78): splits one received application context between its two owners — the strength
+/// plan (`plan`, handed the `[plan: Data]` dict the watch bridge already reads) and the HubSnapshot
+/// glances (`snapshot`, handed the raw wire bytes). Absent keys call nothing.
+public enum StrengthBridgeContextRouter {
+    public static func route(_ context: [String: Any], plan: ([String: Any]) -> Void, snapshot: (Data) -> Void) {
+        if let data = context[StrengthBridgeKeys.plan] as? Data { plan([StrengthBridgeKeys.plan: data]) }
+        if let data = context[StrengthBridgeKeys.snapshot] as? Data { snapshot(data) }
+    }
 }
 
 /// The wire. Real conformance: `WatchConnectivityStrengthTransport`.
@@ -158,6 +170,9 @@ public protocol StrengthBridgeTransport: AnyObject {
     func sendToRemoteWorkoutSession(_ data: Data) async throws
     func transferUserInfo(_ info: [String: Any])
     func updateApplicationContext(_ context: [String: Any]) throws
+    /// W-B78: sets ONE key of the application context and keeps every other key (the plan and the
+    /// HubSnapshot share the context; a bare `updateApplicationContext` would erase the other).
+    func mergeApplicationContext(key: String, value: Data) throws
 }
 
 /// The phone-side store adapter (App wires it to `StrengthSessionLogStore`).
@@ -218,7 +233,7 @@ public final class StrengthSessionPhoneBridge {
     }
 
     public func sendPlan(_ plan: StrengthWatchPlan) throws {
-        try transport.updateApplicationContext([StrengthBridgeKeys.plan: try JSONEncoder().encode(plan)])
+        try transport.mergeApplicationContext(key: StrengthBridgeKeys.plan, value: try JSONEncoder().encode(plan))
     }
 
     public func receive(userInfo: [String: Any]) async {
@@ -263,17 +278,25 @@ public final class FakeStrengthBridgeTransport: StrengthBridgeTransport {
     }
     public func transferUserInfo(_ info: [String: Any]) { userInfos.append(info) }
     public func updateApplicationContext(_ context: [String: Any]) throws { applicationContext = context }
+    public func mergeApplicationContext(key: String, value: Data) throws {
+        var merged = applicationContext
+        merged[key] = value
+        applicationContext = merged
+    }
 }
 
 // MARK: - WatchConnectivity transport
 
 #if canImport(WatchConnectivity) && !os(macOS)
 /// The real wire: one `WCSession` (activated here) + the mirrored workout session when there is
-/// one. Incoming traffic is handed to `onUserInfo` (phone) / `onApplicationContext` (watch).
+/// one. Incoming traffic is handed to `onUserInfo` (phone) / `onApplicationContext` (watch, the
+/// plan) / `onSnapshotContext` (watch, W-B78 HubSnapshot wire bytes).
 @MainActor
 public final class WatchConnectivityStrengthTransport: NSObject, StrengthBridgeTransport {
     public var onUserInfo: (([String: Any]) -> Void)?
     public var onApplicationContext: (([String: Any]) -> Void)?
+    /// W-B78: the HubSnapshot bytes (`StrengthBridgeKeys.snapshot`) from a received context.
+    public var onSnapshotContext: ((Data) -> Void)?
     #if os(watchOS)
     /// Set while a mirrored strength session runs (`HealthKitStrengthWorkoutEngine.workoutSession`).
     public var workoutSession: HKWorkoutSession?
@@ -311,15 +334,29 @@ public final class WatchConnectivityStrengthTransport: NSObject, StrengthBridgeT
         try session?.updateApplicationContext(context)
     }
 
+    /// `session.applicationContext` is the last context THIS side sent — merge into it.
+    public func mergeApplicationContext(key: String, value: Data) throws {
+        guard let session else { return }
+        var merged = session.applicationContext
+        merged[key] = value
+        try session.updateApplicationContext(merged)
+    }
+
+    /// The one entry point for any received context (activation backlog or live delivery).
+    func deliver(_ context: [String: Data]) {
+        StrengthBridgeContextRouter.route(context, plan: { onApplicationContext?($0) }, snapshot: { onSnapshotContext?($0) })
+    }
+
     /// The context already delivered before the delegate was set (Watch cold start).
     public var receivedApplicationContext: [String: Any] { session?.receivedApplicationContext ?? [:] }
 }
 
 extension WatchConnectivityStrengthTransport: WCSessionDelegate {
     nonisolated public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        // A plan delivered while the app was not running is only in `receivedApplicationContext`.
-        guard let data = session.receivedApplicationContext[StrengthBridgeKeys.plan] as? Data else { return }
-        Task { @MainActor [weak self] in self?.onApplicationContext?([StrengthBridgeKeys.plan: data]) }
+        // A plan / snapshot delivered while the app was not running is only in `receivedApplicationContext`.
+        let context = Self.wireKeys(session.receivedApplicationContext)
+        guard !context.isEmpty else { return }
+        Task { @MainActor [weak self] in self?.deliver(context) }
     }
 
     #if os(iOS)
@@ -333,8 +370,18 @@ extension WatchConnectivityStrengthTransport: WCSessionDelegate {
     }
 
     nonisolated public func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        guard let data = applicationContext[StrengthBridgeKeys.plan] as? Data else { return }
-        Task { @MainActor [weak self] in self?.onApplicationContext?([StrengthBridgeKeys.plan: data]) }
+        let context = Self.wireKeys(applicationContext)
+        guard !context.isEmpty else { return }
+        Task { @MainActor [weak self] in self?.deliver(context) }
+    }
+
+    /// Only the two Data keys cross the actor hop (`[String: Data]` is Sendable).
+    nonisolated static func wireKeys(_ context: [String: Any]) -> [String: Data] {
+        var out: [String: Data] = [:]
+        for key in [StrengthBridgeKeys.plan, StrengthBridgeKeys.snapshot] {
+            if let data = context[key] as? Data { out[key] = data }
+        }
+        return out
     }
 }
 #endif
