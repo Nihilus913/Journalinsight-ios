@@ -197,11 +197,26 @@ public struct CompletedWorkoutRow: View {
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    let activity: DayActivity
+    /// W-B98A B98-4: set by Training's day card → the row opens Activity detail (splits + HR/pace).
+    @Environment(\.openActivityDetail) private var openActivityDetail
+
     public init(activity: DayActivity, userZones: HrZones? = nil) {
         self.text = completedWorkoutRowText(activity); self.zoneTime = activity.zoneTime; self.userZones = userZones
+        self.activity = activity
     }
 
     public var body: some View {
+        if let openActivityDetail {
+            Button { openActivityDetail(activity) } label: { row(tappable: true) }
+                .buttonStyle(.pressableScale)
+                .accessibilityHint("Opens splits and the heart rate and pace chart")
+        } else {
+            row(tappable: false)
+        }
+    }
+
+    @ViewBuilder private func row(tappable: Bool) -> some View {
         let stacked = completedWorkoutMetricsStacked(typeSize)
         HStack(alignment: .top, spacing: JISpacing.s3) {
             if !stacked {
@@ -233,11 +248,18 @@ public struct CompletedWorkoutRow: View {
                 WorkoutZoneBarView(zones: zoneTime, userZones: userZones)
             }
             Spacer(minLength: 0)
+            if tappable {
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+                    .foregroundStyle(theme.color(.muted)).accessibilityHidden(true)
+                    .frame(minHeight: JIRowMetrics.iconWell)
+            }
         }
+        .contentShape(Rectangle())
         .padding(.vertical, JIRowMetrics.verticalPadding)
         .frame(minHeight: JIRowMetrics.minHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text.accessibilityLabel)
+        .accessibilityAddTraits(tappable ? .isButton : [])
         .accessibilityIdentifier("completed-workout-row")
     }
 }

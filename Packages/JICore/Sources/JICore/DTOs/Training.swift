@@ -254,3 +254,52 @@ public nonisolated func planWeekdayName(_ weekday: Int?) -> String? {
     guard let weekday, planWeekdayNames.indices.contains(weekday) else { return nil }
     return planWeekdayNames[weekday]
 }
+
+// MARK: - W-B98A B98-4 (B-98 5a): one activity's km splits + HR/pace series
+
+/// `GET /api/v1/training/activity/{id}/series` (HT `app/training/activity_series.py`): JI-computed
+/// km splits and ≤ 300 HR/pace points from the stored 1 s samples (Garmin or Apple). A GPS-less,
+/// speed-less Apple run → `splits == []`, every `paceSPerKm == nil`, `hrOnly == true`. 404 = unknown id.
+public nonisolated struct ActivitySeries: Codable, Sendable, Equatable {
+    public var activityId: Int
+    public var type: String?
+    public var splits: [ActivitySplit]
+    public var points: [ActivitySeriesPoint]
+    public var hrOnly: Bool
+    /// "JI-computed, may differ from Garmin" — the hub's own words, shown under the screen.
+    public var caption: String
+
+    public init(activityId: Int, type: String?, splits: [ActivitySplit], points: [ActivitySeriesPoint], hrOnly: Bool, caption: String) {
+        self.activityId = activityId; self.type = type; self.splits = splits; self.points = points
+        self.hrOnly = hrOnly; self.caption = caption
+    }
+}
+
+/// One km bucket (the last one may be a partial km ≥ 50 m). Missing HR / elevation = nil, never 0.
+public nonisolated struct ActivitySplit: Codable, Sendable, Equatable {
+    public var km: Int
+    public var distanceM: Double
+    public var durationS: Double
+    public var paceSPerKm: Double?
+    public var meanHr: Double?
+    public var elevationGainM: Double?
+
+    public init(km: Int, distanceM: Double, durationS: Double, paceSPerKm: Double?, meanHr: Double?, elevationGainM: Double?) {
+        self.km = km; self.distanceM = distanceM; self.durationS = durationS
+        self.paceSPerKm = paceSPerKm; self.meanHr = meanHr; self.elevationGainM = elevationGainM
+    }
+}
+
+/// One chart point: `t` = seconds from the first sample; bucket-mean HR and pace (s/km).
+public nonisolated struct ActivitySeriesPoint: Codable, Sendable, Equatable {
+    public var t: Double
+    public var hr: Double?
+    public var paceSPerKm: Double?
+
+    public init(t: Double, hr: Double?, paceSPerKm: Double?) { self.t = t; self.hr = hr; self.paceSPerKm = paceSPerKm }
+}
+
+public protocol ActivitySeriesProviding: Sendable {
+    /// `GET /api/v1/training/activity/{id}/series`.
+    func activitySeries(activityId: Int) async throws -> ActivitySeries
+}

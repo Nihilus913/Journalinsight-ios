@@ -27,6 +27,8 @@ public struct TrainingView: View {
     @State private var dayPreview: TrainingDayRef?
     /// B-95 (BP-26): the pushed Time in zone screen (W / M / 6M).
     @State private var zoneTime: ZoneTimeModel?
+    /// W-B98A B98-4: the completed workout whose Activity detail is pushed.
+    @State private var activityDetail: ActivityDetailModel?
     /// B-90 p5: per-muscle freshness + load (card → pushed Muscles screen → detail sheet).
     @State private var muscles: MusclesModel?
     @State private var showMuscles = false
@@ -131,6 +133,18 @@ public struct TrainingView: View {
         }
         #endif
         .navigationDestination(item: $zoneTime) { ZoneTimeChartView(model: $0) }
+        // W-B98A B98-4: a completed workout on "This day" → Activity detail (splits + HR/pace).
+        .navigationDestination(item: $activityDetail) { ActivityDetailView(model: $0) }
+        #if DEBUG
+        // B-98 dev affordance: `-activity-detail <id> [type]` pushes that activity's detail (sim screenshots).
+        .task {
+            let args = CommandLine.arguments
+            guard let i = args.firstIndex(of: "-activity-detail"), i + 1 < args.count, let id = Int(args[i + 1]) else { return }
+            let type = i + 2 < args.count && !args[i + 2].hasPrefix("-") ? args[i + 2] : "running"
+            try? await Task.sleep(for: .seconds(2))
+            activityDetail = model.makeActivityDetailModel(activity: DayActivity(activityId: id, type: type, name: nil, durationSec: nil, distanceM: nil))
+        }
+        #endif
         .navigationDestination(isPresented: $showMuscles) {
             if let muscles { MusclesScreen(model: muscles, initialDetail: musclesLaunchDetail()) }
         }
@@ -301,6 +315,7 @@ public struct TrainingView: View {
                 plannedSession: model.plannedSessionForSelectedDay,
                 healthWorkouts: model.selectedDayHealthWorkouts
             )
+            .environment(\.openActivityDetail) { activityDetail = model.makeActivityDetailModel(activity: $0) }
             JISectionHeader(trainingNextStrengthHeader(weekdayWord: nil))
             LiftSteppers(exercises: model.exercises, pendingIds: model.pendingUpdates, failedIds: model.updateFailed, queuedIds: model.pendingExerciseSync) { exercise, patch in
                 Task { await model.updateExercise(exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName, patch: patch) }

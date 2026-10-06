@@ -180,6 +180,12 @@ public final class TrainingViewModel {
         return ZoneTimeModel(provider: provider as? any ZoneTimeProviding, span: span, today: { DayKey.today(now: now()) })
     }
 
+    /// W-B98A B98-4 (B-98 5a): Activity detail for a completed workout over this screen's provider
+    /// (hub series route); nil conformance = the screen's "no recorded series" note.
+    public func makeActivityDetailModel(activity: DayActivity) -> ActivityDetailModel {
+        ActivityDetailModel(activity: activity, provider: provider as? any ActivitySeriesProviding)
+    }
+
     /// B-94 b94p4 (BP-4): Training › Progress over this screen's provider (strength records +
     /// cardio series) and the phone's strength log / prefs when the app wired them.
     public func makeProgressModel(deps: StrengthLogDeps?) -> ProgressViewModel {
