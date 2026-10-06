@@ -31,6 +31,8 @@ public enum ZoneTimeSpan: String, CaseIterable, Identifiable, Sendable {
 public final class ZoneTimeModel {
     public enum Phase: Equatable { case loading, loaded(ZoneTimeRange), unavailable, error(String) }
     public private(set) var phase: Phase = .loading
+    /// W-FIX-P3 RG-69 (B-52): set while the shown range is the hub's offline cached copy.
+    public private(set) var staleSince: Date?
     public var span: ZoneTimeSpan
     @ObservationIgnored private let provider: (any ZoneTimeProviding)?
     @ObservationIgnored private let today: () -> DayKey
@@ -44,13 +46,19 @@ public final class ZoneTimeModel {
         let w = span.window(today: today())
         if case .loaded = phase {} else { phase = .loading }
         do {
-            phase = .loaded(try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: "cardio"))
+            let (range, since) = try await HubReadTrace.collect {
+                try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: "cardio")
+            }
+            phase = .loaded(range); staleSince = since
         } catch HubError.http(status: 404, _) {
             phase = .unavailable
         } catch {
             phase = .error(String(describing: error))
         }
     }
+
+    /// "Offline — showing data from 07:41" while the shown range is the cached copy.
+    public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
 }
 
 struct ZoneBarPoint: Identifiable {
@@ -119,6 +127,10 @@ public struct ZoneTimeChartView: View {
     }
 
     @ViewBuilder private func loaded(_ r: ZoneTimeRange) -> some View {
+        if let offline = model.offlineText {
+            Text(offline).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                .accessibilityIdentifier("zone-time-offline")
+        }
         if let floors = r.floors {
             Text("Your zones · " + floors.dropFirst().map(String.init).joined(separator: " / ") + " bpm")
                 .jiFont(.caption).foregroundStyle(theme.color(.muted))

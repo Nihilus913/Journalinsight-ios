@@ -18,6 +18,10 @@ public struct ProgressChartsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(model.subtitle).jiFont(.caption).foregroundStyle(theme.color(.muted))
                     .accessibilityIdentifier("progress.subtitle")
+                if let offline = model.offlineText {
+                    Text(offline).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                        .accessibilityIdentifier("progress.offline")
+                }
                 section("Strength", cards: model.strengthCards, error: model.strengthError,
                         empty: "Not enough data yet. Strength charts appear after 3 logged sessions of a lift.")
                 section("Cardio", cards: model.cardioCards, error: model.cardioError, empty: nil)

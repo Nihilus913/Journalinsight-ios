@@ -335,8 +335,9 @@ public final class StrengthLogViewModel {
         guard let queue else { refreshPending(); return }
         let results = await queue.drainOnce()
         refreshPending()
-        if let queued = results.values.compactMap({ if case .queued(let m) = $0 { m } else { nil } }).first {
-            syncNote = pendingCount > 0 ? "\(pendingCount) change\(pendingCount == 1 ? "" : "s") saved on this phone — will send when the hub is reachable (\(queued))." : nil
+        if results.values.contains(where: { if case .queued = $0 { true } else { false } }) {
+            // W-FIX-P3 RG-69: friendly copy only — the raw system error stays out of the note.
+            syncNote = pendingCount > 0 ? strengthQueuedSyncNote(pending: pendingCount) : nil
         } else if let refused = results.values.compactMap({ if case .refused(let m) = $0 { m } else { nil } }).first {
             syncNote = "The hub refused a change: \(refused)"
         } else {
@@ -412,4 +413,9 @@ public nonisolated struct StrengthLogDeps: Sendable {
 
 public extension EnvironmentValues {
     @Entry var strengthLogDeps: StrengthLogDeps? = nil
+}
+
+/// W-FIX-P3 RG-69: the logger's offline note — no raw "(Could not connect to the server.)".
+public nonisolated func strengthQueuedSyncNote(pending: Int) -> String {
+    "\(pending) change\(pending == 1 ? "" : "s") saved on this phone — will send when the hub is reachable."
 }

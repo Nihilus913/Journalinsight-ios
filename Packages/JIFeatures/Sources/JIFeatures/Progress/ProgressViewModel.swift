@@ -63,6 +63,14 @@ public final class ProgressViewModel {
     private let prefStore: (any JIPrefStoring)?
     private let today: () -> String
     private var hub: StrengthRecordsOut?
+    /// W-FIX-P3 RG-69 (B-52): set while a section shows the hub's offline cached copy.
+    public private(set) var strengthStaleSince: Date?
+    public private(set) var cardioStaleSince: Date?
+
+    /// "Offline — showing data from 07:41" (the oldest cached copy shown), nil when all is live.
+    public var offlineText: String? {
+        [strengthStaleSince, cardioStaleSince].compactMap { $0 }.min().map { offlineReadCaption(since: $0) }
+    }
 
     public init(store: StrengthSessionLogStore?, provider: (any TrainingProviding)?,
                 cardioProvider: (any CardioSeriesProviding)?, prefStore: (any JIPrefStoring)?,
@@ -87,7 +95,8 @@ public final class ProgressViewModel {
     private func loadStrength() async {
         guard let provider else { return }
         do {
-            hub = try await provider.strengthRecords()
+            let (value, since) = try await HubReadTrace.collect { try await provider.strengthRecords() }
+            hub = value; strengthStaleSince = since
             strengthError = nil
         } catch is StrengthRecordsUnavailable {
             strengthError = nil
@@ -100,7 +109,10 @@ public final class ProgressViewModel {
     private func loadCardio() async {
         guard let cardioProvider else { return }
         do {
-            cardio = try await cardioProvider.cardioSeries(range: Self.cardioFetchRange)
+            let (value, since) = try await HubReadTrace.collect {
+                try await cardioProvider.cardioSeries(range: Self.cardioFetchRange)
+            }
+            cardio = value; cardioStaleSince = since
             cardioError = nil
         } catch {
             cardioError = StrengthOutbox.describe(error)
