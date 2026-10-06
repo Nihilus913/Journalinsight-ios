@@ -139,6 +139,14 @@ nonisolated enum StrengthFormat {
         if plates.isEmpty { return load == .dumbbell ? "Empty handle" : "Empty bar" }
         return (load == .dumbbell ? "Per dumbbell side: " : "Per side: ") + plates.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }.joined(separator: " + ")
     }
+
+    /// W-FIX-P3 RG-67: the plates line, or nil = no line. Hidden for a bodyweight lift and for a
+    /// dumbbell weight the plates cannot build (a fixed dumbbell, e.g. 12 kg per hand).
+    static func platesHint(_ plates: [Double]?, load: StrengthLoad, bodyweight: Bool) -> String? {
+        if bodyweight { return nil }
+        if plates == nil, load == .dumbbell { return nil }
+        return Self.plates(plates, load: load)
+    }
 }
 
 /// One exercise: target + muscles, the sets logged so far, and the entry row for the next set.
@@ -218,10 +226,12 @@ struct StrengthExerciseCard: View {
                 HStack(spacing: JISpacing.s3) { fields(timed: timed) }
                 VStack(alignment: .leading, spacing: JISpacing.s2) { fields(timed: timed) }
             }
-            if !timed {
+            // W-FIX-P3 RG-67: no plates line for a bodyweight lift or a fixed-dumbbell weight.
+            if !timed, let hint = StrengthFormat.platesHint(model.plates(for: parsedKg, exerciseKey: card.lift.exerciseKey),
+                                                             load: StrengthLoad.of(card.lift.exerciseKey), bodyweight: card.lift.isBodyweight || StrengthLoad.isFixedWeight(card.lift.exerciseKey)) {
                 // W-B38-B B-9: the per-side line opens the plate calculator sheet for this weight.
                 Button { if parsedKg != nil { showCalculator = true } } label: {
-                    Label(StrengthFormat.plates(model.plates(for: parsedKg, exerciseKey: card.lift.exerciseKey), load: StrengthLoad.of(card.lift.exerciseKey)), systemImage: "circle.grid.2x1")
+                    Label(hint, systemImage: "circle.grid.2x1")
                         .jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
                 .buttonStyle(.plain)

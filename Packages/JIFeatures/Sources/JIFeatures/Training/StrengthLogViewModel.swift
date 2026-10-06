@@ -33,6 +33,8 @@ public nonisolated struct StrengthLogLift: Sendable, Equatable, Identifiable {
         return nil
     }
     public var isTimed: Bool { timedSeconds != nil }
+    /// W-FIX-P3 RG-67: no load prescribed (0 / nil kg, never a next weight) — pull-ups, push-ups, dips.
+    public var isBodyweight: Bool { (currentKg ?? 0) <= 0 && (nextKg ?? 0) <= 0 }
 }
 
 /// The selected training's exercises (same pick as the hero: by session id, else by name), each
@@ -66,6 +68,12 @@ public nonisolated enum StrengthLoad: Sendable, Equatable {
     public static func of(_ exerciseKey: String) -> StrengthLoad {
         let name = Progression.normalizedName(exerciseKey)
         return name.hasPrefix("db ") || name.contains("dumbbell") ? .dumbbell : .barbell
+    }
+
+    /// W-FIX-P3 RG-67: a kettlebell ("KB Swing 12 kg") is one fixed weight — no plates to load.
+    public static func isFixedWeight(_ exerciseKey: String) -> Bool {
+        let name = Progression.normalizedName(exerciseKey)
+        return name.hasPrefix("kb ") || name.contains("kettlebell")
     }
 }
 
