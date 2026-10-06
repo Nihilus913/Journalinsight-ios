@@ -6,7 +6,7 @@ import SwiftUI
 public struct ScoreRing: View {
     public nonisolated static let defaultSize: CGFloat = 44
     let value: Double, max: Double, tint: Color
-    @ScaledMetric private var size: CGFloat
+    @ScaledMetric private var scaledSize: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.jiTheme) private var theme
     @Environment(\.jiRevealAnimations) private var revealAnimations
@@ -15,10 +15,19 @@ public struct ScoreRing: View {
     /// Off for reduced motion and for snapshot renders (§8.5): the ring paints its FINAL value.
     private var animatesReveal: Bool { revealAnimations && !reduceMotion }
 
-    public init(value: Double, max: Double, tint: Color, size: CGFloat = ScoreRing.defaultSize) {
+    /// `scalesWithText: false` = `size` is already a Dynamic Type-scaled side (the caller's own
+    /// `@ScaledMetric`, e.g. DecideReadinessRing) and is used as-is. BUG1-7 (RG-21 side finding):
+    /// scaling it again here grew the ring by the AX factor squared at accessibility sizes.
+    public init(value: Double, max: Double, tint: Color, size: CGFloat = ScoreRing.defaultSize, scalesWithText: Bool = true) {
         self.value = value; self.max = max; self.tint = tint
-        _size = ScaledMetric(wrappedValue: size, relativeTo: .body)
+        self.baseSize = size
+        self.scalesWithText = scalesWithText
+        _scaledSize = ScaledMetric(wrappedValue: size, relativeTo: .body)
     }
+
+    private let baseSize: CGFloat
+    private let scalesWithText: Bool
+    private var size: CGFloat { scalesWithText ? scaledSize : baseSize }
 
     private var fraction: Double { ringFraction(value: value, max: max) }
 

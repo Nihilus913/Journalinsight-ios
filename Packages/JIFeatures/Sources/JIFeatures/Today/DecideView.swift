@@ -868,7 +868,7 @@ struct DecideReadinessRing: View {
         VStack(spacing: 4) {
             ZStack {
                 if let score {
-                    ScoreRing(value: score, max: 100, tint: theme.color(.text), size: side)
+                    ScoreRing(value: score, max: 100, tint: theme.color(.text), size: side, scalesWithText: false)   // BUG1-7: `side` is already scaled
                     Text(jiNumber(score, 0)).jiNumeral(.numeralSmall, tint: .text)
                 } else {
                     Circle().stroke(theme.color(.nested), lineWidth: side * 0.14).frame(width: side, height: side)

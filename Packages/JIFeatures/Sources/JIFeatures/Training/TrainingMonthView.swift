@@ -123,7 +123,14 @@ public struct TrainingMonthView: View {
         .accessibilityIdentifier("training-month-day-\(day.date)")
     }
 
-    private var legend: some View {
+    private var legend: some View { TrainingMonthLegend() }
+}
+
+/// The Month legend (states + session kinds). Its own view so a render test can shoot it (BUG1-7).
+struct TrainingMonthLegend: View {
+    private let theme = JITheme.native
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(trainingMonthLegendStates)
             Text(trainingMonthLegendKinds)
@@ -178,6 +185,9 @@ struct TrainingMonthDayRecord: View {
 }
 
 /// W-FIX-P3 RG-66: glyph and word joined by a no-break space so a line never ends on a bare "–".
-nonisolated let trainingMonthLegendStates = ["● Done", "◐ Partial", "○ Planned", "✕ Missed", "? Not synced", "– Rest"]
-    .map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") }.joined(separator: "   ")
+/// W-BUG1 BUG1-7: two balanced lines of three pairs — the single run wrapped at default size and
+/// left "– Rest" alone on its own line (the legend gap).
+nonisolated let trainingMonthLegendStates = [["● Done", "◐ Partial", "○ Planned"], ["✕ Missed", "? Not synced", "– Rest"]]
+    .map { line in line.map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") }.joined(separator: "   ") }
+    .joined(separator: "\n")
 nonisolated let trainingMonthLegendKinds = "S\u{00A0}strength · I\u{00A0}intervals · Z\u{00A0}zone 2"
