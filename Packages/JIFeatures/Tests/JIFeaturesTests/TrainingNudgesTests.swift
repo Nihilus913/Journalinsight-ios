@@ -63,7 +63,7 @@ import JIPersistence
     }
 
     @Test func workoutDayRequestIsADatedOneShotAt1730WithTheLoggerLink() throws {
-        let r = try #require(ReminderScheduler.workoutDayRequest(date: "2030-01-07", sessionName: "Upper A", time: WorkoutNudgePrefs.defaultTime))
+        let r = try #require(ReminderScheduler.workoutDayRequest(date: "2030-01-07", sessionName: "Upper A", time: WorkoutNudgePrefs.defaultTime, kind: .strength))
         #expect(r.identifier == "ji.reminders.workout-day.2030-01-07")
         let trig = try #require(r.trigger as? UNCalendarNotificationTrigger)
         #expect(!trig.repeats)

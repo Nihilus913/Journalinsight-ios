@@ -1511,6 +1511,8 @@ struct RootTabView: View {
         if case .checkIn = link { selectedTab = .today; showCheckIn = true; return }
         // B-43 P1: `ji://strength-log` (rest-end alert / Live Activity tap) opens the set logger.
         if link == .strengthLog { selectedTab = .training; StrengthLoggerOpenRequest.shared.request(); return }
+        // RG-65: `ji://training` (cardio day nudge) only focuses Training.
+        if link == .training { selectedTab = .training; return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)
