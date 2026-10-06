@@ -176,9 +176,10 @@ public struct VersionView: View {
             if let err = model.crashClearError {
                 Text(err).accessibilityIdentifier("version.crash.error")
             } else if model.crashes.count > 1 {
-                Text("\(model.crashes.count) reports stored on this phone (newest \(CrashLogStore.cap) kept). Copy and Share include all of them.")
+                Text("\(model.crashes.count) reports stored on this phone (newest \(CrashLogStore.cap) kept). Copy and Share include all of them. \(VersionViewModel.crashPendingNote)")
             } else {
-                Text("Stored on this phone only — never sent to the hub.")
+                Text("Stored on this phone only — never sent to the hub. \(VersionViewModel.crashPendingNote)")
+                    .accessibilityIdentifier("version.crash.footer")
             }
         }
     }
