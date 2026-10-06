@@ -31,6 +31,9 @@ public final class StrengthLogViewModel {
         // B-43 P1: every countdown change re-plans the background rest/timed-set end alert.
         didSet { if timer != oldValue { restAlert?.sync(timer, exercise: selected?.name, now: clock()) } }
     }
+    /// RG-76: true once the rest-alert permission ask came back denied/failed — the list shows
+    /// `RestEndAlert.offNotice` instead of silently dropping the Bool.
+    public private(set) var restAlertsOff = false
     /// Recomputed on `tick()` so the view redraws each second.
     public private(set) var remainingSeconds: Int?
 
@@ -46,6 +49,11 @@ public final class StrengthLogViewModel {
     @ObservationIgnored private var timedSetSeconds: Int?
     @ObservationIgnored private var timedSetStartedAt: Date?
     @ObservationIgnored var lastLiveSend: Task<Void, Never>?
+
+    /// RG-76: runs the permission ask and keeps its answer as visible state.
+    public func requestRestAlertPermission(_ ask: () async -> Bool) async {
+        restAlertsOff = !(await ask())
+    }
 
     public init(controller: StrengthWorkoutSessionController, bridge: StrengthSessionWatchBridge,
                 clock: @escaping () -> Date = { .now }, haptic: @escaping (StrengthLogHaptic) -> Void = { _ in },

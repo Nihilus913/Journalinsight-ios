@@ -25,7 +25,7 @@ let widgetTheme = JITheme.native
 /// B-57 W5: a glance signal's colour role from its word (the word always carries the status too).
 func widgetSignalRole(_ s: SnapshotSignal) -> JIColorRole {
     switch s.word {
-    case "Low", "High", "Below goal", "Watch": .reduced
+    case "Low", "High", "Below goal", "Caution": .reduced
     case "Red flag": .danger
     case "No reading": .muted
     default: .info
@@ -91,6 +91,7 @@ private struct GateWidgetView: View {
         content
             .jiTheme(.native)
             .containerBackground(theme.color(.bg), for: .widget)
+            .widgetURL(WidgetDeepLinks.gate)   // RG-80: tap opens Decide
     }
 
     /// B-57 W5 (boards 6/01–05): the call, the reason, plan progress; the arcs are gone — signals

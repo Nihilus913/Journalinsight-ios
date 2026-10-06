@@ -248,7 +248,7 @@ public struct PlannerView: View {
             }
             if !typeSize.isAccessibilitySize {
                 Spacer(minLength: JISpacing.s2)
-                Text(day.kind.rawValue).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
+                Text(day.kind.letter).jiFont(.caption, weight: .bold).foregroundStyle(theme.color(.muted))
                     .accessibilityHidden(true)
             }
         }

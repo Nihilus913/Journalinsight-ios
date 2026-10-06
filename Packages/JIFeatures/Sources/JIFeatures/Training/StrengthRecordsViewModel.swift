@@ -13,6 +13,10 @@ public final class StrengthRecordsViewModel {
     public private(set) var hubError: String?
     public private(set) var loading = false
     public private(set) var hasGarmin = false
+    /// W-FIX-P3 RG-61: some session came from the JI log (else the caption says "Garmin" only).
+    public private(set) var hasLog = false
+    /// W-FIX-P3 RG-61: today (yyyy-MM-dd) — the status and chart ranges end here.
+    public var todayISO: String { today() }
     public var selected: String?
 
     private let store: StrengthSessionLogStore?
@@ -73,6 +77,7 @@ public final class StrengthRecordsViewModel {
         }
         lifts = OneRepMax.histories(inputs).sorted { ($0.sessions.count, $1.lift) > ($1.sessions.count, $0.lift) }
         hasGarmin = lifts.contains { $0.sessions.contains { $0.sources.contains("garmin") } }
+        hasLog = lifts.contains { $0.sessions.contains { $0.sources.contains("logged") } }
     }
 
     /// Fixture seam for tests / previews.

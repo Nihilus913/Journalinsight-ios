@@ -43,7 +43,7 @@ struct Fix5L3Tests {
         #expect(decideSessionLiftShown(verdict: rest, sessionDetail: "Rest", lifts: [Self.lift]) == nil)
         let go = verdictParts("GO — Day 2 Full Upper")
         #expect(decideSessionLiftShown(verdict: go, sessionDetail: "Rest", lifts: [Self.lift]) == nil)
-        #expect(decideSessionLiftShown(verdict: go, sessionDetail: "Day 2 Full Upper", lifts: [Self.lift])?.kg == "50.0 kg")
+        #expect(decideSessionLiftShown(verdict: go, sessionDetail: "Day 2 Full Upper", lifts: [Self.lift])?.kg == "50 kg")
     }
 
     @Test func accessibilitySizesStackTheSessionRow() {

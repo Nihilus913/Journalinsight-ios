@@ -33,6 +33,8 @@ public nonisolated struct StrengthLogLift: Sendable, Equatable, Identifiable {
         return nil
     }
     public var isTimed: Bool { timedSeconds != nil }
+    /// W-FIX-P3 RG-67: no load prescribed (0 / nil kg, never a next weight) — pull-ups, push-ups, dips.
+    public var isBodyweight: Bool { (currentKg ?? 0) <= 0 && (nextKg ?? 0) <= 0 }
 }
 
 /// The selected training's exercises (same pick as the hero: by session id, else by name), each
@@ -66,6 +68,12 @@ public nonisolated enum StrengthLoad: Sendable, Equatable {
     public static func of(_ exerciseKey: String) -> StrengthLoad {
         let name = Progression.normalizedName(exerciseKey)
         return name.hasPrefix("db ") || name.contains("dumbbell") ? .dumbbell : .barbell
+    }
+
+    /// W-FIX-P3 RG-67: a kettlebell ("KB Swing 12 kg") is one fixed weight — no plates to load.
+    public static func isFixedWeight(_ exerciseKey: String) -> Bool {
+        let name = Progression.normalizedName(exerciseKey)
+        return name.hasPrefix("kb ") || name.contains("kettlebell")
     }
 }
 
@@ -128,6 +136,15 @@ public final class StrengthLogViewModel {
     }
     /// The rest the timer starts after a logged set.
     public var restSeconds = 90
+    /// RG-76: true once the rest-alert permission ask came back denied/failed — the logger shows
+    /// `RestEndAlert.offNotice` instead of silently dropping the Bool.
+    public private(set) var restAlertsOff = false
+
+    /// RG-76: runs the permission ask (default: `RestEndAlert.requestAuthorization()`) and keeps
+    /// its answer as visible state.
+    public func requestRestAlertPermission(_ ask: () async -> Bool = { await RestEndAlert.requestAuthorization() }) async {
+        restAlertsOff = !(await ask())
+    }
 
     public let sessionName: String?
     private let sessionId: Int?
@@ -335,8 +352,9 @@ public final class StrengthLogViewModel {
         guard let queue else { refreshPending(); return }
         let results = await queue.drainOnce()
         refreshPending()
-        if let queued = results.values.compactMap({ if case .queued(let m) = $0 { m } else { nil } }).first {
-            syncNote = pendingCount > 0 ? "\(pendingCount) change\(pendingCount == 1 ? "" : "s") saved on this phone — will send when the hub is reachable (\(queued))." : nil
+        if results.values.contains(where: { if case .queued = $0 { true } else { false } }) {
+            // W-FIX-P3 RG-69: friendly copy only — the raw system error stays out of the note.
+            syncNote = pendingCount > 0 ? strengthQueuedSyncNote(pending: pendingCount) : nil
         } else if let refused = results.values.compactMap({ if case .refused(let m) = $0 { m } else { nil } }).first {
             syncNote = "The hub refused a change: \(refused)"
         } else {
@@ -412,4 +430,9 @@ public nonisolated struct StrengthLogDeps: Sendable {
 
 public extension EnvironmentValues {
     @Entry var strengthLogDeps: StrengthLogDeps? = nil
+}
+
+/// W-FIX-P3 RG-69: the logger's offline note — no raw "(Could not connect to the server.)".
+public nonisolated func strengthQueuedSyncNote(pending: Int) -> String {
+    "\(pending) change\(pending == 1 ? "" : "s") saved on this phone — will send when the hub is reachable."
 }

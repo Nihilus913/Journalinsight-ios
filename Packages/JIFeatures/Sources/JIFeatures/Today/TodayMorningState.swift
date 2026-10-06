@@ -51,4 +51,17 @@ public nonisolated enum GateLaunch {
     public static func shouldOpenGate(localDay: String, lastAnsweredLocalDay: String?, forced: Bool) -> Bool {
         forced || lastAnsweredLocalDay != localDay
     }
+
+    /// RG-77: a scripted `-start-tab <tab>` launch lands on that tab — the first-launch-of-the-day
+    /// gate no longer yanks it back to Today (unless `-JIForceGate` asks for Decide explicitly).
+    public static func yieldsToStartTab(_ arguments: [String]) -> Bool {
+        arguments.contains("-start-tab") && !forcedByArguments(arguments)
+    }
+
+    /// RG-77: the cold-launch notification prompt must not pop over Decide. While the permission is
+    /// still undecided and Decide opens this launch, the ask waits for a later launch (after the
+    /// call is made); an already-decided status never prompts, so it proceeds as before.
+    public static func shouldAskNotificationsAtLaunch(undecided: Bool, gateOpens: Bool) -> Bool {
+        !(undecided && gateOpens)
+    }
 }

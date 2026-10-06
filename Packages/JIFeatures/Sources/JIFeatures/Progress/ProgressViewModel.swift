@@ -50,7 +50,10 @@ public final class ProgressViewModel {
     public nonisolated static let cardioFetchRange = "y"
 
     public private(set) var prefs = ProgressChartSelection.defaultPrefs()
+    /// The default range — a card the user has not set its own range on shows this one.
     public var range: TrendRange = .sixMonths
+    /// W-FIX-P3 RG-63: per-card ranges (a range picked on one card changes only that card).
+    public private(set) var ranges: [ProgressChartID: TrendRange] = [:]
     public private(set) var loading = false
     public private(set) var strengthError: String?
     public private(set) var cardioError: String?
@@ -63,6 +66,14 @@ public final class ProgressViewModel {
     private let prefStore: (any JIPrefStoring)?
     private let today: () -> String
     private var hub: StrengthRecordsOut?
+    /// W-FIX-P3 RG-69 (B-52): set while a section shows the hub's offline cached copy.
+    public private(set) var strengthStaleSince: Date?
+    public private(set) var cardioStaleSince: Date?
+
+    /// "Offline — showing data from 07:41" (the oldest cached copy shown), nil when all is live.
+    public var offlineText: String? {
+        [strengthStaleSince, cardioStaleSince].compactMap { $0 }.min().map { offlineReadCaption(since: $0) }
+    }
 
     public init(store: StrengthSessionLogStore?, provider: (any TrainingProviding)?,
                 cardioProvider: (any CardioSeriesProviding)?, prefStore: (any JIPrefStoring)?,
@@ -87,7 +98,8 @@ public final class ProgressViewModel {
     private func loadStrength() async {
         guard let provider else { return }
         do {
-            hub = try await provider.strengthRecords()
+            let (value, since) = try await HubReadTrace.collect { try await provider.strengthRecords() }
+            hub = value; strengthStaleSince = since
             strengthError = nil
         } catch is StrengthRecordsUnavailable {
             strengthError = nil
@@ -100,7 +112,10 @@ public final class ProgressViewModel {
     private func loadCardio() async {
         guard let cardioProvider else { return }
         do {
-            cardio = try await cardioProvider.cardioSeries(range: Self.cardioFetchRange)
+            let (value, since) = try await HubReadTrace.collect {
+                try await cardioProvider.cardioSeries(range: Self.cardioFetchRange)
+            }
+            cardio = value; cardioStaleSince = since
             cardioError = nil
         } catch {
             cardioError = StrengthOutbox.describe(error)
@@ -196,12 +211,27 @@ public final class ProgressViewModel {
 
     // MARK: - Cards
 
-    private var rangeStart: String {
+    /// W-FIX-P3 RG-63: the ranges a card offers — a strength chart has at most one session a
+    /// day, so "D" is not offered there.
+    public nonisolated static func rangeOptions(for id: ProgressChartID) -> [TrendRange] {
+        isStrength(id) ? TrendRange.allCases.filter { $0 != .day } : TrendRange.allCases
+    }
+
+    /// This card's range: its own pick, else the default; never one the card does not offer.
+    public func range(for id: ProgressChartID) -> TrendRange {
+        let r = ranges[id] ?? range
+        return Self.rangeOptions(for: id).contains(r) ? r : .week
+    }
+
+    public func setRange(_ r: TrendRange, for id: ProgressChartID) { ranges[id] = r }
+
+    private func rangeStart(_ range: TrendRange) -> String {
         (try? CalendarMath.addDays(today(), -range.days)) ?? "0000-01-01"
     }
 
     public func card(_ id: ProgressChartID) -> ProgressCard {
-        let from = rangeStart
+        let range = range(for: id)
+        let from = rangeStart(range)
         let pinned = ProgressChartSelection.isPinned(prefs, id)
         switch id {
         case let .lift(key, metric):

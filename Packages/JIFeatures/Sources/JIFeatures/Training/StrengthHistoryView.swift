@@ -22,7 +22,7 @@ public struct StrengthHistoryView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("strength-history-hub-error")
                 }
-                if model.entries.isEmpty {
+                if model.entries.isEmpty && model.garmin.isEmpty {
                     Surface { Text("No logged sessions yet.").jiFont(.body).foregroundStyle(theme.color(.muted)) }
                         .accessibilityIdentifier("strength-history-empty")
                 }
@@ -50,6 +50,27 @@ public struct StrengthHistoryView: View {
                         }
                     }
                     .accessibilityIdentifier("strength-history-\(entry.session.date)")
+                }
+                // W-FIX-P3 RG-61: Garmin's strength days, under the JI-logged ones.
+                if !model.garmin.isEmpty {
+                    JISectionHeader("From Garmin · \(model.garmin.count) session\(model.garmin.count == 1 ? "" : "s")")
+                        .accessibilityIdentifier("strength-history-garmin-header")
+                    ForEach(model.garmin) { g in
+                        Surface(level: 1, padding: JISpacing.cardPadding) {
+                            VStack(alignment: .leading, spacing: JISpacing.s2) {
+                                Text(Self.dateTitle(g.date)).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                                ForEach(g.lifts, id: \.lift) { l in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(l.lift).jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
+                                        Text(l.line).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .accessibilityElement(children: .combine)
+                                }
+                            }
+                        }
+                        .accessibilityIdentifier("strength-history-garmin-\(g.date)")
+                    }
                 }
             }
             .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)

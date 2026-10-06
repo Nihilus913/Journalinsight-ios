@@ -34,7 +34,7 @@ public struct SnapshotSignal: Codable, Hashable, Sendable {
         if let goal { return value >= goal ? "Enough" : "Below goal" }
         switch status {
         case "red": return "Red flag"
-        case "amber": return "Watch"
+        case "amber": return "Caution"   // RG-87: "Watch" is the device
         case "context": return "Context"
         default: return "OK"
         }

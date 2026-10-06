@@ -50,7 +50,7 @@ public struct MealTimeline: View {
                         .accessibilityLabel("\(row.title), \(row.trailing). \(row.subtitle)")
                     }
                 } else {
-                    Text("No meals in Apple Health yet for this day.").jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    Text(mealTimelineEmptyText).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .padding(.vertical, JIRowMetrics.verticalPadding)
                         .accessibilityIdentifier("meal-timeline-empty")
                 }
@@ -72,3 +72,7 @@ public struct MealTimeline: View {
         return known + extras
     }
 }
+
+/// W-FIX-P3 RG-83: the meal list is always YAZIO's (via the hub; Health holds day sums only),
+/// so the empty state names that one source on every day.
+public nonisolated let mealTimelineEmptyText = "No meals from YAZIO yet for this day."

@@ -179,6 +179,28 @@ struct DecideStrainCard: View {
     }
 }
 
+/// RG-55: the fill's width on a 0–100 bar `width` wide; nil at 0 (nothing drawn, never a dot).
+public nonisolated func decideStrainFillWidth(value: Double, width: CGFloat) -> CGFloat? {
+    guard value > 0, width > 0 else { return nil }
+    return max(4, CGFloat(min(value, 100) / 100) * width)
+}
+
+/// RG-55: the label under the bar — the usual band ("19–49", centred on the band) or the max
+/// marker ("max 60", centred on the marker), with its 0–100 centre.
+public nonisolated func decideStrainBarLabel(band: ClosedRange<Double>?, marker: Double?) -> (text: String, center: Double)? {
+    if let band { return ("\(jiNumber(band.lowerBound, 0))–\(jiNumber(band.upperBound, 0))", (band.lowerBound + band.upperBound) / 2) }
+    if let marker { return ("max \(jiNumber(marker, 0))", marker) }
+    return nil
+}
+
+/// RG-55: the label's x on a bar `width` wide — under its 0–100 centre, kept `inset` clear of the
+/// "0" / "100" end labels.
+public nonisolated func decideStrainLabelX(center: Double, width: CGFloat, inset: CGFloat = 32) -> CGFloat {
+    let x = CGFloat(min(max(center, 0), 100) / 100) * width
+    guard width > 2 * inset else { return width / 2 }
+    return min(max(x, inset), width - inset)
+}
+
 /// 0–100 bar: the usual band shaded (before) or a marker at the max (after); the fill is the value.
 /// Never a verdict colour (rule 6): the fill wears the info role, the band the nested fill.
 struct DecideStrainBar: View {
@@ -199,7 +221,10 @@ struct DecideStrainBar: View {
                             .frame(width: max(2, x(band.upperBound) - x(band.lowerBound)))
                             .offset(x: x(band.lowerBound))
                     }
-                    Capsule().fill(theme.color(.info)).frame(width: max(4, x(value)))
+                    // RG-55: a 0 strain draws no fill at all (was a 4 pt dot that read as a status mark).
+                    if let fill = decideStrainFillWidth(value: value, width: w) {
+                        Capsule().fill(theme.color(.info)).frame(width: fill)
+                    }
                     if let marker {
                         Rectangle().fill(theme.color(.text)).frame(width: 2, height: 14)
                             .offset(x: x(marker) - 1)
@@ -209,13 +234,19 @@ struct DecideStrainBar: View {
                 .frame(maxHeight: .infinity)
             }
             .frame(height: 14)
+            // RG-55: the band / max label sits under its band or marker, not centred between Spacers.
             HStack {
                 Text("0")
                 Spacer()
-                if let band { Text("\(jiNumber(band.lowerBound, 0))–\(jiNumber(band.upperBound, 0))") }
-                if let marker { Text("max \(jiNumber(marker, 0))") }
-                Spacer()
                 Text("100")
+            }
+            .overlay {
+                if let label = decideStrainBarLabel(band: band, marker: marker) {
+                    GeometryReader { g in
+                        Text(label.text).fixedSize()
+                            .position(x: decideStrainLabelX(center: label.center, width: g.size.width), y: g.size.height / 2)
+                    }
+                }
             }
             .jiFont(.micro).foregroundStyle(theme.color(.muted))
         }

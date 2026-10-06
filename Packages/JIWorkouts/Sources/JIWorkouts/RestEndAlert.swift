@@ -63,6 +63,9 @@ public final class RestEndAlert {
     /// Waits until every queued remove/add has reached the centre (tests).
     public func flush() async { await chain?.value }
 
+    /// RG-76: what the phone and watch loggers show when the permission ask came back false.
+    public nonisolated static let offNotice = "Notifications off — rest alerts won't show. Turn them on in Settings."
+
     /// Asks once for alert permission (no-op when already decided); false on denial or failure.
     public static func requestAuthorization(_ center: UNUserNotificationCenter = .current()) async -> Bool {
         let status = await center.notificationSettings().authorizationStatus
