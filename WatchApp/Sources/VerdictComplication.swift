@@ -78,21 +78,26 @@ private extension HubSnapshot {
 
 public nonisolated struct VerdictComplicationProvider: TimelineProvider {
     private let store: SnapshotStore
+    /// W-B78: the watch-local copy `WatchSnapshotStore.apply` persists from the phone's push.
+    private let local: SnapshotStore
 
-    public init(suiteName: String = watchAppGroupSuite) {
+    public init(suiteName: String = watchAppGroupSuite, local: UserDefaults = .standard) {
         self.store = SnapshotStore(suiteName: suiteName)
+        self.local = SnapshotStore(defaults: local)
     }
+
+    private func read() -> HubSnapshot? { WatchSnapshotStore.read(local: local, group: store) }
 
     public func placeholder(in context: Context) -> VerdictComplicationEntry {
         VerdictComplicationEntry(date: Date(), verdictWord: "GO", tone: "go")
     }
 
     public func getSnapshot(in context: Context, completion: @escaping (VerdictComplicationEntry) -> Void) {
-        completion(complicationTimelineEntries(from: store.read()).first ?? placeholder(in: context))
+        completion(complicationTimelineEntries(from: read()).first ?? placeholder(in: context))
     }
 
     public func getTimeline(in context: Context, completion: @escaping (Timeline<VerdictComplicationEntry>) -> Void) {
-        let entries = complicationTimelineEntries(from: store.read())
+        let entries = complicationTimelineEntries(from: read())
         completion(Timeline(entries: entries, policy: .never))
     }
 }

@@ -39,13 +39,30 @@ final class StrengthLogComposition {
             restAlert: RestEndAlert(center: center))
         self.model = model
         // RG-76: a denied permission becomes the list's 'Notifications off' line.
-        Task { await model.requestRestAlertPermission { await RestEndAlert.requestAuthorization(center) } }
+        #if DEBUG
+        // W-B78: the `WATCH_FAKE_SNAPSHOT=1` screenshot seam must not sit behind the system alert.
+        let askPermission = WatchSnapshotStore.debugFakeSnapshotData(environment: ProcessInfo.processInfo.environment) == nil
+        #else
+        let askPermission = true
+        #endif
+        if askPermission {
+            Task { await model.requestRestAlertPermission { await RestEndAlert.requestAuthorization(center) } }
+        }
         #else
         model = StrengthLogViewModel(
             controller: StrengthWorkoutSessionController(engine: FakeStrengthWorkoutEngine()),
             bridge: StrengthSessionWatchBridge(transport: FakeStrengthBridgeTransport()))
         #endif
         StrengthSessionLauncher.shared.model = model
+    }
+
+    /// W-B78 (B-78): the HubSnapshot rides the SAME WCSession (one transport, one delegate) —
+    /// live contexts go to `store.apply`, and a context delivered before launch is applied now.
+    func connectSnapshots(_ store: WatchSnapshotStore) {
+        #if os(watchOS)
+        transport.onSnapshotContext = { [weak store] in store?.apply($0) }
+        store.apply(context: transport.receivedApplicationContext)
+        #endif
     }
 
     /// Sets go over the mirrored session while it runs; `transferUserInfo` otherwise (B-3).

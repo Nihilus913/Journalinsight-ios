@@ -26,7 +26,7 @@ public struct SnapshotStore: Sendable {
     /// — e.g. the Xcode 27 RC resolves `suiteName: ""` to the real standard-defaults domain
     /// rather than returning `nil` — so a bogus-name string can no longer stand in for
     /// "unavailable" in tests.
-    init(defaults: UserDefaults?) {
+    public init(defaults: UserDefaults?) {
         self.defaults = defaults
     }
 

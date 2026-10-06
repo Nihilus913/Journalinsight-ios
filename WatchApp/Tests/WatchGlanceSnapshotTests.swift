@@ -34,9 +34,16 @@ struct WatchGlanceSnapshotTests {
     static func seededStore(_ snapshot: HubSnapshot) -> (WatchSnapshotStore, suiteName: String) {
         let suiteName = "ji.watch.glance.tests.\(UUID().uuidString)"
         SnapshotStore(suiteName: suiteName).write(snapshot)
-        let store = WatchSnapshotStore(suiteName: suiteName)
+        // Isolated watch-local suite: the test host IS the watch app, whose `.standard` may hold a
+        // wire copy (W-B78) from an earlier launch.
+        let store = WatchSnapshotStore(suiteName: suiteName, local: isolatedLocal(), reloadTimelines: {})
         store.refresh()
         return (store, suiteName)
+    }
+
+    /// A fresh, empty watch-local suite (never `.standard`).
+    static func isolatedLocal() -> UserDefaults {
+        UserDefaults(suiteName: "ji.watch.local.tests.\(UUID().uuidString)")!
     }
 
     @Test @MainActor
@@ -76,10 +83,106 @@ struct WatchGlanceSnapshotTests {
     @Test @MainActor
     func noSnapshotRendersNoDataYetNotAZero() {
         let suiteName = "ji.watch.glance.tests.empty.\(UUID().uuidString)"
-        let store = WatchSnapshotStore(suiteName: suiteName)
+        let store = WatchSnapshotStore(suiteName: suiteName, local: Self.isolatedLocal(), reloadTimelines: {})
         defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
 
         #expect(store.snapshot == nil)
         #expect(verdictGlanceAccessibilityLabel(store.snapshot) == "Verdict, no data yet")
+    }
+
+    // MARK: - W-B78 B78-3: phone → watch WatchConnectivity receive
+
+    /// A fresh store with an empty App-Group suite and an injected watch-local suite (stands in
+    /// for `UserDefaults.standard` so the tests never touch the real one).
+    @MainActor
+    static func wireStore(localSuite: String, reloads: Counter = Counter()) -> WatchSnapshotStore {
+        WatchSnapshotStore(
+            suiteName: "ji.watch.glance.tests.group.\(UUID().uuidString)",
+            local: UserDefaults(suiteName: localSuite)!,
+            reloadTimelines: { reloads.count += 1 })
+    }
+
+    final class Counter: @unchecked Sendable { var count = 0 }
+
+    @Test @MainActor
+    func appliedWireBytesPopulateAllThreeGlances() throws {
+        let localSuite = "ji.watch.local.tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: localSuite)?.removePersistentDomain(forName: localSuite) }
+        let reloads = Counter()
+        let store = Self.wireStore(localSuite: localSuite, reloads: reloads)
+        #expect(store.snapshot == nil)
+
+        #expect(store.apply(try SnapshotWire.encode(Self.makeSnapshot())))
+        #expect(verdictGlanceAccessibilityLabel(store.snapshot) == "Verdict GO Full-upper session")
+        #expect(store.snapshot?.readiness == 82.0)
+        #expect(store.snapshot?.kpis.map(kpiValueText) == ["61 ms", "48 bpm", "—"])
+        #expect(reloads.count == 1) // VerdictComplication reload on receive only
+    }
+
+    @Test @MainActor
+    func receivedApplicationContextIsApplied() throws {
+        let localSuite = "ji.watch.local.tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: localSuite)?.removePersistentDomain(forName: localSuite) }
+        let store = Self.wireStore(localSuite: localSuite)
+        let context: [String: Any] = [SnapshotWire.key: try SnapshotWire.encode(Self.makeSnapshot()), "strengthPlan": Data("{}".utf8)]
+
+        #expect(store.apply(context: context))
+        #expect(store.snapshot == Self.makeSnapshot())
+        #expect(!store.apply(context: ["strengthPlan": Data("{}".utf8)])) // no snapshot key → nothing
+        #expect(store.snapshot == Self.makeSnapshot())
+    }
+
+    @Test @MainActor
+    func relaunchReadsTheStoredWatchLocalCopy() throws {
+        let localSuite = "ji.watch.local.tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: localSuite)?.removePersistentDomain(forName: localSuite) }
+        _ = Self.wireStore(localSuite: localSuite).apply(try SnapshotWire.encode(Self.makeSnapshot()))
+
+        // Offline relaunch: a new store, no phone, same watch-local defaults.
+        let relaunched = Self.wireStore(localSuite: localSuite)
+        #expect(relaunched.snapshot == Self.makeSnapshot())
+        relaunched.refresh()
+        #expect(relaunched.snapshot == Self.makeSnapshot())
+    }
+
+    @Test @MainActor
+    func garbageIsIgnoredAndKeepsTheLastGoodCopy() throws {
+        let localSuite = "ji.watch.local.tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: localSuite)?.removePersistentDomain(forName: localSuite) }
+        let reloads = Counter()
+        let store = Self.wireStore(localSuite: localSuite, reloads: reloads)
+        _ = store.apply(try SnapshotWire.encode(Self.makeSnapshot()))
+
+        #expect(!store.apply(Data("not a snapshot".utf8)))
+        #expect(store.snapshot == Self.makeSnapshot())
+        #expect(Self.wireStore(localSuite: localSuite).snapshot == Self.makeSnapshot())
+        #expect(reloads.count == 1)
+    }
+
+    @Test @MainActor
+    func wireCopyWinsOverTheAppGroupCopy() throws {
+        let localSuite = "ji.watch.local.tests.\(UUID().uuidString)"
+        let groupSuite = "ji.watch.glance.tests.group.\(UUID().uuidString)"
+        defer {
+            UserDefaults(suiteName: localSuite)?.removePersistentDomain(forName: localSuite)
+            UserDefaults(suiteName: groupSuite)?.removePersistentDomain(forName: groupSuite)
+        }
+        var old = Self.makeSnapshot(); old.verdictWord = "REST"
+        SnapshotStore(suiteName: groupSuite).write(old)
+        let store = WatchSnapshotStore(suiteName: groupSuite, local: UserDefaults(suiteName: localSuite)!, reloadTimelines: {})
+        #expect(store.snapshot?.verdictWord == "REST") // App-Group fallback (sim / pre-B-78)
+        _ = store.apply(try SnapshotWire.encode(Self.makeSnapshot()))
+        store.refresh()
+        #expect(store.snapshot?.verdictWord == "GO")
+    }
+
+    @Test
+    func debugSeamFeedsAFakeSnapshotOnlyWhenAsked() throws {
+        #expect(WatchSnapshotStore.debugFakeSnapshotData(environment: [:]) == nil)
+        let data = try #require(WatchSnapshotStore.debugFakeSnapshotData(environment: ["WATCH_FAKE_SNAPSHOT": "1"]))
+        let snap = try #require(SnapshotWire.decode(data))
+        #expect(!snap.verdictWord.isEmpty)
+        #expect(snap.readiness != nil)
+        #expect(!snap.kpis.isEmpty)
     }
 }
