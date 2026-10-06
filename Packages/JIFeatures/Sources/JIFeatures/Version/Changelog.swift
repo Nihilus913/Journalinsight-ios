@@ -42,6 +42,23 @@ public nonisolated enum Changelog {
         ]
     )
 
+    /// W-FIX-P3 RG-79: the wave-3 releases merged after the 2.2.0 overnight (B-52, B-91, B-99,
+    /// B-94, B-90, B-95, B-89, B-44od). A new version, so two OTA builds no longer share "2.2.0".
+    public static let waveThreeEntry = ChangelogEntry(
+        version: "2.2.1",
+        date: "2026-10-06",
+        title: "Strain, muscle load, diet quality and offline training",
+        items: [
+            "Training works offline: moving a session to another weekday is saved on this phone first and sent to the hub when it is back; the week shows the last plan this phone holds",
+            "Strain: a Daily Strain from 0 to 100 with a target window for today and a named load status (acute vs. chronic)",
+            "Nutrition: a Diet quality score for each day, with how it is worked out",
+            "Progress charts for strength and cardio: pin, reorder and hide the charts you want",
+            "Muscle load and freshness per muscle group from your strength sessions",
+            "Workouts: time in each heart-rate zone over a week, a month or 6 months",
+            "Personal records and the estimated one-rep max trend for each lift",
+            "The morning verdict is also worked out on this phone and compared with the hub's (comparison only — the hub verdict still decides)",
+        ])
+
     // W-FIX11 H2-22: "2.0.0 · 25 Sep" stayed the installed entry through FIX6–FIX11, Targets, the
     // workout and Apple Health waves. 2.1.0 is the release they make; the About screen marks it.
     /// B-18 p3 (overnight 2026-10-05): the crash-log section plus the other rows merged that night.
@@ -108,7 +125,7 @@ public nonisolated enum Changelog {
         ]
     )
 
-    public static let swiftEntries: [ChangelogEntry] = [crashLogEntry, targetsEntry, fixesEntry, morningFlowEntry, nativeLookEntry, swiftNativeEntry]
+    public static let swiftEntries: [ChangelogEntry] = [waveThreeEntry, crashLogEntry, targetsEntry, fixesEntry, morningFlowEntry, nativeLookEntry, swiftNativeEntry]
 
     /// What the screen renders: Swift entries first, then every RN entry (newest first).
     public static let entries: [ChangelogEntry] = swiftEntries + rnEntries
