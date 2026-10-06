@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PBX="${1:-JournalInsight.xcodeproj/project.pbxproj}"
-DIRS=(App AppTests AppUITests Widgets/Sources WatchApp/Sources WatchApp/Tests)
+DIRS=(App AppTests AppUITests Widgets/Sources WatchApp/Sources WatchApp/Tests WatchWidgets/Sources)
 missing=0; checked=0
 for d in "${DIRS[@]}"; do
   [ -d "$d" ] || continue

@@ -48,6 +48,10 @@ public final class WatchSnapshotStore: ObservableObject {
     public func apply(_ data: Data) -> Bool {
         guard let received = SnapshotWire.decode(data) else { return false }
         local.write(received)
+        // W-BUG1 BUG1-3 (B-130): the complication runs in the WatchWidgets extension — another
+        // process with its own `.standard` defaults. On the watch the App Group container is
+        // watch-local and shared by the watch app + its extension, so mirror the copy there.
+        store.write(received)
         snapshot = received
         reloadTimelines()
         return true

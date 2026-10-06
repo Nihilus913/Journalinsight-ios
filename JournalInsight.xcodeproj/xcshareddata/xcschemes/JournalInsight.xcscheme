@@ -71,6 +71,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "387991B21FF0C62925F84CDA"
+               BuildableName = "WatchWidgets.appex"
+               BlueprintName = "WatchWidgets"
+               ReferencedContainer = "container:JournalInsight.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "2386FC5B4492C9D335F7EB74"
                BuildableName = "Widgets.appex"
                BlueprintName = "Widgets"
