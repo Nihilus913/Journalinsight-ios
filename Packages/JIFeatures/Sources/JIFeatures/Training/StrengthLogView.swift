@@ -3,6 +3,7 @@ import JICore
 import JICompute
 import JIDesign
 import JIPersistence
+import JIWorkouts
 
 /// W-B38-A A-10 — the iPhone strength logger ("Log sets" from Training's Start session). Native
 /// controls (TextField / Stepper / Toggle / Menu) inside the W-GUI primitives (ScreenScroll,
@@ -31,6 +32,11 @@ public struct StrengthLogView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("strength-log-title")
+                }
+                if model.restAlertsOff {
+                    Text(RestEndAlert.offNotice).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("strength-log-notifications-off")
                 }
                 if model.timer.phase != .idle { StrengthRestTimer(model: model) }
                 if model.cards.isEmpty {

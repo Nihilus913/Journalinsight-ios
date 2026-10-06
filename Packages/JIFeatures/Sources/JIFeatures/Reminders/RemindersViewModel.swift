@@ -207,7 +207,7 @@ public final class RemindersViewModel {
         if trainingNudges.workoutDayEnabled {
             let current = WorkoutNudgePrefs.load(prefs)   // the planned days the week summary last cached
             let days = current.planned.filter { $0.key >= today() && $0.key != current.doneDate }
-            await scheduler.scheduleWorkoutDays(days, at: trainingNudges.workoutDayTime, now: now())
+            await scheduler.scheduleWorkoutDays(days, at: trainingNudges.workoutDayTime, now: now(), kinds: current.plannedKinds)
         } else {
             await scheduler.cancelWorkoutDays()
         }

@@ -28,6 +28,9 @@ struct StrengthExerciseList: View {
             Section {
                 StrengthCapGauge(model: model)
                 sessionButton
+                if model.restAlertsOff {
+                    Text(RestEndAlert.offNotice).jiFont(.micro).foregroundStyle(theme.color(.muted))
+                }
             }
             if model.exercises.isEmpty {
                 Text("Open today's training on your iPhone to send the plan here.")

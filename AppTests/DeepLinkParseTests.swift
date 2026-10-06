@@ -49,3 +49,10 @@ import Foundation
     #expect(DeepLink.parse(URL(string: "ji:///strength-log")!) == .strengthLog)
     #expect(RootRoute.destination(for: .strengthLog) == nil)
 }
+
+// RG-65: a cardio day's workout-day nudge opens Training (never the strength logger).
+@Test func trainingLinkParses() {
+    #expect(DeepLink.parse(URL(string: "ji://training")!) == .training)
+    #expect(DeepLink.parse(URL(string: "ji:///training")!) == .training)
+    #expect(RootRoute.destination(for: .training) == nil)
+}
