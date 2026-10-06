@@ -27,11 +27,20 @@ public enum ZoneTimeSpan: String, CaseIterable, Identifiable, Sendable {
     var usesHours: Bool { self == .sixMonths }
 }
 
+/// W-FIX-P3 RG-62: which sessions count — the hub's `scope=cardio|all`.
+public nonisolated enum ZoneTimeScope: String, CaseIterable, Identifiable, Sendable {
+    case cardio, all
+    public var id: String { rawValue }
+    public var title: String { self == .cardio ? "Cardio" : "All workouts" }
+}
+
 @MainActor @Observable
 public final class ZoneTimeModel {
     public enum Phase: Equatable { case loading, loaded(ZoneTimeRange), unavailable, error(String) }
     public private(set) var phase: Phase = .loading
     public var span: ZoneTimeSpan
+    /// W-FIX-P3 RG-62: cardio by default; "All workouts" adds strength and the rest.
+    public var scope: ZoneTimeScope = .cardio
     @ObservationIgnored private let provider: (any ZoneTimeProviding)?
     @ObservationIgnored private let today: () -> DayKey
 
@@ -42,13 +51,15 @@ public final class ZoneTimeModel {
     public func load() async {
         guard let provider else { phase = .unavailable; return }
         let w = span.window(today: today())
-        if case .loaded = phase {} else { phase = .loading }
+        // W-FIX-P3 RG-62: a loaded range of ANOTHER span/scope is replaced by the spinner at once —
+        // the old bars never sit under the new picker value. A same-window refresh keeps them.
+        if case .loaded(let r) = phase, r.from == w.from.iso, r.bucket == w.bucket, r.scope == scope.rawValue {} else { phase = .loading }
         do {
-            phase = .loaded(try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: "cardio"))
+            phase = .loaded(try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: scope.rawValue))
         } catch HubError.http(status: 404, _) {
             phase = .unavailable
         } catch {
-            phase = .error(String(describing: error))
+            phase = .error(zoneTimeErrorText(error))
         }
     }
 }
@@ -76,6 +87,34 @@ func zoneBucketLabel(_ iso: String, span: ZoneTimeSpan) -> String {
     return span == .week ? d.string(format: "EEE") : d.string(format: "d MMM")
 }
 
+/// W-FIX-P3 RG-62: what the user reads when the range fails — never a raw Swift error string.
+nonisolated func zoneTimeErrorText(_ error: any Error) -> String {
+    let offline = "Can't reach the hub — check your connection and pull to retry."
+    switch error {
+    case HubError.unauthorized: return "The hub rejected the token — check Settings › Connection."
+    case HubError.network: return offline
+    case HubError.decoding: return "The hub sent data this app can't read — update the app or the hub."
+    case HubError.http(let status, _): return "The hub couldn't build this range (error \(status)). Try again later."
+    case is URLError: return offline
+    default: return "Something went wrong loading time in zone. Pull to retry."
+    }
+}
+
+/// W-FIX-P3 RG-62: all five floors ("Your zones · Z1 97 · Z2 117 · … bpm").
+nonisolated func zoneFloorsText(_ floors: [Int]) -> String {
+    "Your zones · " + floors.enumerated().map { "Z\($0.offset + 1) \($0.element)" }.joined(separator: " · ") + " bpm"
+}
+
+/// W-FIX-P3 RG-62: the x labels drawn — every 2nd at an accessibility text size (W, M), every
+/// 5th (6M) / 10th at AX — so neighbouring labels never overlap.
+nonisolated func zoneAxisLabels(_ labels: [String], span: ZoneTimeSpan, accessibility: Bool) -> [String] {
+    let step: Int = switch span {
+    case .week, .month: accessibility ? 2 : 1
+    case .sixMonths: accessibility ? 10 : 5
+    }
+    return labels.enumerated().filter { $0.offset % step == 0 }.map(\.element)
+}
+
 func zoneTotalText(_ minutes: Double) -> String {
     minutes >= 120 ? String(format: "%.1f h", minutes / 60) : "\(Int(minutes.rounded())) min"
 }
@@ -83,6 +122,7 @@ func zoneTotalText(_ minutes: Double) -> String {
 public struct ZoneTimeChartView: View {
     @Bindable var model: ZoneTimeModel
     private let theme = JITheme.native
+    @Environment(\.dynamicTypeSize) private var typeSize
     public init(model: ZoneTimeModel) { self.model = model }
 
     public var body: some View {
@@ -93,6 +133,12 @@ public struct ZoneTimeChartView: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("zone-time-range")
+                // W-FIX-P3 RG-62: scope selectable (cardio / all workouts).
+                Picker("Sessions", selection: $model.scope) {
+                    ForEach(ZoneTimeScope.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("zone-time-scope")
                 content
             }
             .padding(.horizontal, JISpacing.s4).padding(.vertical, JISpacing.s3)
@@ -100,19 +146,28 @@ public struct ZoneTimeChartView: View {
         .background(theme.color(.bg).ignoresSafeArea())
         .navigationTitle("Time in zone")
         .navigationBarTitleDisplayMode(.large)
-        .task(id: model.span) { await model.load() }
+        .task(id: "\(model.span.rawValue)-\(model.scope.rawValue)") { await model.load() }
+        .refreshable { await model.load() }
         .jiTheme(.native)
     }
 
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .loading:
-            Surface(level: 1) { RoundedRectangle(cornerRadius: 12).fill(theme.color(.muted).opacity(0.12)).frame(height: 220) }
-                .accessibilityLabel("Loading")
+            Surface(level: 1) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(theme.color(.muted).opacity(0.12))
+                    ProgressView()
+                }
+                .frame(height: 220)
+            }
+            .accessibilityLabel("Loading")
+            .accessibilityIdentifier("zone-time-loading")
         case .unavailable:
             note("Time in zone needs the hub.", "Connect to a hub that serves /training/zones.")
         case .error(let message):
             note("Couldn't load time in zone.", message)
+                .accessibilityIdentifier("zone-time-error")
         case .loaded(let r):
             loaded(r)
         }
@@ -120,14 +175,15 @@ public struct ZoneTimeChartView: View {
 
     @ViewBuilder private func loaded(_ r: ZoneTimeRange) -> some View {
         if let floors = r.floors {
-            Text("Your zones · " + floors.dropFirst().map(String.init).joined(separator: " / ") + " bpm")
+            Text(zoneFloorsText(floors))
                 .jiFont(.caption).foregroundStyle(theme.color(.muted))
             let w = model.span.window(today: DayKey(iso: r.to) ?? DayKey.today())
             Surface(level: 1) {
                 VStack(alignment: .leading, spacing: JISpacing.s2) {
                     Text("\(w.from.string(format: "d MMM")) – \(DayKey(iso: r.to)?.string(format: "d MMM") ?? r.to)")
                         .jiFont(.body, weight: .semibold).foregroundStyle(theme.color(.text))
-                    Text(model.span.usesHours ? "Hours per week · cardio" : (model.span == .week ? "Min per day · cardio" : "Min per week · cardio"))
+                    Text((model.span.usesHours ? "Hours per week" : (model.span == .week ? "Min per day" : "Min per week"))
+                         + (model.scope == .cardio ? " · cardio" : " · all workouts"))
                         .jiFont(.caption).foregroundStyle(theme.color(.muted))
                     if r.totals.minutes == nil {
                         Text("No session with an HR stream in this range." + (r.totals.sessionsNoHr > 0 ? " \(r.totals.sessionsNoHr) without HR — shown as \"no HR\", never 0." : ""))
@@ -157,8 +213,8 @@ public struct ZoneTimeChartView: View {
                                    range: (1...5).map { theme.color(workoutZoneRole($0)) })
         .chartXScale(domain: labels)
         .chartXAxis {
-            // 6M: 26 weekly bars — label every 5th week so the dates stay legible.
-            let shown = Set(model.span == .sixMonths ? labels.enumerated().filter { $0.offset % 5 == 0 }.map(\.element) : labels)
+            // 6M: 26 weekly bars — label every 5th week; RG-62: fewer again at accessibility sizes.
+            let shown = Set(zoneAxisLabels(labels, span: model.span, accessibility: typeSize.isAccessibilitySize))
             AxisMarks { value in
                 if let s = value.as(String.self), shown.contains(s) {
                     AxisGridLine()

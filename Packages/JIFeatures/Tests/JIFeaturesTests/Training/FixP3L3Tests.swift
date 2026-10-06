@@ -45,4 +45,67 @@ import JICore
     @Test func rg68RowLineNamesTheWorkRange() {
         #expect(sendToWatchRowSummary(Self.zone2Template(), zones: Self.userZones) == "40 min · 3 steps · alert 117–138 bpm")
     }
+
+    // MARK: RG-62 — Time in zone: friendly errors, spinner on span change, scope, 5 floors, AX labels
+
+    @Test func rg62ErrorsAreFriendlyNeverRawSwift() {
+        let offline = zoneTimeErrorText(HubError.network("The Internet connection appears to be offline."))
+        #expect(offline == "Can't reach the hub — check your connection and pull to retry.")
+        #expect(zoneTimeErrorText(HubError.unauthorized) == "The hub rejected the token — check Settings › Connection.")
+        #expect(zoneTimeErrorText(HubError.http(status: 500, detail: "boom")) == "The hub couldn't build this range (error 500). Try again later.")
+        #expect(zoneTimeErrorText(HubError.decoding("keyNotFound(CodingKeys…)")) == "The hub sent data this app can't read — update the app or the hub.")
+        #expect(zoneTimeErrorText(URLError(.timedOut)) == "Can't reach the hub — check your connection and pull to retry.")
+        for e: any Error in [HubError.decoding("x"), HubError.network("y"), URLError(.timedOut)] {
+            #expect(!zoneTimeErrorText(e).contains("HubError"))
+            #expect(!zoneTimeErrorText(e).contains("Code="))
+        }
+    }
+
+    @Test func rg62YourZonesListsAllFiveFloors() {
+        #expect(zoneFloorsText([97, 117, 139, 160, 176]) == "Your zones · Z1 97 · Z2 117 · Z3 139 · Z4 160 · Z5 176 bpm")
+    }
+
+    @Test func rg62AxisLabelsThinOutAtLargeText() {
+        let week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        #expect(zoneAxisLabels(week, span: .week, accessibility: false) == week)
+        #expect(zoneAxisLabels(week, span: .week, accessibility: true) == ["Mon", "Wed", "Fri", "Sun"])
+        let month = ["1 Sep", "8 Sep", "15 Sep", "22 Sep", "29 Sep"]
+        #expect(zoneAxisLabels(month, span: .month, accessibility: true) == ["1 Sep", "15 Sep", "29 Sep"])
+        let six = (0..<26).map { "w\($0)" }
+        #expect(zoneAxisLabels(six, span: .sixMonths, accessibility: false).count == 6)
+        #expect(zoneAxisLabels(six, span: .sixMonths, accessibility: true).count == 3)
+    }
+
+    @MainActor @Test func rg62SpanChangeShowsTheSpinnerNotTheOldSpan() async {
+        let fake = ZoneFake()
+        let model = ZoneTimeModel(provider: fake, span: .week, today: { DayKey(iso: "2026-10-06")! })
+        await model.load()
+        guard case .loaded = model.phase else { Issue.record("not loaded"); return }
+        model.span = .month
+        fake.onCall = { @MainActor in #expect(model.phase == .loading) }
+        await model.load()
+        #expect(fake.scopes.last == "cardio")
+    }
+
+    @MainActor @Test func rg62ScopeIsSelectable() async {
+        let fake = ZoneFake()
+        let model = ZoneTimeModel(provider: fake, span: .week, today: { DayKey(iso: "2026-10-06")! })
+        model.scope = .all
+        await model.load()
+        #expect(fake.scopes == ["all"])
+        #expect(ZoneTimeScope.allCases.map(\.title) == ["Cardio", "All workouts"])
+    }
+}
+
+@MainActor final class ZoneFake: ZoneTimeProviding {
+    var scopes: [String] = []
+    var onCall: (@MainActor () -> Void)?
+    nonisolated func trainingZones(from: String, to: String, bucket: String, scope: String) async throws -> ZoneTimeRange {
+        await MainActor.run {
+            scopes.append(scope)
+            onCall?()
+        }
+        return ZoneTimeRange(from: from, to: to, bucket: bucket, scope: scope, floors: [97, 117, 139, 160, 176], hrCapBpm: nil,
+                             buckets: [], totals: ZoneTimeTotals(minutes: nil, sessions: 0, sessionsNoHr: 0))
+    }
 }
