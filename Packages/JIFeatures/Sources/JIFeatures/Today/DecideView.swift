@@ -239,9 +239,11 @@ public nonisolated func decideDroveItSignals(_ gateSignals: [GateSignal]?) -> [G
 }
 
 /// W-DECIDE-HYBRID H-1: the top card's lift hint under the session ("Bench 50 kg ↑").
-public nonisolated func decideHeroLiftHint(_ lift: (kg: String, caption: String?)?) -> String? {
+/// RG-54: the exercise's name leads the weight ("Bench press 50 kg"), never a bare "50.0 kg".
+public nonisolated func decideHeroLiftHint(_ lift: (kg: String, caption: String?)?, name: String? = nil) -> String? {
     guard let lift else { return nil }
-    return lift.caption == nil ? lift.kg : "\(lift.kg) ↑"
+    let named = name.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : "\($0) \(lift.kg)" } ?? lift.kg
+    return lift.caption == nil ? named : "\(named) ↑"
 }
 
 /// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
@@ -530,6 +532,9 @@ public struct DecideView: View {
                                                          lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
     }
 
+    /// RG-54: the name of the lift whose weight the hero hint shows (the first lift of today's session).
+    private var heroLiftName: String? { progression?.lifts(forSession: todaysStrengthSession(week)).first?.name }
+
     @ViewBuilder
     private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool) -> some View {
         let sessionRow = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
@@ -560,7 +565,7 @@ public struct DecideView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("today.verdict.session")
                         }
-                        if !syncing, let hint = decideHeroLiftHint(lift) {
+                        if !syncing, let hint = decideHeroLiftHint(lift, name: heroLiftName) {
                             Text(hint).jiFont(.subheadline, weight: .semibold)
                                 .foregroundStyle(theme.color(lift?.caption == nil ? .muted : .go))
                                 .accessibilityIdentifier("today.decide.heroLift")

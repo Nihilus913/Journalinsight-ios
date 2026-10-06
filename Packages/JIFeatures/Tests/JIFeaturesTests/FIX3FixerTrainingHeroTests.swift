@@ -44,7 +44,7 @@ private func ex(_ id: Int, _ session: String, _ name: String, kg: Double?, sets:
                ex(3, "Legs", "Squat", kg: 80, sets: 5, sid: 8)]
     let rows = trainingHeroRows(exercises: all, session: PlannedSession(id: 7, name: "Full Upper", weekday: 2))
     #expect(rows.map(\.name) == ["Bench press", "Bent-over row"])
-    #expect(rows.first?.load == "50.0 kg · 3 sets")
+    #expect(rows.first?.load == "50 kg · 3 sets")
 }
 
 @Test func trainingHeroRowsSayDashNotAnInventedLoad() {
