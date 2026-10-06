@@ -38,6 +38,9 @@ final class AppEnvironment {
     /// `Widgets/Widgets.entitlements`. Overridable so tests can inject a non-persistent
     /// `UserDefaults(suiteName:)` double instead of touching the real shared container.
     private let snapshotStore: SnapshotStore
+    /// W-B78 B78-2: the phone → Watch glance push (set at launch from `StrengthMirrorCoordinator`,
+    /// which owns the one WCSession transport); nil in tests that do not inject one.
+    @ObservationIgnored var watchSnapshotPusher: WatchSnapshotPusher?
     private let now: () -> Date
 
     /// App-Group `UserDefaults` handed to `HealthBackloadViewModel` — the same suite
@@ -557,6 +560,8 @@ final class AppEnvironment {
                                         latest: Self.glanceLatestReadings(today: today, asOf: today?.morning?.verdictDate ?? Self.isoDay(now())))
         )
         snapshotStore.write(snapshot)
+        // W-B78 B78-2: a real watch has no App Group — the same snapshot goes over WatchConnectivity.
+        watchSnapshotPusher?.push(snapshot)
         // F7-1: a done session ends the Live Activity (with "done" on it) instead of refreshing it.
         switch Self.liveActivityStep(snapshot, done: completion.isDone, workoutsSettled: todayWorkouts.isSettled) {
         case .finish: liveActivityFinish?(snapshot)
