@@ -577,12 +577,13 @@ struct RootTabView: View {
         guard let templates = hubScreens as? any WorkoutTemplatesProviding else { return nil }
         let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
         let limits = gateSettings.workoutLimits
+        let zones = gateSettings.zones   // RG-68: Zone 2 alerts + hr_zone targets resolve on the user's zones
         return SendToWatchViewModel(provider: templates, sender: sender,
-                                    builder: { try WorkoutBuilder.build($0, limits: limits) },
+                                    builder: { try WorkoutBuilder.build($0, limits: limits, zones: zones) },
                                     openSettings: {
                                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                                     },
-                                    limits: limits)
+                                    limits: limits, zones: zones)
     }
 
     private func rebuildSendToWatchModel() {

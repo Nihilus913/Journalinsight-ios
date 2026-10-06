@@ -102,7 +102,7 @@ extension TrainingWeekPlanTests {
         #expect(trainingWeekDayAccessibilityLabel(s.days[0]) == "Monday, strength, Day 1 Full Upper, done")
         #expect(trainingWeekDayAccessibilityLabel(s.days[2]) == "Wednesday, today, strength, Day 2 Full Upper")
         #expect(trainingWeekDayAccessibilityLabel(s.days[6]) == "Sunday, rest")
-        #expect(trainingWeekLegend == "S strength · I intervals · R long run · + library workout")
+        #expect(trainingWeekLegend == "S\u{00A0}strength · I\u{00A0}intervals · Z\u{00A0}zone 2 · +\u{00A0}library workout")   // RG-66
     }
 
     /// W-FIX3 BUG-33 carried to the new strip: seven fixed circles stop scaling before AX sizes.

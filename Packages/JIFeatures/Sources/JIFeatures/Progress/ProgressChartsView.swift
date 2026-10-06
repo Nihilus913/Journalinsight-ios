@@ -77,7 +77,9 @@ public struct ProgressChartsView: View {
                 .accessibilityIdentifier("progress.\(title.lowercased()).empty")
             }
             ForEach(cards) { card in
-                ProgressChartCard(card: card, range: $model.range,
+                // W-FIX-P3 RG-63: each card's picker drives only that card.
+                ProgressChartCard(card: card, range: Binding(get: { model.range(for: card.id) },
+                                                             set: { model.setRange($0, for: card.id) }),
                                   onPin: { model.togglePin(card.id) }, onHide: { model.setHidden(card.id, true) })
             }
         }
@@ -135,6 +137,7 @@ struct ProgressChartCard: View {
                 } else {
                     TrendChart(points: card.points, tint: theme.color(.text), unit: card.unit.isEmpty ? nil : card.unit,
                                range: $range, showAll: nil, kind: card.kind, series: card.series,
+                               ranges: ProgressViewModel.rangeOptions(for: card.id),
                                valueFormat: ProgressFormat.chartValueFormat(card.id))
                 }
                 Text(card.caption).jiFont(.micro).foregroundStyle(theme.color(.muted))
@@ -146,7 +149,7 @@ struct ProgressChartCard: View {
 
     private var rangePicker: some View {
         Picker("Range", selection: $range) {
-            ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
+            ForEach(ProgressViewModel.rangeOptions(for: card.id)) { Text($0.rawValue).tag($0) }
         }
         .pickerStyle(.segmented)
     }
