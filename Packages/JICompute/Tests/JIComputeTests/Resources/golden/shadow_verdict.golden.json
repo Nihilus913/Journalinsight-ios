@@ -759,6 +759,424 @@
    "hubVerdict": "GO — Norwegian 4x4 intervals"
   },
   {
+   "label": "fail-recovery-low",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000,
+    "recovery_score": 34
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "recovery 34<35 — gate closed, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "pass-recovery-at-threshold",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 85,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000,
+    "recovery_score": 35
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "sleep >=70 — no demotion in play, unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "sleep69-uncorroborated-recovery-low",
+   "today": "2026-07-28",
+   "m": {
+    "sleep": 69,
+    "sleep_duration_h": 7.9,
+    "hrv": 32,
+    "hrv_status": "BALANCED",
+    "rhr": 61,
+    "rhr_date": "2026-07-28",
+    "steps_yesterday": 16000,
+    "recovery_score": 34
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "recovery 34<35 — gate closed, unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-pass",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "apple-band-amber",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "amber",
+     "note": "HRV below your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-band-missing",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "missing",
+     "note": "HRV calibrating (20/28 nights)",
+     "today_ms": null
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": null,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-recovery-low",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 34,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-no-score-short-sleep",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 6.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": null,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-no-score-long-sleep",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.2,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": null,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "GO — Norwegian 4x4 intervals",
+    "live_gate_ok": true,
+    "shadow_gate_ok": true,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "GO — Norwegian 4x4 intervals"
+  },
+  {
+   "label": "apple-sleep-missing",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": null,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "apple-two-short-nights",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 5.5,
+    "prev_sleep_duration_h": 5.8,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "REDUCED — deload dose, not a day off"
+  },
+  {
+   "label": "apple-dose-day3-resp-amber",
+   "today": "2026-07-28",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {
+    "y_resp": 17.0,
+    "resp_baseline": 14.0
+   },
+   "dosedDates": [
+    "2026-07-28",
+    "2026-07-27",
+    "2026-07-26"
+   ],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
+   "label": "e2e-2026-10-06-apple-band-amber",
+   "today": "2026-10-06",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "amber",
+     "note": "HRV 7-day 22 ms — under band 23–27 ms",
+     "today_ms": 17.47
+    },
+    "sleep_duration_h": 7.3,
+    "prev_sleep_duration_h": 7.3,
+    "recovery_score": 41,
+    "sleep": null,
+    "hrv": 17.47,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {
+    "y_resp": 17.1,
+    "resp_baseline": 17.3
+   },
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": true,
+    "shadow_verdict": "MODIFIED — swap intervals for easy Z2 30-40min",
+    "live_gate_ok": false,
+    "shadow_gate_ok": false,
+    "diverges": false,
+    "note": "Apple night — own gate inputs (band/sleep/recovery), unchanged from live"
+   },
+   "hubVerdict": "MODIFIED — swap intervals for easy Z2 30-40min"
+  },
+  {
    "label": "strength-day",
    "today": "2026-07-29",
    "m": {
@@ -807,6 +1225,39 @@
     "note": "non-interval day — refinement is scoped to the interval gate's sleep>=70 hard cap only"
    },
    "hubVerdict": "GO (auto-regulated) — Day 2 Full Upper + Z2 60min"
+  },
+  {
+   "label": "strength-day-apple",
+   "today": "2026-07-29",
+   "m": {
+    "source": "apple",
+    "hrv_band": {
+     "status": "pass",
+     "note": "HRV within your band",
+     "today_ms": 38.0
+    },
+    "sleep_duration_h": 7.5,
+    "prev_sleep_duration_h": 7.4,
+    "recovery_score": 70,
+    "sleep": null,
+    "hrv": 38.0,
+    "hrv_status": null,
+    "rhr": null,
+    "rhr_date": null,
+    "steps_yesterday": null
+   },
+   "db": {},
+   "dosedDates": [],
+   "debtHours": null,
+   "shadow": {
+    "applicable": false,
+    "shadow_verdict": null,
+    "live_gate_ok": null,
+    "shadow_gate_ok": null,
+    "diverges": false,
+    "note": "non-interval day — refinement is scoped to the interval gate's sleep>=70 hard cap only"
+   },
+   "hubVerdict": "GO — Day 2 Full Upper + Z2 60min"
   },
   {
    "label": "z2-day",
