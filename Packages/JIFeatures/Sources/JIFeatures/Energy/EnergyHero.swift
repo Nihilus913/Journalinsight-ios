@@ -154,15 +154,22 @@ public struct EnergyHero: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// RG-42: without a balance there is no "—" display numeral (it read as a stuck skeleton bar);
+    /// the unit slot carries the words instead.
+    @ViewBuilder
     private var numeral: some View {
-        Text(energyHeroNumeral(deficit))
-            .jiNumeral(.numeralDisplay, weight: .heavy)
-            .foregroundStyle(theme.color(deficit == nil ? .muted : nutritionKcalTintRole))
-            .contentTransition(.numericText())
-            .lineLimit(1).minimumScaleFactor(0.7)
+        if let text = energyHeroNumeralOrNil(deficit) {
+            Text(text)
+                .jiNumeral(.numeralDisplay, weight: .heavy)
+                .foregroundStyle(theme.color(nutritionKcalTintRole))
+                .contentTransition(.numericText())
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
     }
 
     private var unit: some View {
-        Text("kcal a day").jiFont(.body).foregroundStyle(theme.color(.muted))
+        Text(energyHeroNumeralOrNil(deficit) == nil ? energyHeroMissingText : "kcal a day")
+            .jiFont(deficit == nil ? .cardTitle : .body)
+            .foregroundStyle(theme.color(.muted))
     }
 }

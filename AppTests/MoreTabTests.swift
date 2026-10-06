@@ -104,7 +104,7 @@ struct MoreTabTests {
     // W-FIX2 BUG-42: More's Goals row = the goal's start → target, as Settings shows (80.2 → 75.0).
     @Test func goalsRowIsStartToTargetLikeSettings() {
         let goals = Goals(weight: WeightGoal(baseKg: 80.2, targetKg: 75.0, targetDate: "2026-10-31"), strength: [], nutrition: NutritionGoal())
-        #expect(RootTabView.moreGoalsRowValue(goals).text == "80.2 → 75.0 kg")
+        #expect(RootTabView.moreGoalsRowValue(goals).text == "Start 80.2 → goal 75.0 kg · by 31 Oct")   // RG-51
         #expect(settingsGoalsTrailing(goals) == "80.2 → 75.0 kg")
         #expect(RootTabView.moreGoalsRowValue(nil).lead == "—")
     }

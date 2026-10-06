@@ -82,8 +82,8 @@ public struct MacroSummaryCard: View {
         return HStack(alignment: .center, spacing: JISpacing.s3) {
             VStack(alignment: .leading, spacing: 4) {
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) { kcalNumeral(total.kcal); goalText(goal).fixedSize() }
-                    VStack(alignment: .leading, spacing: 2) { kcalNumeral(total.kcal); goalText(goal).fixedSize(horizontal: false, vertical: true) }
+                    HStack(alignment: .firstTextBaseline, spacing: 6) { kcalNumeral(total.kcal); goalText(goal, kcal: total.kcal).fixedSize() }
+                    VStack(alignment: .leading, spacing: 2) { kcalNumeral(total.kcal); goalText(goal, kcal: total.kcal).fixedSize(horizontal: false, vertical: true) }
                 }
                 Text(status).jiFont(.subheadline, weight: .semibold)
                     .foregroundStyle(theme.color(total.kcal == nil || goal == nil ? .muted : nutritionKcalTintRole))
@@ -107,16 +107,20 @@ public struct MacroSummaryCard: View {
         .accessibilityIdentifier("macro-value-kcal")
     }
 
+    /// RG-42: no numeral at all when nothing is logged (a heavy "—" read as a stuck skeleton bar).
+    @ViewBuilder
     private func kcalNumeral(_ kcal: Double?) -> some View {
         // Verbatim: a LocalizedStringKey interpolation would group it as "1'183" (BUG-51).
-        Text(verbatim: nutritionWholeText(kcal))
-            .jiNumeral(.numeralDisplay, weight: .heavy)
-            .foregroundStyle(theme.color(kcal == nil ? .muted : nutritionKcalTintRole))
-            .lineLimit(1).minimumScaleFactor(0.7)
+        if let numeral = nutritionHeroNumeral(kcal) {
+            Text(verbatim: numeral)
+                .jiNumeral(.numeralDisplay, weight: .heavy)
+                .foregroundStyle(theme.color(nutritionKcalTintRole))
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
     }
 
-    private func goalText(_ goal: Double?) -> some View {
-        Text(verbatim: macroHeroGoalText(goal)).jiFont(.body).foregroundStyle(theme.color(.muted))
+    private func goalText(_ goal: Double?, kcal: Double?) -> some View {
+        Text(verbatim: nutritionHeroGoalText(kcal: kcal, goal: goal)).jiFont(.body).foregroundStyle(theme.color(.muted))
     }
 
     /// Board 2/07 macro bar: "52 / 155 g" over a bar in the macro's own role (C-d). No goal →

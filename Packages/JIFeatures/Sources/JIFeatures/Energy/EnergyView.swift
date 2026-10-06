@@ -182,7 +182,9 @@ struct EnergyBurnCard: View {
     var reason: String? = nil
     private let theme = JITheme.native
     private var healthBurn: Int? { window?.burnKcal }
-    private var value: (kcal: Int?, caption: String) { energyBurnCardValue(window: window, reason: reason) }
+    /// RG-46: Health burn, else the hub's measured burn with its own copy.
+    private var display: EnergyBurnCardDisplay { energyBurnCardDisplay(window: window, reason: reason, days: days, today: today) }
+    private var value: (kcal: Int?, caption: String) { (display.kcal, display.caption) }
     private var average: Double? { value.kcal.map(Double.init) }
 
     var body: some View {
@@ -207,7 +209,7 @@ struct EnergyBurnCard: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("energy.whatYouBurn.split")
                     }
-                    Text(energyBurnCardCopy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                    Text(display.copy).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -309,6 +311,31 @@ public nonisolated func energyBurnAverage(days: [EnergyDay], today: String) -> D
 public nonisolated func energyBurnCardValue(window: EnergyBurnWindow?, reason: String?) -> (kcal: Int?, caption: String) {
     if let kcal = window?.burnKcal { return (kcal, "kcal a day") }
     return (nil, reason ?? JIMissingReason.noData.rawValue)
+}
+
+/// RG-46: the hub's own copy when its burn stands in — the watch's resting + active total
+/// (`tdee_raw`), never the model's `tdee_corrected`.
+public nonisolated let energyBurnCardHubCopy = "Resting plus active energy from your watch, via the hub — Apple Health has no burn yet. JI adds them up each day."
+
+public nonisolated struct EnergyBurnCardDisplay: Equatable, Sendable {
+    public let kcal: Int?
+    public let caption: String
+    public let copy: String
+    public let fromHub: Bool
+}
+
+/// RG-46 (narrows fixer2 BUG-38): the Health burn first; without one, the hub's measured
+/// `tdee_raw` 7-day average (complete days only) under its OWN source copy — "Not in Health yet"
+/// next to a hub that has a burn every day read as "no burn known". No burn anywhere → the reason.
+public nonisolated func energyBurnCardDisplay(window: EnergyBurnWindow?, reason: String?, days: [EnergyDay], today: String) -> EnergyBurnCardDisplay {
+    if let kcal = window?.burnKcal {
+        return EnergyBurnCardDisplay(kcal: kcal, caption: "kcal a day", copy: energyBurnCardCopy, fromHub: false)
+    }
+    if let hub = energyBurnAverage(days: days, today: today) {
+        return EnergyBurnCardDisplay(kcal: Int(hub.rounded()), caption: "kcal a day", copy: energyBurnCardHubCopy, fromHub: true)
+    }
+    let v = energyBurnCardValue(window: window, reason: reason)
+    return EnergyBurnCardDisplay(kcal: v.kcal, caption: v.caption, copy: energyBurnCardCopy, fromHub: false)
 }
 
 /// "2300 kcal", or "— No data".

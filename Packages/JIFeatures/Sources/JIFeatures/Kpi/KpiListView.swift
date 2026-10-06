@@ -114,6 +114,8 @@ struct KpiCatalogueGrids: View {
                     Text(note).jiFont(.footnote).foregroundStyle(JITheme.native.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("kpi-list-today-full")
+                        // RG-50: room for the squares' corner tick badges, which overprinted this line.
+                        .padding(.bottom, JISpacing.s4)
                 }
                 SquareGrid(items: items, family: squareTileFamily(catalog: true), onTap: onSelectKpi.map { open in { raw in kpiListDetailMetric(raw).map(open) } }, onBadge: { raw in
                     guard let id = KpiMetricId(rawValue: raw) else { return }   // Fibre/Sugar: display-only

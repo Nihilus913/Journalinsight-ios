@@ -186,7 +186,8 @@ struct MetricSquare: View {
             }
             // W-FIX1 BUG-05: the caption ("as of Sep 21", goal) gets its own line so it never squeezes the number.
             if let goal = item.goalText {
-                Text(goal).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
+                // RG-50: two lines so "goal 75.0 · as of 19 Sep" is not truncated to "as of 1…".
+                Text(goal).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(2).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
             if let status = item.status {

@@ -78,6 +78,19 @@ public nonisolated func moreGoalsValue(currentKg: Double?, targetKg: Double?, ot
     return MoreRowValue(lead: String(format: "%.1f", current), rest: "→ \(targetText) kg", style: .plain)
 }
 
+/// RG-51: the Goals row is the goal's START → goal (the base weight, not today's weight), so it says
+/// so and carries the goal's date: "Start 80.2 → goal 75.0 kg · by 31 Oct". The newest weigh-in
+/// (My KPIs, e.g. 79.5 on 19 Sep) is a different number and no longer reads as contradicting it.
+public nonisolated func moreGoalsStartValue(startKg: Double?, targetKg: Double?, targetDate: String?, otherGoals: Int = 0) -> MoreRowValue {
+    guard let target = targetKg, target.isFinite, target > 0 else {
+        return moreGoalsValue(currentKg: nil, targetKg: nil, otherGoals: otherGoals)
+    }
+    let by = targetDate.flatMap { nutritionDayParts($0)?.dayMonth }.map { " · by \($0)" } ?? ""
+    let rest = "→ goal \(String(format: "%.1f", target)) kg\(by)"
+    guard let start = startKg, start.isFinite, start > 0 else { return MoreRowValue(lead: "—", rest: rest, style: .muted) }
+    return MoreRowValue(lead: "Start \(String(format: "%.1f", start))", rest: rest, style: .plain)
+}
+
 /// The goals besides the weight goal (daily kcal, protein, carbs, fat, steps) that are set.
 public nonisolated func goalsSetCount(_ goals: Goals?) -> Int {
     guard let goals else { return 0 }
