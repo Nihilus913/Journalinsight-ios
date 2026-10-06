@@ -7,7 +7,7 @@ import Testing
 /// tests never run. Reads the host checkout via `#filePath` (works on the iOS Simulator).
 @Suite struct ProjectMembershipGuardTests {
     private static let sourceDirs = [
-        "App", "AppTests", "AppUITests", "Widgets/Sources", "WatchApp/Sources", "WatchApp/Tests",
+        "App", "AppTests", "AppUITests", "Widgets/Sources", "WatchApp/Sources", "WatchApp/Tests", "WatchWidgets/Sources",
     ]
 
     private static func repoRoot(filePath: String = #filePath) -> URL {

@@ -140,6 +140,35 @@ targets:
       - package: JIWorkouts # W-B38-B B-1: strength session controller + phone bridge
       - package: JICompute # W-B38-B: SetTimer, LastSetDefaults, SessionCap
       - package: JIPersistence # W-B38-B B-1 (card): local set log on the Watch
+      - target: WatchWidgets # W-BUG1 BUG1-3 (B-130): the complication's widget extension
+        embed: true
+  # W-BUG1 BUG1-3 (B-130): watchOS widget extension that registers `VerdictComplication`
+  # (accessoryCircular/Rectangular/Inline). Shares the complication + snapshot-store sources with
+  # the watch app (one type, both targets) and reads the watch-local App Group copy.
+  WatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - WatchWidgets/Sources
+      - WatchApp/Sources/VerdictComplication.swift
+      - WatchApp/Sources/WatchSnapshotStore.swift
+      - WatchApp/Sources/VerdictGlance.swift
+    info:
+      path: WatchWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: JournalInsight
+        CFBundleShortVersionString: "2.2.1" # = the host app (embedded bundle must match)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: toby913.JournalInsight.watchapp.widgets
+        TARGETED_DEVICE_FAMILY: "4"
+        SDKROOT: watchos
+        CODE_SIGN_ENTITLEMENTS: WatchWidgets/WatchWidgets.entitlements
+    dependencies:
+      - package: JIDesign
+      - package: JISnapshot
   Widgets:
     type: app-extension
     platform: iOS
@@ -208,7 +237,7 @@ targets:
 schemes:
   JournalInsight:
     build:
-      targets: { JournalInsight: all, WatchApp: all, Widgets: all, JournalInsightTests: [test], WatchAppTests: [test] }
+      targets: { JournalInsight: all, WatchApp: all, WatchWidgets: all, Widgets: all, JournalInsightTests: [test], WatchAppTests: [test] }
     run:
       config: Debug
     test:
@@ -232,7 +261,7 @@ schemes:
       targets: [AppUITests]
   WatchApp:
     build:
-      targets: { WatchApp: all, WatchAppTests: [test] }
+      targets: { WatchApp: all, WatchWidgets: all, WatchAppTests: [test] }
     run:
       config: Debug
     test:

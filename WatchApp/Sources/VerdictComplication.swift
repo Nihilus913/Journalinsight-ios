@@ -88,16 +88,21 @@ public nonisolated struct VerdictComplicationProvider: TimelineProvider {
 
     private func read() -> HubSnapshot? { WatchSnapshotStore.read(local: local, group: store) }
 
+    /// The entries the timeline/snapshot callbacks hand WidgetKit (testable without a `Context`).
+    func currentEntries(now: Date = Date()) -> [VerdictComplicationEntry] {
+        complicationTimelineEntries(from: read(), now: now)
+    }
+
     public func placeholder(in context: Context) -> VerdictComplicationEntry {
         VerdictComplicationEntry(date: Date(), verdictWord: "GO", tone: "go")
     }
 
     public func getSnapshot(in context: Context, completion: @escaping (VerdictComplicationEntry) -> Void) {
-        completion(complicationTimelineEntries(from: read()).first ?? placeholder(in: context))
+        completion(currentEntries().first ?? placeholder(in: context))
     }
 
     public func getTimeline(in context: Context, completion: @escaping (Timeline<VerdictComplicationEntry>) -> Void) {
-        let entries = complicationTimelineEntries(from: read())
+        let entries = currentEntries()
         completion(Timeline(entries: entries, policy: .never))
     }
 }
