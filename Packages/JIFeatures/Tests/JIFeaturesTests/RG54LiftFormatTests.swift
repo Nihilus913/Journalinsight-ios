@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JICompute
 @testable import JIFeatures
 
 /// RG-54: Decide's lift hint names the exercise and shows whole kg ("Bench press 50 kg"); the
