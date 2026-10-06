@@ -21,10 +21,16 @@ private func source(_ relative: String) throws -> String {
     let status = macroKcalStatus(kcal: nil, goal: 1738.5, isToday: true)
     #expect(status == "— No data")
     #expect(!status.contains("Goal —") && !macroHeroGoalText(1738.6).contains("Goal —"))
+    // RG-42 moved the goal half's words into `nutritionHeroGoalText` (B-131): with no food yet the
+    // goal still shows, as "Goal 1739 kcal", never "Goal —".
+    #expect(nutritionHeroGoalText(kcal: nil, goal: 1738.6) == "Goal 1739 kcal")
+    #expect(nutritionHeroGoalText(kcal: 467, goal: 1738.6) == "/ 1739 kcal")
     // The hero draws the goal half in both layouts, whatever the kcal value is.
     let card = try source("Sources/JIFeatures/Nutrition/MacroSummaryCard.swift")
-    #expect(card.components(separatedBy: "goalText(goal)").count - 1 >= 2)
-    #expect(!card.contains("\"Goal —\""))
+    #expect(card.components(separatedBy: "goalText(goal, kcal: total.kcal)").count - 1 >= 2)
+    #expect(card.contains("Text(verbatim: nutritionHeroGoalText(kcal: kcal, goal: goal))"))
+    let hero = try source("Sources/JIFeatures/Nutrition/RG42MissingHero.swift")
+    for text in [card, hero] { #expect(!text.contains("\"Goal —\"")) }
 }
 
 // MARK: - BUG-38: "What you burn" is a measured burn or a true reason word, never 0
@@ -58,6 +64,13 @@ private func source(_ relative: String) throws -> String {
     #expect(nutritionWholeText(12345.6) == "12346")
     #expect(macroHeroGoalText(12345) == "/ 12345 kcal")
     #expect(nutritionWeekCaption(date: "2026-09-24", kcal: 1183.4).hasSuffix("1183 kcal"))
+    // RG-42 routes the hero numeral through `nutritionHeroNumeral` (B-131): still plain digits,
+    // still drawn verbatim (a LocalizedStringKey interpolation would group it).
+    #expect(nutritionHeroNumeral(1183.4) == "1183")
+    #expect(nutritionHeroNumeral(12345.6) == "12346")
+    let hero = try source("Sources/JIFeatures/Nutrition/RG42MissingHero.swift")
+    #expect(hero.contains("return nutritionWholeText(kcal)"))
     let card = try source("Sources/JIFeatures/Nutrition/MacroSummaryCard.swift")
-    #expect(card.contains("Text(verbatim: nutritionWholeText(kcal))"))
+    #expect(card.contains("if let numeral = nutritionHeroNumeral(kcal)"))
+    #expect(card.contains("Text(verbatim: numeral)"))
 }
