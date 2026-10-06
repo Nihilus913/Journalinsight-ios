@@ -112,6 +112,8 @@ public nonisolated enum ScreenRegistry {
         // MARK: B-99 p5 — Nutrition › Diet quality card (mockup BP-20 A/C) + its method sheet (B)
         ScreenEntry(name: "Diet quality") { AnyView(DietQualityNativePreview()) },
         ScreenEntry(name: "Diet quality method") { AnyView(DietQualityMethodNativePreview()) },
+        // MARK: W-B98A B98-4 — Training › This day › a completed run (B-98 5a: km splits + HR/pace)
+        ScreenEntry(name: "Activity detail") { AnyView(ActivityDetailNativePreview()) },
     ]
 }
 #endif
