@@ -44,17 +44,23 @@ public actor OnDeviceVerdictRunner {
         case missing
         /// HealthKit was locked; retried on unlock.
         case deferredLocked
+        /// W-FIX-P2 RG-17: the hub already sent this morning's banner — no local one.
+        case suppressedHub
         case failed(String)
     }
 
     public typealias Compute = @Sendable (String) async throws -> OnDeviceVerdictResult?
     /// Every computed result (notified or not), with its compute time — the O-10 shadow log hook.
     public typealias ResultObserver = @Sendable (String, OnDeviceVerdictResult, Date) async -> Void
+    /// W-FIX-P2 RG-17 (B-112): true when the hub's verdict push for `day` went out (the hub
+    /// has a verdict row for the day). The hub banner wins; the local one only fills a miss.
+    public typealias HubSent = @Sendable (String) async -> Bool
 
     private let compute: Compute
     private let notifier: any OnDeviceVerdictNotifying
     private let memory: any OnDeviceVerdictMemory
     private let onResult: ResultObserver?
+    private let hubSent: HubSent?
     private let now: @Sendable () -> Date
     private var tail: Task<Outcome, Never>?
     public private(set) var pendingDay: String?
@@ -64,10 +70,11 @@ public actor OnDeviceVerdictRunner {
         notifier: any OnDeviceVerdictNotifying,
         memory: any OnDeviceVerdictMemory = InMemoryVerdictMemory(),
         onResult: ResultObserver? = nil,
+        hubSent: HubSent? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.compute = compute; self.notifier = notifier; self.memory = memory
-        self.onResult = onResult; self.now = now
+        self.onResult = onResult; self.hubSent = hubSent; self.now = now
     }
 
     /// Recompute `day`; notify only on the first complete night or a changed verdict.
@@ -105,6 +112,7 @@ public actor OnDeviceVerdictRunner {
         guard let result else { return .missing }
         await onResult?(day, result, now())
         if memory.lastNotified(day: day) == result.verdict { return .unchanged }
+        if let hubSent, await hubSent(day) { return .suppressedHub }
         memory.setLastNotified(result.verdict, day: day)
         await notifier.postVerdict(day: day, result: result)
         return .notified
