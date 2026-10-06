@@ -28,6 +28,10 @@ public nonisolated func kpiDetailTrendPoints(_ history: [(date: String, value: D
         .sorted { $0.date < $1.date }
 }
 
+/// W-FIX-P3 RG-82: 7 nights are drawn point to point — a smoothed curve through 7 points invents
+/// values between nights; the 30 / 90 D lines stay smoothed.
+public nonisolated func kpiTrendSmoothed(_ range: KpiDetailRange) -> Bool { range != .week }
+
 /// Range picker over a line chart with a trailing axis. Empty = "No data yet" (rule 5).
 struct KpiDetailTrend: View {
     let points: [TrendPoint]
@@ -67,10 +71,10 @@ struct KpiDetailTrend: View {
                             .foregroundStyle(theme.color(tint).opacity(0.14))
                             .accessibilityLabel("Your normal")
                             .accessibilityValue("\(jiNumber(normal.low, 1)) to \(jiNumber(normal.high, 1))")
-                        // "dashed = median".
+                        // "dotted = median" (RG-82: dashed is the Garmin nights' style only).
                         RuleMark(y: .value("Median", normal.median))
                             .foregroundStyle(theme.color(tint).opacity(0.6))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [0.5, 4]))
                             .accessibilityLabel("Median")
                     }
                     if let segments {
@@ -81,7 +85,7 @@ struct KpiDetailTrend: View {
                                          series: .value("Run", seg.id))
                                     .foregroundStyle(color)
                                     .lineStyle(StrokeStyle(lineWidth: seg.isEstimate ? 1.5 : 2, dash: seg.isEstimate ? [4, 3] : []))
-                                    .interpolationMethod(.monotone)
+                                    .interpolationMethod(kpiTrendSmoothed(range) ? .monotone : .linear)
                                 if seg.points.count == 1 {
                                     PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
                                         .foregroundStyle(color).symbolSize(seg.isEstimate ? 10 : 20)
@@ -92,7 +96,7 @@ struct KpiDetailTrend: View {
                         ForEach(points) { p in
                             LineMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value))
                                 .foregroundStyle(theme.color(tint))
-                                .interpolationMethod(.monotone)
+                                .interpolationMethod(kpiTrendSmoothed(range) ? .monotone : .linear)
                             if points.count == 1 {
                                 PointMark(x: .value("Date", p.date), y: .value(unit ?? "Value", p.value)).foregroundStyle(theme.color(tint))
                             }

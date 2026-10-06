@@ -199,6 +199,9 @@ public struct RecoveryView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // W-FIX-P3 RG-82: the whole card opens the detail, not just its title row.
+        .contentShape(Rectangle())
+        .onTapGesture { openKpiDetail?(metric.kpiId) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("recovery.metric.\(metric.rawValue)")
     }
