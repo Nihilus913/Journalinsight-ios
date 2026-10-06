@@ -39,6 +39,10 @@ public nonisolated func syncedPillStyle(_ date: Date?, now: Date, calendar: Cale
     return calendar.isDate(date, inSameDayAs: now) ? .today : .older
 }
 
+/// W-FIX-P2 RG-23 (B-52): offline shows ONE marker — the screen's amber `OfflinePill`
+/// ("Offline · last 07:04"). The sync pill steps aside instead of saying "Synced 07:04" next to it.
+public nonisolated func syncedPillVisible(offline: Bool) -> Bool { !offline }
+
 public struct SyncedPill: View {
     let date: Date?, label: JISyncedLabel, now: Date, calendar: Calendar
     @Environment(\.jiTheme) private var theme
@@ -47,6 +51,10 @@ public struct SyncedPill: View {
         self.date = date; self.label = label; self.now = now; self.calendar = calendar
     }
     public var body: some View {
+        if syncedPillVisible(offline: offline) { pill }
+    }
+
+    @ViewBuilder private var pill: some View {
         let style = syncedPillStyle(date, now: now, calendar: calendar, offline: offline)
         let today = style == .today
         let stale = style == .older || style == .offline

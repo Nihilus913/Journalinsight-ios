@@ -8,7 +8,7 @@ import JIHub
 /// With a cached copy, every read already answers offline: `SectionLoader` sections fall back to
 /// their own `OfflineCache` rows, and every other hub GET goes through `HubClient`'s read-through
 /// cache (B-52 p1). So the only offline face left is the honest cold-cache one — never a fabricated
-/// value, never the old "Hub unreachable — is the Mac awake …?" that read like a failure of the
+/// value, never the retired "Hub unreachable — …" Mac-asleep line that read like a failure of the
 /// phone rather than "nothing saved here yet" (card B-52 open question 3, conservative default).
 public nonisolated enum OfflineReadCopy {
     /// The title a cold-cache screen leads with (pinned by `B52OfflineReadsRestTests`).
