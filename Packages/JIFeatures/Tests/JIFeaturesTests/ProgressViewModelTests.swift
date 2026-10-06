@@ -130,6 +130,29 @@ nonisolated final class ProgressFakeCardio: CardioSeriesProviding, @unchecked Se
         #expect(m.card(.run(.hr)).count == 1)
     }
 
+    // W-FIX-P3 RG-63: every card keeps its own range; strength charts offer no "D".
+    @Test func rg63EachCardKeepsItsOwnRange() {
+        let m = make()
+        m.range = .sixMonths
+        let hrBefore = m.card(.run(.hr)).count
+        m.setRange(.month, for: .run(.pace))
+        #expect(m.range(for: .run(.pace)) == .month)
+        #expect(m.range(for: bench) == .sixMonths)
+        #expect(m.card(.run(.pace)).count == 2)    // cut to 30 days
+        #expect(!m.card(bench).thin)              // still 6 months
+        #expect(m.card(.run(.hr)).count == hrBefore)   // another card is untouched
+    }
+
+    @Test func rg63StrengthChartsOfferNoDay() {
+        #expect(!ProgressViewModel.rangeOptions(for: bench).contains(.day))
+        #expect(ProgressViewModel.rangeOptions(for: .run(.pace)).contains(.day))
+        let m = make()
+        m.range = .day
+        #expect(m.range(for: bench) == .week)
+        m.setRange(.day, for: bench)
+        #expect(m.range(for: bench) == .week)
+    }
+
     @Test func volumeIsASumChartAndGroupsWithNarrowNoBreakSpace() {
         let m = make()
         m.range = .year

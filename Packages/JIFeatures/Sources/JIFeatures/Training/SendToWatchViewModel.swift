@@ -48,6 +48,8 @@ public final class SendToWatchViewModel {
     public let openSettings: () -> Void
     /// B-57 W4: the user's own limits (optional cap, optional Zone 5 avoidance); `.none` = no check.
     public let limits: WorkoutHrLimits
+    /// RG-68: the user's zones (gate-settings) — a Zone 2 template's work alert follows them.
+    public let zones: HrZones?
 
     public init(
         provider: any WorkoutTemplatesProviding,
@@ -60,9 +62,11 @@ public final class SendToWatchViewModel {
         // pre-load empty state. A seed lets the screenshot entry start from a loaded list; the app
         // never passes it (default `[]`), and `load()` overwrites it on the first real fetch.
         seededTemplates: [WorkoutTemplate] = [],
-        limits: WorkoutHrLimits = .none
+        limits: WorkoutHrLimits = .none,
+        zones: HrZones? = nil
     ) {
         self.limits = limits
+        self.zones = zones
         self.provider = provider
         self.sender = sender
         self.builder = builder
@@ -132,7 +136,7 @@ public final class SendToWatchViewModel {
                 return
             }
             // Build every plan first so a cap violation schedules nothing at all.
-            let plans = try picked.map { (name: $0.name, plan: try builder($0)) }
+            let plans = try picked.map { (name: $0.name, plan: try builder(sendToWatchApplyingZones($0, zones: zones))) }
             for entry in plans { try await sender.schedule(entry.plan, at: at) }
             sentNames = plans.map(\.name)
             state = .sent(plans.count)
@@ -169,3 +173,58 @@ public nonisolated func sendToWatchAlertNote(_ limits: WorkoutHrLimits) -> Strin
         + (limits.zone5FloorBpm.map { ", below your Zone 5 (\($0))" } ?? "") + "."
 }
 #endif
+
+// MARK: - RG-68 (W-FIX-P3): a "Zone 2" template alerts on the USER's Zone 2
+
+/// RG-68: true for a template whose name says it is a Zone 2 session ("Zone 2 40 min", "Long Run
+/// Zone 2", "Z2 …"). Only these have their work alert re-anchored on the user's zones.
+nonisolated func sendToWatchIsZone2(_ t: WorkoutTemplate) -> Bool {
+    let n = t.name.lowercased()
+    return n.contains("zone 2") || n.range(of: #"\bz2\b"#, options: .regularExpression) != nil
+}
+
+/// RG-68: the copy sent to the Watch — a Zone 2 template's `work` steps alert on the user's own
+/// Zone 2 (gate-settings floors, B-57 W4: zones are the user's, never constants). Send-time only:
+/// the hub row is not rewritten. No (valid) zones or not a Zone 2 template = unchanged.
+public nonisolated func sendToWatchApplyingZones(_ t: WorkoutTemplate, zones: HrZones?) -> WorkoutTemplate {
+    guard sendToWatchIsZone2(t), let zones, zones.isValid else { return t }
+    let z2 = zones.floorsBpm[1]...(zones.floorsBpm[2] - 1)
+    var out = t
+    out.segments = t.effectiveSegments.map { seg in
+        guard seg.sport.isCardio else { return seg }
+        return WorkoutSegment(sport: seg.sport, steps: seg.steps.map { step in
+            guard var c = step.cardio, c.purpose == .work else { return step }
+            c.target = .hrRange(lo: z2.lowerBound, hi: z2.upperBound)
+            return .cardio(c)
+        })
+    }
+    if out.segments == t.effectiveSegments, t.segments.isEmpty { return t }
+    return out
+}
+
+/// RG-68: the range the Watch alerts on during the main part — the work steps' span (warm-up and
+/// cool-down excluded), after `sendToWatchApplyingZones`. nil = no absolute target.
+public nonisolated func sendToWatchAlertRange(_ t: WorkoutTemplate, zones: HrZones?) -> ClosedRange<Int>? {
+    let cardio = sendToWatchApplyingZones(t, zones: zones).effectiveSegments.flatMap { $0.steps.compactMap(\.cardio) }
+    let work = cardio.filter { $0.purpose == .work }
+    var los: [Int] = [], his: [Int] = []
+    for s in (work.isEmpty ? cardio : work) {
+        switch s.target {
+        case .hrRange(let lo, let hi): los.append(lo); his.append(hi)
+        case .hrZone(let z):
+            if let zones, zones.isValid, (1...4).contains(z) { los.append(zones.floorsBpm[z - 1]); his.append(zones.floorsBpm[z] - 1) }
+        case .none: break
+        }
+    }
+    guard let lo = los.min(), let hi = his.max() else { return nil }
+    return lo...hi
+}
+
+/// RG-68: the Send-to-Watch row line — "40 min · 3 steps · alert 117–138 bpm" (the work alert,
+/// not the warm-up's 100–140 span the library line shows).
+public nonisolated func sendToWatchRowSummary(_ t: WorkoutTemplate, zones: HrZones?) -> String {
+    let base = WorkoutFormat.summary(t)
+    guard !t.hasStrength, let r = sendToWatchAlertRange(t, zones: zones) else { return base }
+    let parts = base.components(separatedBy: " · ").filter { !$0.hasSuffix("bpm") && !$0.hasPrefix("Zone") }
+    return (parts + ["alert \(r.lowerBound)–\(r.upperBound) bpm"]).joined(separator: " · ")
+}

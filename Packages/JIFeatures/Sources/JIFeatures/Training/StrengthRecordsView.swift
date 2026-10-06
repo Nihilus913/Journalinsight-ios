@@ -40,7 +40,7 @@ public struct StrengthRecordsView: View {
                         }
                     }
                 }
-                Text(StrengthRecordsFormat.methodNote(hasGarmin: model.hasGarmin))
+                Text(StrengthRecordsFormat.methodNote(hasGarmin: model.hasGarmin, hasLog: model.hasLog))
                     .jiFont(.caption).foregroundStyle(theme.color(.muted)).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, JISpacing.sideMargin).padding(.top, 8).padding(.bottom, 32)
@@ -127,14 +127,14 @@ struct StrengthLiftDetailView: View {
     }
 
     private func hero(_ lift: OneRepMax.LiftHistory) -> some View {
-        let status = OneRepMax.status(lift)
+        let status = OneRepMax.status(lift, today: model.todayISO)   // W-FIX-P3 RG-61: anchored to today
         let calibrating = lift.sessions.count < 3
         return Surface(level: 1, padding: JISpacing.cardPadding) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(StrengthRecordsFormat.kg0(lift.latest?.e1rm)).jiFont(.numeralHero, design: .rounded)
+                    Text(StrengthRecordsFormat.heroValue(lift.latest?.e1rm)).jiFont(.numeralHero, design: .rounded)
                         .foregroundStyle(theme.color(.text)).monospacedDigit()
-                    Text("kg e1RM").jiFont(.body).foregroundStyle(theme.color(.muted))
+                    Text(StrengthRecordsFormat.heroUnit(perHand: lift.perHand)).jiFont(.body).foregroundStyle(theme.color(.muted))
                 }
                 .accessibilityIdentifier("strength-lift-hero")
                 Text(StrengthRecordsFormat.statusLine(status)).jiFont(.body, weight: .semibold)
@@ -145,7 +145,7 @@ struct StrengthLiftDetailView: View {
                     ForEach([TrendRange.week, .month, .sixMonths, .year]) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Text("Estimated 1RM · \(StrengthRecordsFormat.rangeName(range)) · \(model.hasGarmin ? "Garmin + JI log" : "JI log")")
+                Text("Estimated 1RM · \(StrengthRecordsFormat.rangeName(range)) · \(StrengthRecordsFormat.sourceName(hasGarmin: model.hasGarmin, hasLog: model.hasLog))")
                     .jiFont(.micro, weight: .semibold).foregroundStyle(theme.color(.muted))
                 if calibrating {
                     Text("Trend after 3 sessions · \(lift.sessions.count) so far").jiFont(.caption).foregroundStyle(theme.color(.muted))
@@ -166,8 +166,8 @@ struct StrengthLiftDetailView: View {
     }
 
     private func chart(_ lift: OneRepMax.LiftHistory) -> some View {
-        let anchor = StrengthRecordsFormat.date(lift.latest?.date ?? "") ?? Date()
-        let cutoff = Calendar(identifier: .gregorian).date(byAdding: .day, value: -range.days, to: anchor) ?? anchor
+        // W-FIX-P3 RG-61: the range ends today, not at the last session.
+        let cutoff = StrengthRecordsFormat.chartCutoff(today: model.todayISO, range: range) ?? Date()
         let pts = lift.sessions.reversed().compactMap { s -> (Date, Double, Bool)? in
             guard let d = StrengthRecordsFormat.date(s.date), d >= cutoff else { return nil }
             return (d, s.e1rm, s.prs.contains(.e1rm))
@@ -289,6 +289,22 @@ nonisolated enum StrengthRecordsFormat {
 
     static func kg1(_ v: Double?) -> String { v.map { String(format: "%.1f", $0) } ?? "—" }
     static func kg0(_ v: Double?) -> String { v.map { String(format: "%.0f", $0) } ?? "—" }
+    /// W-FIX-P3 RG-61: the hero e1RM to one decimal ("58.3"), the unit says "per hand" for a dumbbell.
+    static func heroValue(_ v: Double?) -> String { kg1(v) }
+    static func heroUnit(perHand: Bool) -> String { perHand ? "kg e1RM per hand" : "kg e1RM" }
+    /// W-FIX-P3 RG-61: the caption names only the sources that are there.
+    static func sourceName(hasGarmin: Bool, hasLog: Bool) -> String {
+        switch (hasGarmin, hasLog) {
+        case (true, true): "Garmin + JI log"
+        case (true, false): "Garmin"
+        default: "JI log"
+        }
+    }
+    /// W-FIX-P3 RG-61: the chart's first day — `range` days before today.
+    static func chartCutoff(today: String, range: TrendRange) -> Date? {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        return date(today).flatMap { cal.date(byAdding: .day, value: -range.days, to: $0) }
+    }
     static func grouped(_ v: Double?) -> String {
         guard let v else { return "—" }
         let n = Int(v.rounded())
@@ -326,6 +342,7 @@ nonisolated enum StrengthRecordsFormat {
         case .newBest: "New best"
         case .held: "Held vs your best of the last 4 weeks"
         case .down(let p): "Down \(p) % vs your best of the last 4 weeks"
+        case .stale(let d): "Last session \(dayMonth(d)) · nothing in the last 4 weeks"
         }
     }
     static func statusRole(_ s: OneRepMax.Status) -> JIColorRole {
@@ -350,8 +367,13 @@ nonisolated enum StrengthRecordsFormat {
         switch r { case .day: "1 day"; case .week: "1 week"; case .month: "this month"; case .sixMonths: "6 months"; case .year: "1 year" }
     }
 
-    static func methodNote(hasGarmin: Bool) -> String {
-        "Epley, best set per session, reps ≤ \(OneRepMax.maxReps), sets under 20 kg (4 kg dumbbell) ignored. "
-            + (hasGarmin ? "Garmin history + the JI log. " : "The JI log. ") + "Estimated, not tested."
+    static func methodNote(hasGarmin: Bool, hasLog: Bool = true) -> String {
+        let src = switch (hasGarmin, hasLog) {
+        case (true, true): "Garmin history + the JI log. "
+        case (true, false): "Garmin history. "
+        default: "The JI log. "
+        }
+        return "Epley, best set per session, reps ≤ \(OneRepMax.maxReps), sets under 20 kg (4 kg dumbbell) ignored. "
+            + src + "Estimated, not tested."
     }
 }

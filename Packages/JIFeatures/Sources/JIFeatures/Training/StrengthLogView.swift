@@ -26,6 +26,13 @@ public struct StrengthLogView: View {
     public var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
+                // W-FIX-P3 RG-66: the session name wraps here instead of truncating in the bar.
+                if let header = strengthLogTitles(sessionName: model.sessionName).header {
+                    Text(header).jiFont(.cardTitle).foregroundStyle(theme.color(.text))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("strength-log-title")
+                }
                 if model.restAlertsOff {
                     Text(RestEndAlert.offNotice).jiFont(.caption).foregroundStyle(theme.color(.muted))
                         .fixedSize(horizontal: false, vertical: true)
@@ -52,7 +59,10 @@ public struct StrengthLogView: View {
         }
         .jiPageGround()
         .jiTheme(.native)
-        .navigationTitle(model.sessionName ?? "Log sets")
+        .navigationTitle(strengthLogTitles(sessionName: model.sessionName).nav)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { showLibrary = true } label: { Label("Add exercise", systemImage: "plus") }
@@ -123,6 +133,13 @@ public struct StrengthLogView: View {
     }
 }
 
+/// W-FIX-P3 RG-66: the bar shows "Log sets" (four toolbar buttons leave it little room); the
+/// session name ("Day 1 Full Upper + Zone 2 40 min") is the screen's wrapping header instead.
+nonisolated func strengthLogTitles(sessionName: String?) -> (nav: String, header: String?) {
+    let name = sessionName?.trimmingCharacters(in: .whitespaces)
+    return ("Log sets", (name?.isEmpty ?? true) ? nil : name)
+}
+
 nonisolated enum StrengthFormat {
     static func kg(_ v: Double?) -> String {
         guard let v, v > 0 else { return "—" }
@@ -144,6 +161,14 @@ nonisolated enum StrengthFormat {
         guard let plates else { return "Not reachable with your plates" }
         if plates.isEmpty { return load == .dumbbell ? "Empty handle" : "Empty bar" }
         return (load == .dumbbell ? "Per dumbbell side: " : "Per side: ") + plates.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }.joined(separator: " + ")
+    }
+
+    /// W-FIX-P3 RG-67: the plates line, or nil = no line. Hidden for a bodyweight lift and for a
+    /// dumbbell weight the plates cannot build (a fixed dumbbell, e.g. 12 kg per hand).
+    static func platesHint(_ plates: [Double]?, load: StrengthLoad, bodyweight: Bool) -> String? {
+        if bodyweight { return nil }
+        if plates == nil, load == .dumbbell { return nil }
+        return Self.plates(plates, load: load)
     }
 }
 
@@ -224,10 +249,12 @@ struct StrengthExerciseCard: View {
                 HStack(spacing: JISpacing.s3) { fields(timed: timed) }
                 VStack(alignment: .leading, spacing: JISpacing.s2) { fields(timed: timed) }
             }
-            if !timed {
+            // W-FIX-P3 RG-67: no plates line for a bodyweight lift or a fixed-dumbbell weight.
+            if !timed, let hint = StrengthFormat.platesHint(model.plates(for: parsedKg, exerciseKey: card.lift.exerciseKey),
+                                                             load: StrengthLoad.of(card.lift.exerciseKey), bodyweight: card.lift.isBodyweight || StrengthLoad.isFixedWeight(card.lift.exerciseKey)) {
                 // W-B38-B B-9: the per-side line opens the plate calculator sheet for this weight.
                 Button { if parsedKg != nil { showCalculator = true } } label: {
-                    Label(StrengthFormat.plates(model.plates(for: parsedKg, exerciseKey: card.lift.exerciseKey), load: StrengthLoad.of(card.lift.exerciseKey)), systemImage: "circle.grid.2x1")
+                    Label(hint, systemImage: "circle.grid.2x1")
                         .jiFont(.caption).foregroundStyle(theme.color(.muted))
                 }
                 .buttonStyle(.plain)

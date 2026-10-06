@@ -82,7 +82,7 @@ public struct SendToWatchSheet: View {
                                 .foregroundStyle(model.isSelected(template.templateId) ? theme.color(.info) : theme.color(.muted))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(template.name).foregroundStyle(theme.color(.text))
-                                Text(Self.summary(template)).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                                Text(sendToWatchRowSummary(template, zones: model.zones)).jiFont(.footnote).foregroundStyle(theme.color(.muted))
                             }
                             Spacer()
                         }
