@@ -150,6 +150,12 @@ public nonisolated enum ParityRegistry {
             source: .computed,
             notes: "B-90 p4: per-muscle Recovered/Fatigued/Depleted estimate (48 h / 72 h above the muscle's own P75, <3 workouts -> not_enough_data); app/training/muscle_freshness.py and JICompute MuscleFreshness must reproduce tests/fixtures/muscle_freshness.json."
         ),
+
+        // --- W-B98A B98-3: km splits (B-98 5a; post RN freeze: Python + Swift only)
+        "km_splits": ParityEntry(
+            source: .computed,
+            notes: "B-98 5a (W-B98A): JI-computed km splits from the 1 s activity series (app/training/splits.py km_splits); JICompute Splits must reproduce tests/fixtures/splits/{id}_expected.json. Display only, caption \"JI-computed, may differ from Garmin\"."
+        ),
     ]
 
     /// Swift-only: which JICompute type implements a `.computed` metric (W-ONDEVICE O-5). Kept
@@ -161,6 +167,7 @@ public nonisolated enum ParityRegistry {
         "muscle_map": "JICompute.MuscleMap",
         "muscle_load": "JICompute.MuscleLoad",
         "muscle_freshness": "JICompute.MuscleFreshness",
+        "km_splits": "JICompute.Splits",
     ]
 
     /// The implementing JICompute type for `metric`, or nil when none is ported.

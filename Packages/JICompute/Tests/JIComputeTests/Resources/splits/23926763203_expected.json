@@ -1,0 +1,58 @@
+[
+ {
+  "km": 1,
+  "distance_m": 1000.0,
+  "duration_s": 840.55,
+  "pace_s_per_km": 840.55,
+  "mean_hr": 121.1,
+  "elevation_gain_m": 7.3
+ },
+ {
+  "km": 2,
+  "distance_m": 1000.0,
+  "duration_s": 777.01,
+  "pace_s_per_km": 777.01,
+  "mean_hr": 124.2,
+  "elevation_gain_m": 5.3
+ },
+ {
+  "km": 3,
+  "distance_m": 1000.0,
+  "duration_s": 751.32,
+  "pace_s_per_km": 751.32,
+  "mean_hr": 122.5,
+  "elevation_gain_m": 5.0
+ },
+ {
+  "km": 4,
+  "distance_m": 1000.0,
+  "duration_s": 689.67,
+  "pace_s_per_km": 689.67,
+  "mean_hr": 121.8,
+  "elevation_gain_m": 12.9
+ },
+ {
+  "km": 5,
+  "distance_m": 1000.0,
+  "duration_s": 655.69,
+  "pace_s_per_km": 655.69,
+  "mean_hr": 124.6,
+  "elevation_gain_m": 6.4
+ },
+ {
+  "km": 6,
+  "distance_m": 1000.0,
+  "duration_s": 605.29,
+  "pace_s_per_km": 605.29,
+  "mean_hr": 124.7,
+  "elevation_gain_m": 1.7
+ },
+ {
+  "km": 7,
+  "distance_m": 694.21,
+  "duration_s": 482.46,
+  "pace_s_per_km": 694.99,
+  "mean_hr": 119.2,
+  "elevation_gain_m": 5.3
+ }
+]
