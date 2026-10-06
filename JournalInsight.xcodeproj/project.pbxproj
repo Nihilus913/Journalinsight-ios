@@ -93,6 +93,7 @@
 		C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */ = {isa = PBXBuildFile; productRef = 492768B6A5B02BFF4735FCE3 /* JIWorkouts */; };
 		C1629D337970A6C10E143697 /* SelectKpiIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */; };
 		C435E092A52620FEEE195011 /* B24HealthGrantUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0564B2A409EF6A34849857C0 /* B24HealthGrantUITests.swift */; };
+		CE7851D14C536F7AEE6D1331 /* FixP3L8AX3Shots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593EEA414F4AEF23F333D618 /* FixP3L8AX3Shots.swift */; };
 		D159A94FC5CE478EBBD98757 /* VerdictComplicationTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */; };
 		D5DC426F85E7249E0105A699 /* StrengthLogViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E4C7AF960174FE787EC5E0 /* StrengthLogViews.swift */; };
 		D67FD48EBDFAC2DEE1F7F571 /* StrengthSessionActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7137D8EEC232BEDC0997923 /* StrengthSessionActivityAttributes.swift */; };
@@ -218,6 +219,7 @@
 		5358E7E9FFF489BF17B8ECBF /* GateWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateWidget.swift; sourceTree = "<group>"; };
 		55F2EE9CDAEE5FD7ECBA652A /* VerdictLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictLiveActivity.swift; sourceTree = "<group>"; };
 		58E06787E30F9A6DEE3D3C5A /* JIWorkouts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIWorkouts; path = Packages/JIWorkouts; sourceTree = SOURCE_ROOT; };
+		593EEA414F4AEF23F333D618 /* FixP3L8AX3Shots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixP3L8AX3Shots.swift; sourceTree = "<group>"; };
 		5958527A14A12B9893C50209 /* ShadowLogWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowLogWriter.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
 		634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouter.swift; sourceTree = "<group>"; };
@@ -400,6 +402,7 @@
 				77793FB1D2752C56C52B4D6C /* Fix9Fix10ScreenTests.swift */,
 				DDCDC97A89F356AF07512086 /* FixP2L1Shots.swift */,
 				764088E7A25E45D10169C884 /* FixP2L9Shots.swift */,
+				593EEA414F4AEF23F333D618 /* FixP3L8AX3Shots.swift */,
 				7584AC7835BD23D74891580B /* JIUITestCase.swift */,
 				FB4AF5C04DC4544BFC44D529 /* TrainingProofTests.swift */,
 			);
@@ -867,6 +870,7 @@
 				5580CAE6353EA2045BAD3DFD /* Fix9Fix10ScreenTests.swift in Sources */,
 				3E88160589234F6FCD56348F /* FixP2L1Shots.swift in Sources */,
 				6D01A025731CF33BF914571B /* FixP2L9Shots.swift in Sources */,
+				CE7851D14C536F7AEE6D1331 /* FixP3L8AX3Shots.swift in Sources */,
 				208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */,
 				4FACE29EF46BA01697617F98 /* TrainingProofTests.swift in Sources */,
 			);
