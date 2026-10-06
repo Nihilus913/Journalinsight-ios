@@ -31,4 +31,13 @@ XCODEBUILD="$T/xcodebuild" $G test -scheme X "-only-testing:A/B -only-testing:A/
 printf '** TEST EXECUTE SUCCEEDED **\n' > "$T/real.log"
 $G --check-log "$T/real.log" >/dev/null 2>&1; check "--check-log on a 0-test log -> non-zero" nz $?
 
+# B-116: after any test failure or crash xcodebuild runs `simctl diagnose --timeout=600` and sits
+# there 10+ min after the last test ("JIFeatures hangs after ~1100 tests"). The guard passes
+# `-collect-test-diagnostics never` unless the caller chose a value.
+printf '#!/usr/bin/env bash\necho "ARGS: $*"\necho "\xe2\x9c\x94 Test run with 3 tests in 1 suite passed after 0.1 seconds."\nexit 0\n' > "$T/xcodebuild"; chmod +x "$T/xcodebuild"
+out=$(XCODEBUILD="$T/xcodebuild" $G test -scheme X 2>/dev/null)
+echo "$out" | grep -q -- "-collect-test-diagnostics never"; check "diagnostics collection off by default" 0 $?
+out=$(XCODEBUILD="$T/xcodebuild" $G test -scheme X -collect-test-diagnostics on-failure 2>/dev/null)
+{ echo "$out" | grep -q -- "-collect-test-diagnostics on-failure" && ! echo "$out" | grep -q -- "never"; }; check "caller's diagnostics choice kept" 0 $?
+
 exit $fail

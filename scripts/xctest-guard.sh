@@ -36,8 +36,13 @@ for a in "$@"; do
   esac
 done
 
+# B-116: on any failure/crash xcodebuild runs `simctl diagnose --timeout=600` and sits 10+ min
+# after the last test (the "JIFeatures hangs after ~1100 tests"). Off unless the caller chose.
+extra=(-collect-test-diagnostics never)
+for a in "$@"; do [ "$a" = "-collect-test-diagnostics" ] && extra=(); done
+
 LOG=$(mktemp -t xctest-guard); trap 'rm -f "$LOG"' EXIT
-"${XCODEBUILD:-xcodebuild}" "$@" 2>&1 | tee "$LOG"
+"${XCODEBUILD:-xcodebuild}" "$@" ${extra[@]+"${extra[@]}"} 2>&1 | tee "$LOG"
 rc=${PIPESTATUS[0]}
 [ "$rc" -ne 0 ] && exit "$rc"
 verdict "$LOG"

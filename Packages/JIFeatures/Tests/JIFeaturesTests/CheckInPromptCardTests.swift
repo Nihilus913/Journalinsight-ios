@@ -1,6 +1,9 @@
 import Foundation
 import Testing
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 import JICore
 import JIPersistence
 @testable import JIFeatures
@@ -29,8 +32,36 @@ struct CheckInPromptCardTests {
         let model = MindViewModel(checkins: CheckInStore(db: db), eventStore: EventStore(db: db), who5Store: Who5Store(db: db))
         #expect(!CheckInSheet(model: model).showsWhy)
         #expect(CheckInSheet(model: model, prompt: prompt).showsWhy)
-        // renders without trapping in both states
-        _ = ImageRenderer(content: CheckInSheet(model: model, prompt: prompt).frame(width: 402, height: 874)).cgImage
-        _ = ImageRenderer(content: CheckInPromptCard(prompt: prompt, onCheckIn: {}, onNotToday: {}).frame(width: 402)).cgImage
+        // renders without trapping in both states. The sheet is NavigationStack-rooted, so it goes
+        // through a hosting controller in a window: `ImageRenderer` cannot flatten the UIKit-backed
+        // NavigationStack and SwiftUI traps ("no current update to enqueue action to"), which killed
+        // the whole JIFeatures run and left xcodebuild hung in diagnostics collection (B-116).
+        #expect(hostedRender(CheckInSheet(model: model).frame(width: 402, height: 874)))
+        #expect(hostedRender(CheckInSheet(model: model, prompt: prompt).frame(width: 402, height: 874)))
+        #expect(ImageRenderer(content: CheckInPromptCard(prompt: prompt, onCheckIn: {}, onNotToday: {}).frame(width: 402)).cgImage != nil)
+    }
+
+    /// `ScreenSweepTests.sweepImage`'s route: a window (never `makeKeyAndVisible` — no host app),
+    /// a layout pass and a flush, then `drawHierarchy`. True when the hierarchy laid out and drew.
+    private func hostedRender(_ view: some View) -> Bool {
+        #if canImport(UIKit) && !os(watchOS)
+        let bounds = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let host = UIHostingController(rootView: view)
+        host.view.frame = bounds
+        let window = UIWindow(frame: bounds)
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.layoutIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        CATransaction.flush()
+        let image = UIGraphicsImageRenderer(size: bounds.size).image { ctx in
+            if !host.view.drawHierarchy(in: bounds, afterScreenUpdates: true) { host.view.layer.render(in: ctx.cgContext) }
+        }
+        window.isHidden = true
+        window.rootViewController = nil
+        return image.size == bounds.size
+        #else
+        return true // macOS `swift test`: no UIKit window route; the sim run covers it
+        #endif
     }
 }
