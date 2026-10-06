@@ -38,7 +38,8 @@ final class ApnsRegistration {
     /// because `UIApplicationDelegate` methods are the only place APNs hands the token back and
     /// they have no injected context; tests construct their own instance instead and never touch
     /// this one.
-    static let shared = ApnsRegistration()
+    static let shared = ApnsRegistration(defaults: .standard,
+                                         pushDisabled: CommandLine.arguments.contains("-no-push"))
 
     private(set) var state: State = .idle
 
@@ -66,7 +67,30 @@ final class ApnsRegistration {
 
     private let logger = Logger(subsystem: "toby913.JournalInsight", category: "apns")
 
-    init() {}
+    /// RG-81: `-no-push` (scripted sim runs) — nothing is ever POSTed, from any path (launch,
+    /// push-to-start token, foreground retry). The one choke point is `submit`.
+    let pushDisabled: Bool
+    /// RG-81: where the fingerprint of the last registration the hub ACKed survives a cold launch,
+    /// so an unchanged token is not re-POSTed on every launch (33 POSTs in one regression run).
+    /// `nil` (tests) keeps it in memory only.
+    private let defaults: UserDefaults?
+    private var memoryLastPosted: String?
+    static let lastPostedKey = "apns.lastPostedRegistration"
+
+    init(defaults: UserDefaults? = nil, pushDisabled: Bool = false) {
+        self.defaults = defaults
+        self.pushDisabled = pushDisabled
+    }
+
+    /// Pure (RG-81): everything the hub stores per token — a change in any of it is worth a POST.
+    static func fingerprint(_ r: PushTokenRegistration) -> String {
+        [r.token, r.platform.rawValue, r.environment.rawValue, r.appVersion, r.liveActivityStartToken ?? ""].joined(separator: "|")
+    }
+
+    private var lastPosted: String? {
+        get { defaults.map { $0.string(forKey: Self.lastPostedKey) } ?? memoryLastPosted }
+        set { if let defaults { defaults.set(newValue, forKey: Self.lastPostedKey) } else { memoryLastPosted = newValue } }
+    }
 
     // MARK: - Pure builders
 
@@ -214,6 +238,18 @@ final class ApnsRegistration {
 
     private func submit(_ registration: PushTokenRegistration) async {
         lastRegistration = registration
+        guard !pushDisabled else {
+            pendingRegistration = nil
+            state = .unavailable(reason: "push disabled (-no-push)")
+            return
+        }
+        // RG-81: the hub already holds exactly this registration — no POST.
+        if lastPosted == Self.fingerprint(registration) {
+            if pendingRegistration == registration { pendingRegistration = nil }
+            if case .registered = state {} else { state = .registered(token: registration.token, registeredAt: "unchanged") }
+            logger.notice("APNs: token unchanged since the last hub ACK — not re-posted")
+            return
+        }
         guard let provider = providerSource?() else {
             pendingRegistration = registration
             state = .unavailable(reason: "no hub provider to register the push token with")
@@ -224,6 +260,7 @@ final class ApnsRegistration {
             let ack = try await provider.registerPushToken(registration)
             // A newer token may have arrived while this POST was in flight — clear only our own.
             if pendingRegistration == nil || pendingRegistration == registration { pendingRegistration = nil }
+            lastPosted = Self.fingerprint(registration)
             state = .registered(token: registration.token, registeredAt: ack.registeredAt)
             logger.notice("APNs: token registered with the hub (\(registration.environment.rawValue, privacy: .public))")
         } catch {
