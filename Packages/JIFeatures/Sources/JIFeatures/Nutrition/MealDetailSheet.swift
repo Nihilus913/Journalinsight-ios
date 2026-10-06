@@ -6,13 +6,13 @@ import JIDesign
 public nonisolated let mealDetailSourceLabel = "YAZIO via the hub"
 
 /// W-FIX11 H2-14: the footer names the source the day's numbers came from.
+/// W-FIX-P3 RG-83: ONE wording on every day — meals are always YAZIO's (via the hub); Apple Health
+/// only supplies day totals (W-FIX7 N-1). Today used to name Apple Health, a past day YAZIO.
 public nonisolated func nutritionReadOnlyNote(source: NutritionDataSource?) -> String {
-    source == .hub
-        ? "Read-only. JI shows what YAZIO sent to the hub; log meals in YAZIO. JI has no food database and never logs food."
-        : nutritionReadOnlyNote
+    nutritionReadOnlyNote
 }
 
-public nonisolated let nutritionReadOnlyNote = "Read-only. JI shows what Apple Health holds; log meals in YAZIO or any app that writes to Health. JI has no food database and never logs food."
+public nonisolated let nutritionReadOnlyNote = "Read-only. Meals come from YAZIO via the hub; day totals use Apple Health when it has the day. Log meals in YAZIO. JI has no food database and never logs food."
 
 public nonisolated struct MealDetail: Equatable, Sendable {
     public let slot: String, title: String, items: [NutritionMealItem]
