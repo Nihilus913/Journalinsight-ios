@@ -57,14 +57,10 @@ public final class ZoneTimeModel {
         // the old bars never sit under the new picker value. A same-window refresh keeps them.
         if case .loaded(let r) = phase, r.from == w.from.iso, r.bucket == w.bucket, r.scope == scope.rawValue {} else { phase = .loading }
         do {
-<<<<<<< HEAD
             let (range, since) = try await HubReadTrace.collect {
-                try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: "cardio")
+                try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: scope.rawValue)
             }
             phase = .loaded(range); staleSince = since
-=======
-            phase = .loaded(try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: scope.rawValue))
->>>>>>> origin/main
         } catch HubError.http(status: 404, _) {
             phase = .unavailable
         } catch {
