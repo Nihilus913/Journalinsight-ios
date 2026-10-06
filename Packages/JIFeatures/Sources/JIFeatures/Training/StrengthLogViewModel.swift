@@ -128,6 +128,15 @@ public final class StrengthLogViewModel {
     }
     /// The rest the timer starts after a logged set.
     public var restSeconds = 90
+    /// RG-76: true once the rest-alert permission ask came back denied/failed — the logger shows
+    /// `RestEndAlert.offNotice` instead of silently dropping the Bool.
+    public private(set) var restAlertsOff = false
+
+    /// RG-76: runs the permission ask (default: `RestEndAlert.requestAuthorization()`) and keeps
+    /// its answer as visible state.
+    public func requestRestAlertPermission(_ ask: () async -> Bool = { await RestEndAlert.requestAuthorization() }) async {
+        restAlertsOff = !(await ask())
+    }
 
     public let sessionName: String?
     private let sessionId: Int?
