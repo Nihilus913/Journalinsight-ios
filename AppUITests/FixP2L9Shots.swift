@@ -70,12 +70,29 @@ final class FixP2L9Shots: JIUITestCase {
     }
 
     func testRG52_mindPrivacyCopy() {
+        // Mirror OFF: "Everything stays on your device."
         launchPlain()
         tab("More")
         tapId("more.mind")
         sleep(3)
-        let privacy = contains("on this phone")
-        reveal(privacy, "Mind privacy copy", timeout: 20)
-        shot("rg52-mind-privacy-copy")
+        let footer = el("mind-privacy-footer")
+        reveal(footer, "Mind privacy footer (mirror off)", timeout: 20)
+        XCTAssertTrue(footer.label.contains("Everything stays on your device"), "footer: \(footer.label)")
+        shot("rg52-mind-privacy-mirror-off")
+        // Mirror ON (Settings › Apple Health › Mirror mood): the copy names Apple Health.
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-hub-url", hubURL, "-hub-token", hubToken, "-no-healthkit", "-no-onboarding",
+                               "-no-push", "-ui-testing", "-ji.mind.mirrorMoodToHealth", "YES"]
+        app.launch()
+        _ = app.wait(for: .runningForeground, timeout: 20)
+        sleep(3)
+        tab("More")
+        tapId("more.mind")
+        sleep(3)
+        let footerOn = el("mind-privacy-footer")
+        reveal(footerOn, "Mind privacy footer (mirror on)", timeout: 20)
+        XCTAssertTrue(footerOn.label.contains("also written to Apple Health"), "footer: \(footerOn.label)")
+        shot("rg52-mind-privacy-mirror-on")
     }
 }
