@@ -49,6 +49,8 @@ targets:
       # W-B38-B B-7: the strength-session Live Activity — attributes + controller in both targets.
       - Widgets/Sources/StrengthSessionActivityAttributes.swift
       - Widgets/Sources/StrengthSessionActivityController.swift
+      # RG-80: the widget/Live Activity tap URLs, pinned by AppTests against DeepLink.parse.
+      - Widgets/Sources/WidgetDeepLinks.swift
     info:
       path: App/Info.plist
       properties:

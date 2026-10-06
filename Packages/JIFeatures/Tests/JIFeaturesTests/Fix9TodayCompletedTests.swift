@@ -114,7 +114,7 @@ import JICompute
                                     session: Self.planned)
         #expect(rows.map(\.prescription) == ["3 × 8 @ 50 kg", "3 × max", "3 × 6–12 @ 42.5 kg", "—"])
         // Training's own hero keeps its load text.
-        #expect(rows.first?.load == "50.0 kg · 3 sets")
+        #expect(rows.first?.load == "50 kg · 3 sets")
     }
 
     @Test func loggedSetsTickOrCountAgainstThePlan() {

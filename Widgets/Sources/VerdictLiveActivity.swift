@@ -17,6 +17,7 @@ struct VerdictLiveActivity: Widget {
             VerdictActivityLockScreenView(state: context.state)
                 .activityBackgroundTint(theme.color(.bg))
                 .activitySystemActionForegroundColor(theme.color(.text))
+                .widgetURL(WidgetDeepLinks.gate)   // RG-80: tap opens Decide
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -63,6 +64,7 @@ struct VerdictLiveActivity: Widget {
             } minimal: {
                 Circle().fill(tone(context.state.verdictTone)).frame(width: 8, height: 8)
             }
+            .widgetURL(WidgetDeepLinks.gate)
         }
     }
 

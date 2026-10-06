@@ -29,6 +29,7 @@ private struct KpiWidgetView: View {
     var body: some View {
         KpiWidgetFace(snapshot: snapshot, metric: metric, family: family)
             .containerBackground(widgetTheme.color(.bg), for: .widget)
+            .widgetURL(WidgetDeepLinks.kpiDetail(metric))   // RG-80: tap opens this KPI's detail
     }
 }
 

@@ -587,12 +587,13 @@ struct RootTabView: View {
         guard let templates = hubScreens as? any WorkoutTemplatesProviding else { return nil }
         let sender: any WorkoutSending = CommandLine.arguments.contains("-ui-testing") ? FakeWorkoutSender() : WorkoutSchedulerSender()
         let limits = gateSettings.workoutLimits
+        let zones = gateSettings.zones   // RG-68: Zone 2 alerts + hr_zone targets resolve on the user's zones
         return SendToWatchViewModel(provider: templates, sender: sender,
-                                    builder: { try WorkoutBuilder.build($0, limits: limits) },
+                                    builder: { try WorkoutBuilder.build($0, limits: limits, zones: zones) },
                                     openSettings: {
                                         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                                     },
-                                    limits: limits)
+                                    limits: limits, zones: zones)
     }
 
     private func rebuildSendToWatchModel() {
@@ -1369,6 +1370,7 @@ struct RootTabView: View {
     // MARK: - W-FIX2 DEV-04: start at the gate
 
     private func evaluateGate() {
+        if GateLaunch.yieldsToStartTab(CommandLine.arguments) { return }   // RG-77: `-start-tab` wins
         let forced = !gateForceConsumed && GateLaunch.forcedByArguments(CommandLine.arguments)
         if forced { gateForceConsumed = true }
         let last = (try? env.prefs.get(GateLaunch.lastAnsweredKey, as: String.self)) ?? nil
@@ -1521,6 +1523,8 @@ struct RootTabView: View {
         if case .checkIn = link { selectedTab = .today; showCheckIn = true; return }
         // B-43 P1: `ji://strength-log` (rest-end alert / Live Activity tap) opens the set logger.
         if link == .strengthLog { selectedTab = .training; StrengthLoggerOpenRequest.shared.request(); return }
+        // RG-65: `ji://training` (cardio day nudge) only focuses Training.
+        if link == .training { selectedTab = .training; return }
         guard let route = RootRoute.destination(for: link) else { selectedTab = .today; return }
         selectedTab = TabRouter.owner(of: route)
         router.push(route)

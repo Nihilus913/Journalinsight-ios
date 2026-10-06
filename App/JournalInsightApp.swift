@@ -143,6 +143,14 @@ struct JournalInsightApp: App {
                 // `-no-push` guard). `ApnsRegistration` holds it until a device token can carry it to the hub.
                 LiveActivityStartRegistration.shared.start()
                 guard !CommandLine.arguments.contains("-no-push") else { return }
+                // RG-77: an undecided permission is not asked while Decide is up (the system alert
+                // covered the Go button ~2 s after launch); it is asked on a later launch instead.
+                let undecided = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .notDetermined
+                let last = (try? env.prefs.get(GateLaunch.lastAnsweredKey, as: String.self)) ?? nil
+                let gateOpens = !GateLaunch.yieldsToStartTab(CommandLine.arguments)
+                    && GateLaunch.shouldOpenGate(localDay: GateLaunch.localDay(Date()), lastAnsweredLocalDay: last,
+                                                 forced: GateLaunch.forcedByArguments(CommandLine.arguments))
+                guard GateLaunch.shouldAskNotificationsAtLaunch(undecided: undecided, gateOpens: gateOpens) else { return }
                 do {
                     _ = try await UNUserNotificationCenter.current()
                         .requestAuthorization(options: [.alert, .sound, .badge])

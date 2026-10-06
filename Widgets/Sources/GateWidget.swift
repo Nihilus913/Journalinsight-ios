@@ -91,6 +91,7 @@ private struct GateWidgetView: View {
         content
             .jiTheme(.native)
             .containerBackground(theme.color(.bg), for: .widget)
+            .widgetURL(WidgetDeepLinks.gate)   // RG-80: tap opens Decide
     }
 
     /// B-57 W5 (boards 6/01–05): the call, the reason, plan progress; the arcs are gone — signals

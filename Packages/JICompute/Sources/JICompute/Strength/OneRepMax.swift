@@ -40,6 +40,9 @@ public nonisolated enum OneRepMax {
 
     public enum Status: Sendable, Equatable {
         case none, first, newBest, held, down(percent: Int)
+        /// W-FIX-P3 RG-61: the latest session is older than the 4 weeks before today — nothing to
+        /// compare "the last 4 weeks" with (never a down-% measured from an old session).
+        case stale(lastDate: String)
     }
 
     public struct LiftHistory: Sendable, Equatable, Identifiable {
@@ -115,6 +118,21 @@ public nonisolated enum OneRepMax {
         guard !earlier.isEmpty else { return .first }
         if latest.prs.contains(.e1rm) { return .newBest }
         let cutoff = shift(latest.date, days: -28)
+        let window = earlier.filter { $0.date >= cutoff }
+        let ref = (window.isEmpty ? earlier : window).map(\.e1rm).max() ?? latest.e1rm
+        guard ref > 0, latest.e1rm < ref * 0.95 else { return .held }
+        return .down(percent: Int(((1 - latest.e1rm / ref) * 100).rounded()))
+    }
+
+    /// W-FIX-P3 RG-61: the same comparison anchored to `today` (yyyy-MM-dd, passed in — rule 8):
+    /// "the last 4 weeks" = the 28 days before today. A latest session outside them is `.stale`.
+    public static func status(_ h: LiftHistory, today: String) -> Status {
+        guard let latest = h.latest else { return .none }
+        let cutoff = shift(today, days: -28)
+        guard latest.date >= cutoff else { return .stale(lastDate: latest.date) }
+        let earlier = Array(h.sessions.dropFirst())
+        guard !earlier.isEmpty else { return .first }
+        if latest.prs.contains(.e1rm) { return .newBest }
         let window = earlier.filter { $0.date >= cutoff }
         let ref = (window.isEmpty ? earlier : window).map(\.e1rm).max() ?? latest.e1rm
         guard ref > 0, latest.e1rm < ref * 0.95 else { return .held }

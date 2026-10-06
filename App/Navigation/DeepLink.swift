@@ -12,6 +12,9 @@ enum DeepLink: Hashable, Sendable {
     /// B-43 P1: `ji://strength-log` — the rest/timed-set end alert and the strength Live Activity
     /// open the set logger (Training tab, `StrengthLoggerOpenRequest`).
     case strengthLog
+    /// RG-65: `ji://training` — a cardio day's "session planned today" nudge focuses Training
+    /// (only a strength day opens the set logger).
+    case training
 
     static func parse(_ url: URL) -> DeepLink? {
         guard let scheme = url.scheme?.lowercased(), scheme == "ji" || scheme == "journalinsight" else { return nil }
@@ -26,6 +29,8 @@ enum DeepLink: Hashable, Sendable {
             return .gate
         case "strength-log":
             return .strengthLog
+        case "training":
+            return .training
         case "checkin":
             let trigger = components.queryItems?.first(where: { $0.name == "trigger" })?.value
             return .checkIn(trigger: (trigger?.isEmpty ?? true) ? nil : trigger)
@@ -55,7 +60,7 @@ enum RootRoute: Hashable, Sendable {
 
     static func destination(for link: DeepLink) -> RootRoute? {
         switch link {
-        case .gate, .checkIn, .strengthLog: nil
+        case .gate, .checkIn, .strengthLog, .training: nil
         case .kpiDetail(let metric): .kpiDetail(metric: metric)
         }
     }

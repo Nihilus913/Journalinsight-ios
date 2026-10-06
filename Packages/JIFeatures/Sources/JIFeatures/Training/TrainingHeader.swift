@@ -87,7 +87,7 @@ public nonisolated func trainingHeroRows(exercises: [Exercise], session: Planned
     let byId = exercises.filter { $0.sessionId == session.id }
     let picked = byId.isEmpty ? exercises.filter { $0.sessionName == session.name } : byId
     return picked.map { e in
-        let kg = e.currentWeightKg.flatMap { $0 > 0 ? String(format: "%.1f kg", $0) : nil }   // 0 kg = bodyweight: no load claimed
+        let kg = e.currentWeightKg.flatMap { $0 > 0 ? "\(jiKg($0)) kg" : nil }   // 0 kg = bodyweight; RG-54 "50 kg"
         let sets = e.sets.map { "\($0) sets" }
         let load = [kg, sets].compactMap { $0 }.joined(separator: " · ")
         return TrainingHeroRow(id: e.exerciseId, name: e.exerciseName, load: load.isEmpty ? "—" : load,

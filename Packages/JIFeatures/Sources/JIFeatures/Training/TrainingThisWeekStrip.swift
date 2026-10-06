@@ -2,12 +2,13 @@ import SwiftUI
 import JICore
 import JIDesign
 
-public nonisolated let trainingWeekLegend = "S strength · I intervals · R long run · + library workout"
+/// W-FIX-P3 RG-66: same letters as the Month legend; a no-break space keeps letter and word together.
+public nonisolated let trainingWeekLegend = "S\u{00A0}strength · I\u{00A0}intervals · Z\u{00A0}zone 2 · +\u{00A0}library workout"
 
 /// The letter in a day circle: the plan kind, or "+" for an otherwise-rest day that holds a
 /// library workout (W-B40 fixer, B40-V2 — the day sheet lists it, so the strip must too).
 public nonisolated func trainingWeekDayGlyph(_ d: TrainingWeekDay) -> String {
-    d.kind == .rest && !d.extras.isEmpty ? "+" : d.kind.rawValue
+    d.kind == .rest && !d.extras.isEmpty ? "+" : d.kind.letter
 }
 
 public nonisolated func trainingWeekDayAccessibilityLabel(_ d: TrainingWeekDay) -> String {
