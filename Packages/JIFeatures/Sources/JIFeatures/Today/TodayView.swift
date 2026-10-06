@@ -494,7 +494,8 @@ public struct TodayView: View {
     /// B-57 §9 Coach: the one change for today, built from the DTOs this screen already holds.
     private var coachContent: CoachContent {
         CoachContentBuilder.build(morning: model.morning, gate: model.gate, recovery: model.recovery,
-                                  override: currentOverride, verdictReason: model.verdictReason, today: model.verdictDate)
+                                  override: currentOverride, verdictReason: model.verdictReason, today: model.verdictDate,
+                                  gateSignals: model.morning?.gateSignals)   // W-FIX-P2 RG-38
     }
 
     private var todayDateString: String { DayKey.today(now: Date()).iso }

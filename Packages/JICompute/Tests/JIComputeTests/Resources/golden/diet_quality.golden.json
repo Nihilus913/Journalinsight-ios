@@ -1,5 +1,5 @@
 {
- "_comment": "B-99 diet quality golden fixtures (JI reference formula v1). Shared by HT tests/test_diet_quality.py and the XC DietQuality.swift port (B-99 p3). Expected values hand-computed; weights compare with 1e-9 tolerance.",
+ "_comment": "B-99 diet quality golden fixtures (JI reference formula v1). Shared by HT tests/test_diet_quality.py and the XC DietQuality.swift port (B-99 p3). Expected values hand-computed; weights compare with 1e-9 tolerance. RG-44/45 (W-FIX-P2): no_data on 0 meals; protein alone is not scored.",
  "cases": [
   {
    "name": "complete_all_at_target",
@@ -428,6 +428,92 @@
      }
     ],
     "coverage_pct": 87,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "no_data_zero_meals",
+   "input": {
+    "kcal": 0,
+    "fiber_g": null,
+    "sugar_g": null,
+    "sat_fat_g": null,
+    "protein_g": 0,
+    "protein_goal_g": 150,
+    "kcal_goal": 1935,
+    "meal_count": 0,
+    "coverage_pct": null
+   },
+   "expected": {
+    "score": null,
+    "incomplete": true,
+    "reason": "no_data",
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sugar",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sat_fat",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "protein",
+      "score": 0.0,
+      "weight": 1.0
+     }
+    ],
+    "coverage_pct": null,
+    "formula_version": 1
+   }
+  },
+  {
+   "name": "protein_only_not_scored",
+   "input": {
+    "kcal": 1800,
+    "fiber_g": null,
+    "sugar_g": null,
+    "sat_fat_g": null,
+    "protein_g": 140,
+    "protein_goal_g": 150,
+    "kcal_goal": 1935,
+    "meal_count": 3,
+    "coverage_pct": 0
+   },
+   "expected": {
+    "score": null,
+    "incomplete": true,
+    "reason": "no_contributors",
+    "contributors": [
+     {
+      "key": "fibre",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sugar",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "sat_fat",
+      "score": null,
+      "weight": null
+     },
+     {
+      "key": "protein",
+      "score": 93.3,
+      "weight": 1.0
+     }
+    ],
+    "coverage_pct": 0,
     "formula_version": 1
    }
   }

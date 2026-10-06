@@ -45,7 +45,12 @@ public nonisolated enum DietQuality {
         case fewMeals = "few_meals"
         case lowKcal = "low_kcal"
         case noContributors = "no_contributors"
+        /// RG-44: nothing logged (0 meals, or no kcal with an unknown meal count) — the no-data state.
+        case noData = "no_data"
     }
+
+    /// RG-45: the food-composition contributors; protein alone is not a diet score.
+    public static let foodContributors: [ContributorKey] = [.fibre, .sugar, .satFat]
 
     /// One day's totals. `nil` (or NaN) = unknown.
     public struct Input: Sendable, Equatable {
@@ -132,12 +137,15 @@ public nonisolated enum DietQuality {
         let weight: Double? = present.isEmpty ? nil : 1.0 / Double(present.count)
 
         var reason: Reason?
-        if meals == nil || meals! < minMeals {
+        let rawKcal = num(day.kcal)
+        if meals == 0 || (meals == nil && (rawKcal ?? 0) <= 0) {
+            reason = .noData
+        } else if meals == nil || meals! < minMeals {
             reason = .fewMeals
         } else if let kcalGoal, kcalGoal > 0, kcal < minGoalKcalShare * kcalGoal {
             reason = .lowKcal
-        } else if present.isEmpty {
-            reason = .noContributors
+        } else if !present.contains(where: { foodContributors.contains($0) }) {
+            reason = .noContributors   // RG-45: none at all, or protein alone
         }
 
         let contributors = ContributorKey.allCases.map { key in

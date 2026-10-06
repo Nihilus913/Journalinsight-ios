@@ -42,6 +42,9 @@ public nonisolated struct DietQualityPresentation: Sendable, Equatable {
     /// Always shown: "Based on 73% of logged kcal · 3 meals logged" (or the source's equivalent).
     public let caption: String
     public let source: DietQualitySource?
+    /// RG-45: the day's food log carries saturated fat (hub `sat_fat_g` non-null). False -> the
+    /// method sheet says "three contributors" until it is synced.
+    public var satFatInData: Bool = false
 
     public var score: Int? { if case .scored(let s) = state { s } else { nil } }
 }
@@ -49,7 +52,22 @@ public nonisolated struct DietQualityPresentation: Sendable, Equatable {
 public nonisolated let dietQualityTitle = "Diet quality"
 public nonisolated let dietQualityGateCopy = "Score needs 3 meals and ≥ 60% of your kcal goal."
 
-/// The sheet's four "how it is calculated" steps (mockup B).
+/// The sheet's "how it is calculated" steps (mockup B). RG-45: while the food log carries no
+/// saturated fat (hub `sat_fat_g` never populated) the sheet says three contributors, not four.
+public nonisolated func dietQualityMethodSteps(satFatInData: Bool) -> [(title: String, body: String)] {
+    if satFatInData { return dietQualityMethodSteps }
+    return [
+        ("Three contributors, 0–100 each",
+         "Fibre against 14 g per 1,000 kcal eaten. Sugar against 10% of kcal, with a soft slope above it. Protein against your own goal. Saturated fat joins once your food log carries it."),
+        dietQualityMethodSteps[1],
+        ("Only on complete days",
+         "Fewer than 3 meals or under 60% of your kcal goal = \"incomplete day\", no score. Protein alone is not scored. A missing day is never a low day."),
+        ("Coverage is shown, not hidden",
+         "The card states the share of the day's logged kcal whose food carries the fibre and sugar detail the score used."),
+    ]
+}
+
+/// The sheet's four "how it is calculated" steps (mockup B), with saturated fat in the data.
 public nonisolated let dietQualityMethodSteps: [(title: String, body: String)] = [
     ("Four contributors, 0–100 each",
      "Fibre against 14 g per 1,000 kcal eaten. Sugar and saturated fat against 10% of kcal, with a soft slope above it. Protein against your own goal."),
@@ -138,13 +156,21 @@ nonisolated func dietQualityRows(contributors: [(key: String, score: Double?)], 
 public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionDailyRow?, health: HealthDailyTotals?,
                                                 proteinGoal: Double?, kcalGoal: Double?) -> DietQualityPresentation {
     let meals = hubRow?.mealsLogged
+    let satFat = hubRow?.satFatG != nil
+    // RG-44: a 0-meal day (hub reason `no_data`, or an old hub's 0-meal row) is the no-data state,
+    // not "Incomplete · 0 of 3 meals" with "Not in the logged food" ×4.
+    if hubRow?.dietQuality?.reason == "no_data" || (meals == 0 && !(health?.hasFood ?? false)) {
+        return noDataPresentation(date: date)
+    }
     if let row = hubRow, let dq = row.dietQuality {
         let amounts = DietQualityAmounts(kcal: row.kcalConsumed, fiberG: row.fiberG, sugarG: row.sugarG, satFatG: row.satFatG, proteinG: row.proteinG)
         let rows = dietQualityRows(contributors: dq.contributors.map { ($0.key, $0.score) }, amounts: amounts,
                                    proteinGoal: proteinGoal, incomplete: dq.incomplete, source: .hub)
         let coverage = dq.coveragePct ?? row.coveragePct.map { Int($0.rounded()) }
-        return make(date: date, score: dq.incomplete ? nil : dq.score, reason: dq.reason, rows: rows, meals: meals,
-                    caption: hubCaption(coverage: coverage, meals: meals), source: .hub)
+        var p = make(date: date, score: dq.incomplete ? nil : dq.score, reason: dq.reason, rows: rows, meals: meals,
+                     caption: hubCaption(coverage: coverage, meals: meals), source: .hub)
+        p.satFatInData = satFat
+        return p
     }
     // Hub-less fallback: Apple Health's day totals when Health has the day's food, else the hub
     // row's own grams (old hub without `diet_quality`).
@@ -160,8 +186,7 @@ public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionD
         amounts = DietQualityAmounts(kcal: row.kcalConsumed, fiberG: row.fiberG, sugarG: row.sugarG, satFatG: row.satFatG, proteinG: row.proteinG)
         coverage = row.coveragePct
     } else {
-        return DietQualityPresentation(date: date, state: .noData, headline: "Scores appear once a day is complete.",
-                                       rows: [], caption: "No food logged for this day.", source: nil)
+        return noDataPresentation(date: date)
     }
     // Health holds no meal count: with no hub row for the day the meal gate cannot be read, so
     // only the kcal gate applies (decision recorded in the B-99 p5 lane return).
@@ -175,8 +200,16 @@ public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionD
     let caption = source == .appleHealth
         ? "From Apple Health day totals · saturated fat and coverage are not in Health" + (meals.map { " · \(mealsText($0))" } ?? "")
         : hubCaption(coverage: result.coveragePct, meals: meals)
-    return make(date: date, score: result.score, reason: result.reason?.rawValue, rows: rows, meals: meals,
-                caption: caption, source: source)
+    if result.reason == .noData { return noDataPresentation(date: date) }
+    var p = make(date: date, score: result.score, reason: result.reason?.rawValue, rows: rows, meals: meals,
+                 caption: caption, source: source)
+    p.satFatInData = amounts.satFatG != nil
+    return p
+}
+
+private nonisolated func noDataPresentation(date: String) -> DietQualityPresentation {
+    DietQualityPresentation(date: date, state: .noData, headline: "Scores appear once a day is complete.",
+                            rows: [], caption: "No food logged for this day.", source: nil)
 }
 
 private nonisolated func mealsText(_ n: Int) -> String { n == 1 ? "1 meal logged" : "\(n) meals logged" }
@@ -198,7 +231,7 @@ private nonisolated func make(date: String, score: Int?, reason: String?, rows: 
     switch reason {
     case "few_meals": line = meals.map { "Incomplete day · \($0) of 3 meals" } ?? "Incomplete day · meal count unknown"
     case "low_kcal": line = "Incomplete day · under 60% of your kcal goal"
-    case "no_contributors": line = "Incomplete day · no fibre, sugar or protein data"
+    case "no_contributors": line = "Incomplete day · no fibre, sugar or saturated-fat detail"   // RG-45: protein alone is not scored
     default: line = "Incomplete day"
     }
     return DietQualityPresentation(date: date, state: .incomplete(line), headline: dietQualityGateCopy, rows: rows, caption: caption, source: source)

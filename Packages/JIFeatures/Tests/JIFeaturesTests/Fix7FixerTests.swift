@@ -18,7 +18,7 @@ private func fixerSource(_ relative: String) throws -> String {
 @Test func f72DecidePassesTheHubsRecoveryToTheRow() throws {
     let decide = try fixerSource("Sources/JIFeatures/Today/DecideView.swift")
     #expect(!decide.contains("RecoveryScoreCard(compact: true)\n"))
-    #expect(decide.contains("RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))"))
+    #expect(decide.contains("RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals)"))   // W-FIX-P2 RG-38: + gateRows
 }
 
 // MARK: - F7-3: Apple Health › Readiness = the hub's recovery first

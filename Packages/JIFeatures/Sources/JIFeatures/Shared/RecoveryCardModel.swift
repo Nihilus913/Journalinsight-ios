@@ -1,4 +1,5 @@
 import JICompute
+import JICore
 import JIDesign
 
 /// B-57 W3 — what the recovery-score card shows (board `1 Today/03 GateRationale`). Pure.
@@ -62,5 +63,34 @@ public nonisolated struct RecoveryCardModel: Equatable, Sendable {
             else { word = "In your normal" }
             return DriverBar(id: key.rawValue, label: label, value: fill, word: word, tint: z <= -1 ? .reduced : (key == .sleep ? .sleep : nil))
         }
+    }
+
+    /// W-FIX-P2 RG-38 (B-105): the Why-today card over the call's gate rows — the headline is the
+    /// "Recovery score" row and each driver's word is its row's status (Load: the hub's named ACWR
+    /// status, "Overreaching"), so the card never says "In your normal" beside an amber row in
+    /// "What drove it". No rows (older hub, offline) -> unchanged on-device card.
+    public func applyingGateRows(_ rows: [GateSignal]?) -> RecoveryCardModel {
+        guard let rows, !rows.isEmpty else { return self }
+        let byKey = Dictionary(rows.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        let newDrivers = drivers.map { bar -> DriverBar in
+            guard let row = byKey[bar.id], row.value != nil, row.status != .missing else { return bar }
+            let bad = row.status == .amber || row.status == .red
+            let word: String
+            if bar.id == "load", let named = row.loadStatus, !named.isEmpty {
+                word = named.prefix(1).uppercased() + named.dropFirst()
+            } else if bad {
+                word = row.direction == .max ? "High" : "Low"
+            } else {
+                word = "In your normal"
+            }
+            return DriverBar(id: bar.id, label: bar.label, value: bar.value, word: word,
+                             tint: bad ? .reduced : (bar.id == "sleep" ? .sleep : nil))
+        }
+        guard let rec = byKey["recovery"], let v = rec.value, v.isFinite else {
+            return RecoveryCardModel(headline: headline, status: status, isLow: isLow, drivers: newDrivers, note: note)
+        }
+        let low = rec.status == .amber || rec.status == .red
+        return RecoveryCardModel(headline: jiNumber(v, 0), status: low ? "Recovery low" : "In your normal range",
+                                 isLow: low, drivers: newDrivers, note: note)
     }
 }

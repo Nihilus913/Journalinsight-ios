@@ -68,7 +68,7 @@ private func result(_ status: RecoveryScoreStatus, score: Int?, nights: Int = 20
     #expect(decide.contains("RecoveryScoreCard(compact: true"))   // W-FIX7 fixer: + hubRecovery
     #expect(decide.contains("RecoveryScoreCard.visibleSignals("))
     let rationale = try s1Source("Sources/JIFeatures/GateRationale/GateRationaleView.swift")
-    #expect(rationale.contains("RecoveryScoreCard()"))
+    #expect(rationale.contains("RecoveryScoreCard(gateRows: model.morning?.gateSignals)"))   // W-FIX-P2 RG-38: the call's gate rows
     #expect(rationale.contains("RecoveryScoreCard.visibleSignals("))
     // The W-GUI placeholder ("— Calibrating · n of 7 nights") is gone: 14 nights is the real need.
     #expect(!rationale.contains("of 7 nights"))

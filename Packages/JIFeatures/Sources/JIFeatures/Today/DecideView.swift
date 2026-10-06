@@ -292,6 +292,11 @@ public nonisolated func decideHubRecovery(_ signals: [GateSignal]?) -> Double? {
     signals?.first { $0.key == "recovery" }?.value
 }
 
+/// W-FIX-P2 RG-38: the gate's "Recovery score" row status (amber/red = "Recovery low").
+public nonisolated func decideHubRecoveryStatus(_ signals: [GateSignal]?) -> GateSignalStatus? {
+    signals?.first { $0.key == "recovery" && $0.value != nil }?.status
+}
+
 /// W-B57-W3 fixer: the ring's number. W-FIX-P1 RG-08 (B-123): the call's recovery score (the
 /// gate's "Recovery score" row) wins — "44 Readiness" next to "Recovery score 39" was two numbers
 /// for one night; the hub's readiness only when the hub sent no score, else the on-device score.
@@ -623,7 +628,7 @@ public struct DecideView: View {
                     }
                     // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
                     // W-FIX7 fixer F7-2: the row says the ring's number (the hub's recovery for the call).
-                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))
+                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals), gateRows: gateSignals)
                         .padding(.horizontal, JISpacing.s4)
                     JIRowDivider().padding(.leading, JISpacing.s4)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).
