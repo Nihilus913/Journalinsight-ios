@@ -25,7 +25,11 @@ enum OnDeviceVerdictWiring {
 
     /// The L1 compute (`HrvBand` + `mergeRecoveryDays` + `appleGateInputs` + `evaluate`) behind the
     /// `OnDeviceVerdictComputing` seam (`JIComputeVerdictEngine`, JIHealthKit).
-    nonisolated static var engine: (any OnDeviceVerdictComputing)? { JIComputeVerdictEngine() }
+    nonisolated static var engine: (any OnDeviceVerdictComputing)? { JIComputeVerdictEngine(rules: gateRules) }
+
+    /// RG-06 / B-112: the hub's rules (plan week) + the engine's own gate state, shared by every
+    /// engine instance; refreshed from the hub before each compute (`prepareHubInputs`).
+    nonisolated static let gateRules = OnDeviceGateRulesBox()
 
     /// Release: an engine is wired (B-44 Option B). DEBUG: + the Developer flag.
     nonisolated static var isEnabled: Bool {
@@ -119,12 +123,21 @@ enum OnDeviceVerdictWiring {
         }
         #endif
         await seedGarminNights(day: day)
+        await refreshPlanWeek()
         return try await provider.onDeviceVerdict(day: day)
     }
 
     /// RG-04 / B-120: before the first compute, the hub's Garmin nights complete the 28-night
     /// baseline exactly as the hub's own gate does (`OnDeviceSeed.runGarmin`, idempotent — a
     /// store that holds a Garmin night is never re-seeded). Without a hub: skipped (Apple only).
+    /// RG-06: the plan week the hub's gate reads (`plan_from_rows` over `GET /planning/plan-sessions`),
+    /// instead of the hard-coded weekday table. A failed read keeps the last week (or the table).
+    nonisolated static func refreshPlanWeek() async {
+        guard let hub = await MainActor.run(body: { OnDeviceVerdictWiring.currentHub }),
+              let rows = try? await hub.planSessions() else { return }
+        gateRules.setPlan(PlanScheduleResolver(planSessions: rows, fixedWeek: OnDeviceGateRulesBox.fixedWeek).week)
+    }
+
     nonisolated static func seedGarminNights(day: String) async {
         guard let hub = await MainActor.run(body: { OnDeviceVerdictWiring.currentHub }),
               let store = baselineStore() else { return }
