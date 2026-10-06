@@ -27,9 +27,9 @@ struct DaySessionCardTests {
     @Test func cardShowsSessionNofNLinesAndCallout() throws {
         let m = try #require(daySessionCardModel(sessionName: "Day 2 Full Upper", lifts: Self.lifts, week: Self.week))
         #expect(m.title == "Day 2 Full Upper, session 2 of 4")
-        #expect(m.lines == [DaySessionLine(name: "Bench press", from: "50.0", to: "52.5"), DaySessionLine(name: "Bent-over row", from: nil, to: "50.0")])
+        #expect(m.lines == [DaySessionLine(name: "Bench press", from: "50", to: "52.5"), DaySessionLine(name: "Bent-over row", from: nil, to: "50")])
         #expect(m.more == "+2 more · 12 sets")
-        #expect(m.callout == DaySessionCallout(title: "Progression due on bench press", body: "All sets hit the target reps at 50.0 kg last time."))
+        #expect(m.callout == DaySessionCallout(title: "Progression due on bench press", body: "All sets hit the target reps at 50 kg last time."))
     }
 
     @Test func noSessionNoCard_noDueNoCallout() {
@@ -46,7 +46,7 @@ struct DaySessionCardTests {
 
     @Test func decideLiftShowsNextWeightAndDirection() {
         #expect(decideSessionLift(Self.lifts)! == ("52.5 kg", "↑ Bench up"))
-        #expect(decideSessionLift([Self.lift(2, "Bent-over row", .notYet)])! == ("50.0 kg", nil))
+        #expect(decideSessionLift([Self.lift(2, "Bent-over row", .notYet)])! == ("50 kg", nil))
         #expect(decideSessionLift([]) == nil)
     }
 
@@ -55,7 +55,7 @@ struct DaySessionCardTests {
     @Test func nextRowLoadShowsTheStepOnlyWhenDue() {
         let bench = TrainingHeroRow(id: 1, name: "Bench press", load: "50.0 kg · 3 sets")
         let row = TrainingHeroRow(id: 2, name: "Bent-over row", load: "50.0 kg · 3 sets")
-        #expect(dayNextRowLoad(bench, lifts: Self.lifts) == ("50.0 → 52.5 kg · 3 sets", true))
+        #expect(dayNextRowLoad(bench, lifts: Self.lifts) == ("50 → 52.5 kg · 3 sets", true))
         #expect(dayNextRowLoad(row, lifts: Self.lifts) == ("50.0 kg · 3 sets", false))
         #expect(dayNextRowLoad(bench, lifts: []) == ("50.0 kg · 3 sets", false))
         // Hub row names differ from the service's only in case/underscores → still found.

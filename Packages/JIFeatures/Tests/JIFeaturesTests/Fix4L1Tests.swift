@@ -25,7 +25,7 @@ struct Fix4L1Tests {
         let card = dayNextCard(verdict: verdictParts("GO — Day 3 Full Upper"), sessionForToday: "Day 3 Full Upper",
                                override: nil, plan: plan, weekday: nil)
         #expect(card.rows.map(\.name) == ["Barbell Bench Press", "Pull-up"])
-        #expect(card.rows.first?.load == "50.0 kg · 3 sets")
+        #expect(card.rows.first?.load == "50 kg · 3 sets")
         #expect(card.exercises == nil)   // no "No data" line while the rows are there
     }
 
