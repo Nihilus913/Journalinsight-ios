@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */; };
+		06571747E98C6C04BC39C452 /* HealthKitLaunchGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F550BF1C6894BEFD3E376293 /* HealthKitLaunchGate.swift */; };
 		08346F5FBA168D27176DEB00 /* ShadowLogWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5958527A14A12B9893C50209 /* ShadowLogWriter.swift */; };
 		0C40B0ABEE3B33861D672B80 /* StrengthLogViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C66279B9FA496C89CE05177 /* StrengthLogViewModelTests.swift */; };
 		0C9201E0ABEDA47CB6DBCBB4 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = D393B4A4FCB5E732570A00E9 /* JIDesign */; };
@@ -124,6 +125,7 @@
 		EC5311AB5875741B4CB7CE7D /* ApnsPayloadRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */; };
 		ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */; };
 		EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */; };
+		F2CF2139E05DA9E395020461 /* NoHealthKitLaunchGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301ACCB32500A538C7C03ECA /* NoHealthKitLaunchGateTests.swift */; };
 		F469AB7B9CE0347E5AD98DEB /* WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10DE8483D600DB29CBA88C /* WidgetsBundle.swift */; };
 		FBDC394485A35929AF056DA5 /* JIVault in Frameworks */ = {isa = PBXBuildFile; productRef = A230B1185D4D79616F44967A /* JIVault */; };
 		FC8C7BED2DA952BDB0C93516 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */; };
@@ -215,6 +217,7 @@
 		2CA09438245026D70FC72FF4 /* DeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLink.swift; sourceTree = "<group>"; };
 		2F4049330B48D8A7FEE0AC8F /* LiveActivityCapPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityCapPolicy.swift; sourceTree = "<group>"; };
 		2F7FE8B71B75C3267B69E33E /* RootRouteMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRouteMappingTests.swift; sourceTree = "<group>"; };
+		301ACCB32500A538C7C03ECA /* NoHealthKitLaunchGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoHealthKitLaunchGateTests.swift; sourceTree = "<group>"; };
 		3261685EDB3B86163D8948AA /* Fix6FixerAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix6FixerAppTests.swift; sourceTree = "<group>"; };
 		33B95FD08E32DDCC89D64B00 /* Fix7L1AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fix7L1AppTests.swift; sourceTree = "<group>"; };
 		33E6CD67F4663F832B55B634 /* StrengthMirrorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthMirrorCoordinator.swift; sourceTree = "<group>"; };
@@ -302,6 +305,7 @@
 		ECB808090BFEC147D0BC4C92 /* JICompute */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICompute; path = Packages/JICompute; sourceTree = SOURCE_ROOT; };
 		ED0ACE3DDDBED082761F6A42 /* FixP3L6Shots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixP3L6Shots.swift; sourceTree = "<group>"; };
 		F2EB210CEA25715C06AA2E31 /* WidgetDeepLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDeepLinks.swift; sourceTree = "<group>"; };
+		F550BF1C6894BEFD3E376293 /* HealthKitLaunchGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitLaunchGate.swift; sourceTree = "<group>"; };
 		F942C84FEAE3AF5C9C128688 /* AppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB4AF5C04DC4544BFC44D529 /* TrainingProofTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingProofTests.swift; sourceTree = "<group>"; };
 		FC17C93F596DA8A04D63D272 /* JICore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICore; path = Packages/JICore; sourceTree = SOURCE_ROOT; };
@@ -462,6 +466,7 @@
 				D574D122CBC9086DFDCCB065 /* MockPushPresentationTests.swift */,
 				1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */,
 				81E3002B92D368429BB3F69F /* MoreTabTests.swift */,
+				301ACCB32500A538C7C03ECA /* NoHealthKitLaunchGateTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				1826921157F0A09B5E6C6092 /* ProjectMembershipGuardTests.swift */,
 				73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */,
@@ -571,6 +576,7 @@
 				BEB2167A5723CD8535E1CAE5 /* AppDelegate.swift */,
 				9FC4B2065A6F827B696A084F /* AppEnvironment.swift */,
 				50213A12F93450C6AD416BAD /* Assets.xcassets */,
+				F550BF1C6894BEFD3E376293 /* HealthKitLaunchGate.swift */,
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
@@ -864,6 +870,7 @@
 				7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */,
 				9C668FEB52BC8240D1D00A85 /* DebugRmssdSeeder.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
+				06571747E98C6C04BC39C452 /* HealthKitLaunchGate.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
 				DC306E33CD5648EA082E5A0F /* LiveActivityCapPolicy.swift in Sources */,
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
@@ -953,6 +960,7 @@
 				91999117EF813A88317384E8 /* MockPushPresentationTests.swift in Sources */,
 				94F4F8AEFD8AFF2E9E4C0DF1 /* MoodMirrorSimTests.swift in Sources */,
 				E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */,
+				F2CF2139E05DA9E395020461 /* NoHealthKitLaunchGateTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				9564A45902C68CA09F4F6E1D /* ProjectMembershipGuardTests.swift in Sources */,
 				0FECD0C0B4BBA90BF4C6C305 /* ProviderSelectionTests.swift in Sources */,
