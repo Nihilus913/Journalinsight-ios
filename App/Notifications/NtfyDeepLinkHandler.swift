@@ -43,8 +43,13 @@ final class NotificationRoutingDelegate: NSObject, UNUserNotificationCenterDeleg
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound, .list])
+        completionHandler(Self.foregroundPresentation)
     }
+
+    /// RG-60: what a notification (local floor, hub APNs alert) shows while the app is open — the
+    /// presentation seam a mock push is tested through, since `simctl push` is refused on the
+    /// Simulator (UNErrorDomain 2003 "Source is not authorized").
+    static let foregroundPresentation: UNNotificationPresentationOptions = [.banner, .sound, .list]
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
