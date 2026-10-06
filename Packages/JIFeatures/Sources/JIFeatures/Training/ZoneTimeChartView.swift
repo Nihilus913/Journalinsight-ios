@@ -99,7 +99,9 @@ public struct ZoneTimeChartView: View {
         }
         .background(theme.color(.bg).ignoresSafeArea())
         .navigationTitle("Time in zone")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
+        #endif
         .task(id: model.span) { await model.load() }
         .jiTheme(.native)
     }
