@@ -230,6 +230,14 @@ public nonisolated func decideCallTime(_ iso: String?, timeZone: TimeZone = .cur
     return f.string(from: date)
 }
 
+/// W-FIX-P3 RG-41: the header's "Updated 13:14" pill — only when the hub says core was rewritten
+/// after the card's snapshot (`updated_since_verdict`); the time is `core_updated_at`'s.
+public nonisolated func decideUpdatedPillText(coreUpdatedAt: String?, updatedSinceVerdict: Bool?,
+                                              timeZone: TimeZone = .current) -> String? {
+    guard updatedSinceVerdict == true, let time = decideCallTime(coreUpdatedAt, timeZone: timeZone) else { return nil }
+    return "Updated \(time)"
+}
+
 /// W-DECIDE-HYBRID H-2: the "What drove it" header's right side — the rows are the values the
 /// gate used when it made the call (stored with the verdict), never live values.
 public nonisolated func decideDroveItCaption(callTime: String?) -> String? {
@@ -368,6 +376,8 @@ public struct DecideView: View {
     let callComputedAt: String?
     /// W-DECIDE-HYBRID H-3/H-4: the Strain card's numbers; nil = not sent.
     let strain: MorningStrain?
+    /// W-FIX-P3 RG-41: "Updated 13:14" when core is newer than the card's snapshot; nil = none.
+    let updatedPill: String?
     @State private var showAdjust = false
     @State private var showGateConfig = false
     /// W-B91 S3 b91p2: the Strain detail sheet (tap the Strain card).
@@ -387,13 +397,14 @@ public struct DecideView: View {
                 overrideModel: VerdictOverrideViewModel?, syncedAt: Date?, normals: [String: ClosedRange<Double>] = [:],
                 banner: StalenessBanner? = nil, now: Date = Date(), calibrationNights: Int? = nil, isStale: Bool? = nil,
                 heldReason: String? = nil, planWeek: PlanWeekOut? = nil, pageName: String = "Today",
-                callComputedAt: String? = nil, strain: MorningStrain? = nil, onAdvance: @escaping () -> Void) {
+                callComputedAt: String? = nil, strain: MorningStrain? = nil, updatedPill: String? = nil, onAdvance: @escaping () -> Void) {
         self.verdict = verdict; self.readiness = readiness; self.syncing = syncing
         self.gateSignals = gateSignals; self.verdictDate = verdictDate; self.sessionForToday = sessionForToday
         self.override = override; self.overrideModel = overrideModel
         self.syncedAt = syncedAt; self.normals = normals; self.banner = banner; self.now = now; self.onAdvance = onAdvance
         self.calibrationNights = calibrationNights; self.isStale = isStale; self.heldReason = heldReason
         self.planWeek = planWeek; self.pageName = pageName; self.callComputedAt = callComputedAt; self.strain = strain
+        self.updatedPill = updatedPill
     }
 
     private var callTime: String? { decideCallTime(callComputedAt) }
@@ -521,11 +532,13 @@ public struct DecideView: View {
                 HStack {
                     dateText.fixedSize()
                     Spacer()
+                    if let updatedPill { UpdatedPill(text: updatedPill).fixedSize() }
                     SyncedPill(date: syncedAt, now: now).fixedSize()
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     dateText.fixedSize(horizontal: false, vertical: true)
                     SyncedPill(date: syncedAt, now: now).fixedSize(horizontal: false, vertical: true)
+                    if let updatedPill { UpdatedPill(text: updatedPill).fixedSize(horizontal: false, vertical: true) }
                 }
             }
         }
@@ -902,5 +915,24 @@ public struct SessionCompletionLine: View {
             .foregroundStyle(theme.color(isDone ? .go : .muted))
             .accessibilityIdentifier(isDone ? "session.done" : "session.otherActivity")
         }
+    }
+}
+
+/// W-FIX-P3 RG-41: the header's "Updated 13:14" cue — the SyncedPill's face (control fill, hairline
+/// rim), muted text: newer data arrived after the call, the call itself did not change.
+struct UpdatedPill: View {
+    let text: String
+    @Environment(\.jiTheme) private var theme
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radius(.control), style: .continuous)
+        Label(text, systemImage: "arrow.triangle.2.circlepath")
+            .jiFont(.footnote, weight: .semibold)
+            .foregroundStyle(theme.color(.muted))
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .padding(.horizontal, JISpacing.s3).padding(.vertical, 6)
+            .background(theme.color(.control), in: shape)
+            .overlay(shape.strokeBorder(theme.color(.hairlineOuter), lineWidth: 1))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("today.updated-pill")
     }
 }

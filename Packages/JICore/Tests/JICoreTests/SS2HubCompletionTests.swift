@@ -10,12 +10,12 @@ import Testing
     static let golden = """
     {
       "2026-09-29": {"session_type": "interval", "owed": true,
-        "parts": [{"part": "cardio", "done": false, "activity_ids": []}], "status": "open", "credited": false},
+        "parts": [{"part": "cardio", "done": false, "activity_ids": []}], "status": "open", "credited": false, "lead_done": false},
       "2026-09-30": {"session_type": "strength", "owed": true,
         "parts": [{"part": "strength", "done": true, "activity_ids": [9100002]},
-                  {"part": "cardio", "done": false, "activity_ids": []}], "status": "partial", "credited": true},
+                  {"part": "cardio", "done": false, "activity_ids": []}], "status": "partial", "credited": false, "lead_done": true},
       "2026-10-01": {"session_type": "z2", "owed": true,
-        "parts": [{"part": "cardio", "done": true, "activity_ids": [9100003]}], "status": "done", "credited": true}
+        "parts": [{"part": "cardio", "done": true, "activity_ids": [9100003]}], "status": "done", "credited": true, "lead_done": true}
     }
     """
 
@@ -33,7 +33,8 @@ import Testing
         let g = try Self.decoded()
         let tue = try #require(g["2026-09-29"]), wed = try #require(g["2026-09-30"]), thu = try #require(g["2026-10-01"])
         #expect(tue.sessionType == "interval" && tue.status == "open" && !tue.credited && tue.owed)
-        #expect(wed.isPartial && wed.credited && wed.parts.map(\.part) == ["strength", "cardio"])
+        // W-FIX-P3 RG-64 (Q1): a partial day is shown as partial, never credited (the lead part done is `lead_done`).
+        #expect(wed.isPartial && !wed.credited && wed.parts.map(\.part) == ["strength", "cardio"])
         #expect(wed.parts[0].activityIds == [9_100_002])
         #expect(thu.isDone && thu.parts[0].activityIds == [9_100_003])
     }

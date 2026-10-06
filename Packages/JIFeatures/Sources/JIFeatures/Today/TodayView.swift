@@ -136,7 +136,9 @@ public struct TodayView: View {
                        planWeek: model.planWeek,
                        pageName: loadTodayPageName(prefs: model.tileOrderStore),
                        callComputedAt: model.morning?.verdictComputedAt,
-                       strain: model.morning?.strain) { model.morningEvent(.gateResponded) }
+                       strain: model.morning?.strain,
+                       updatedPill: decideUpdatedPillText(coreUpdatedAt: model.morning?.coreUpdatedAt,
+                                                          updatedSinceVerdict: model.morning?.updatedSinceVerdict)) { model.morningEvent(.gateResponded) }
         } else {
             ScreenScroll {
                 VStack(alignment: .leading, spacing: 16) {
