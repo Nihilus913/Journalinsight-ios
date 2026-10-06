@@ -196,6 +196,16 @@ nonisolated let decideSessionLiftKeywords = ["upper", "lower", "full body", "str
 /// squeezing three texts into one line and clipping them.
 public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
 
+/// W-FIX-P2 RG-40: below AX sizes the row also stacks (title over the session name) when the two
+/// texts plus the lift weight cannot share one line — "Today's ses… / Day 1 Full Up…" at default size.
+public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize, title: String, detail: String, hasLift: Bool) -> Bool {
+    if decideSessionRowStacked(size) { return true }
+    return hasLift || title.count + detail.count > decideSessionRowInlineChars
+}
+
+/// The most characters (title + session) that fit beside the dumbbell well on a 375-pt phone at default size.
+nonisolated let decideSessionRowInlineChars = 26
+
 /// W-DECIDE-HYBRID H-1 (Toby 2026-10-04): Go with this / Adjust live INSIDE the top card — the bar
 /// pinned above the tab bar (W-FIX4 PF-01) is gone; the whole screen scrolls. The scroll keeps this
 /// room under its last row for the floating tab bar (the screens live behind the chrome-only
@@ -384,7 +394,7 @@ public struct DecideView: View {
     @ViewBuilder
     private func sessionRowLabel(_ row: (title: String, detail: String), lift: (kg: String, caption: String?)?,
                                  completion: SessionCompletion) -> some View {
-        if decideSessionRowStacked(typeSize) {
+        if decideSessionRowStacked(typeSize, title: row.title, detail: row.detail, hasLift: lift != nil) {
             VStack(alignment: .leading, spacing: JISpacing.s1) {
                 JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
                 Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
