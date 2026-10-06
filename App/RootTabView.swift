@@ -1440,7 +1440,9 @@ struct RootTabView: View {
                            planWeek: model.planWeek,
                            pageName: loadTodayPageName(prefs: model.tileOrderStore),
                            callComputedAt: model.morning?.verdictComputedAt,
-                           strain: model.morning?.strain) { answerGate(model) }
+                           strain: model.morning?.strain,
+                       updatedPill: decideUpdatedPillText(coreUpdatedAt: model.morning?.coreUpdatedAt,
+                                                          updatedSinceVerdict: model.morning?.updatedSinceVerdict)) { answerGate(model) }
                     .environment(\.gateConfigModel, gateConfigModel)
                     // W-UITEST G-3: Decide's "Why" rows open the rationale, whose foot carries the
                     // weekly answer ("Answered automatically · …") — both were inert here.

@@ -27,6 +27,11 @@ public struct MorningResponse: Codable, Sendable, Equatable {
     /// older hub or when the hub could not read the load. The card's "max today" is NOT here: it
     /// follows the decided call (`DecideStrainCeiling`).
     public var strain: MorningStrain?
+    /// W-FIX-P3 RG-41 — newest core rewrite of the verdict's inputs (HT `core_updated_at`, ISO 8601)
+    /// and whether it came after the call (`updated_since_verdict`): Today's "Updated 13:14" pill.
+    /// nil from a hub that predates the fields.
+    public var coreUpdatedAt: String?
+    public var updatedSinceVerdict: Bool?
 
     // B-48: `JSON.decoder` sets `.keyDecodingStrategy = .convertFromSnakeCase`, which rewrites the
     // wire key BEFORE `CodingKeys` matching — and a snake_case segment that STARTS with a digit
@@ -41,6 +46,7 @@ public struct MorningResponse: Codable, Sendable, Equatable {
         case carbWatchFloor, isStale, sessionForToday
         case gateSignals, verdictOverride, gateAnswer
         case verdictComputedAt, strain
+        case coreUpdatedAt, updatedSinceVerdict
     }
 }
 
