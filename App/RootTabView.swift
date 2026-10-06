@@ -1359,6 +1359,7 @@ struct RootTabView: View {
     // MARK: - W-FIX2 DEV-04: start at the gate
 
     private func evaluateGate() {
+        if GateLaunch.yieldsToStartTab(CommandLine.arguments) { return }   // RG-77: `-start-tab` wins
         let forced = !gateForceConsumed && GateLaunch.forcedByArguments(CommandLine.arguments)
         if forced { gateForceConsumed = true }
         let last = (try? env.prefs.get(GateLaunch.lastAnsweredKey, as: String.self)) ?? nil
