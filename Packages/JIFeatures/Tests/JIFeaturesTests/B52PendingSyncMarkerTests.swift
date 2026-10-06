@@ -9,8 +9,10 @@ import JIPersistence
 @Suite struct B52PendingSyncMarkerTests {
     @Test func markerTextCoversAllFourStates() {
         #expect(pendingSyncMarkerText(pending: 0, offline: false) == nil)
-        #expect(pendingSyncMarkerText(pending: 0, offline: true) == "Offline")
-        #expect(pendingSyncMarkerText(pending: 3, offline: true) == "Offline · 3 pending")
+        // W-FIX-P2 RG-23: the screen's OfflinePill is the one offline face — the floating marker
+        // only speaks for the queue, so offline + empty queue draws nothing over the content.
+        #expect(pendingSyncMarkerText(pending: 0, offline: true) == nil)
+        #expect(pendingSyncMarkerText(pending: 3, offline: true) == "3 waiting to sync")
         #expect(pendingSyncMarkerText(pending: 2, offline: false) == "2 waiting to sync")
     }
 

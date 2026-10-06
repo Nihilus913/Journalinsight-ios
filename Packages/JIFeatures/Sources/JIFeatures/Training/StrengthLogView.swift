@@ -246,8 +246,9 @@ struct StrengthExerciseCard: View {
                 Button {
                     model.logSet(exerciseKey: card.lift.exerciseKey, weightKg: parsedKg, reps: timed ? nil : reps,
                                  durationS: timed ? seconds : nil, rpe: rpe)
-                } label: { Text("Log set \(card.sets.count + 1)") }
+                } label: { Text("Log set \(card.nextSetIndex)") }
                 .buttonStyle(.borderedProminent).tint(theme.color(.info))
+                .disabled(!model.canLogSet)
                 .accessibilityIdentifier("strength-log-set-\(card.lift.exerciseKey)")
             }
             if let error = model.error {

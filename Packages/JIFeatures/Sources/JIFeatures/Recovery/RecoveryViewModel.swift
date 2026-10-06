@@ -15,6 +15,8 @@ public final class RecoveryViewModel {
 
     public private(set) var phase: Phase = .idle
     public private(set) var days: [RecoveryDay] = []
+    /// RG-35: `/vitals/sleep-summary` (the Sleep card's window); nil = not served / not read yet.
+    public private(set) var sleepSummary: SleepSummary?
     public private(set) var fetchedAt: Date?
     public private(set) var hubReachable = true
     /// True once a live fetch has actually completed (success or non-cancellation failure with
@@ -131,6 +133,9 @@ public final class RecoveryViewModel {
                 everSynced = true
                 let isEmpty = days.isEmpty
                 neverSyncedObserved = isEmpty && !hadEverSynced
+                if let sp = provider as? any SleepSummaryProviding {
+                    sleepSummary = (try? await SectionLoader.load(key: "recovery.sleepSummary", cache: cache) { try await sp.sleepSummary() })?.value
+                }
                 phase = isEmpty ? .empty : .loaded
             }
             onSectionUpdate?()

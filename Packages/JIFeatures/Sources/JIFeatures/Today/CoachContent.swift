@@ -25,13 +25,34 @@ public nonisolated enum CoachContentBuilder {
     /// W-FIX11: `override` = the user's call for the verdict date (H1-03: the change line says it);
     /// `today` = the verdict day — a reading from an earlier night says its day ("(30 Sep)", H1-04);
     /// `verdictReason` = the hub's persisted reason, whose amber clause becomes `why`.
+    /// W-FIX-P2 RG-38 (B-105): `gateSignals` = the call's gate rows (Decide's "What drove it"). A
+    /// signal with a gate row reads against that row's own normal band ("HRV 21 ms (normal 27–41)")
+    /// so every number is traceable to a detail — never a 7-night mean no screen shows (85/22/67).
     public static func build(morning: MorningResponse?, gate: GateResponse?, recovery: [RecoveryDay],
                              override: VerdictOverride? = nil, verdictReason: String? = nil, today: String? = nil,
+                             gateSignals: [GateSignal]? = nil,
                              locale: Locale = .autoupdatingCurrent) -> CoachContent {
         var signals: [String] = []
         func dated(_ text: String, _ day: String) -> String {
             guard let today, day.prefix(10) < today.prefix(10), let label = dayLabel(day, locale) else { return text }
             return "\(text) (\(label))"
+        }
+        let rows = Dictionary((gateSignals ?? []).filter { $0.value != nil }.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+        if !rows.isEmpty {
+            for (key, label, decimals) in [("sleep", "Sleep", 0), ("hrv", "HRV", 0), ("rhr", "RHR", 0), ("load", "Load", 2)] {
+                guard signals.count < 3, let row = rows[key], let v = row.value else { continue }
+                let unit = row.unit.isEmpty ? "" : " \(row.unit)"
+                let ref: String?
+                if let band = row.hubBand {
+                    ref = "normal \(fmt(band.lowerBound, decimals, locale))–\(fmt(band.upperBound, decimals, locale))"
+                } else if let t = row.threshold {
+                    ref = "threshold \(fmt(t, decimals == 2 ? 1 : 0, locale))"
+                } else { ref = nil }
+                signals.append("\(label) \(fmt(v, decimals, locale))\(unit)" + (ref.map { " (\($0))" } ?? ""))
+            }
+            let why = override.map { $0.choice == .accept } ?? true
+                ? autoRegulatedWhy(verdictParts(morning?.verdict), reason: verdictReason) : nil
+            return CoachContent(signals: signals, change: change(morning: morning, gate: gate, override: override), why: why)
         }
         if let s = compare(recovery, date: \.date, value: \.sleepScore) {
             signals.append(dated("Sleep \(fmt(s.newest, 0, locale)) vs \(fmt(s.mean, 0, locale)) avg", s.day))

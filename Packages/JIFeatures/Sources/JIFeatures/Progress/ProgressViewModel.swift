@@ -341,6 +341,13 @@ public nonisolated enum ProgressFormat {
         return "\(t / 60):" + String(format: "%02d", t % 60)
     }
 
+    /// RG-33: how the chart's y-axis ticks and "avg" rule print a value — m:ss for run pace
+    /// (raw seconds per km read as "1 000" / "avg 623"); nil = the chart's plain number.
+    public static func chartValueFormat(_ id: ProgressChartID) -> (@Sendable (Double) -> String)? {
+        if case .run(.pace) = id { return { pace($0) } }
+        return nil
+    }
+
     public static func value(_ v: Double, metric id: ProgressChartID) -> String {
         let u = unit(id)
         let n: String

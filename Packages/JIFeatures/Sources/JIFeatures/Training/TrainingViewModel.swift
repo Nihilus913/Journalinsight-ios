@@ -786,7 +786,7 @@ public final class TrainingViewModel {
     private static func describe(_ error: Error) -> String {
         switch error as? HubError {
         case .unauthorized: "Hub rejected the token — check Settings › Connection."
-        case .network: "Hub unreachable — is the Mac awake and on the same network?"
+        case .network: OfflineReadCopy.coldCache  // W-FIX-P2 RG-24: describe() only runs with nothing to show
         case .some(let e): "Hub error: \(e)"
         case .none: "Unexpected error: \(error.localizedDescription)"
         }

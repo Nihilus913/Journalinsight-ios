@@ -77,7 +77,13 @@ enum OnDeviceVerdictWiring {
             compute: compute,
             notifier: LocalVerdictNotifier(),
             memory: UserDefaultsVerdictMemory(),
-            onResult: onResult
+            onResult: onResult,
+            // W-FIX-P2 RG-17 (B-112): the hub's ntfy verdict banner wins — post the local one
+            // only when the hub has no verdict for the day (it missed the morning).
+            hubSent: { day in
+                guard let hub = await MainActor.run(body: { OnDeviceVerdictWiring.currentHub }) else { return false }
+                return (try? await hub.morningVerdict(date: day))?.date == day
+            }
         )
         overlay = OnDeviceVerdictOverlay(startDay: overlayStartDay, today: { provider.todayKey },
                                          compute: compute, onResult: onResult)

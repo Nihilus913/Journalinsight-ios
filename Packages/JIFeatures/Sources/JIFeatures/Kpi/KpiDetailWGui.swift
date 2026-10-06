@@ -14,14 +14,22 @@ public nonisolated struct KpiDetailTableRow: Equatable, Sendable, Identifiable {
 /// Last night · 7-day average · 28-day normal (W3 → "—") · Nights counted. W-FIX6 F6-3: the words
 /// say what the number is — the mean of the last 7, never "the number the gate uses" (the gate
 /// reads last night, and Load is not in the call), and the band is median ± spread, not a middle 50 %.
+/// RG-37 (B-104): the HRV 7-day window, one label for the morning call's "HRV (7-day)" row and the
+/// HRV detail's 7-day row — the gate's rolling value (the 7 nights up to and including last night).
+public nonisolated let kpiHrvSevenDayLabel = "7-day · incl. last night"
+
+/// `hubSevenDay`: RG-37 — HRV's 7-day value as the morning call computed it (`rolling_7d_ms`); when
+/// served, the 7-day row shows it under `kpiHrvSevenDayLabel` (never a second, differently-averaged
+/// "7-day" number beside the gate's).
 public nonisolated func kpiDetailTableRows(history: [(date: String, value: Double?)], value: Double?, unit: String, decimals: Int,
-                                           isNightly: Bool = true, normal: PersonalNormalResult? = nil) -> [KpiDetailTableRow] {
+                                           isNightly: Bool = true, normal: PersonalNormalResult? = nil,
+                                           hubSevenDay: Double? = nil) -> [KpiDetailTableRow] {
     let u = unit.isEmpty ? "" : " \(unit)"
     func num(_ v: Double?) -> String { v.map { kpiDetailNumber($0, decimals: decimals) + u } ?? "—" }
     let sorted = history.sorted { $0.date < $1.date }
     let last28 = sorted.suffix(28)
     let counted = last28.filter { $0.value != nil }.count
-    let avg7 = trendAverage(history, days: 7)
+    let avg7 = hubSevenDay ?? trendAverage(history, days: 7)
     // Load's series is the rolling 7-day total (`kpiLoadHistory`): its words name weekly totals.
     let isLoad = unit == recoveryLoadUnit
     let lastSubtitle = isLoad ? "total of the 7 days to yesterday" : isNightly ? "the newest night" : "the newest reading"
@@ -30,7 +38,9 @@ public nonisolated func kpiDetailTableRows(history: [(date: String, value: Doubl
                                 : "median ± usual spread, 4 weeks before this week"
     return [
         KpiDetailTableRow(id: "last", title: isNightly ? "Last night" : "Latest", subtitle: lastSubtitle, value: num(value)),
-        KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: avgSubtitle, value: num(avg7)),
+        hubSevenDay == nil
+            ? KpiDetailTableRow(id: "avg7", title: "7-day average", subtitle: avgSubtitle, value: num(avg7))
+            : KpiDetailTableRow(id: "avg7", title: kpiHrvSevenDayLabel, subtitle: "the morning call's HRV 7-day", value: num(avg7)),
         KpiDetailTableRow(id: "normal", title: "28-day normal", subtitle: normalSubtitle, value: normal.map { "\(kpiDetailNumber($0.low, decimals: decimals))–\(kpiDetailNumber($0.high, decimals: decimals))\(u)" } ?? "— \(JIMissingReason.calibrating.rawValue)"),
         KpiDetailTableRow(id: "counted", title: isNightly ? "Nights counted" : "Days counted", subtitle: "missing ones stay missing", value: "\(counted) of \(max(last28.count, 1))"),
     ]

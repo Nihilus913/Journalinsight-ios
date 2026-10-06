@@ -89,11 +89,22 @@ struct DietQualityGoldenCase: GoldenCase, CustomTestStringConvertible {
         }
     }
 
-    @Test(arguments: [0.0, 1.0, 2.0])
+    @Test(arguments: [1.0, 2.0])   // RG-44: 0 meals = .noData (zeroMealsIsNoData)
     func fewMealsGatesTheScore(_ meals: Double) {
         let r = DietQuality.compute(.init(kcal: 2000, fiberG: 28, sugarG: 40, satFatG: 20, proteinG: 150,
                                           proteinGoalG: 150, kcalGoal: 2000, mealCount: meals))
         #expect(r.score == nil && r.incomplete && r.reason == .fewMeals)
+    }
+
+    @Test func zeroMealsIsNoData() {   // RG-44
+        let r = DietQuality.compute(.init(kcal: 0, proteinG: 0, proteinGoalG: 150, kcalGoal: 1935, mealCount: 0))
+        #expect(r.reason == .noData && r.score == nil && r.incomplete)
+        #expect(DietQuality.compute(.init(kcal: 2000, fiberG: 28, mealCount: 0)).reason == .noData)
+    }
+
+    @Test func proteinAloneIsNotScored() {   // RG-45
+        let r = DietQuality.compute(.init(kcal: 1800, proteinG: 140, proteinGoalG: 150, kcalGoal: 1935, mealCount: 3))
+        #expect(r.score == nil && r.reason == .noContributors)
     }
 
     @Test func missingMealCountIsIncomplete() {

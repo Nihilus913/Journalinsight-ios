@@ -73,10 +73,13 @@ public nonisolated func decideSignalValueLine(_ m: DecideSignalRowModel) -> Stri
 /// W-FIX3 BUG-30 (board 01): the board's names — "Resting HR", "Overnight HRV", "Daytime HRV",
 /// sleep time "Sleep" (and the Garmin score beside it "Sleep score").
 /// An Apple night's "HRV (7-day)" keeps its label: it is a 7-day value, not the night's.
+/// RG-37 (B-104): it names its window the way the HRV detail's 7-day row does
+/// ("HRV 7-day · incl. last night") — one definition, one label.
 public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
     switch s.key {
     case "rhr": "Resting HR"
     case "hrv" where s.label == "HRV": "Overnight HRV"
+    case "hrv" where s.label == "HRV (7-day)": "HRV \(kpiHrvSevenDayLabel)"
     case "hrv_day": "Daytime HRV"
     case "sleep_h": "Sleep"
     case "sleep" where s.label == "Sleep": "Sleep score"
@@ -116,6 +119,12 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
         }
     } else if s.value == nil {
         detail = "no overnight value yet"
+    } else if let tag = decidePhoneBaselineTag(s) {
+        // W-FIX-P2 RG-16 (B-44od): the phone's own HRV baseline is still calibrating — say whose
+        // baseline the status is, and name any other normal as such, never a silent disagreement.
+        let other = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal
+        detail = other.map { "\(tag) — hub normal \(jiNumber($0.lowerBound, 0))–\(jiNumber($0.upperBound, 0))" }
+            ?? "\(tag) — \(JIMissingReason.calibrating.rawValue.lowercased())"
     } else if let band = s.hubBand ?? (decideNormalApplies(s) ? normal : nil) ?? recoveryNormal {
         shownNormal = band; detail = nil
     } else if s.status == .missing, let note = s.note, !note.isEmpty {
@@ -126,6 +135,13 @@ public nonisolated func decideSignalRowModel(_ s: GateSignal, normal: ClosedRang
     }
     return DecideSignalRowModel(id: s.key, label: decideSignalLabel(s), value: s.value, unit: s.unit, decimals: decimals,
                                 status: status, detail: detail, normal: shownNormal)
+}
+
+/// W-FIX-P2 RG-16: "phone baseline N/28" when the on-device overlay tagged this row
+/// (`OnDeviceVerdictLabel.sourceLabelled`, JIHealthKit) — the phone's baseline is calibrating.
+nonisolated func decidePhoneBaselineTag(_ s: GateSignal) -> String? {
+    guard s.key == "hrv", s.status == .missing, let note = s.note, note.hasPrefix("phone baseline") else { return nil }
+    return note.components(separatedBy: " · ").first
 }
 
 /// W-B91 S1 (Bevel gap BP-11): the hub's ACWR context row — the ratio at 2 decimals, the named
@@ -213,6 +229,8 @@ public struct DecideSignalsSection: View {
     @Environment(\.targets) private var targets
     @Environment(\.jiTheme) private var theme
     @State private var showRationale = false
+    /// W-FIX-P2 RG-25: the row that opened the rationale (offline: its title + this value).
+    @State private var tappedRow: DecideSignalRowModel?
 
     public init(signals: [GateSignal], normals: [String: ClosedRange<Double>] = [:]) { self.signals = signals; self.normals = normals }
 
@@ -231,7 +249,7 @@ public struct DecideSignalsSection: View {
         let rows = VStack(alignment: .leading, spacing: 0) {
             whyNote.fixedSize(horizontal: false, vertical: true).padding(.vertical, JISpacing.s1)
             ForEach(Array(models.enumerated()), id: \.element.id) { index, m in
-                Button { if rationaleModel != nil { showRationale = true } } label: {
+                Button { if rationaleModel != nil { tappedRow = m; showRationale = true } } label: {
                     SignalRow(label: m.label, value: m.value, unit: m.unit, decimals: m.decimals, normal: m.normal, status: m.status, detail: m.detail)
                         .padding(.vertical, JISpacing.s2)
                         .contentShape(Rectangle())
@@ -246,7 +264,7 @@ public struct DecideSignalsSection: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.decide.signals")
         if let rationaleModel {
-            rows.navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: rationaleModel, respondModel: respondModel) }
+            rows.navigationDestination(isPresented: $showRationale) { gateRationaleScreen(model: rationaleModel, respondModel: respondModel, seed: tappedRow) }
         } else {
             rows
         }

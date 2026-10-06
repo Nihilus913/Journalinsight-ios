@@ -125,7 +125,7 @@ public struct DietQualitySheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(dietQualitySheetIntro).jiFont(.body).foregroundStyle(theme.color(.text))
                         .fixedSize(horizontal: false, vertical: true)
-                    ForEach(Array(dietQualityMethodSteps.enumerated()), id: \.offset) { i, step in
+                    ForEach(Array(dietQualityMethodSteps(satFatInData: model.satFatInData).enumerated()), id: \.offset) { i, step in
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(verbatim: "\(i + 1)").jiFont(.cardTitle).foregroundStyle(theme.color(.info))
                             VStack(alignment: .leading, spacing: 2) {

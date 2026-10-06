@@ -196,6 +196,16 @@ nonisolated let decideSessionLiftKeywords = ["upper", "lower", "full body", "str
 /// squeezing three texts into one line and clipping them.
 public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
 
+/// W-FIX-P2 RG-40: below AX sizes the row also stacks (title over the session name) when the two
+/// texts plus the lift weight cannot share one line — "Today's ses… / Day 1 Full Up…" at default size.
+public nonisolated func decideSessionRowStacked(_ size: DynamicTypeSize, title: String, detail: String, hasLift: Bool) -> Bool {
+    if decideSessionRowStacked(size) { return true }
+    return hasLift || title.count + detail.count > decideSessionRowInlineChars
+}
+
+/// The most characters (title + session) that fit beside the dumbbell well on a 375-pt phone at default size.
+nonisolated let decideSessionRowInlineChars = 26
+
 /// W-DECIDE-HYBRID H-1 (Toby 2026-10-04): Go with this / Adjust live INSIDE the top card — the bar
 /// pinned above the tab bar (W-FIX4 PF-01) is gone; the whole screen scrolls. The scroll keeps this
 /// room under its last row for the floating tab bar (the screens live behind the chrome-only
@@ -280,6 +290,11 @@ public nonisolated func decideReadinessCaption(score: Double?, nights: Int?, rec
 /// the hub did not send one.
 public nonisolated func decideHubRecovery(_ signals: [GateSignal]?) -> Double? {
     signals?.first { $0.key == "recovery" }?.value
+}
+
+/// W-FIX-P2 RG-38: the gate's "Recovery score" row status (amber/red = "Recovery low").
+public nonisolated func decideHubRecoveryStatus(_ signals: [GateSignal]?) -> GateSignalStatus? {
+    signals?.first { $0.key == "recovery" && $0.value != nil }?.status
 }
 
 /// W-B57-W3 fixer: the ring's number. W-FIX-P1 RG-08 (B-123): the call's recovery score (the
@@ -384,7 +399,7 @@ public struct DecideView: View {
     @ViewBuilder
     private func sessionRowLabel(_ row: (title: String, detail: String), lift: (kg: String, caption: String?)?,
                                  completion: SessionCompletion) -> some View {
-        if decideSessionRowStacked(typeSize) {
+        if decideSessionRowStacked(typeSize, title: row.title, detail: row.detail, hasLift: lift != nil) {
             VStack(alignment: .leading, spacing: JISpacing.s1) {
                 JIChevronRowLabel(title: row.title, systemImage: "dumbbell")
                 Text(row.detail).jiFont(.subheadline).foregroundStyle(theme.color(.muted))
@@ -613,7 +628,7 @@ public struct DecideView: View {
                     }
                     // B-57 W3 S1: the recovery score (on-device, the gate's own inputs) under the signals.
                     // W-FIX7 fixer F7-2: the row says the ring's number (the hub's recovery for the call).
-                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals))
+                    RecoveryScoreCard(compact: true, hubRecovery: decideHubRecovery(gateSignals), gateRows: gateSignals)
                         .padding(.horizontal, JISpacing.s4)
                     JIRowDivider().padding(.leading, JISpacing.s4)
                     // W-FIX1 BUG-17: the whole row opens Day (no write — Go / Adjust record the call).

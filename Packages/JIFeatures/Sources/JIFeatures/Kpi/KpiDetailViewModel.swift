@@ -172,8 +172,14 @@ public final class KpiDetailViewModel {
 
     /// B-104 p2: HRV's merged Watch + Garmin (est.) nights over `range`; nil for any other metric.
     public func hrvMergedPoints(range: KpiDetailRange) -> [KpiSourcedPoint]? {
-        guard metric == .hrv, !showsLoadMinutes else { return nil }
-        return kpiHrvMergedPoints(history: history, sourceDays: sourceDays, range: range)
+        guard !showsLoadMinutes else { return nil }
+        switch metric {
+        case .hrv: return kpiHrvMergedPoints(history: history, sourceDays: sourceDays, range: range)
+        // RG-36: RHR / Sleep draw their Garmin-filled nights in the Garmin style too.
+        case .rhr, .sleep: return sourceDays.isEmpty ? nil : kpiSourcedNightPoints(history: history, sourceDays: sourceDays,
+                                                                                   metric: metric, range: range)
+        default: return nil
+        }
     }
 
     /// BUG-22: the nutrition segment. Only switches between nutrition macros (they share one data

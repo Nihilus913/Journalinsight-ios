@@ -85,6 +85,24 @@ public enum OnDeviceVerdictLabel {
         return "\(label) · \(reason)"
     }
 
+    /// W-FIX-P2 RG-16 (B-44od): the source word on the gate/Decide HRV row while the PHONE's
+    /// baseline is calibrating — every other screen and the ntfy text use the hub's band, so the
+    /// row says whose baseline it is instead of disagreeing silently.
+    public static let phoneBaselineWord = "phone baseline"
+
+    /// The gate rows the on-device overlay serves: while calibrating, the HRV row's note starts
+    /// with "phone baseline" ("phone baseline · Calibrating (2/28 nights)"); unchanged otherwise.
+    public static func sourceLabelled(_ result: OnDeviceVerdictResult) -> [GateSignal] {
+        guard isCalibrating(nights: result.baselineNights) else { return result.signals }
+        let tag = "\(phoneBaselineWord) \(max(0, result.baselineNights))/\(baselineNights)"
+        return result.signals.map { signal in
+            guard signal.key == "hrv" else { return signal }
+            var s = signal
+            s.note = s.note.map { $0.isEmpty ? tag : "\(tag) · \($0)" } ?? tag
+            return s
+        }
+    }
+
     /// The HRV signal carries the label as its note while calibrating (the value stays visible).
     static func signals(_ result: OnDeviceVerdictResult) -> [GateSignal] {
         guard isCalibrating(nights: result.baselineNights) else { return result.signals }

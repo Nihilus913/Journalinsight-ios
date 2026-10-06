@@ -135,7 +135,7 @@ private struct ProviderSectionRows: View {
             .accessibilityLabel("Read from Apple Watch")
             .accessibilityIdentifier("settings.toggle.provider.appleWatch")
 
-            Text("Today's verdict and gate stay on the hub — not available on Apple Watch until Apple and Garmin nights are proven equivalent.")
+            Text(DeveloperVerdictCopy.gateNote)
                 .font(.caption)
                 .foregroundStyle(theme.color(.muted))
                 .accessibilityIdentifier("settings.row.provider.gateNote")
