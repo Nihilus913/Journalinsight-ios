@@ -32,12 +32,19 @@ enum OnDeviceVerdictWiring {
     nonisolated static let gateRules = OnDeviceGateRulesBox()
 
     /// Release: an engine is wired (B-44 Option B). DEBUG: + the Developer flag.
+    /// BUG1-6 (RG-77): `-no-healthkit` also turns off the on-device compute path (its HealthKit
+    /// reads, background delivery and prewarm), not only the uploader's cold-start request.
     nonisolated static var isEnabled: Bool {
+        guard healthKitAllowed() else { return false }
         #if DEBUG
         return engine != nil && UserDefaults.standard.bool(forKey: enabledKey)
         #else
         return engine != nil
         #endif
+    }
+
+    nonisolated static func healthKitAllowed(arguments: [String] = CommandLine.arguments) -> Bool {
+        HealthKitLaunchGate.allowsHealthKit(arguments: arguments)
     }
 
     nonisolated static func baselineStore() -> (any NightlyBaselineStoring)? {

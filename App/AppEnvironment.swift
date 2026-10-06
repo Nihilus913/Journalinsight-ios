@@ -201,7 +201,7 @@ final class AppEnvironment {
         // read type is a no-op per HealthKit, not a re-prompt).
         // B-46 (L1): `-no-healthkit` suppresses the cold-start HealthKit prompt so a scripted
         // simulator run against the live hub lands on Today instead of the system access sheet.
-        guard !CommandLine.arguments.contains("-no-healthkit") else { return }
+        guard HealthKitLaunchGate.allowsHealthKit() else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -235,7 +235,10 @@ final class AppEnvironment {
             appleWatchCapabilities: DataCapability.appleWatchCapabilities,
             requestPermission: { [weak self] in
                 guard let self else { return .notDetermined }
-                try? await self.healthPermissions.requestAuthorization()
+                // BUG1-6 (RG-77): `-no-healthkit` never shows the system Health access sheet.
+                guard await HealthKitLaunchGate.requestIfAllowed({ try? await self.healthPermissions.requestAuthorization() }) else {
+                    return .notDetermined
+                }
                 let status = await self.aggregateReadPermission()
                 // B-13 fix: start delivery/sync whenever the read isn't provably undetermined —
                 // HealthKit never confirms a read grant beyond `.unnecessary`, so waiting for a
