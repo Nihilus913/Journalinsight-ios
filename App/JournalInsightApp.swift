@@ -74,6 +74,8 @@ struct JournalInsightApp: App {
                 prefs: builtEnv.prefs,
                 provider: { [weak builtEnv] in (builtEnv?.hubProvider ?? builtEnv?.providerStore?.provider) as? any TrainingProviding },
                 settings: { GateSettingsStore(prefs: prefs).load() })
+            // W-B78 B78-2: every App-Group snapshot write also goes to the Watch (same WCSession).
+            builtEnv.watchSnapshotPusher = StrengthMirrorCoordinator.shared.snapshotPusher
         }
         _theme = State(initialValue: builtEnv.map { AppThemeModel(prefs: $0.prefs) })
         // B-52 p4: `training_break` + `garmin_push` rows are replayed by every drainer (regain,

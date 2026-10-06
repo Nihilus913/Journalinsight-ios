@@ -3,6 +3,7 @@ import HealthKit
 import JICore
 import JIFeatures
 import JIPersistence
+import JISnapshot
 import JIWorkouts
 
 /// W-B38-B B-8 (+ B-7, bridge wiring) — the phone end of the Watch strength session:
@@ -25,6 +26,11 @@ final class StrengthMirrorCoordinator: NSObject {
     private var lastActivityPush: Date?
     private var lastActivitySets = -1
 
+    /// W-B78 B78-2: the phone → Watch glance snapshot push over THIS coordinator's transport (the
+    /// one WCSession). Exists before `install` so an early snapshot is kept and sent on attach.
+    private(set) lazy var snapshotPusher = WatchSnapshotPusher(
+        isWatchAppInstalled: { [weak self] in self?.transport?.isCounterpartAppInstalled ?? false })
+
     /// HR-only Live Activity refreshes at most this often (a set / rest change always pushes).
     private static let hrPushInterval: TimeInterval = 5
 
@@ -36,6 +42,8 @@ final class StrengthMirrorCoordinator: NSObject {
         self.settings = settings
         let transport = WatchConnectivityStrengthTransport()
         self.transport = transport
+        transport.onSessionChange = { [weak self] in self?.snapshotPusher.sessionDidChange() }
+        snapshotPusher.transport = transport
         let db = try? AppDatabase.onDisk()
         if let db {
             let outbox = Outbox(db: db)

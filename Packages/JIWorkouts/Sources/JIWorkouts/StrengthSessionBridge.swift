@@ -347,12 +347,27 @@ public final class WatchConnectivityStrengthTransport: NSObject, StrengthBridgeT
         StrengthBridgeContextRouter.route(context, plan: { onApplicationContext?($0) }, snapshot: { onSnapshotContext?($0) })
     }
 
+    /// W-B78 B78-2: session activated (both sides) or, on the phone, the Watch state changed.
+    public var onSessionChange: (() -> Void)?
+
+    /// W-B78 B78-2: phone side — false when unpaired / the Watch app is absent (always true on watchOS).
+    public var isCounterpartAppInstalled: Bool {
+        #if os(iOS)
+        guard let session, session.activationState == .activated else { return false }
+        return session.isPaired && session.isWatchAppInstalled
+        #else
+        return session != nil
+        #endif
+    }
+
     /// The context already delivered before the delegate was set (Watch cold start).
     public var receivedApplicationContext: [String: Any] { session?.receivedApplicationContext ?? [:] }
 }
 
 extension WatchConnectivityStrengthTransport: WCSessionDelegate {
     nonisolated public func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        // W-B78 B78-2: the phone re-pushes the latest HubSnapshot once the session is usable.
+        if activationState == .activated { Task { @MainActor [weak self] in self?.onSessionChange?() } }
         // A plan / snapshot delivered while the app was not running is only in `receivedApplicationContext`.
         let context = Self.wireKeys(session.receivedApplicationContext)
         guard !context.isEmpty else { return }
@@ -362,6 +377,10 @@ extension WatchConnectivityStrengthTransport: WCSessionDelegate {
     #if os(iOS)
     nonisolated public func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated public func sessionDidDeactivate(_ session: WCSession) { session.activate() }
+    /// W-B78 B78-2: paired / Watch-app-installed changed — the phone re-pushes the snapshot.
+    nonisolated public func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor [weak self] in self?.onSessionChange?() }
+    }
     #endif
 
     nonisolated public func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
