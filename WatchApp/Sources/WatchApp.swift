@@ -36,7 +36,18 @@ struct WatchApp: App {
             // B-33: the whole watch app ships in the native language (spec §1 — watchOS has no
             // UIKit semantic colours, so JINativePalette's watch branch supplies them).
             .jiTheme(.native)
-            .task { snapshotStore.refresh() }
+            .task {
+                snapshotStore.refresh()
+                // W-B78: phone → watch snapshot over the strength bridge's WCSession.
+                strength.connectSnapshots(snapshotStore)
+                #if DEBUG
+                // Launch seam (`WATCH_FAKE_SNAPSHOT=1`): feeds a fixed snapshot through the real
+                // receive path (`apply`) for glance screenshots without a paired phone.
+                if let fake = WatchSnapshotStore.debugFakeSnapshotData(environment: ProcessInfo.processInfo.environment) {
+                    snapshotStore.apply(fake)
+                }
+                #endif
+            }
             .onAppear { snapshotStore.refresh() }
         }
     }
