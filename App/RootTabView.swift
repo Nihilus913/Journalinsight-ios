@@ -223,6 +223,16 @@ struct RootTabView: View {
     /// B-46 (L1) dev affordance: `-start-tab <today|recovery|training|nutrition|energy|search|more>`
     /// and `-push-route kpiList` let a scripted simulator run land on any screen without a tap, so
     /// the device defects can be reproduced and screenshotted against the live hub. DEBUG only.
+    /// W-FIX-P3 RG-87: the tab icon carries the tab's title for VoiceOver — an unlabeled SF Symbol
+    /// reads as Apple's name for it ("sun.max" → "brightness higher", "heart" → "Love").
+    private func tabLabel(_ tab: RootTab) -> some View {
+        Label {
+            Text(tab.title)
+        } icon: {
+            Image(systemName: tab.symbol).accessibilityLabel(jiSymbolAccessibilityLabel(tab.symbol, title: tab.title))
+        }
+    }
+
     static func launchArgumentTab(_ arguments: [String] = CommandLine.arguments) -> RootTab? {
         guard let i = arguments.firstIndex(of: "-start-tab"), arguments.index(after: i) < arguments.endIndex else { return nil }
         return RootTab.allCases.first { String(describing: $0) == arguments[arguments.index(after: i)] }
@@ -274,9 +284,9 @@ struct RootTabView: View {
             TabTransition(selection: selectedTab, content: tabContent)
             TabView(selection: $selectedTab) {
                 ForEach(RootTab.leadingTabs) { tab in
-                    Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                    Tab(value: tab) {
                         transparentTabContent
-                    }
+                    } label: { tabLabel(tab) }
                     .accessibilityIdentifier(tab.accessibilityIdentifier)
                     .accessibilityLabel(tab.title)
                 }
@@ -287,15 +297,15 @@ struct RootTabView: View {
                 // W-FIX6 fixer F6-18: a plain Tab, not `role: .search` — iOS 27 pins the search-role
                 // Tab to the trailing edge whatever the declaration order, so "Search before More"
                 // is only possible without the role. `.searchable` inside still shows the field.
-                Tab(RootTab.search.title, systemImage: RootTab.search.symbol, value: RootTab.search) {
+                Tab(value: RootTab.search) {
                     searchTab
-                }
+                } label: { tabLabel(RootTab.search) }
                 .accessibilityIdentifier(RootTab.search.accessibilityIdentifier)
                 // W-FIX6 F6-18: More after Search.
                 ForEach(RootTab.trailingTabs) { tab in
-                    Tab(tab.title, systemImage: tab.symbol, value: tab) {
+                    Tab(value: tab) {
                         transparentTabContent
-                    }
+                    } label: { tabLabel(tab) }
                     .accessibilityIdentifier(tab.accessibilityIdentifier)
                     .accessibilityLabel(tab.title)
                 }

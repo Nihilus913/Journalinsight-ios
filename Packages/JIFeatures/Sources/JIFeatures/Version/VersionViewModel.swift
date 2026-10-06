@@ -89,6 +89,10 @@ public final class VersionViewModel {
     /// "2.0.0 · build 42" for the crashed build (may differ from the running one).
     public nonisolated static func crashBuildLine(_ r: CrashRecord) -> String { "\(r.appVersion) · build \(r.build)" }
 
+    /// RG-75: Swift runtime traps (force unwrap, out-of-range index) never reach the exception
+    /// handler; they are only recorded when MetricKit delivers the diagnostic on a later launch.
+    public nonisolated static let crashPendingNote = "Swift crashes (traps) appear here only after Apple delivers the report, up to 24 h later."
+
     /// "Uncaught exception" / "MetricKit".
     public nonisolated static func crashSourceLine(_ r: CrashRecord) -> String {
         r.source == .exception ? "Uncaught exception" : "MetricKit"

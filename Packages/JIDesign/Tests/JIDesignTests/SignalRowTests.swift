@@ -13,7 +13,7 @@ struct SignalRowTests {
 
     @Test func accessibilityIsWordsWithStatusAndReference() {
         #expect(signalRowAccessibilityLabel(label: "Overnight HRV", value: 25, unit: "ms", decimals: 0, status: .watch, reference: "threshold 27 ms")
-                == "Overnight HRV, 25 ms, Watch, threshold 27 ms")
+                == "Overnight HRV, 25 ms, Caution, threshold 27 ms")
         #expect(signalRowAccessibilityLabel(label: "Resting HR", value: nil, unit: "bpm", decimals: 0, status: .missing(.noData), reference: nil)
                 == "Resting HR, no value, No data")
     }

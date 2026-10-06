@@ -25,10 +25,18 @@ public nonisolated func normalBarSlotText(_ p: NormalBarPoint, decimals: Int) ->
 
 public nonisolated enum NormalBandPosition: Sendable, Equatable { case below, inside, above }
 
-public nonisolated func normalBandPosition(_ value: Double?, normal: ClosedRange<Double>?) -> NormalBandPosition? {
+/// W-FIX-P3 RG-82: with `decimals`, value and band are compared at the precision the screen shows
+/// them (a 23.2 ms night read as "23" is inside a band shown "23–28", never painted outside it).
+public nonisolated func normalBandPosition(_ value: Double?, normal: ClosedRange<Double>?, decimals: Int? = nil) -> NormalBandPosition? {
     guard let value, let normal else { return nil }
-    if value < normal.lowerBound { return .below }
-    if value > normal.upperBound { return .above }
+    func shown(_ x: Double) -> Double {
+        guard let decimals else { return x }
+        let f = pow(10, Double(max(decimals, 0)))
+        return (x * f).rounded() / f
+    }
+    let v = shown(value)
+    if v < shown(normal.lowerBound) { return .below }
+    if v > shown(normal.upperBound) { return .above }
     return .inside
 }
 
@@ -87,9 +95,9 @@ public nonisolated func normalBarChartAxisFloor(points: [NormalBarPoint], normal
 }
 
 /// How many nights fell outside the band — worded in the legend, never colour alone.
-public nonisolated func normalBarChartOutOfBandWord(points: [NormalBarPoint], normal: ClosedRange<Double>?) -> String? {
+public nonisolated func normalBarChartOutOfBandWord(points: [NormalBarPoint], normal: ClosedRange<Double>?, decimals: Int? = nil) -> String? {
     guard normal != nil else { return nil }
-    let n = points.filter { normalBandPosition($0.value, normal: normal).map { $0 != .inside } ?? false }.count
+    let n = points.filter { normalBandPosition($0.value, normal: normal, decimals: decimals).map { $0 != .inside } ?? false }.count
     guard n > 0 else { return nil }
     return n == 1 ? "1 night outside your normal" : "\(n) nights outside your normal"
 }
@@ -108,7 +116,7 @@ public nonisolated func normalBarChartAccessibilityLabel(points: [NormalBarPoint
     let u = (unit?.isEmpty == false) ? " \(unit!)" : ""
     return points.map { p in
         guard let v = p.value else { return p.missingReason == .noData ? "\(p.label) no data" : "\(p.label) — \(p.missingReason.rawValue)" }
-        let word = normalBandWord(normalBandPosition(v, normal: normal)).map { " \($0.lowercased())" } ?? ""
+        let word = normalBandWord(normalBandPosition(v, normal: normal, decimals: decimals)).map { " \($0.lowercased())" } ?? ""
         return "\(p.label) \(jiNumber(v, decimals))\(u)\(word)"
     }.joined(separator: ", ")
 }
@@ -143,7 +151,7 @@ public struct NormalBarChart: View {
     /// out-of-band night is amber — and worded in the legend. The latest is bolder, not redder.
     private func barRole(_ p: NormalBarPoint) -> JIColorRole {
         guard p.value != nil else { return .mutedNested }
-        return normalBandPosition(p.value, normal: normal) == .inside || normal == nil ? tint : .reduced
+        return normalBandPosition(p.value, normal: normal, decimals: decimals) == .inside || normal == nil ? tint : .reduced
     }
 
     public var body: some View {
@@ -222,7 +230,7 @@ public struct NormalBarChart: View {
             }
             HStack(spacing: 6) {
                 Text(normalBarChartLegend(normal: normal, decimals: decimals))
-                if let word = normalBarChartOutOfBandWord(points: points, normal: normal) {
+                if let word = normalBarChartOutOfBandWord(points: points, normal: normal, decimals: decimals) {
                     Text("·").accessibilityHidden(true)
                     Text(word).foregroundStyle(theme.color(.reduced))
                 }
@@ -237,7 +245,7 @@ public struct NormalBarChart: View {
 
     @ViewBuilder private var latestBandWord: some View {
         if let latest = points.last(where: \.isLatest),
-           let word = normalBandWord(normalBandPosition(latest.value, normal: normal)) {
+           let word = normalBandWord(normalBandPosition(latest.value, normal: normal, decimals: decimals)) {
             Text("\(latest.label) · \(word)").jiFont(.footnote, weight: .semibold).foregroundStyle(theme.color(.reduced))
                 .fixedSize(horizontal: false, vertical: true)
         }

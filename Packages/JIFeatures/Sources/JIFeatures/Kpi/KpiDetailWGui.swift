@@ -23,11 +23,13 @@ public nonisolated let kpiHrvSevenDayLabel = "7-day · incl. last night"
 /// "7-day" number beside the gate's).
 public nonisolated func kpiDetailTableRows(history: [(date: String, value: Double?)], value: Double?, unit: String, decimals: Int,
                                            isNightly: Bool = true, normal: PersonalNormalResult? = nil,
-                                           hubSevenDay: Double? = nil) -> [KpiDetailTableRow] {
+                                           hubSevenDay: Double? = nil, today: String? = nil) -> [KpiDetailTableRow] {
     let u = unit.isEmpty ? "" : " \(unit)"
     func num(_ v: Double?) -> String { v.map { kpiDetailNumber($0, decimals: decimals) + u } ?? "—" }
     let sorted = history.sorted { $0.date < $1.date }
-    let last28 = sorted.suffix(28)
+    // W-FIX-P3 RG-82: with `today`, the count is the 28 nights BEFORE today (the normal's nights) —
+    // tonight's row is not one of them yet.
+    let last28 = (today.map { t in sorted.filter { $0.date < t } } ?? sorted).suffix(28)
     let counted = last28.filter { $0.value != nil }.count
     let avg7 = hubSevenDay ?? trendAverage(history, days: 7)
     // Load's series is the rolling 7-day total (`kpiLoadHistory`): its words name weekly totals.
@@ -47,12 +49,13 @@ public nonisolated func kpiDetailTableRows(history: [(date: String, value: Doubl
 }
 
 /// The chart legend: honest until W3 lands the band.
-public nonisolated let kpiDetailLegend = "shaded = your normal — \(JIMissingReason.calibrating.rawValue) · dashed = median —"
+/// W-FIX-P3 RG-82: no band = no shading and no median line are drawn, so the legend names neither.
+public nonisolated let kpiDetailLegend = "your normal — \(JIMissingReason.calibrating.rawValue)"
 
 /// W-B57-W3 fixer: the legend with the band once `KpiNormal` has one (the same band the NormalBar shows).
 public nonisolated func kpiDetailLegendText(_ normal: PersonalNormalResult?, decimals: Int) -> String {
     guard let normal else { return kpiDetailLegend }
-    return "shaded = your normal \(kpiDetailNumber(normal.low, decimals: decimals))–\(kpiDetailNumber(normal.high, decimals: decimals)) · dashed = median \(kpiDetailNumber(normal.median, decimals: decimals))"
+    return "shaded = your normal \(kpiDetailNumber(normal.low, decimals: decimals))–\(kpiDetailNumber(normal.high, decimals: decimals)) · dotted = median \(kpiDetailNumber(normal.median, decimals: decimals))"
 }
 
 /// The per-metric block under the table (a section title, rows with a trailing value, a caption).

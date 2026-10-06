@@ -17,7 +17,7 @@ struct SignalStatusTests {
         #expect(JISignalStatus.missing(.calibrating).word == "Calibrating")
         #expect(JISignalStatus.inNormal.word == "In your normal")
         #expect(JISignalStatus.belowNormal.word == "Below your normal")
-        #expect(JISignalStatus.watch.word == "Watch")
+        #expect(JISignalStatus.watch.word == "Caution")
     }
 
     @Test func tintIsWordedNeverColourAlone() {
