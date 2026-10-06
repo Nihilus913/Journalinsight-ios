@@ -19,7 +19,7 @@ struct Fix6FixerTests {
     @Test(arguments: ["Full Upper", "Day 1 Full Upper + Z2 40min", "Day 3 Full Upper + Z2 60min", "Strength"])
     func strengthSessionKeepsTheLiftWeight(session: String) {
         let go = verdictParts("GO (auto-regulated) — Day 1 Full Upper + Z2 40min")
-        #expect(decideSessionLiftShown(verdict: go, sessionDetail: session, lifts: [Self.lift])?.kg == "50.0 kg")
+        #expect(decideSessionLiftShown(verdict: go, sessionDetail: session, lifts: [Self.lift])?.kg == "50 kg")
     }
 
     @Test func backloadIsAPrimaryButtonNotATextLink() throws {

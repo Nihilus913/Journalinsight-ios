@@ -26,6 +26,16 @@ public final class StrengthHistoryViewModel {
     }
 
     public private(set) var entries: [Entry] = []
+    /// W-FIX-P3 RG-61: a Garmin-recorded strength day (from `GET /training/strength-records`) —
+    /// listed under the logged sessions so History never says "none" beside Garmin's sessions.
+    public nonisolated struct GarminEntry: Identifiable, Equatable, Sendable {
+        public struct Lift: Equatable, Sendable { public let lift: String; public let line: String }
+        public let date: String
+        public let lifts: [Lift]
+        public var id: String { date }
+    }
+    public private(set) var garmin: [GarminEntry] = []
+    @ObservationIgnored private var records: StrengthRecordsOut?
     public private(set) var hubError: String?
     public private(set) var loadedFromHub = false
     /// B-52 p2: the hub was unreachable and its answer came from the offline read cache (fetched
@@ -68,6 +78,8 @@ public final class StrengthHistoryViewModel {
         } catch {
             hubError = StrengthOutbox.describe(error)
         }
+        // W-FIX-P3 RG-61: Garmin's strength days (the hub's records history); none on an older hub.
+        records = try? await provider.strengthRecords()
         readCache()
     }
 
@@ -80,6 +92,26 @@ public final class StrengthHistoryViewModel {
             for x in sets where !order.contains(x.exerciseKey) { order.append(x.exerciseKey) }
             return Entry(session: s, exercises: order.map { k in Exercise(key: k, sets: sets.filter { $0.exerciseKey == k }) })
         }
+        garmin = records.map { Self.garminEntries($0, excludingDates: Set(entries.map(\.session.date))) } ?? []
+    }
+
+    /// W-FIX-P3 RG-61: Garmin-sourced record sessions grouped by day (newest first), lifts by name;
+    /// a day the phone already lists as a logged session is left out (never shown twice).
+    nonisolated static func garminEntries(_ out: StrengthRecordsOut, excludingDates: Set<String>) -> [GarminEntry] {
+        var byDate: [String: [GarminEntry.Lift]] = [:]
+        for l in out.lifts.sorted(by: { $0.lift < $1.lift }) {
+            for s in l.sessions where s.sources?.contains("garmin") == true {
+                let day = String(s.date.prefix(10))
+                guard !excludingDates.contains(day) else { continue }
+                let line: String = s.sets.map { (x: StrengthRecordSetOut) -> String in
+                    let r: String = x.reps.map { String($0) } ?? "—"
+                    guard let kg = x.weightKg else { return r + " reps" }
+                    return StrengthFormat.kg(kg) + " × " + r
+                }.joined(separator: "  ·  ")
+                byDate[day, default: []].append(.init(lift: l.lift, line: line))
+            }
+        }
+        return byDate.keys.sorted(by: >).map { GarminEntry(date: $0, lifts: byDate[$0] ?? []) }
     }
 
     /// A hub session (and its sets) as local rows; nil when the hub row has no client id to key on.

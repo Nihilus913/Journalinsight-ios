@@ -22,12 +22,15 @@ public nonisolated struct WorkoutNudgePrefs: Codable, Equatable, Sendable {
     public var sessionOpenEnabled = true
     /// The cached week's planned, not-yet-done session days: ISO date → session name ("" = unnamed).
     public var planned: [String: String] = [:]
+    /// RG-65: the same days' kind (`TrainingWeekDayKind.rawValue`) — only a strength day's nudge
+    /// opens the set logger; cardio days (and days whose kind is unknown) open Training.
+    public var plannedKinds: [String: String] = [:]
     /// The day a session was completed — its workoutDay reminder is never re-laid.
     public var doneDate: String?
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case workoutDayEnabled, workoutDayTime, sessionOpenEnabled, planned, doneDate }
+    private enum CodingKeys: String, CodingKey { case workoutDayEnabled, workoutDayTime, sessionOpenEnabled, planned, plannedKinds, doneDate }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -35,6 +38,7 @@ public nonisolated struct WorkoutNudgePrefs: Codable, Equatable, Sendable {
         workoutDayTime = try c.decodeIfPresent(ReminderTime.self, forKey: .workoutDayTime) ?? Self.defaultTime
         sessionOpenEnabled = try c.decodeIfPresent(Bool.self, forKey: .sessionOpenEnabled) ?? true
         planned = try c.decodeIfPresent([String: String].self, forKey: .planned) ?? [:]
+        plannedKinds = try c.decodeIfPresent([String: String].self, forKey: .plannedKinds) ?? [:]
         doneDate = try c.decodeIfPresent(String.self, forKey: .doneDate)
     }
 
@@ -49,6 +53,8 @@ public extension ReminderScheduler {
     nonisolated static let workoutDayTag = ReminderKind.workoutDay.tag
     /// What the logger's deep link is (B-43 P1 owns the route; same string on every training nudge).
     nonisolated static let strengthLogURL = "ji://strength-log"
+    /// RG-65: a cardio (interval / long-run) day's nudge opens the Training tab, not the set logger.
+    nonisolated static let trainingURL = "ji://training"
     nonisolated static let sessionOpenDelay: TimeInterval = 90 * 60
 
     nonisolated static func identifier(forWorkoutDay date: String) -> String { "\(ReminderKind.workoutDay.identifier).\(date)" }
@@ -64,7 +70,23 @@ public extension ReminderScheduler {
         return out
     }
 
-    nonisolated static func workoutDayRequest(date: String, sessionName: String?, time: ReminderTime) -> UNNotificationRequest? {
+    /// RG-65: date → kind raw value for the same days `plannedWorkoutDays` returns.
+    nonisolated static func plannedWorkoutKinds(_ summary: TrainingWeekSummary?, today: String,
+                                                doneDate: String? = nil) -> [String: String] {
+        var out: [String: String] = [:]
+        for day in summary?.days ?? [] where day.kind != .rest && day.done != true && day.date >= today && day.date != doneDate {
+            out[day.date] = day.kind.rawValue
+        }
+        return out
+    }
+
+    /// RG-65: only a strength day deep-links into the set logger; everything else lands on Training.
+    nonisolated static func workoutDayURL(kind: TrainingWeekDayKind?) -> String {
+        kind == .strength ? strengthLogURL : trainingURL
+    }
+
+    nonisolated static func workoutDayRequest(date: String, sessionName: String?, time: ReminderTime,
+                                              kind: TrainingWeekDayKind? = nil) -> UNNotificationRequest? {
         let parts = date.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
         let content = UNMutableNotificationContent()
@@ -72,7 +94,7 @@ public extension ReminderScheduler {
         let name = sessionName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         content.body = name.isEmpty ? ReminderKind.workoutDay.notificationBody : "Today: \(name). Open the logger when you start."
         content.sound = .default
-        content.userInfo = [kindKey: workoutDayTag, deepLinkURLKey: strengthLogURL]
+        content.userInfo = [kindKey: workoutDayTag, deepLinkURLKey: workoutDayURL(kind: kind)]
         var c = DateComponents()
         c.year = parts[0]; c.month = parts[1]; c.day = parts[2]; c.hour = time.hour; c.minute = time.minute
         return UNNotificationRequest(identifier: identifier(forWorkoutDay: date), content: content,
@@ -92,11 +114,13 @@ public extension ReminderScheduler {
     /// Replaces every pending workoutDay request with one per planned day whose fire time is still
     /// ahead of `now`. Returns the dates scheduled.
     @discardableResult
-    func scheduleWorkoutDays(_ days: [String: String], at time: ReminderTime, now: Date = Date()) async -> [String] {
+    func scheduleWorkoutDays(_ days: [String: String], at time: ReminderTime, now: Date = Date(),
+                             kinds: [String: String] = [:]) async -> [String] {
         await cancelWorkoutDays()
         var scheduled: [String] = []
         for date in days.keys.sorted() {
-            guard let request = Self.workoutDayRequest(date: date, sessionName: days[date], time: time),
+            guard let request = Self.workoutDayRequest(date: date, sessionName: days[date], time: time,
+                                                         kind: kinds[date].flatMap(TrainingWeekDayKind.init(rawValue:))),
                   let fire = (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate(), fire > now else { continue }
             if (try? await center.add(request)) != nil { scheduled.append(date) }
         }
@@ -162,6 +186,7 @@ public final class WorkoutSessionReminders: WorkoutSessionReminding {
         var p = WorkoutNudgePrefs.load(prefs)
         p.doneDate = date
         p.planned[date] = nil
+        p.plannedKinds[date] = nil
         p.save(prefs)
     }
 
@@ -171,8 +196,9 @@ public final class WorkoutSessionReminders: WorkoutSessionReminding {
         guard let summary else { return }
         var p = WorkoutNudgePrefs.load(prefs)
         p.planned = ReminderScheduler.plannedWorkoutDays(summary, today: today(), doneDate: p.doneDate)
+        p.plannedKinds = ReminderScheduler.plannedWorkoutKinds(summary, today: today(), doneDate: p.doneDate)
         p.save(prefs)
         guard p.workoutDayEnabled else { return }
-        await scheduler.scheduleWorkoutDays(p.planned, at: p.workoutDayTime, now: now())
+        await scheduler.scheduleWorkoutDays(p.planned, at: p.workoutDayTime, now: now(), kinds: p.plannedKinds)
     }
 }

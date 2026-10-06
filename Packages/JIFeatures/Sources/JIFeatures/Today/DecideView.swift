@@ -143,8 +143,13 @@ public nonisolated func verdictHeadline(parts: VerdictParts, override: VerdictOv
 /// W-FIX6 F6-11: the hero's kicker. A call from another day (a cache, or the hub's `is_stale`
 /// before morning_go ran) is never "your call for today" — it names its own day.
 /// W-DECIDE-HYBRID H-1: with the hub's call time, "YOUR CALL FOR TODAY · 05:10".
-public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String, callTime: String? = nil) -> String {
+/// RG-56 (B-105): after the user's own Adjust the kicker is the user's call and its time
+/// ("YOUR CALL · 13:25", the override's `created_at`), never the hub's 05:08 compute time; a queued
+/// override with no hub time yet reads "YOUR CALL".
+public nonisolated func decideCallHeader(verdictDate: String?, isStale: Bool?, today: String, callTime: String? = nil,
+                                         overridden: Bool = false, overrideTime: String? = nil) -> String {
     guard let verdictDate, verdictDate != today || isStale == true else {
+        if overridden { return overrideTime.map { "YOUR CALL · \($0)" } ?? "YOUR CALL" }
         return callTime.map { "YOUR CALL FOR TODAY · \($0)" } ?? "YOUR CALL FOR TODAY"
     }
     guard let d = DayKey(iso: verdictDate)?.startDate(in: .gmt) else { return "LAST CALL" }
@@ -239,9 +244,11 @@ public nonisolated func decideDroveItSignals(_ gateSignals: [GateSignal]?) -> [G
 }
 
 /// W-DECIDE-HYBRID H-1: the top card's lift hint under the session ("Bench 50 kg ↑").
-public nonisolated func decideHeroLiftHint(_ lift: (kg: String, caption: String?)?) -> String? {
+/// RG-54: the exercise's name leads the weight ("Bench press 50 kg"), never a bare "50.0 kg".
+public nonisolated func decideHeroLiftHint(_ lift: (kg: String, caption: String?)?, name: String? = nil) -> String? {
     guard let lift else { return nil }
-    return lift.caption == nil ? lift.kg : "\(lift.kg) ↑"
+    let named = name.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : "\($0) \(lift.kg)" } ?? lift.kg
+    return lift.caption == nil ? named : "\(named) ↑"
 }
 
 /// W-FIX3 BUG-30 (board 01): Go's label is black on the green verdict button.
@@ -530,6 +537,9 @@ public struct DecideView: View {
                                                          lifts: progression?.lifts(forSession: todaysStrengthSession(week)) ?? [])
     }
 
+    /// RG-54: the name of the lift whose weight the hero hint shows (the first lift of today's session).
+    private var heroLiftName: String? { progression?.lifts(forSession: todaysStrengthSession(week)).first?.name }
+
     @ViewBuilder
     private func card(actions: (go: Bool, adjust: Bool), showsAdjust: Bool) -> some View {
         let sessionRow = decideSessionRowText(sessionForToday: sessionForToday, verdict: shown)
@@ -538,7 +548,8 @@ public struct DecideView: View {
         Surface(level: 1, padding: JISpacing.cardPadding, tint: decideHeroTintRole(tone: shown.tone, syncing: syncing).map { theme.color($0) }) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(decideCallHeader(verdictDate: verdictDate, isStale: isStale, today: RecoveryInsightService.localDayKey(now),
-                                      callTime: callTime)).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
+                                      callTime: callTime, overridden: override != nil,
+                                      overrideTime: decideCallTime(override?.createdAt))).jiFont(.footnote, weight: .bold).foregroundStyle(theme.color(syncing ? .muted : verdictColorRole(shown.tone)))
                 // AX sizes: the ring drops under the words (side by side it squeezed the verdict to one
                 // character per line); below AX it sits beside them as in mockup 01.
                 let heroLayout = typeSize.isAccessibilitySize
@@ -560,7 +571,7 @@ public struct DecideView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("today.verdict.session")
                         }
-                        if !syncing, let hint = decideHeroLiftHint(lift) {
+                        if !syncing, let hint = decideHeroLiftHint(lift, name: heroLiftName) {
                             Text(hint).jiFont(.subheadline, weight: .semibold)
                                 .foregroundStyle(theme.color(lift?.caption == nil ? .muted : .go))
                                 .accessibilityIdentifier("today.decide.heroLift")

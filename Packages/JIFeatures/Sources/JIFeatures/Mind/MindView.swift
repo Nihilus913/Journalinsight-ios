@@ -69,6 +69,10 @@ public struct MindView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Mood")
                 .accessibilityValue(summary.moodStep.map { "\($0) of 5" } ?? "No data")
+                if let word = summary.moodWord {
+                    Text(word).jiFont(.subheadline, weight: .semibold, tint: .text)
+                        .accessibilityIdentifier("mind-today-mood")
+                }
                 if model.checkedInToday {
                     Text(model.snapshot.headline).jiFont(.subheadline, tint: .muted)
                 }

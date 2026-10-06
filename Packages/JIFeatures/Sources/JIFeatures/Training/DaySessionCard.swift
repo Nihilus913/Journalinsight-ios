@@ -59,8 +59,8 @@ public nonisolated func daySessionCardModel(sessionName: String?, lifts: [LiftPr
     guard let sessionName else { return nil }
     let title = daySessionOrdinal(week).map { "\(sessionName), \($0)" } ?? sessionName
     let lines = lifts.prefix(2).map { l in
-        DaySessionLine(name: l.name, from: l.isDue ? l.currentKg.map { jiNumber($0, 1) } : nil,
-                       to: l.nextKg.map { jiNumber($0, 1) } ?? "—")
+        DaySessionLine(name: l.name, from: l.isDue ? l.currentKg.map { jiKg($0) } : nil,
+                       to: l.nextKg.map { jiKg($0) } ?? "—")
     }
     var more: String?
     if lifts.count > 2 {
@@ -74,7 +74,7 @@ public nonisolated func daySessionCardModel(sessionName: String?, lifts: [LiftPr
 public nonisolated func dayProgressionCallout(_ lifts: [LiftProgression]) -> DaySessionCallout? {
     lifts.first { $0.isDue }.flatMap { l in
         l.currentKg.map { DaySessionCallout(title: "Progression due on \(l.name.lowercased())",
-                                            body: "All sets hit the target reps at \(jiNumber($0, 1)) kg last time.") }
+                                            body: "All sets hit the target reps at \(jiKg($0)) kg last time.") }
     }
 }
 
@@ -85,7 +85,7 @@ public nonisolated func dayNextRowLoad(_ row: TrainingHeroRow, lifts: [LiftProgr
             ?? lifts.first(where: { Progression.normalizedName($0.name) == Progression.normalizedName(row.name) }),
           lift.isDue, let now = lift.currentKg, let next = lift.nextKg else { return (row.load, false) }
     let sets = lift.sets.map { " · \($0) sets" } ?? ""
-    return ("\(jiNumber(now, 1)) → \(jiNumber(next, 1)) kg\(sets)", true)
+    return ("\(jiKg(now)) → \(jiKg(next)) kg\(sets)", true)
 }
 
 /// W-FIX9 C-3: one NEXT lift row — name left, the plan right ("3 × 8 @ 50 kg", "… ✓" once every
@@ -129,11 +129,16 @@ public nonisolated func dayNextLiftRows(_ rows: [TrainingHeroRow], lifts: [LiftP
 }
 
 /// Decide's session row, right side (board 1/01): the first lift's next weight + "↑ Bench up" when due.
+/// RG-54: whole kg without a decimal ("50 kg"), quarter steps as written ("52.5 kg").
 public nonisolated func decideSessionLift(_ lifts: [LiftProgression]) -> (kg: String, caption: String?)? {
     guard let first = lifts.first, let next = first.nextKg else { return nil }
     let word = first.name.split(separator: " ").first.map(String.init) ?? first.name
-    return ("\(jiNumber(next, 1)) kg", first.isDue ? "↑ \(word) up" : nil)
+    return ("\(jiKg(next)) kg", first.isDue ? "↑ \(word) up" : nil)
 }
+
+/// RG-54: one weight format for Decide and Training — 50 → "50", 52.5 → "52.5", 1.25 → "1.25"
+/// (never "50.0"; the Live Activity's own rule).
+public nonisolated func jiKg(_ kg: Double) -> String { StrengthSessionActivityState.kgText(kg) }
 
 // MARK: - DEV-10: a cardio session's NEXT line
 

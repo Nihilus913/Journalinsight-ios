@@ -75,8 +75,29 @@ public nonisolated struct CrashLogStore: Sendable {
 
     public static var `default`: CrashLogStore { CrashLogStore(directory: defaultDirectory()) }
 
-    /// Writes `record`, then prunes to the newest `cap`. Synchronous by design (crash handler).
+    /// RG-75: a MetricKit payload is delivered up to ~24 h after the crash (its date is the
+    /// payload's end), so an exception recorded within this window before it is the same crash.
+    public static let metricKitLag: TimeInterval = 26 * 3600
+
+    /// RG-75: true when `record` is already stored — the identical record (a redelivered payload or
+    /// a double write), or MetricKit's copy of a crash the NSException handler already recorded
+    /// (same type and build, exception date within `metricKitLag` before the payload end).
+    public func isDuplicate(_ record: CrashRecord) -> Bool {
+        list().contains { old in
+            guard old.type == record.type, old.build == record.build else { return false }
+            if old.source == record.source {
+                return old.summary == record.summary && abs(old.date.timeIntervalSince(record.date)) < 1
+            }
+            guard old.source == .exception, record.source == .metricKit else { return false }
+            let lag = record.date.timeIntervalSince(old.date)
+            return lag >= 0 && lag <= Self.metricKitLag
+        }
+    }
+
+    /// Writes `record` unless it is a duplicate (RG-75), then prunes to the newest `cap`.
+    /// Synchronous by design (crash handler).
     public func write(_ record: CrashRecord) throws {
+        guard !isDuplicate(record) else { return }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .millisecondsSince1970

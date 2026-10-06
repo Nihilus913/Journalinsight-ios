@@ -22,7 +22,7 @@ struct SquareGridTests {
     }
 
     @Test func accessibilityLabelSpellsValueStatusAndBadge() {
-        #expect(squareAccessibilityLabel(hrv) == "HRV, 25 ms, Watch")
+        #expect(squareAccessibilityLabel(hrv) == "HRV, 25 ms, Caution")
         #expect(squareAccessibilityLabel(rhr) == "Resting HR, no value, No data")
         #expect(squareAccessibilityLabel(kcal) == "Calories, 1,619 kcal / —")
         #expect(squareBadgeActionLabel(hrv) == "Hide HRV")

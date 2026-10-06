@@ -72,7 +72,7 @@ private func fxSignal(_ key: String, _ label: String, value: Double?, status: Ga
 // KpiDetail-caption: once the band exists the chart legend and the table's "28-day normal" row say so.
 @Test func kpiDetailLegendAndTableFollowTheNormal() {
     let n = PersonalNormalResult(median: 28.4, low: 25.2, high: 31.6, sd: 2, n: 22)
-    #expect(kpiDetailLegendText(n, decimals: 0) == "shaded = your normal 25–32 · dashed = median 28")
+    #expect(kpiDetailLegendText(n, decimals: 0) == "shaded = your normal 25–32 · dotted = median 28")
     #expect(kpiDetailLegendText(nil, decimals: 0) == kpiDetailLegend)
     let rows = kpiDetailTableRows(history: [("2026-09-26", 30)], value: 30, unit: "ms", decimals: 0, normal: n)
     #expect(rows.first { $0.id == "normal" }?.value == "25–32 ms")

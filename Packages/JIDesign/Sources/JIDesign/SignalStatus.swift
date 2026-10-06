@@ -27,7 +27,7 @@ public nonisolated enum JISignalStatus: Sendable, Equatable {
         case .belowNormal: "Below your normal"
         case .aboveNormal: "Above your normal"
         case .clear: "Clear"
-        case .watch: "Watch"
+        case .watch: "Caution"   // RG-87: "Watch" is the device
         case .redFlag: "Red flag"
         case .contextOnly: "Context only"
         case .maintaining: "Maintaining"

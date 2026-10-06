@@ -243,7 +243,8 @@ struct PlannerStrengthDetail: View {
         strengthLog = StrengthLogViewModel(lifts: lifts, sessionId: ref.sessionId, sessionName: ref.name, store: store,
                                            outbox: Outbox(db: deps.db), provider: deps.provider, prefs: deps.prefs,
                                            today: { today }, restAlert: .live, reminders: deps.reminders)
-        Task { _ = await RestEndAlert.requestAuthorization() }   // B-43 P1: rest-end alert permission
+        // B-43 P1 rest-end alert permission; RG-76: a denial is kept as the logger's 'Notifications off' state.
+        if let log = strengthLog { Task { await log.requestRestAlertPermission() } }
         strengthHistory = StrengthHistoryViewModel(store: store, provider: deps.provider, today: { today })
         showStrengthLog = true
     }

@@ -31,13 +31,15 @@ final class StrengthLogComposition {
         // swallows it in the foreground, where the haptic already played (Toby 2026-10-04).
         let center = UNUserNotificationCenter.current()
         center.delegate = notificationDelegate
-        Task { _ = await RestEndAlert.requestAuthorization(center) }
-        model = StrengthLogViewModel(
+        let model = StrengthLogViewModel(
             controller: StrengthWorkoutSessionController(engine: engine), bridge: bridge,
             haptic: { kind in
                 WKInterfaceDevice.current().play(kind == .restDone ? .stop : .success)
             },
             restAlert: RestEndAlert(center: center))
+        self.model = model
+        // RG-76: a denied permission becomes the list's 'Notifications off' line.
+        Task { await model.requestRestAlertPermission { await RestEndAlert.requestAuthorization(center) } }
         #else
         model = StrengthLogViewModel(
             controller: StrengthWorkoutSessionController(engine: FakeStrengthWorkoutEngine()),

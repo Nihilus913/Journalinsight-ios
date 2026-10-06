@@ -44,6 +44,8 @@ nonisolated public struct MindTodaySummary: Sendable, Equatable {
     public let energy: Int?
     public let moodStep: Int?
     public let statusWord: String
+    /// W-FIX-P3 RG-86: the saved mood as words ("Mood: 🙂 Good"); nil when today has no mood.
+    public var moodWord: String? = nil
 }
 
 public nonisolated func mindTodaySummary(_ checkin: CheckIn?) -> MindTodaySummary {
@@ -51,7 +53,8 @@ public nonisolated func mindTodaySummary(_ checkin: CheckIn?) -> MindTodaySummar
         return MindTodaySummary(stress: nil, energy: nil, moodStep: nil, statusWord: "Not checked in")
     }
     return MindTodaySummary(stress: checkin.stress, energy: checkin.energy,
-                            moodStep: journalMoodScore(checkin.mood?.rawValue), statusWord: "Checked in")
+                            moodStep: journalMoodScore(checkin.mood?.rawValue), statusWord: "Checked in",
+                            moodWord: checkin.mood.map { "Mood: \($0.emoji) \($0.rawValue.capitalized)" })
 }
 
 /// WHO-5 percentage against the 50 screening line (a trend word, never a diagnosis).
