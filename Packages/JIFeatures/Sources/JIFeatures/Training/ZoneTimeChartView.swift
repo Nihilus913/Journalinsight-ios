@@ -38,6 +38,8 @@ public nonisolated enum ZoneTimeScope: String, CaseIterable, Identifiable, Senda
 public final class ZoneTimeModel {
     public enum Phase: Equatable { case loading, loaded(ZoneTimeRange), unavailable, error(String) }
     public private(set) var phase: Phase = .loading
+    /// W-FIX-P3 RG-69 (B-52): set while the shown range is the hub's offline cached copy.
+    public private(set) var staleSince: Date?
     public var span: ZoneTimeSpan
     /// W-FIX-P3 RG-62: cardio by default; "All workouts" adds strength and the rest.
     public var scope: ZoneTimeScope = .cardio
@@ -55,13 +57,19 @@ public final class ZoneTimeModel {
         // the old bars never sit under the new picker value. A same-window refresh keeps them.
         if case .loaded(let r) = phase, r.from == w.from.iso, r.bucket == w.bucket, r.scope == scope.rawValue {} else { phase = .loading }
         do {
-            phase = .loaded(try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: scope.rawValue))
+            let (range, since) = try await HubReadTrace.collect {
+                try await provider.trainingZones(from: w.from.iso, to: w.to.iso, bucket: w.bucket, scope: scope.rawValue)
+            }
+            phase = .loaded(range); staleSince = since
         } catch HubError.http(status: 404, _) {
             phase = .unavailable
         } catch {
             phase = .error(zoneTimeErrorText(error))
         }
     }
+
+    /// "Offline — showing data from 07:41" while the shown range is the cached copy.
+    public var offlineText: String? { staleSince.map { offlineReadCaption(since: $0) } }
 }
 
 struct ZoneBarPoint: Identifiable {
@@ -174,6 +182,10 @@ public struct ZoneTimeChartView: View {
     }
 
     @ViewBuilder private func loaded(_ r: ZoneTimeRange) -> some View {
+        if let offline = model.offlineText {
+            Text(offline).jiFont(.footnote).foregroundStyle(theme.color(.muted))
+                .accessibilityIdentifier("zone-time-offline")
+        }
         if let floors = r.floors {
             Text(zoneFloorsText(floors))
                 .jiFont(.caption).foregroundStyle(theme.color(.muted))

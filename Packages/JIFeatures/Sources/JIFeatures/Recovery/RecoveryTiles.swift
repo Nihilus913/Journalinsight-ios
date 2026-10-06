@@ -117,8 +117,10 @@ public nonisolated func recoverySleepDuration(seconds: Double?) -> String {
     return DurationFormat.hoursPaddedMinutes(seconds: seconds)
 }
 
+/// W-FIX-P3 RG-69: no nights known (cold cache, offline) = no count, never a fabricated "0 nights".
 public nonisolated func recoverySubtitle(nights: Int) -> String {
-    "How you are trending · \(nights) night\(nights == 1 ? "" : "s")"
+    guard nights > 0 else { return "How you are trending" }
+    return "How you are trending · \(nights) night\(nights == 1 ? "" : "s")"
 }
 public nonisolated let recoveryMonitorCaption = "Trends only. Nothing on this screen decides your day, and none of it is a medical reading."
 public nonisolated let recoveryRhrCaption = "Overnight only. Daytime HR is not used."

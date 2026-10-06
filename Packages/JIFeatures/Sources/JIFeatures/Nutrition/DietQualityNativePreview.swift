@@ -32,7 +32,7 @@ nonisolated enum DietQualityFixtures {
         dietQualityPresentation(date: completeRow.date, hubRow: completeRow, health: nil, proteinGoal: proteinGoal, kcalGoal: kcalGoal)
     }
     static var incomplete: DietQualityPresentation {
-        dietQualityPresentation(date: incompleteRow.date, hubRow: incompleteRow, health: nil, proteinGoal: proteinGoal, kcalGoal: kcalGoal)
+        dietQualityPresentation(date: incompleteRow.date, hubRow: incompleteRow, health: nil, proteinGoal: proteinGoal, kcalGoal: kcalGoal, today: incompleteRow.date)
     }
     /// Hub-less: Apple Health day totals only (fibre + sugar + protein; no saturated fat).
     static var healthOnly: DietQualityPresentation {

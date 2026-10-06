@@ -110,12 +110,14 @@ struct DietQualityAmounts: Sendable, Equatable {
 }
 
 nonisolated func dietQualityRows(contributors: [(key: String, score: Double?)], amounts a: DietQualityAmounts,
-                                 proteinGoal: Double?, incomplete: Bool, source: DietQualitySource) -> [DietQualityRow] {
+                                 proteinGoal: Double?, incomplete: Bool, source: DietQualitySource,
+                                 isToday: Bool = true) -> [DietQualityRow] {
     let order = ["fibre", "sugar", "sat_fat", "protein"]
     let byKey = Dictionary(contributors.map { ($0.key, $0.score) }, uniquingKeysWith: { a, _ in a })
     return order.map { key in
         let score = byKey[key] ?? nil
-        let soFar = incomplete ? " so far" : ""
+        // W-FIX-P3 RG-83: "so far" only while the day is still running (today), never on a past day.
+        let soFar = incomplete && isToday ? " so far" : ""
         let detail: String
         let title: String
         switch key {
@@ -154,7 +156,8 @@ nonisolated func dietQualityRows(contributors: [(key: String, score: Double?)], 
 /// The selected day's card. `hubRow` = the hub's `/nutrition/daily` row for the day (its
 /// `dietQuality` wins); `health` = Apple Health's totals for the day (hub-less fallback).
 public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionDailyRow?, health: HealthDailyTotals?,
-                                                proteinGoal: Double?, kcalGoal: Double?) -> DietQualityPresentation {
+                                                proteinGoal: Double?, kcalGoal: Double?,
+                                                today: String = DayKey.today().iso) -> DietQualityPresentation {
     let meals = hubRow?.mealsLogged
     let satFat = hubRow?.satFatG != nil
     // RG-44: a 0-meal day (hub reason `no_data`, or an old hub's 0-meal row) is the no-data state,
@@ -165,7 +168,7 @@ public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionD
     if let row = hubRow, let dq = row.dietQuality {
         let amounts = DietQualityAmounts(kcal: row.kcalConsumed, fiberG: row.fiberG, sugarG: row.sugarG, satFatG: row.satFatG, proteinG: row.proteinG)
         let rows = dietQualityRows(contributors: dq.contributors.map { ($0.key, $0.score) }, amounts: amounts,
-                                   proteinGoal: proteinGoal, incomplete: dq.incomplete, source: .hub)
+                                   proteinGoal: proteinGoal, incomplete: dq.incomplete, source: .hub, isToday: date == today)
         let coverage = dq.coveragePct ?? row.coveragePct.map { Int($0.rounded()) }
         var p = make(date: date, score: dq.incomplete ? nil : dq.score, reason: dq.reason, rows: rows, meals: meals,
                      caption: hubCaption(coverage: coverage, meals: meals), source: .hub)
@@ -196,7 +199,8 @@ public nonisolated func dietQualityPresentation(date: String, hubRow: NutritionD
         proteinG: amounts.proteinG, proteinGoalG: proteinGoal, kcalGoal: kcalGoal ?? hubRow?.kcalGoal,
         mealCount: mealCount, coveragePct: coverage))
     let rows = dietQualityRows(contributors: result.contributors.map { ($0.key.rawValue, $0.score) }, amounts: amounts,
-                               proteinGoal: proteinGoal, incomplete: result.incomplete, source: source)
+                               proteinGoal: proteinGoal, incomplete: result.incomplete, source: source,
+                               isToday: date == today)
     let caption = source == .appleHealth
         ? "From Apple Health day totals · saturated fat and coverage are not in Health" + (meals.map { " · \(mealsText($0))" } ?? "")
         : hubCaption(coverage: result.coveragePct, meals: meals)

@@ -127,7 +127,8 @@ public struct DietQualitySheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                     ForEach(Array(dietQualityMethodSteps(satFatInData: model.satFatInData).enumerated()), id: \.offset) { i, step in
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(verbatim: "\(i + 1)").jiFont(.cardTitle).foregroundStyle(theme.color(.info))
+                            // W-FIX-P3 RG-83: equal-width digits so step titles 1-4 line up.
+                            Text(verbatim: "\(i + 1)").jiFont(.cardTitle).monospacedDigit().foregroundStyle(theme.color(.info))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(step.title).jiFont(.subheadline, weight: .semibold).foregroundStyle(theme.color(.text))
                                 Text(step.body).jiFont(.footnote).foregroundStyle(theme.color(.muted))
