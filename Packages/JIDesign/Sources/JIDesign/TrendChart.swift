@@ -61,6 +61,8 @@ public struct TrendChart: View {
     /// RG-33: formats the y-axis ticks and the "avg" label (e.g. m:ss for pace); nil = plain number.
     let valueFormat: (@Sendable (Double) -> String)?
     @Binding var range: TrendRange
+    /// W-FIX-P3 RG-63: the ranges the picker offers (a strength chart leaves out "D").
+    let ranges: [TrendRange]
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
@@ -71,8 +73,10 @@ public struct TrendChart: View {
 
     public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?,
                 kind: TrendChartKind = .baseline, goal: Double? = nil, series: [TrendSeries] = [],
+                ranges: [TrendRange] = TrendRange.allCases,
                 valueFormat: (@Sendable (Double) -> String)? = nil) {
         self.points = points; self.tint = tint; self.unit = unit; self._range = range; self.showAll = showAll
+        self.ranges = ranges
         self.kind = kind; self.goal = goal; self.series = series; self.valueFormat = valueFormat
     }
 
@@ -165,7 +169,7 @@ public struct TrendChart: View {
     /// so the Watch gets the platform's own picker style instead of a compile error.
     @ViewBuilder private var rangePicker: some View {
         let picker = Picker("Range", selection: $range) {
-            ForEach(TrendRange.allCases) { Text($0.rawValue).tag($0) }
+            ForEach(ranges) { Text($0.rawValue).tag($0) }
         }
         #if os(watchOS)
         picker
