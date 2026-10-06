@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import JICore
+import JICompute
 @testable import JIFeatures
 
 /// W-FIX-P3 lane l3 — Training screens polish (RG-61, RG-62, RG-63, RG-66, RG-67, RG-68).
@@ -94,6 +95,56 @@ import JICore
         await model.load()
         #expect(fake.scopes == ["all"])
         #expect(ZoneTimeScope.allCases.map(\.title) == ["Cardio", "All workouts"])
+    }
+
+    // MARK: RG-61 — Records anchored to today, e1RM 1 decimal + per hand, honest caption, History lists Garmin
+
+    static func history(_ lift: String, _ rows: [(String, Int, Double, String)]) -> OneRepMax.LiftHistory {
+        OneRepMax.histories(rows.map { .init(lift: lift, date: $0.0, reps: $0.1, weightKg: $0.2, source: $0.3) }).first!
+    }
+
+    @Test func rg61StatusComparesWithTheLastFourWeeksBeforeToday() {
+        // last session 4 Sep; earlier best 20 Aug (within 28 d of 4 Sep, but 47 d before 6 Oct)
+        let h = Self.history("Barbell Bench Press", [("2026-08-01", 5, 50, "garmin"), ("2026-08-20", 5, 60, "garmin"),
+                                                     ("2026-09-04", 5, 50, "garmin")])
+        #expect(OneRepMax.status(h) == .down(percent: 17))                      // old: anchored to 4 Sep
+        #expect(OneRepMax.status(h, today: "2026-10-06") == .stale(lastDate: "2026-09-04"))
+        let fresh = Self.history("Barbell Bench Press", [("2026-09-20", 5, 60, "logged"), ("2026-10-03", 5, 59, "logged")])
+        #expect(OneRepMax.status(fresh, today: "2026-10-06") == .held)
+        #expect(StrengthRecordsFormat.statusLine(.stale(lastDate: "2026-09-04")) == "Last session 4 Sep · nothing in the last 4 weeks")
+    }
+
+    @Test func rg61ChartRangeEndsToday() {
+        let cut = StrengthRecordsFormat.chartCutoff(today: "2026-10-06", range: .month)
+        #expect(cut == StrengthRecordsFormat.date("2026-09-06"))
+    }
+
+    @Test func rg61HeroIsOneDecimalAndPerHand() {
+        #expect(StrengthRecordsFormat.heroValue(58.33) == "58.3")
+        #expect(StrengthRecordsFormat.heroUnit(perHand: true) == "kg e1RM per hand")
+        #expect(StrengthRecordsFormat.heroUnit(perHand: false) == "kg e1RM")
+    }
+
+    @Test func rg61CaptionNamesOnlyTheSourcesPresent() {
+        #expect(StrengthRecordsFormat.sourceName(hasGarmin: true, hasLog: false) == "Garmin")
+        #expect(StrengthRecordsFormat.sourceName(hasGarmin: true, hasLog: true) == "Garmin + JI log")
+        #expect(StrengthRecordsFormat.sourceName(hasGarmin: false, hasLog: true) == "JI log")
+        #expect(StrengthRecordsFormat.methodNote(hasGarmin: true, hasLog: false).contains("Garmin history."))
+    }
+
+    @Test func rg61HistoryListsGarminSessions() {
+        let out = StrengthRecordsOut(lifts: [
+            StrengthRecordLiftOut(lift: "Barbell Bench Press", sessions: [
+                StrengthRecordSessionOut(date: "2026-09-04", sets: [.init(reps: 5, weightKg: 50), .init(reps: 5, weightKg: 50)], sources: ["garmin"]),
+                StrengthRecordSessionOut(date: "2026-10-03", sets: [.init(reps: 5, weightKg: 52.5)], sources: ["logged"])]),
+            StrengthRecordLiftOut(lift: "Barbell Row", sessions: [
+                StrengthRecordSessionOut(date: "2026-09-04", sets: [.init(reps: 8, weightKg: 40)], sources: ["garmin"]),
+                StrengthRecordSessionOut(date: "2026-08-28", sets: [.init(reps: 8, weightKg: 40)], sources: ["garmin"])])])
+        let e = StrengthHistoryViewModel.garminEntries(out, excludingDates: [])
+        #expect(e.map(\.date) == ["2026-09-04", "2026-08-28"])            // newest first, logged-only day left out
+        #expect(e[0].lifts.map(\.lift) == ["Barbell Bench Press", "Barbell Row"])
+        #expect(e[0].lifts[0].line == "50 kg × 5  ·  50 kg × 5")
+        #expect(StrengthHistoryViewModel.garminEntries(out, excludingDates: ["2026-09-04"]).map(\.date) == ["2026-08-28"])
     }
 }
 
