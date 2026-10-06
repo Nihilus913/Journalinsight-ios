@@ -34,7 +34,8 @@ public struct KpiDetailView: View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 16) {
                 // PF-04: the pill is the one rule (newer of hub sync / HealthKit upload), never the fetch time.
-                KpiDetailSourceLine(subtitle: kpiDetailSubtitle(model.metric),
+                KpiDetailSourceLine(subtitle: kpiDetailSubtitle(model.metric, sourceDays: model.sourceDays,
+                                                                  today: RecoveryInsightService.localDayKey(Date())),
                                     fetchedAt: oneSyncPillDate(injected: syncedAt, lastUpload: healthKitLastUploadDate()),
                                     showsSynced: isNutritionKpi(model.metric))
                 headline
@@ -147,10 +148,10 @@ public struct KpiDetailView: View {
         KpiDetailTrend(points: kpiDetailTrendPoints(model.history, range: range), label: model.def.label,
                        unit: model.def.unit.isEmpty ? nil : model.def.unit, range: $range,
                        tint: metricTintRole(model.metric.rawValue),
-                       legend: hasGarmin ? legend + " · " + kpiHrvGarminLegend : legend,
+                       legend: hasGarmin ? legend + " · " + (model.metric == .hrv ? kpiHrvGarminLegend : kpiNightGarminLegend) : legend,
                        normal: kpiNormal.normal,
                        segments: merged.map(kpiHrvSegments),
-                       caption: hasGarmin ? kpiHrvMixCaption : nil)
+                       caption: hasGarmin ? (model.metric == .hrv ? kpiHrvMixCaption : kpiNightMixCaption) : nil)
     }
 
     /// W-B57-W3 fixer: one normal for the NormalBar, the chart legend and the table row.
@@ -207,7 +208,8 @@ public struct KpiDetailView: View {
 
     private var tableCard: some View {
         let base = kpiDetailTableRows(history: model.history, value: model.value, unit: model.def.unit, decimals: model.def.decimals,
-                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal)
+                                      isNightly: [.hrv, .rhr, .sleep].contains(model.metric), normal: kpiNormal.normal,
+                                      hubSevenDay: model.hrvHubSevenDay)
         // B-104 p2: "Nights counted: N Watch + M Garmin" for the nights the HRV chart draws.
         let rows = kpiHrvTableRows(base, merged: model.hrvMergedPoints(range: range), range: range)
         return Surface(level: 1, padding: 0) {

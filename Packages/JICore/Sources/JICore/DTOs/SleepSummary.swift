@@ -13,13 +13,20 @@ public struct SleepSummary: Codable, Sendable, Equatable {
     public var scoreBreakdown: SleepScoreBreakdown?
     /// W-B67 R-2: last night's time awake after sleep onset (s); nil = not reported.
     public var lastNightAwakeSec: Int?
+    /// RG-35: last night's date and sleep window, local wall clock ISO ("2026-10-04T21:13:41");
+    /// nil on older hubs or when the night has no window.
+    public var lastNightDate: String?
+    public var lastNightSleepStartLocal: String?
+    public var lastNightSleepEndLocal: String?
 
     public init(scoreComputed: Double? = nil, scoreComputedDate: String? = nil, debtHours: Double? = nil,
                 scoreComputedSource: String? = nil, scoreBreakdown: SleepScoreBreakdown? = nil,
-                lastNightAwakeSec: Int? = nil) {
+                lastNightAwakeSec: Int? = nil, lastNightDate: String? = nil,
+                lastNightSleepStartLocal: String? = nil, lastNightSleepEndLocal: String? = nil) {
         self.scoreComputed = scoreComputed; self.scoreComputedDate = scoreComputedDate; self.debtHours = debtHours
         self.scoreComputedSource = scoreComputedSource; self.scoreBreakdown = scoreBreakdown
-        self.lastNightAwakeSec = lastNightAwakeSec
+        self.lastNightAwakeSec = lastNightAwakeSec; self.lastNightDate = lastNightDate
+        self.lastNightSleepStartLocal = lastNightSleepStartLocal; self.lastNightSleepEndLocal = lastNightSleepEndLocal
     }
 }
 

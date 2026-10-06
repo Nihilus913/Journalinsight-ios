@@ -73,10 +73,13 @@ public nonisolated func decideSignalValueLine(_ m: DecideSignalRowModel) -> Stri
 /// W-FIX3 BUG-30 (board 01): the board's names — "Resting HR", "Overnight HRV", "Daytime HRV",
 /// sleep time "Sleep" (and the Garmin score beside it "Sleep score").
 /// An Apple night's "HRV (7-day)" keeps its label: it is a 7-day value, not the night's.
+/// RG-37 (B-104): it names its window the way the HRV detail's 7-day row does
+/// ("HRV 7-day · incl. last night") — one definition, one label.
 public nonisolated func decideSignalLabel(_ s: GateSignal) -> String {
     switch s.key {
     case "rhr": "Resting HR"
     case "hrv" where s.label == "HRV": "Overnight HRV"
+    case "hrv" where s.label == "HRV (7-day)": "HRV \(kpiHrvSevenDayLabel)"
     case "hrv_day": "Daytime HRV"
     case "sleep_h": "Sleep"
     case "sleep" where s.label == "Sleep": "Sleep score"

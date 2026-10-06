@@ -58,6 +58,8 @@ public struct TrendChart: View {
     /// RG-11: when non-empty, draws one line per series (dashed where asked) instead of `points`,
     /// with a point mark per reading and no cross-source average rule.
     let series: [TrendSeries]
+    /// RG-33: formats the y-axis ticks and the "avg" label (e.g. m:ss for pace); nil = plain number.
+    let valueFormat: (@Sendable (Double) -> String)?
     @Binding var range: TrendRange
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -68,9 +70,15 @@ public struct TrendChart: View {
     private var xAxisLabelCount: Int { typeSize.isAccessibilitySize ? 2 : 4 }
 
     public init(points: [TrendPoint], tint: Color, unit: String?, range: Binding<TrendRange>, showAll: (() -> Void)?,
-                kind: TrendChartKind = .baseline, goal: Double? = nil, series: [TrendSeries] = []) {
+                kind: TrendChartKind = .baseline, goal: Double? = nil, series: [TrendSeries] = [],
+                valueFormat: (@Sendable (Double) -> String)? = nil) {
         self.points = points; self.tint = tint; self.unit = unit; self._range = range; self.showAll = showAll
-        self.kind = kind; self.goal = goal; self.series = series
+        self.kind = kind; self.goal = goal; self.series = series; self.valueFormat = valueFormat
+    }
+
+    /// RG-33: the average rule's label ("avg 10:23" for pace, "avg 152" otherwise).
+    public nonisolated static func averageLabel(_ avg: Double, format: (@Sendable (Double) -> String)?) -> String {
+        "avg " + (format?(avg) ?? avg.formatted(.number.precision(.fractionLength(0))))
     }
 
     public var body: some View {
@@ -115,11 +123,20 @@ public struct TrendChart: View {
                         .foregroundStyle(theme.color(.muted))
                         // F2: leading, so the label never lands under the trailing y-axis labels.
                         .annotation(position: .top, alignment: .leading) {
-                            Text("avg \(avg.formatted(.number.precision(.fractionLength(0))))").jiFont(.micro).foregroundStyle(theme.color(.muted))
+                            Text(Self.averageLabel(avg, format: valueFormat)).jiFont(.micro).foregroundStyle(theme.color(.muted))
                         }
                 }
             }
-            .chartYAxis { AxisMarks(position: .trailing) }
+            .chartYAxis {
+                if let valueFormat {
+                    AxisMarks(position: .trailing) { v in
+                        AxisGridLine(); AxisTick()
+                        AxisValueLabel { if let d = v.as(Double.self) { Text(valueFormat(d)) } }
+                    }
+                } else {
+                    AxisMarks(position: .trailing)
+                }
+            }
             // F2: fewer date labels, so none of them truncates ("3 A…") at AX3 / 440 pt.
             .chartXAxis { AxisMarks(values: .automatic(desiredCount: xAxisLabelCount)) }
             .frame(minHeight: chartHeight)
