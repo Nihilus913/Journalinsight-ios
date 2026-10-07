@@ -178,7 +178,7 @@ public nonisolated func editTodaySquare(_ id: String, chips: [TodayChip], badge:
     let value = chip?.value
     return JISquareItem(id: id, label: TodayTileRegistry.label(for: id), systemImage: TodayTileRegistry.systemImage(for: id),
                         tint: metricTintRole(id), value: value, decimals: TodayTileRegistry.decimals(for: id), unit: chip?.unit,
-                        status: value == nil ? .missing(chip?.sourceMissing == true ? .notInHealthYet : .noData) : nil,
+                        status: value == nil ? .missing(chip?.needsHub == true ? .needsHub : chip?.sourceMissing == true ? .notInHealthYet : .noData) : nil,
                         badge: badge)
 }
 public nonisolated func editTodayVisibleItems(_ prefs: TodayTilePrefs, chips: [TodayChip] = []) -> [JISquareItem] {

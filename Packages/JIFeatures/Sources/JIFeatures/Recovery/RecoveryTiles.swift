@@ -30,7 +30,7 @@ private nonisolated func newest(_ days: [RecoveryDay], _ f: (RecoveryDay) -> Dou
 /// data", never a stale number passed off as current. HRV is the nightly value (never the hub's
 /// 7-day `hrv_weekly_avg` mix) and Load a real ACWR (never the hub's invented 0.00).
 public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryTileLayout, editing: Bool, now: Date = Date(),
-                                          loadPaused: Bool = false) -> [JISquareItem] {
+                                          loadPaused: Bool = false, capabilities: DataCapability = .hubAll) -> [JISquareItem] {
     let today = String(now.ISO8601Format().prefix(10))
     func night(_ f: (RecoveryDay) -> Double?) -> (value: Double, date: String)? {
         newest(days, f).flatMap { KpiMetrics.isLastNightFresh(nightDate: $0.date, now: now) ? $0 : nil }
@@ -44,13 +44,15 @@ public nonisolated func recoveryTileItems(days: [RecoveryDay], layout: RecoveryT
         }
         // W-KEYS D2r (Toby D2): the icon is the descriptor's ("load" → acwr through the one alias map).
         let symbol = KpiMetricId(normalizing: id).map { KpiMetrics.def($0).symbol } ?? "square"
-        let value = reading?.value
+        // W-OFFLINE OFF-2: a `.hubOnly` metric off the hub says so — never a cached Garmin value.
+        let needsHub = hubOnlyTileNeedsHub(id, capabilities: capabilities)
+        let value = needsHub ? nil : reading?.value
         // W1: a real value carries no status word (the normal is W3); missing = "— No data".
         // W-B91 S3: Load is the exception — its ratio carries the named word (or Paused, even with no ratio).
         let named = id == "load" ? acwrNamedStatus(value, paused: loadPaused) : nil
         return JISquareItem(id: id, label: label, systemImage: symbol, tint: metricTintRole(id), value: value, decimals: decimals,
-                            unit: unit, goalText: kpiAsOfLabel(valueDate: reading?.date, today: today),
-                            status: named ?? (value == nil ? .missing(.noData) : nil), badge: editing ? .hide : .none)
+                            unit: unit, goalText: needsHub ? nil : kpiAsOfLabel(valueDate: reading?.date, today: today),
+                            status: needsHub ? .missing(.needsHub) : named ?? (value == nil ? .missing(.noData) : nil), badge: editing ? .hide : .none)
     }
     return layout.visible.map(item)
 }

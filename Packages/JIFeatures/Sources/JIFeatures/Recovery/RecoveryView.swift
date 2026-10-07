@@ -108,7 +108,8 @@ public struct RecoveryView: View {
             let layout = recoveryTileLayout(orderRaw: orderRaw, hiddenRaw: hiddenRaw)
             if editing {
                 // Edit mode keeps the squares' hide / reorder / add-back behaviour (RecoveryTiles prefs).
-                SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing, loadPaused: loadPaused), editing: editing, columns: recoveryGridColumns,
+                SquareGrid(items: recoveryTileItems(days: model.days, layout: layout, editing: editing, loadPaused: loadPaused,
+                                                   capabilities: model.capabilities), editing: editing, columns: recoveryGridColumns,
                            family: .tile,
                            onTap: openKpiDetail.map { open in { id in open(id == "load" ? "acwr" : id) } },
                            onBadge: { id in hiddenRaw = (layout.hidden + [id]).joined(separator: ",") },
@@ -261,7 +262,7 @@ public struct RecoveryView: View {
     /// resp rate / wrist temp / body battery / recovery time from `/vitals/recovery` — dated, or
     /// "—" + a reason word (`recoveryWatchReadings`) — and Add a metric, all `.tile`.
     private func alsoWatching(layout: RecoveryTileLayout) -> some View {
-        let items = recoveryTileItems(days: model.days, layout: layout, editing: false, loadPaused: loadPaused).filter { $0.id == "load" }
+        let items = recoveryTileItems(days: model.days, layout: layout, editing: false, loadPaused: loadPaused, capabilities: model.capabilities).filter { $0.id == "load" }
         // W-DATA fixer R9: no hub ACWR (Apple never sends one) → the gate-input load with its band.
         let load = items.first?.value == nil ? insight?.loadReading : nil
         return Columns(minimum: 100, spacing: JISpacing.tileGap, tileHeight: .tile) {
@@ -283,7 +284,7 @@ public struct RecoveryView: View {
                 .accessibilityLabel(load.map(\.accessibilityText) ?? squareAccessibilityLabel(item))
                 .accessibilityIdentifier("recovery.watch.\(item.id)")
             }
-            ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday), id: \.id) { watchTile($0) }
+            ForEach(recoveryWatchReadings(days: model.days, today: recoveryToday, capabilities: model.capabilities), id: \.id) { watchTile($0) }
             // W-FIX11 H2-11: adds back Recovery's own hidden square (never Today's picker, which
             // never changed this screen); offered only while one is hidden.
             if let next = recoveryAddMetricHidden(after: layout) {
@@ -363,7 +364,8 @@ public nonisolated let recoveryWristTempBaselineNights = 5
 /// user's own baseline — never the absolute sensor value, never a clinical reading), Garmin body
 /// battery low–high and recovery time. Each is the newest night that has it, named by its night
 /// ("last night" for the wake day `today`, else "as of Sep 25"); none = "—" · "not read".
-public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String) -> [RecoveryWatchReading] {
+public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String,
+                                              capabilities: DataCapability = .hubAll) -> [RecoveryWatchReading] {
     let newestFirst = days.sorted { $0.date > $1.date }
     func newest(_ has: (RecoveryDay) -> Bool) -> RecoveryDay? { newestFirst.first(where: has) }
     func night(_ day: RecoveryDay) -> String {
@@ -395,7 +397,10 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
         temp = notRead("wristTemp", "Wrist temp")
     }
 
-    let battery: RecoveryWatchReading = newest { $0.bodyBatteryMin != nil && $0.bodyBatteryMax != nil }.map {
+    // W-OFFLINE OFF-2: Body Battery is Garmin's own (`.hubOnly`) — off the hub it says so.
+    let battery: RecoveryWatchReading = hubOnlyTileNeedsHub("bodyBattery", capabilities: capabilities)
+        ? RecoveryWatchReading(id: "bodyBattery", label: "Body Battery", value: "—", caption: JIMissingReason.needsHub.rawValue)
+        : newest { $0.bodyBatteryMin != nil && $0.bodyBatteryMax != nil }.map {
         RecoveryWatchReading(id: "bodyBattery", label: "Body Battery",
                              value: "\(jiNumber($0.bodyBatteryMin ?? 0, 0))–\(jiNumber($0.bodyBatteryMax ?? 0, 0))",
                              caption: "low–high · \(night($0))", stale: isStale($0))

@@ -35,6 +35,8 @@ public final class RecoveryViewModel {
     private var cacheKey: String { isOnDeviceSource ? Self.onDeviceKey : Self.key }
     /// True when the source is not the hub (no hub capability set) — the on-device Apple Watch reader.
     public var isOnDeviceSource: Bool { !provider.capabilities.isSuperset(of: .hubAll) }
+    /// W-OFFLINE OFF-2: the source's capability bitmap — the `.hubOnly` tile gate reads it.
+    public var capabilities: DataCapability { provider.capabilities }
     /// W-FIX6 F6-1: 42 nights, so the cards' normal (today−34 … today−7, `PersonalNormal`) sees
     /// the same 28 nights the KPI detail and the hub use — 28 fetched nights left only 21 in it.
     public static let windowDays = RecoveryInsightService.windowDays
