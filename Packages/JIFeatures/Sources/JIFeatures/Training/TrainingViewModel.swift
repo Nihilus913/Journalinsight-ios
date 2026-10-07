@@ -137,6 +137,9 @@ public final class TrainingViewModel {
         return planWeekday(fromCalendarWeekday: trainingStripCalendar.component(.weekday, from: date))
     }
 
+    /// W-OFFLINE OFF-1: `.needsHub` = no hub behind `provider`; `load()` never fetches.
+    public let availability: HubAvailability
+
     public init(
         provider: any TrainingProviding,
         healthProvider: any HealthDataProvider,
@@ -146,8 +149,10 @@ public final class TrainingViewModel {
         outbox: Outbox? = nil,
         drainer: OutboxDrainer? = nil,
         library: WorkoutLibraryViewModel? = nil,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        availability: HubAvailability = .live
     ) {
+        self.availability = availability
         self.provider = provider; self.healthProvider = healthProvider; self.cache = cache
         self.strengthStore = strengthStore; self.now = now
         self.outbox = outbox; self.drainer = drainer
@@ -316,6 +321,11 @@ public final class TrainingViewModel {
     }
 
     private func fetchLive() async {
+        // W-OFFLINE OFF-1: no hub → the cached plan/gate, else the one honest line; no fetch.
+        if availability == .needsHub {
+            if phase != .loaded { phase = .error(NeedsHubCopy.training) }
+            return
+        }
         let hadEverSynced = everSynced
         let provider = self.healthProvider
         let trainingProvider = self.provider

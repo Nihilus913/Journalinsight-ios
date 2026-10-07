@@ -134,6 +134,10 @@ public final class GoalsSetupViewModel {
     /// The watcher polling the outbox while "hub sync pending" shows (nil when idle).
     private(set) var hubWatch: Task<Void, Never>?
 
+    /// W-OFFLINE OFF-1: `.needsHub` = no hub behind `provider`; `load()` keeps the local goals
+    /// (macros, strength mirror) and shows `NeedsHubCopy.goals` for the hub document, no fetch.
+    public let availability: HubAvailability
+
     public init(
         provider: any GoalsSetupProviding, goalStore: GoalStore? = nil, now: @escaping () -> Date = Date.init,
         strengthStore: StrengthStateStore = StrengthStateStore(),
@@ -143,8 +147,10 @@ public final class GoalsSetupViewModel {
         hubPendingSource: (@MainActor () -> Bool)? = nil,
         onGoalsSaved: (@MainActor (Goals) -> Void)? = nil,
         hubPollInterval: Duration = .seconds(2),
-        hubPollLimit: Int = 60
+        hubPollLimit: Int = 60,
+        availability: HubAvailability = .live
     ) {
+        self.availability = availability
         self.provider = provider
         self.goalStore = goalStore
         self.now = now
@@ -235,6 +241,10 @@ public final class GoalsSetupViewModel {
         macroGoals = try? macroStore?.load()
         refreshHubPending()
         burnWindow = await burnSource?()
+        if availability == .needsHub {
+            phase = (goals == nil) ? .error(NeedsHubCopy.goals) : .loaded
+            return
+        }
         phase = .loading
         do {
             let result = try await provider.goals()

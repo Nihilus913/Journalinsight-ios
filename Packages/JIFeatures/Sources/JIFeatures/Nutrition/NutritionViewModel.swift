@@ -70,9 +70,13 @@ public final class NutritionViewModel {
     private static func dayKey(_ date: String) -> String { "nutrition.day.\(date)" }
     private static let weekKey = "nutrition.week"
 
+    /// W-OFFLINE OFF-1: `.needsHub` = no hub behind `provider`; `load()` never fetches.
+    public let availability: HubAvailability
+
     public init(provider: any NutritionProviding, cache: OfflineCache, now: @escaping () -> Date = Date.init, initialDate: String? = nil,
-                healthFeed: HealthDailyTotalsFeed = .shared) {
+                healthFeed: HealthDailyTotalsFeed = .shared, availability: HubAvailability = .live) {
         self.health = HealthTotalsSource(feed: healthFeed)
+        self.availability = availability
         self.provider = provider
         self.cache = cache
         self.now = now
@@ -134,6 +138,7 @@ public final class NutritionViewModel {
     }
 
     private func fetchDayLive() async {
+        guard availability == .live else { return }   // W-OFFLINE OFF-1
         let provider = self.provider
         let cache = self.cache
         let date = selectedDate
@@ -145,6 +150,11 @@ public final class NutritionViewModel {
     }
 
     private func fetchLive() async {
+        // W-OFFLINE OFF-1: no hub → the cached day/week, else the one honest line; no fetch.
+        if availability == .needsHub {
+            if phase != .loaded { phase = .error(NeedsHubCopy.nutrition) }
+            return
+        }
         let hadEverSynced = everSynced
         let provider = self.provider
         let cache = self.cache

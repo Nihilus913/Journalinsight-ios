@@ -174,6 +174,6 @@ import UIKit
     #expect(body[..<bodyEnd].contains(".onChange(of: weekSummary)"))
     #expect(source.contains("env.republishSnapshot()"))
     #expect(source.contains("env.glancePlan = "))
-    #expect(source.contains("progression = ProgressionService("))
+    #expect(source.contains("progression = HubScreensFallback.progression("))   // W-OFFLINE OFF-1
     #expect(source.contains("progression = nil"))
 }

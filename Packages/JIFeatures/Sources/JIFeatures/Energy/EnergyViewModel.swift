@@ -44,10 +44,16 @@ public final class EnergyViewModel {
 
     public var onSectionUpdate: (() -> Void)?
 
+    /// W-OFFLINE OFF-1: `.needsHub` = no hub behind `provider`; `load()` shows the cache, else
+    /// `NeedsHubCopy.energy`, and never fetches.
+    public let availability: HubAvailability
+
     public init(provider: any EnergyProviding, cache: OfflineCache, now: @escaping () -> Date = Date.init,
-                band: EnergyBandService? = nil, healthFeed: HealthDailyTotalsFeed = .shared) {
+                band: EnergyBandService? = nil, healthFeed: HealthDailyTotalsFeed = .shared,
+                availability: HubAvailability = .live) {
         self.health = HealthTotalsSource(feed: healthFeed)
         self.provider = provider; self.cache = cache; self.now = now; self.band = band
+        self.availability = availability
     }
 
     public var screenState: ScreenState {
@@ -99,6 +105,12 @@ public final class EnergyViewModel {
         await fetchLive()
     }
 
+    /// W-OFFLINE OFF-1: no hub → the cached report, else the one honest line; no fetch.
+    private func settleNeedsHub() {
+        phase = (report == nil) ? .error(NeedsHubCopy.energy) : .loaded
+        onSectionUpdate?()
+    }
+
     private func restoreFromCache() {
         health.restore(from: cache)
         if let hit = try? cache.get(Self.keys.energy, as: EnergyReport.self) {
@@ -110,6 +122,7 @@ public final class EnergyViewModel {
     }
 
     private func fetchLive() async {
+        if availability == .needsHub { settleNeedsHub(); return }
         let hadEverSynced = everSynced
         do {
             let provider = self.provider
