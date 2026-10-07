@@ -619,6 +619,8 @@ struct RootTabView: View {
         energyModel = nil
         nutritionModel = nil
         trainingModel = nil
+        // W-OFFLINE OFF-1: a `.needsHub` Goals setup must not outlive the first hub connection.
+        goalsSetupModel = nil
         sendToWatchModel = nil
         strengthLogDeps = nil
     }
@@ -795,7 +797,8 @@ struct RootTabView: View {
         // B-57 W5: the glances read the HRV/RHR normals from the same insight (weak on env).
         env.recoveryInsight = recoveryInsight
         if progression == nil {
-            progression = ProgressionService(provider: Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding, cache: env.cache, prefs: env.prefs)
+            // W-OFFLINE OFF-1: no TrainingProviding → `.needsHub` (cached lifts only).
+            progression = HubScreensFallback.progression(source: Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider), cache: env.cache, prefs: env.prefs)
         }
         installGlancePlan()
         guard todayModel == nil else { return }
@@ -1006,17 +1009,17 @@ struct RootTabView: View {
     }
 
     private func loadMoreSummaries() async {
-        if let store = env.providerStore {
-            makeTodayModels(store: store)
-            if energyModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any EnergyProviding {
-                energyModel = EnergyViewModel(provider: p, cache: env.cache, now: Date.init, band: env.makeEnergyBand())
-            }
-            if nutritionModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding {
-                nutritionModel = NutritionViewModel(provider: p, cache: env.cache, now: Date.init)
-            }
-            if goalsSetupModel == nil, let p = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any GoalsSetupProviding {
-                goalsSetupModel = makeGoalsSetup(p)
-            }
+        if let store = env.providerStore { makeTodayModels(store: store) }
+        // W-OFFLINE OFF-1: built with or without a hub (`.needsHub` = cache, else the honest line).
+        let source = hubScreens
+        if energyModel == nil {
+            energyModel = HubScreensFallback.energy(source: source, cache: env.cache, band: env.makeEnergyBand())
+        }
+        if nutritionModel == nil {
+            nutritionModel = HubScreensFallback.nutrition(source: source, cache: env.cache)
+        }
+        if goalsSetupModel == nil {
+            goalsSetupModel = HubScreensFallback.goalsSetup(source: source, make: makeGoalsSetup)
         }
         if moreMindModel == nil, !moreMindUnavailable { await makeMoreMindModel() }
         // Loaded side by side (each restores its cache first, then fetches live).
@@ -1118,77 +1121,56 @@ struct RootTabView: View {
     // siblings this wave). A cast failure — e.g. a `MockDataProvider` build that hasn't picked up
     // a given lane's conformance yet — renders `ContentUnavailableView`, never a blank tab
     // (CLAUDE.md rule 5: no silent empty state).
+    // W-OFFLINE OFF-1 (B-50 slice 1): no hub configured, or a data source with no hub protocol,
+    // gets the same screen with a `.needsHub` model (`HubScreensFallback`) — the cached copy, else
+    // "Connect the hub in Settings to see …" — instead of a connection prompt / "unavailable".
     @ViewBuilder
     private var energyTab: some View {
-        if let store = env.providerStore {
-            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any EnergyProviding {
-                if let energyModel {
-                    EnergyView(model: energyModel)
-                } else {
-                    ProgressView()
-                        .task { energyModel = EnergyViewModel(provider: provider, cache: env.cache, now: Date.init, band: env.makeEnergyBand()) }
-                }
-            } else {
-                screenUnavailable(title: "Energy unavailable", systemImage: "flame")
-            }
+        if let energyModel {
+            EnergyView(model: energyModel)
         } else {
-            connectionPrompt
+            ProgressView()
+                .task { energyModel = HubScreensFallback.energy(source: hubScreens, cache: env.cache, band: env.makeEnergyBand()) }
         }
     }
 
     @ViewBuilder
     private var nutritionTab: some View {
-        if let store = env.providerStore {
-            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any NutritionProviding {
-                if let nutritionModel {
-                    NutritionView(model: nutritionModel)
-                } else {
-                    ProgressView()
-                        .task { nutritionModel = NutritionViewModel(provider: provider, cache: env.cache, now: Date.init) }
-                }
-            } else {
-                screenUnavailable(title: "Nutrition unavailable", systemImage: "fork.knife")
-            }
+        if let nutritionModel {
+            NutritionView(model: nutritionModel)
         } else {
-            connectionPrompt
+            ProgressView()
+                .task { nutritionModel = HubScreensFallback.nutrition(source: hubScreens, cache: env.cache) }
         }
     }
 
     @ViewBuilder
     private var trainingTab: some View {
-        if let store = env.providerStore {
-            if let provider = Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider) as? any TrainingProviding {
-                if let trainingModel {
-                    TrainingView(model: trainingModel)
-                        .environment(\.sendToWatchModel, sendToWatchModel)
-                        .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
-                        .environment(\.strengthLogDeps, strengthLogDeps)   // W-B38-A A-10
-                        .environment(\.strengthWatchPlanSender) { StrengthMirrorCoordinator.shared.sendPlan($0) }   // W-B38-B
-                } else {
-                    ProgressView()
-                        .task {
-                            // B-52: the Training tab's weekday assignment is an outbox write —
-                            // the same on-disk queue the weigh-in and gate rows use, with a
-                            // drainer over THIS hub provider so a reachable hub still confirms
-                            // in-tap. `try?`: no queue (unwritable DB) must not cost the tab, it
-                            // only costs offline durability, which `assignSession` says out loud.
-                            let outbox = try? Outbox(db: .onDisk())
-                            trainingModel = TrainingViewModel(
-                                provider: provider, healthProvider: store.provider, cache: env.cache,
-                                outbox: outbox,
-                                drainer: outbox.map { OutboxDrainer(outbox: $0, hub: Self.hubScreensSource(hub: env.hubProvider, dataSource: store.provider)) },
-                                now: Date.init
-                            )
-                            sendToWatchModel = makeSendToWatchModel()
-                            // W-B38-A A-10: `try?` — no on-disk store only hides "Log sets".
-                            ensureStrengthLogDeps(store: store)
-                        }
-                }
-            } else {
-                screenUnavailable(title: "Training unavailable", systemImage: "dumbbell")
-            }
+        if let trainingModel {
+            TrainingView(model: trainingModel)
+                .environment(\.sendToWatchModel, sendToWatchModel)
+                .environment(\.verdictOverrideModel, verdictOverrideModel)   // W-FIX11 H1-05
+                .environment(\.strengthLogDeps, strengthLogDeps)   // W-B38-A A-10
+                .environment(\.strengthWatchPlanSender) { StrengthMirrorCoordinator.shared.sendPlan($0) }   // W-B38-B
         } else {
-            connectionPrompt
+            ProgressView()
+                .task {
+                    // B-52: the Training tab's weekday assignment is an outbox write — the same
+                    // on-disk queue the weigh-in and gate rows use, with a drainer over THIS hub
+                    // provider so a reachable hub still confirms in-tap. `try?`: no queue
+                    // (unwritable DB) must not cost the tab, it only costs offline durability,
+                    // which `assignSession` says out loud. W-OFFLINE OFF-1: no hub → `.needsHub`.
+                    let source = hubScreens
+                    let outbox = source == nil ? nil : try? Outbox(db: .onDisk())
+                    trainingModel = HubScreensFallback.training(
+                        source: source, healthProvider: env.providerStore?.provider, cache: env.cache,
+                        outbox: outbox,
+                        drainer: source.flatMap { hub in outbox.map { OutboxDrainer(outbox: $0, hub: hub) } }
+                    )
+                    sendToWatchModel = makeSendToWatchModel()
+                    // W-B38-A A-10: `try?` — no on-disk store only hides "Log sets".
+                    if let store = env.providerStore { ensureStrengthLogDeps(store: store) }
+                }
         }
     }
 
@@ -1231,7 +1213,7 @@ struct RootTabView: View {
     /// user's nutrition goals save to `goals.macros` on this phone, and ONLY that save pushes the
     /// temporary one-way copy to the hub. The band service is never connected to the mirror, so a
     /// foreground recompute never PUTs (Review Focus 4).
-    private func makeGoalsSetup(_ provider: any GoalsSetupProviding) -> GoalsSetupViewModel {
+    private func makeGoalsSetup(_ provider: any GoalsSetupProviding, _ availability: HubAvailability = .live) -> GoalsSetupViewModel {
         GoalsSetupViewModel(
             provider: provider, macroStore: env.macroGoals,
             mirror: makeGoalsMirror(),   // TEMP bridge until B-50: hub weekly gate
@@ -1243,7 +1225,8 @@ struct RootTabView: View {
             onGoalsSaved: { goals in
                 savedGoals = goals
                 if let energy = energyModel { Task { await energy.refresh() } }
-            }
+            },
+            availability: availability
         )
     }
 
@@ -1278,7 +1261,7 @@ struct RootTabView: View {
         // W-FIX6 fixer F6-12/F6-12b: Goals / My KPIs (+ the KPI detail, the goals mirror) read the
         // hub whatever the data source is; the tiles' own health reads stay on the data source.
         let hub = hubScreens
-        let goals = (hub as? any GoalsSetupProviding).map { makeGoalsSetup($0) }
+        let goals: GoalsSetupViewModel? = HubScreensFallback.goalsSetup(source: hub, make: makeGoalsSetup)   // W-OFFLINE OFF-1
         var kpis: KpiListViewModel?
         if let provider, let nutrition = hub as? any NutritionProviding, let targets = hub as? any KpiTargetsProviding {
             kpis = KpiListViewModel(healthProvider: provider, nutritionProvider: nutrition, targetsProvider: targets, prefStore: env.prefs, cache: env.cache)

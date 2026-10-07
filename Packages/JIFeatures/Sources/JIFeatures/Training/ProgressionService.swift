@@ -79,13 +79,18 @@ public final class ProgressionService {
     public private(set) var loadedDay: String?
 
     private let provider: (any TrainingProviding)?
+    /// W-OFFLINE OFF-1: `.needsHub` when there is no hub provider (cached lifts only).
+    public let availability: HubAvailability
     private let cache: OfflineCache
     private let strengthStore: StrengthStateStore
     private let prefs: PrefStore?
     private let today: () -> String
 
     public init(provider: (any TrainingProviding)?, cache: OfflineCache, strengthStore: StrengthStateStore = StrengthStateStore(),
-                prefs: PrefStore?, today: @escaping () -> String = { DayKey.today(now: Date()).iso }) {
+                prefs: PrefStore?, today: @escaping () -> String = { DayKey.today(now: Date()).iso },
+                availability: HubAvailability? = nil) {
+        // W-OFFLINE OFF-1: no TrainingProviding = no hub; the lifts come from the cache only.
+        self.availability = availability ?? (provider == nil ? .needsHub : .live)
         self.provider = provider; self.cache = cache; self.strengthStore = strengthStore; self.prefs = prefs; self.today = today
     }
 

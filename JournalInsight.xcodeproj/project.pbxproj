@@ -25,6 +25,7 @@
 		208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7584AC7835BD23D74891580B /* JIUITestCase.swift */; };
 		2139D696DA2277CCFDD503B7 /* WatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5650065403FF6275C73C3F6F /* WatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		23D7C1A0B3C8FF5C2BD90682 /* StrengthLogIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80D37E54FBCF389C4B5901AF /* StrengthLogIntent.swift */; };
+		2445A85537E11E0A8FED30C5 /* HubScreensFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F835528E688BD35A9CBF2C1 /* HubScreensFallbackTests.swift */; };
 		2510DDAAE41B2B19C4B04465 /* AppSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */; };
 		28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9592E400266E0385BE90930E /* LiveActivityController.swift */; };
 		29EEDDD7E1CA85146A5FA0B2 /* StrengthLogComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF9FE9FA89A4C657D69AF8C7 /* StrengthLogComposition.swift */; };
@@ -53,6 +54,7 @@
 		549E426006D88DF5CF41FEC2 /* B43RestAlertUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E2C5DCECE1F93F43F6A0643 /* B43RestAlertUITests.swift */; };
 		5580CAE6353EA2045BAD3DFD /* Fix9Fix10ScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77793FB1D2752C56C52B4D6C /* Fix9Fix10ScreenTests.swift */; };
 		57AC5B4487F59E11638C2D4A /* AppEnvironmentBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28051E172DF43D2CA4372E61 /* AppEnvironmentBootstrap.swift */; };
+		57F05FCCC28BDE7B1742C308 /* HubScreensFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E3E5797AC79DD77404F95A /* HubScreensFallback.swift */; };
 		59173F9C6813C53E4BED5F4D /* VerdictComplicationExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5255EDF05B53F9B84E3945 /* VerdictComplicationExtensionTests.swift */; };
 		5DFAD7413B110C134B6F9EA5 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FC4B2065A6F827B696A084F /* AppEnvironment.swift */; };
 		5FDD4D8F06A74F9638A65694 /* LiveActivityStartRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC20D49BA4793D12D7AFD770 /* LiveActivityStartRegistration.swift */; };
@@ -236,6 +238,7 @@
 		1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodMirrorSimTests.swift; sourceTree = "<group>"; };
 		1B35552968E1A545F6D34B03 /* WatchAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WatchAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D81B9AB03CC6CCC84F9A143 /* DeepLinkParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkParseTests.swift; sourceTree = "<group>"; };
+		1F835528E688BD35A9CBF2C1 /* HubScreensFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HubScreensFallbackTests.swift; sourceTree = "<group>"; };
 		251A32F48755A0F1BAB02744 /* StrengthSessionActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSessionActivityController.swift; sourceTree = "<group>"; };
 		28051E172DF43D2CA4372E61 /* AppEnvironmentBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentBootstrap.swift; sourceTree = "<group>"; };
 		2C013C40490FBAF09FCC3878 /* LocalVerdictFloor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVerdictFloor.swift; sourceTree = "<group>"; };
@@ -328,6 +331,7 @@
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		DF3EF7B6E5A59DEE0678B936 /* MacrosLeftFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacrosLeftFace.swift; sourceTree = "<group>"; };
 		E188FAAD9A0405AC8D9D4B1F /* B117StrengthLogShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B117StrengthLogShots.swift; sourceTree = "<group>"; };
+		E6E3E5797AC79DD77404F95A /* HubScreensFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HubScreensFallback.swift; sourceTree = "<group>"; };
 		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		E8D48EA034A396A7281E21C1 /* WidgetURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetURLTests.swift; sourceTree = "<group>"; };
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
@@ -506,6 +510,7 @@
 				9457A6EC4E99D109BB19F494 /* Fix6L1AppTests.swift */,
 				33B95FD08E32DDCC89D64B00 /* Fix7L1AppTests.swift */,
 				094C0C2F19C94D8B96AA2CC2 /* HealthKitUploadSpecsTests.swift */,
+				1F835528E688BD35A9CBF2C1 /* HubScreensFallbackTests.swift */,
 				D84B36CD13034CA6AB211274 /* JournalTabTests.swift */,
 				83CDABEC7F1B0141C8246DCB /* LiveActivityStartTests.swift */,
 				D47D11545311DA32C3AB4D91 /* LocalVerdictFloorTests.swift */,
@@ -625,6 +630,7 @@
 				9FC4B2065A6F827B696A084F /* AppEnvironment.swift */,
 				50213A12F93450C6AD416BAD /* Assets.xcassets */,
 				F550BF1C6894BEFD3E376293 /* HealthKitLaunchGate.swift */,
+				E6E3E5797AC79DD77404F95A /* HubScreensFallback.swift */,
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
@@ -967,6 +973,7 @@
 				9C668FEB52BC8240D1D00A85 /* DebugRmssdSeeder.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
 				06571747E98C6C04BC39C452 /* HealthKitLaunchGate.swift in Sources */,
+				57F05FCCC28BDE7B1742C308 /* HubScreensFallback.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
 				DC306E33CD5648EA082E5A0F /* LiveActivityCapPolicy.swift in Sources */,
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
@@ -1050,6 +1057,7 @@
 				BE92D18040C989A85621A932 /* Fix7L1AppTests.swift in Sources */,
 				688BBEA7DE2ECE9506686012 /* GateMediumLayout.swift in Sources */,
 				947A2B60C11BC8A8C3BB666C /* HealthKitUploadSpecsTests.swift in Sources */,
+				2445A85537E11E0A8FED30C5 /* HubScreensFallbackTests.swift in Sources */,
 				4A8C198ECF8F30E2FBE584EB /* JournalTabTests.swift in Sources */,
 				E3E511358A125BAD4A7FAAE8 /* LiveActivityStartTests.swift in Sources */,
 				D9501A78B0C370BF65654052 /* LocalVerdictFloorTests.swift in Sources */,
