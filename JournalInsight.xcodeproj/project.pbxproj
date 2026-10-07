@@ -102,6 +102,7 @@
 		AC4F3AB636054D4BBFB60C64 /* StrengthSessionActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FBA4B160672C6EFCE507CE /* StrengthSessionActivityWidget.swift */; };
 		ACACB1DD0B037F4030322F0A /* OFF3DeveloperShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D7E1FA15DDCEFDB84DA8D5 /* OFF3DeveloperShots.swift */; };
 		ADDD4A661B147DE19DA5723A /* VerdictComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1296CF63AE100B901BCE1904 /* VerdictComplication.swift */; };
+		AFACF1E95E73C471EFDBC3E7 /* OFF22SeedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629BD73ADE21D46875426EEB /* OFF22SeedUITests.swift */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		B687D8C1EF3A14562FF45FD8 /* AppEnvironmentMacrosSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73B12E7B00A305B76EFBC63 /* AppEnvironmentMacrosSnapshotTests.swift */; };
 		B8889F0584F4128FEE7359EE /* B43RestAlertSimTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8387D88C7F494965A67B9623 /* B43RestAlertSimTests.swift */; };
@@ -135,6 +136,7 @@
 		E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E3002B92D368429BB3F69F /* MoreTabTests.swift */; };
 		EB53E69C209B798DDCC807D5 /* JIDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 6EA74DAEF679ECF071912E9E /* JIDesign */; };
 		EC5311AB5875741B4CB7CE7D /* ApnsPayloadRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */; };
+		ED011AA2ABD4203C66941C85 /* HealthKitFixtureSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11320577DFB18B79BC84DA5 /* HealthKitFixtureSeeder.swift */; };
 		ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CF280FF2294A555CB71CBC /* OnDeviceVerdictWiring.swift */; };
 		EFB9B2816C723179BDAB3BE4 /* ApnsRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */; };
 		F2CF2139E05DA9E395020461 /* NoHealthKitLaunchGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301ACCB32500A538C7C03ECA /* NoHealthKitLaunchGateTests.swift */; };
@@ -268,6 +270,7 @@
 		58E06787E30F9A6DEE3D3C5A /* JIWorkouts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIWorkouts; path = Packages/JIWorkouts; sourceTree = SOURCE_ROOT; };
 		5958527A14A12B9893C50209 /* ShadowLogWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowLogWriter.swift; sourceTree = "<group>"; };
 		5BB3EF9EDAC61E7D26C04AEE /* JIPersistence */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIPersistence; path = Packages/JIPersistence; sourceTree = SOURCE_ROOT; };
+		629BD73ADE21D46875426EEB /* OFF22SeedUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFF22SeedUITests.swift; sourceTree = "<group>"; };
 		634712C2D95154EFCF1BB181 /* ApnsPushTokenDedupeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPushTokenDedupeTests.swift; sourceTree = "<group>"; };
 		634E98266DFC2C3C975E7042 /* ApnsPayloadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsPayloadRouter.swift; sourceTree = "<group>"; };
 		69F166FFD02B0D810992532A /* JIVault */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIVault; path = Packages/JIVault; sourceTree = SOURCE_ROOT; };
@@ -296,6 +299,7 @@
 		9BA9EC553FEEEBECA2131700 /* B91StrainSheetShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B91StrainSheetShots.swift; sourceTree = "<group>"; };
 		9FC4B2065A6F827B696A084F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		9FCCAD33FB1F5CF89E321B55 /* ApnsRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApnsRegistration.swift; sourceTree = "<group>"; };
+		A11320577DFB18B79BC84DA5 /* HealthKitFixtureSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitFixtureSeeder.swift; sourceTree = "<group>"; };
 		A3C24D51E9FA5F5AF744ABA9 /* FixP3L3Shots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixP3L3Shots.swift; sourceTree = "<group>"; };
 		A4FA13A0C17791F561000010 /* GateMediumLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateMediumLayout.swift; sourceTree = "<group>"; };
 		A6353F53C5F6461436225F62 /* WatchGlanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlanceSnapshotTests.swift; sourceTree = "<group>"; };
@@ -427,6 +431,7 @@
 			isa = PBXGroup;
 			children = (
 				AD1432071B5C57584E794609 /* DebugRmssdSeeder.swift */,
+				A11320577DFB18B79BC84DA5 /* HealthKitFixtureSeeder.swift */,
 				FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */,
 			);
 			path = Debug;
@@ -483,6 +488,7 @@
 				ED0ACE3DDDBED082761F6A42 /* FixP3L6Shots.swift */,
 				7584AC7835BD23D74891580B /* JIUITestCase.swift */,
 				F2D7E1FA15DDCEFDB84DA8D5 /* OFF3DeveloperShots.swift */,
+				629BD73ADE21D46875426EEB /* OFF22SeedUITests.swift */,
 				F0750C1B35DFECD995A810B6 /* OfflineL1Shots.swift */,
 				FB4AF5C04DC4544BFC44D529 /* TrainingProofTests.swift */,
 			);
@@ -978,6 +984,7 @@
 				7370B28E2B7B9FEF71971F0C /* BaselineStoreAdapter.swift in Sources */,
 				9C668FEB52BC8240D1D00A85 /* DebugRmssdSeeder.swift in Sources */,
 				4EF2381D29E192DFAC29F675 /* DeepLink.swift in Sources */,
+				ED011AA2ABD4203C66941C85 /* HealthKitFixtureSeeder.swift in Sources */,
 				06571747E98C6C04BC39C452 /* HealthKitLaunchGate.swift in Sources */,
 				57F05FCCC28BDE7B1742C308 /* HubScreensFallback.swift in Sources */,
 				04E76CEC31B3C3D7BA6EDFD5 /* JournalInsightApp.swift in Sources */,
@@ -1017,6 +1024,7 @@
 				3403806071E69813EB669C74 /* FixP3L5Shots.swift in Sources */,
 				A7B599F4645BD5BC8457AADD /* FixP3L6Shots.swift in Sources */,
 				208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */,
+				AFACF1E95E73C471EFDBC3E7 /* OFF22SeedUITests.swift in Sources */,
 				ACACB1DD0B037F4030322F0A /* OFF3DeveloperShots.swift in Sources */,
 				CDC76DF72751C638353AD4D2 /* OfflineL1Shots.swift in Sources */,
 				4FACE29EF46BA01697617F98 /* TrainingProofTests.swift in Sources */,
