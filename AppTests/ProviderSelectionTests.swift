@@ -68,3 +68,37 @@ import JIPersistence
     #expect(sut.revision == afterFirst + 1)
     #expect(store.provider is MockDataProvider)
 }
+
+/// W-OFFLINE OFF-3: hub → appleWatch → hub must land the store on the SAME hub provider the app
+/// installed (not a rebuilt client), so every tab model rebuilt on the last revision tick reads
+/// the hub — and its `OfflineCache` data — exactly as before the round trip.
+private nonisolated final class TaggedHub: HealthDataProvider {
+    let base = MockDataProvider()
+    var capabilities: DataCapability { base.capabilities }
+    func health() async throws -> HealthResponse { try await base.health() }
+    func gate(windowDays: Int) async throws -> GateResponse { try await base.gate(windowDays: windowDays) }
+    func morning() async throws -> MorningResponse { try await base.morning() }
+    func morningVerdict(date: String) async throws -> MorningVerdict { try await base.morningVerdict(date: date) }
+    func recovery(windowDays: Int) async throws -> [RecoveryDay] { try await base.recovery(windowDays: windowDays) }
+    func syncStatus() async throws -> SyncStatus { try await base.syncStatus() }
+}
+
+@Test @MainActor func roundTripHubAppleWatchHubRestoresTheSameHubProvider() throws {
+    try #require(HKHealthStore.isHealthDataAvailable(), "T2 needs HealthKit on the test host")
+    let prefs = PrefStore(db: try AppDatabase.inMemory())
+    let hub = TaggedHub()
+    let store = ProviderStore(provider: MockDataProvider())
+    let sut = ProviderSwitch()
+
+    ProviderSelection.install(store: store, hub: hub, prefs: prefs, using: sut)
+    #expect((store.provider as? TaggedHub) === hub)
+    let afterInstall = sut.revision
+
+    sut.select(.appleWatch)
+    #expect(store.provider is HealthKitProvider)
+
+    sut.select(.hub)
+    #expect((store.provider as? TaggedHub) === hub, "the round trip must not swap in another hub client")
+    #expect(sut.revision == afterInstall + 2)
+    #expect(try prefs.get(ProviderSwitch.prefKey, as: ProviderKind.self) == .hub)
+}

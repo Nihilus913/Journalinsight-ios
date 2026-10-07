@@ -98,6 +98,7 @@
 		A879EF7D960C95EA908FDEE7 /* WatchSnapshotPusher+Transport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C54BB37DAD8CCC2A38FB8228 /* WatchSnapshotPusher+Transport.swift */; };
 		AAE4BC7486F3D87C27FE39E7 /* VerdictGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */; };
 		AC4F3AB636054D4BBFB60C64 /* StrengthSessionActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FBA4B160672C6EFCE507CE /* StrengthSessionActivityWidget.swift */; };
+		ACACB1DD0B037F4030322F0A /* OFF3DeveloperShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D7E1FA15DDCEFDB84DA8D5 /* OFF3DeveloperShots.swift */; };
 		ADDD4A661B147DE19DA5723A /* VerdictComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1296CF63AE100B901BCE1904 /* VerdictComplication.swift */; };
 		B014E3DE179BF2C5167EC409 /* TouchIndicatorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD080DDD2401D1203C1C8F45 /* TouchIndicatorWindow.swift */; };
 		B687D8C1EF3A14562FF45FD8 /* AppEnvironmentMacrosSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73B12E7B00A305B76EFBC63 /* AppEnvironmentMacrosSnapshotTests.swift */; };
@@ -333,6 +334,7 @@
 		EAEEB9C33A3E63848C89B1BC /* AppSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSmokeTests.swift; sourceTree = "<group>"; };
 		ECB808090BFEC147D0BC4C92 /* JICompute */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JICompute; path = Packages/JICompute; sourceTree = SOURCE_ROOT; };
 		ED0ACE3DDDBED082761F6A42 /* FixP3L6Shots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixP3L6Shots.swift; sourceTree = "<group>"; };
+		F2D7E1FA15DDCEFDB84DA8D5 /* OFF3DeveloperShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFF3DeveloperShots.swift; sourceTree = "<group>"; };
 		F2EB210CEA25715C06AA2E31 /* WidgetDeepLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDeepLinks.swift; sourceTree = "<group>"; };
 		F550BF1C6894BEFD3E376293 /* HealthKitLaunchGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitLaunchGate.swift; sourceTree = "<group>"; };
 		F942C84FEAE3AF5C9C128688 /* AppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -474,6 +476,7 @@
 				7F842CEAF8245EEB532B2170 /* FixP3L5Shots.swift */,
 				ED0ACE3DDDBED082761F6A42 /* FixP3L6Shots.swift */,
 				7584AC7835BD23D74891580B /* JIUITestCase.swift */,
+				F2D7E1FA15DDCEFDB84DA8D5 /* OFF3DeveloperShots.swift */,
 				FB4AF5C04DC4544BFC44D529 /* TrainingProofTests.swift */,
 			);
 			path = AppUITests;
@@ -1004,6 +1007,7 @@
 				3403806071E69813EB669C74 /* FixP3L5Shots.swift in Sources */,
 				A7B599F4645BD5BC8457AADD /* FixP3L6Shots.swift in Sources */,
 				208AD020512CD8901395F931 /* JIUITestCase.swift in Sources */,
+				ACACB1DD0B037F4030322F0A /* OFF3DeveloperShots.swift in Sources */,
 				4FACE29EF46BA01697617F98 /* TrainingProofTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
