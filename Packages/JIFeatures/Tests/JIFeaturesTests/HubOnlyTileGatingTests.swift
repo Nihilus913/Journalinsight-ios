@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 import JICore
 import JICompute
@@ -101,5 +102,44 @@ private struct OffStub: HealthDataProvider {
         #expect(items.first { $0.id == "hrv" }?.value == 42)
         let battery = recoveryWatchReadings(days: offDays, today: "2026-10-07", capabilities: .hubAll).first { $0.id == "bodyBattery" }
         #expect(battery?.value == "18–88")
+    }
+
+    // MARK: sim-rendered proof shots (OFF2_SHOTS → TEST_RUNNER_OFF2_SHOTS)
+
+    func render<V: View>(_ name: String, _ view: V, height: CGFloat) -> Bool {
+        let r = ImageRenderer(content: view.jiTheme(.native).environment(\.jiOffscreenRender, true)
+            .frame(width: 402, height: height).background(Color(white: 0.95)))
+        r.scale = 3
+        guard let img = r.uiImage, let png = img.pngData() else { return false }
+        if let dir = ProcessInfo.processInfo.environment["OFF2_SHOTS"], !dir.isEmpty {
+            try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+        }
+        return true
+    }
+
+    @Test func renderTodayAndRecoveryTilesOnDeviceAndHub() async throws {
+        for (name, caps) in [("ondevice", Self.onDevice), ("hub", DataCapability.hubAll)] {
+            let model = TodayViewModel(provider: OffStub(capabilities: caps), cache: OfflineCache(db: try AppDatabase.inMemory()),
+                                       now: { offNow })
+            await model.load()
+            let chips = model.gridChips.filter { ["hrv", "rhr", "body_battery", "readiness"].contains($0.id) }
+            let today = LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(chips) { chip in
+                    let spec = todaySummaryCardSpec(for: chip)
+                    SummaryCard(icon: spec.icon, tint: .blue, title: spec.title, value: spec.value, unit: spec.unit,
+                                timestamp: spec.timestamp, sparkline: spec.sparkline, sourceMissing: spec.sourceMissing,
+                                missingCopy: spec.missingCopy)
+                }
+            }.padding(16)
+            #expect(render("off2-today-tiles-\(name)", today, height: 420))
+            let items = recoveryTileItems(days: offDays, layout: recoveryTileLayout(orderRaw: "", hiddenRaw: ""), editing: false,
+                                          now: offNow, capabilities: caps)
+            let battery = recoveryWatchReadings(days: offDays, today: "2026-10-07", capabilities: caps).first { $0.id == "bodyBattery" }
+            let recovery = VStack(alignment: .leading, spacing: 12) {
+                SquareGrid(items: items, columns: recoveryGridColumns, family: .tile)
+                Text("Body Battery: \(battery?.value ?? "") · \(battery?.caption ?? "")").font(.footnote)
+            }.padding(16)
+            #expect(render("off2-recovery-tiles-\(name)", recovery, height: 460))
+        }
     }
 }
