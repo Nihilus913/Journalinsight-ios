@@ -160,7 +160,41 @@ final class AppEnvironment {
             return
         }
         #endif
-        if let config = try ConnectionConfigStore(secrets: secrets).load() { apply(config) } else { needsConnection = true }
+        if let config = try ConnectionConfigStore(secrets: secrets).load() { apply(config) } else { applyNoHub() }
+    }
+
+    /// W-OFFLINE2 OFF2-1 seams: the on-device (T2) provider the no-hub boot reads (nil = HealthKit
+    /// unavailable here), and the on-device verdict install (`OnDeviceVerdictWiring.install(hub:)`).
+    /// Tests swap them; production never does.
+    @ObservationIgnored var makeOnDeviceProvider: () -> (any HealthDataProvider)? = { ProviderSelection.makeAppleWatchProvider() }
+    @ObservationIgnored var installOnDeviceVerdict: (HubDataProvider?) -> Void = { OnDeviceVerdictWiring.install(hub: $0) }
+
+    /// True once `apply(_:)` installed a hub connection (`hubProvider`); false in on-device mode.
+    var isHubConnected: Bool { hubProvider != nil }
+
+    /// W-OFFLINE2 OFF2-1 (B-50 slice 2): no `ConnectionConfig` → Today and Recovery read the
+    /// on-device `HealthKitProvider` (the on-device verdict + HealthKit steps/sleep/HRV/RHR) instead
+    /// of a full-screen connect prompt. The verdict trigger + overlay are installed WITHOUT a hub:
+    /// the shadow log's hub column stays nil and there is no hub to upload to. `needsConnection`
+    /// stays true (first-launch sheet, Today banner); `apply(_:)` later swaps the SAME store to the
+    /// hub exactly as a connected boot does. HealthKit unavailable → no store (connect prompt).
+    func applyNoHub() {
+        needsConnection = true
+        installOnDeviceVerdict(nil)
+        let targetsPrefs = prefs
+        OnDeviceVerdictWiring.gateRules.setTargetsSource { TargetsStore(prefs: targetsPrefs).loadIfPresent() }
+        guard providerStore == nil, let provider = makeOnDeviceProvider() else { return }
+        providerStore = ProviderStore(provider: provider)
+    }
+
+    /// OFF2-1: the on-device screens read HealthKit, so with no hub the shell asks for read access
+    /// once its UI is up (a request made during `boot()` has no window to present the sheet on),
+    /// before Today's first load. Already-decided types are a no-op; a connected hub (`apply(_:)`
+    /// asks itself), `-no-healthkit` and the unit-test host never prompt from here.
+    func requestOnDeviceHealthAccess() async {
+        guard !isHubConnected, providerStore != nil, AppLaunchMode.current == .app,
+              HealthKitLaunchGate.allowsHealthKit() else { return }
+        try? await healthPermissions.requestAuthorization()
     }
 
     /// The hub is the only runtime provider. MockDataProvider is previews/tests only (spec §4.2).
@@ -176,7 +210,7 @@ final class AppEnvironment {
         // B-44 Option B: the trigger + overlay first (no-op unless enabled; ON in Release), fed the
         // hub WITHOUT the overlay (shadow log's hub column, upload target); then the hub provider
         // every screen reads, whose verdict is the on-device one when the phone has it.
-        OnDeviceVerdictWiring.install(hub: HubDataProvider(client: hubClient))
+        installOnDeviceVerdict(HubDataProvider(client: hubClient))
         // RG-06 / B-112: the engine's sleep row reads the Targets sleep goal (read per compute).
         let targetsPrefs = prefs
         OnDeviceVerdictWiring.gateRules.setTargetsSource { TargetsStore(prefs: targetsPrefs).loadIfPresent() }
