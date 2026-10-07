@@ -18,7 +18,17 @@ enum HealthKitFixtureSeeder {
               HKHealthStore.isHealthDataAvailable() else { return }
         do {
             let types = HealthKitFixtureSeed.shareTypes
-            try await HKHealthStore().requestAuthorization(toShare: types, read: Set(types.map { $0 as HKObjectType }))
+            // A freshly erased simulator's healthd can drop the first connection (Cocoa 4099):
+            // retry the prompt a few times before giving up.
+            for attempt in 1...4 {
+                do {
+                    try await HKHealthStore().requestAuthorization(toShare: types, read: Set(types.map { $0 as HKObjectType }))
+                    break
+                } catch where attempt < 4 {
+                    log.notice("HealthKit fixture: auth attempt \(attempt, privacy: .public) failed, retrying")
+                    try await Task.sleep(for: .seconds(3))
+                }
+            }
             let store = RealHealthStore()
             let report = try await HealthKitFixtureSeed.run(store: store)
             let since = Calendar.autoupdatingCurrent.date(byAdding: .day, value: -(HealthKitFixtureSeed.nights + 2), to: Date()) ?? Date()

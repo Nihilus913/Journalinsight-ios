@@ -31,15 +31,24 @@ final class OFF22SeedUITests: JIUITestCase {
         app.launch()
     }
 
+    /// No hub = the Connection sheet comes up over Today; HealthKit cannot present its Health
+    /// Access sheet over it, so close it first (Cancel keeps the no-hub state).
+    private func closeConnectionSheet() {
+        let cancel = app.buttons["Cancel"].firstMatch
+        if cancel.waitForExistence(timeout: 15) { cancel.tap() }
+    }
+
     func testSeedOnErasedNoHubClone() {
         launchNoHub()
+        closeConnectionSheet()
         var sheets = 0
-        while allowHealthSheet(timeout: sheets == 0 ? 30 : 8) && sheets < 3 { sheets += 1 }
+        while allowHealthSheet(timeout: sheets == 0 ? 120 : 25) && sheets < 4 { sheets += 1 }
         sleep(8)   // the seed's save + read-back count
         shot("off2-2-after-seed")
         app.terminate()
         launchNoHub()
-        _ = allowHealthSheet(timeout: 8)
+        closeConnectionSheet()
+        _ = allowHealthSheet(timeout: 20)
         sleep(6)
         shot("off2-2-second-launch")
         print("[OFF22-SEED] health sheets allowed: \(sheets)")
