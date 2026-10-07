@@ -261,9 +261,12 @@ public struct TrainingView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(msg).foregroundStyle(theme.color(.text))
                     .accessibilityIdentifier("training-error")
-                Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(theme.color(.info))
-                    .accessibilityLabel("Retry")
-                    .accessibilityIdentifier("training-retry")
+                // W-OFFLINE2 OFF2-3: a needs-hub card has nothing to retry.
+                if model.availability.offersRetry {
+                    Button("Retry") { Task { await model.refresh() } }.buttonStyle(.pressableScale).tint(theme.color(.info))
+                        .accessibilityLabel("Retry")
+                        .accessibilityIdentifier("training-retry")
+                }
             }
         }
     }

@@ -399,7 +399,7 @@ public nonisolated func recoveryWatchReadings(days: [RecoveryDay], today: String
 
     // W-OFFLINE OFF-2: Body Battery is Garmin's own (`.hubOnly`) — off the hub it says so.
     let battery: RecoveryWatchReading = hubOnlyTileNeedsHub("bodyBattery", capabilities: capabilities)
-        ? RecoveryWatchReading(id: "bodyBattery", label: "Body Battery", value: "—", caption: JIMissingReason.needsHub.rawValue)
+        ? RecoveryWatchReading(id: "bodyBattery", label: "Body Battery", value: "—", caption: JISignalStatus.missing(.needsHub).squareWord)
         : newest { $0.bodyBatteryMin != nil && $0.bodyBatteryMax != nil }.map {
         RecoveryWatchReading(id: "bodyBattery", label: "Body Battery",
                              value: "\(jiNumber($0.bodyBatteryMin ?? 0, 0))–\(jiNumber($0.bodyBatteryMax ?? 0, 0))",

@@ -191,7 +191,7 @@ struct MetricSquare: View {
             }
             Spacer(minLength: 0)
             if let status = item.status {
-                Label(status.word, systemImage: status.symbolName)
+                Label(status.squareWord, systemImage: status.symbolName)
                     .jiFont(.caption, weight: .semibold).foregroundStyle(theme.color(status.role))
                     .lineLimit(2).minimumScaleFactor(0.8)
             }

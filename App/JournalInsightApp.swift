@@ -133,6 +133,8 @@ struct JournalInsightApp: App {
                 #if DEBUG
                 // W-FIX3 fixer C-h: `-JISeedRMSSD <ms>` — the simulator's live-record RMSSD writer.
                 await DebugRmssdSeeder.seedIfRequested()
+                // W-OFFLINE2 OFF2-2: `-seed-healthkit-fixture` — the no-hub E2E data set.
+                await HealthKitFixtureSeeder.seedIfRequested()
                 #endif
                 UNUserNotificationCenter.current().delegate = notificationDelegate
                 // W-B47 (L2), same affordance as B-46's `-no-healthkit` above it in

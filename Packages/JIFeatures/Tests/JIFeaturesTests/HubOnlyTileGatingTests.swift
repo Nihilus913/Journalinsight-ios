@@ -93,7 +93,7 @@ private struct OffStub: HealthDataProvider {
         #expect(hrv?.value == nil && hrv?.status == .missing(.needsHub))
         #expect(items.first { $0.id == "rhr" }?.value == 52)
         let battery = recoveryWatchReadings(days: offDays, today: "2026-10-07", capabilities: Self.onDevice).first { $0.id == "bodyBattery" }
-        #expect(battery?.value == "—" && battery?.caption == JIMissingReason.needsHub.rawValue)
+        #expect(battery?.value == "—" && battery?.caption == JISignalStatus.missing(.needsHub).squareWord)
     }
 
     @Test func recoveryHubOnlyTilesShowTheRealValueUnderTheHub() {
