@@ -41,6 +41,19 @@ public nonisolated enum JISignalStatus: Sendable, Equatable {
         }
     }
 
+    /// W-OFFLINE2 OFF2-3: the word a square's status caption shows. The square's caption is two
+    /// short lines, so the long missing-reason copy ("Garmin value — needs the hub") truncated
+    /// there; the square says "Needs the hub" and keeps the full `word` for VoiceOver.
+    public var squareWord: String {
+        switch self {
+        case .missing(.needsHub): "Needs the hub"
+        default: word
+        }
+    }
+
+    /// The longest status word a square caption carries without truncating ("Below your normal").
+    public static let squareWordMaxLength = 17
+
     public var role: JIColorRole {
         switch self {
         case .aboveGoal, .onGoal, .inNormal, .clear, .productive: .go

@@ -9,6 +9,10 @@ import JICore
 public enum HubAvailability: Equatable, Sendable {
     case live
     case needsHub
+
+    /// W-OFFLINE2 OFF2-3: whether the screen's error card offers Retry. A `.needsHub` card has
+    /// nothing to retry (a refresh only re-settles the same line), so it shows none.
+    nonisolated public var offersRetry: Bool { if case .live = self { true } else { false } }
 }
 
 /// The one honest line a hub-only screen shows when there is no hub and nothing cached.
