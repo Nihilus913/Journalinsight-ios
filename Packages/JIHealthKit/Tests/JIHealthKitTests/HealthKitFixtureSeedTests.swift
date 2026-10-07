@@ -124,7 +124,7 @@ import Testing
             #expect(lines.first?.hasPrefix("#if DEBUG") == true, "\(url.lastPathComponent)")
             #expect(lines.last == "#endif", "\(url.lastPathComponent)")
         }
-        let app = try String(contentsOf: repo.appendingPathComponent("App/JournalInsightApp.swift"), encoding: .utf8)
+        let app = try String(contentsOf: repo.appendingPathComponent("App/RootTabView.swift"), encoding: .utf8)
         guard let call = app.range(of: "HealthKitFixtureSeeder.seedIfRequested()") else {
             Issue.record("call site missing"); return
         }
