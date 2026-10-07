@@ -51,6 +51,17 @@ public final class ProviderSwitch {
 
     public init() {}
 
+    /// Whether this build restores a persisted T2 choice: `true` in Debug, `false` in Release.
+    /// W-OFFLINE OFF-3: a value (not an `#if` inside `install`) so the Release path is testable
+    /// from a Debug test run via `install(honorsPersistedChoice: false)`.
+    public static var honorsPersistedChoiceInThisBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
     /// Wires the seam and applies the persisted choice. Returns the kind that ended up active.
     ///
     /// The default is always the hub, and in a **release** build the persisted value is ignored
@@ -60,17 +71,18 @@ public final class ProviderSwitch {
     public func install(
         prefs: PrefStore,
         isAppleWatchAvailable: Bool,
+        honorsPersistedChoice: Bool = ProviderSwitch.honorsPersistedChoiceInThisBuild,
         apply: @escaping (ProviderKind) -> Void
     ) -> ProviderKind {
         self.prefs = prefs
         self.isAppleWatchAvailable = isAppleWatchAvailable
         self.apply = apply
-        #if DEBUG
-        let stored = try? prefs.get(Self.prefKey, as: ProviderKind.self)
-        kind = (stored == .appleWatch && isAppleWatchAvailable) ? .appleWatch : .hub
-        #else
-        kind = .hub
-        #endif
+        if honorsPersistedChoice {
+            let stored = try? prefs.get(Self.prefKey, as: ProviderKind.self)
+            kind = (stored == .appleWatch && isAppleWatchAvailable) ? .appleWatch : .hub
+        } else {
+            kind = .hub
+        }
         revision += 1
         apply(kind)
         return kind
