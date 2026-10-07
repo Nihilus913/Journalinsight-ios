@@ -38,6 +38,7 @@
 		35661ADAC7462A69261AC33E /* JIHub in Frameworks */ = {isa = PBXBuildFile; productRef = AE017C6763142EDA7FB1F5B2 /* JIHub */; };
 		39DBDC28DDADA79243EE6E3D /* WatchSnapshotPusherWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18993B3865A6D30A76221796 /* WatchSnapshotPusherWiringTests.swift */; };
 		3BA37BC25455C239029EC916 /* DebugRmssdSeederTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC52750E5363E52D43578DD1 /* DebugRmssdSeederTests.swift */; };
+		3BE051810982E737F24A0D96 /* NoHubBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80AFBBFC3F33E80E2537A58 /* NoHubBanner.swift */; };
 		3BE2CFC867E84E316DE0E5D2 /* StrengthSessionActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251A32F48755A0F1BAB02744 /* StrengthSessionActivityController.swift */; };
 		3D55C7DCE4B5137AD792FC6F /* B91CallStatesShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FB41BAFDA6E668E76001E7 /* B91CallStatesShots.swift */; };
 		3E88160589234F6FCD56348F /* FixP2L1Shots.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCDC97A89F356AF07512086 /* FixP2L1Shots.swift */; };
@@ -109,6 +110,7 @@
 		BA965CA6BB86E59669A362D1 /* JICompute in Frameworks */ = {isa = PBXBuildFile; productRef = FA9148DC12EA2DB4FCC5A27D /* JICompute */; };
 		BC3FBEF8BF84F2565DA901F1 /* JICore in Frameworks */ = {isa = PBXBuildFile; productRef = 40267DC04964D87EF6CB5446 /* JICore */; };
 		BD745F8283E985F9C187A3C1 /* JIPersistence in Frameworks */ = {isa = PBXBuildFile; productRef = 140B410DFBF782AF1CA4F32D /* JIPersistence */; };
+		BE3ABB3A0E7152B61F98061C /* NoHubBootTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32CEBC6B5271585D781A4AD /* NoHubBootTests.swift */; };
 		BE92D18040C989A85621A932 /* Fix7L1AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B95FD08E32DDCC89D64B00 /* Fix7L1AppTests.swift */; };
 		C0DCE0C604E8F6AB51D851A0 /* JIWorkouts in Frameworks */ = {isa = PBXBuildFile; productRef = 492768B6A5B02BFF4735FCE3 /* JIWorkouts */; };
 		C1629D337970A6C10E143697 /* SelectKpiIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AF5583C9B159C44085DC88 /* SelectKpiIntent.swift */; };
@@ -305,6 +307,7 @@
 		AD1432071B5C57584E794609 /* DebugRmssdSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRmssdSeeder.swift; sourceTree = "<group>"; };
 		AF9FE9FA89A4C657D69AF8C7 /* StrengthLogComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthLogComposition.swift; sourceTree = "<group>"; };
 		B7D6E3E2AC5B9446AFA9AD50 /* VerdictGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictGlance.swift; sourceTree = "<group>"; };
+		B80AFBBFC3F33E80E2537A58 /* NoHubBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoHubBanner.swift; sourceTree = "<group>"; };
 		B8433D7B7BFD100009A110AE /* AppEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentTests.swift; sourceTree = "<group>"; };
 		BB973FFC107DFB4BDD9CEE41 /* JournalInsight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JournalInsight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC52750E5363E52D43578DD1 /* DebugRmssdSeederTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRmssdSeederTests.swift; sourceTree = "<group>"; };
@@ -333,6 +336,7 @@
 		DE5440E17F3853B546397B6D /* JIFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JIFeatures; path = Packages/JIFeatures; sourceTree = SOURCE_ROOT; };
 		DF3EF7B6E5A59DEE0678B936 /* MacrosLeftFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacrosLeftFace.swift; sourceTree = "<group>"; };
 		E188FAAD9A0405AC8D9D4B1F /* B117StrengthLogShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = B117StrengthLogShots.swift; sourceTree = "<group>"; };
+		E32CEBC6B5271585D781A4AD /* NoHubBootTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoHubBootTests.swift; sourceTree = "<group>"; };
 		E6E3E5797AC79DD77404F95A /* HubScreensFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HubScreensFallback.swift; sourceTree = "<group>"; };
 		E7E0F311F8F3C6BA9979D034 /* VerdictComplicationTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdictComplicationTimelineTests.swift; sourceTree = "<group>"; };
 		E8D48EA034A396A7281E21C1 /* WidgetURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetURLTests.swift; sourceTree = "<group>"; };
@@ -524,6 +528,7 @@
 				1A82CE12CADAC3E3E1E3265C /* MoodMirrorSimTests.swift */,
 				81E3002B92D368429BB3F69F /* MoreTabTests.swift */,
 				301ACCB32500A538C7C03ECA /* NoHealthKitLaunchGateTests.swift */,
+				E32CEBC6B5271585D781A4AD /* NoHubBootTests.swift */,
 				116B1214686C66B676C8677A /* NtfyDeepLinkHandlerTests.swift */,
 				1826921157F0A09B5E6C6092 /* ProjectMembershipGuardTests.swift */,
 				73BA245078E82680BAF983E0 /* ProviderSelectionTests.swift */,
@@ -640,6 +645,7 @@
 				4BC54E4B616D60F658404378 /* Info.plist */,
 				72DCD4A4F596A633DB7415A0 /* JournalInsight.entitlements */,
 				AA2152FA66C6B2F8A11DC9FE /* JournalInsightApp.swift */,
+				B80AFBBFC3F33E80E2537A58 /* NoHubBanner.swift */,
 				AA32214326886B2F6938D0AC /* ProviderSelection.swift */,
 				BE1DEEDD9B02F9398A695569 /* RootTabView.swift */,
 				056638029CC232C84D208888 /* Debug */,
@@ -985,6 +991,7 @@
 				28A5820E3A84474F51E53591 /* LiveActivityController.swift in Sources */,
 				5FDD4D8F06A74F9638A65694 /* LiveActivityStartRegistration.swift in Sources */,
 				8D82B348056A11086568A2FA /* LocalVerdictFloor.swift in Sources */,
+				3BE051810982E737F24A0D96 /* NoHubBanner.swift in Sources */,
 				10D0E33FD865DDD688D14FBE /* NtfyDeepLinkHandler.swift in Sources */,
 				DA838B9E0D4F19EE474D435F /* OnDeviceVerdictOverlay.swift in Sources */,
 				ED85D24ABD0442831D0C5888 /* OnDeviceVerdictWiring.swift in Sources */,
@@ -1073,6 +1080,7 @@
 				94F4F8AEFD8AFF2E9E4C0DF1 /* MoodMirrorSimTests.swift in Sources */,
 				E8AE77BED2E6E13B80E16CC6 /* MoreTabTests.swift in Sources */,
 				F2CF2139E05DA9E395020461 /* NoHealthKitLaunchGateTests.swift in Sources */,
+				BE3ABB3A0E7152B61F98061C /* NoHubBootTests.swift in Sources */,
 				459B4C7C0903F715AD6D3920 /* NtfyDeepLinkHandlerTests.swift in Sources */,
 				9564A45902C68CA09F4F6E1D /* ProjectMembershipGuardTests.swift in Sources */,
 				0FECD0C0B4BBA90BF4C6C305 /* ProviderSelectionTests.swift in Sources */,

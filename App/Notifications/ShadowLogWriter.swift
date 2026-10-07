@@ -10,9 +10,16 @@ nonisolated enum ShadowLogWriter {
     typealias Write = @Sendable (String, OnDeviceVerdictResult, Date) async -> Void
 
     static func make(hub: (any HealthDataProvider)?) -> Write? {
+        make(currentHub: { hub })
+    }
+
+    /// W-OFFLINE2 OFF2-1: the hub is read per write, so a runner installed with no hub (on-device
+    /// boot) fills the hub column once a hub is connected later in the same process.
+    static func make(currentHub: @escaping @Sendable () async -> (any HealthDataProvider)?) -> Write? {
         guard let db = try? AppDatabase.onDisk() else { return nil }
         let store = DecisionLogStore(db: db)
         return { day, result, computedAt in
+            let hub = await currentHub()
             let hubVerdict: String? = if let hub, let v = try? await hub.morningVerdict(date: day), v.date == day { v.verdict } else { nil }
             try? store.recordShadow(row(day: day, result: result, computedAt: computedAt, hubVerdict: hubVerdict))
         }

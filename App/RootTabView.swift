@@ -346,7 +346,8 @@ struct RootTabView: View {
                 let mirror = gateSettingsMirror()
                 Task { await mirror.save(store.load()) }
             }
-            switch Self.firstSheet(needsOnboarding: OnboardingGate.needsOnboarding(env.prefs), needsConnection: env.needsConnection) {
+            switch Self.firstSheet(needsOnboarding: OnboardingGate.needsOnboarding(env.prefs),
+                                   needsConnection: Self.coldLaunchAsksForHub(needsConnection: env.needsConnection, onDeviceStore: env.providerStore != nil)) {
             case .onboarding?:
                 // W-FIX5 W4-2: the real night count (the cover also reads the live insight below).
                 if recoveryInsight == nil, let store = env.providerStore {
@@ -746,33 +747,54 @@ struct RootTabView: View {
         }
     }
 
+    /// W-OFFLINE2 OFF2-1: Today carries the connect prompt as a banner while no hub is connected
+    /// (the on-device provider serves Today/Recovery); a connected hub never shows it.
+    static func showsNoHubBanner(hubConnected: Bool) -> Bool { !hubConnected }
+
+    /// W-OFFLINE2 OFF2-1: a cold launch with no hub opens the connection sheet only when there is
+    /// no on-device store to show (HealthKit unavailable); otherwise Today's banner is the prompt.
+    /// The fresh-install order (onboarding, then the connection sheet on its dismiss) is unchanged.
+    static func coldLaunchAsksForHub(needsConnection: Bool, onDeviceStore: Bool) -> Bool {
+        needsConnection && !onDeviceStore
+    }
+
     @ViewBuilder
     private var todayTabContent: some View {
         if let store = env.providerStore {
-            if let todayModel, gateOpen, todayModel.phase == .loaded || !todayModel.hasLiveResult {
-                gateScreen(todayModel)
-            } else if let todayModel {
-                TodayView(
-                    model: todayModel,
-                    onOpenConnection: { showConnection = true },
-                    onSelectKpi: { metric in pushKpiDetail(metric, on: .today) },
-                    onOpenTrends: { router.push(.trends, on: .today) },
-                    makeGateRespondModel: { recommendation in sharedGateRespondModel(recommendation, provider: store.provider) }
-                )
-                .environment(\.gateRationaleModel, gateRationaleModel)
-                .environment(\.verdictOverrideModel, verdictOverrideModel)
-                .environment(\.checkInPrompt, checkInModel)
-                .environment(\.openCheckIn, { showCheckIn = true })
-                // W-B102 C-7: re-evaluate the check-in rules whenever the morning (re)loads.
-                .task(id: todayModel.morning?.verdictDate ?? "") { await refreshCheckIn() }
-                // W-PLANNER fixer PL-5: Today's "Your week" opens the Planner, whose Day 1 offers Log sets.
-                .task { ensureStrengthLogDeps(store: store) }
-            } else {
-                ProgressView()
-                    .task { makeTodayModels(store: store) }
-            }
+            todayStoreContent(store)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if Self.showsNoHubBanner(hubConnected: env.isHubConnected) {
+                        NoHubBanner { showConnection = true }
+                    }
+                }
         } else {
             connectionPrompt
+        }
+    }
+
+    @ViewBuilder
+    private func todayStoreContent(_ store: ProviderStore) -> some View {
+        if let todayModel, gateOpen, todayModel.phase == .loaded || !todayModel.hasLiveResult {
+            gateScreen(todayModel)
+        } else if let todayModel {
+            TodayView(
+                model: todayModel,
+                onOpenConnection: { showConnection = true },
+                onSelectKpi: { metric in pushKpiDetail(metric, on: .today) },
+                onOpenTrends: { router.push(.trends, on: .today) },
+                makeGateRespondModel: { recommendation in sharedGateRespondModel(recommendation, provider: store.provider) }
+            )
+            .environment(\.gateRationaleModel, gateRationaleModel)
+            .environment(\.verdictOverrideModel, verdictOverrideModel)
+            .environment(\.checkInPrompt, checkInModel)
+            .environment(\.openCheckIn, { showCheckIn = true })
+            // W-B102 C-7: re-evaluate the check-in rules whenever the morning (re)loads.
+            .task(id: todayModel.morning?.verdictDate ?? "") { await refreshCheckIn() }
+            // W-PLANNER fixer PL-5: Today's "Your week" opens the Planner, whose Day 1 offers Log sets.
+            .task { ensureStrengthLogDeps(store: store) }
+        } else {
+            ProgressView()
+                .task { makeTodayModels(store: store) }
         }
     }
 
@@ -780,6 +802,7 @@ struct RootTabView: View {
     /// `jiSyncedAt` carries the hub's last sync on every tab.
     private func primeShellSync() async {
         guard let store = env.providerStore else { return }
+        await env.requestOnDeviceHealthAccess()   // W-OFFLINE2 OFF2-1: no hub → HealthKit read access first
         makeTodayModels(store: store)
         if let today = todayModel, Self.shouldPrimeShellSync(today) { await today.load() }
         // W-FIX6 F6-2: a launch onto More never mounts Decide/Recovery, which is what loaded the

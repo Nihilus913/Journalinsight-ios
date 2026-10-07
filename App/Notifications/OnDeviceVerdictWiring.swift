@@ -69,7 +69,8 @@ enum OnDeviceVerdictWiring {
     private static var unlockObserver: (any NSObjectProtocol)?
 
     /// Builds the runner + overlay once (enabled builds only). `hub` = the current hub provider
-    /// WITHOUT the overlay (the shadow log's hub column + the upload target); nil without a hub.
+    /// WITHOUT the overlay (the shadow log's hub column + the upload target); nil without a hub
+    /// (W-OFFLINE2 OFF2-1 on-device boot: verdict computed, nothing uploaded until a hub exists).
     static func install(hub: HubDataProvider?) {
         currentHub = hub
         guard isEnabled, runner == nil else { return }
@@ -77,7 +78,8 @@ enum OnDeviceVerdictWiring {
         self.provider = provider
         // O-10: each computed morning is logged next to the hub's verdict (dual run), and
         // B-44: uploaded to the hub (Outbox) so both sit side by side in the DB.
-        let shadow = ShadowLogWriter.make(hub: hub)
+        // OFF2-1: read per write (a no-hub install gains the hub column after a later connect).
+        let shadow = ShadowLogWriter.make(currentHub: { await MainActor.run { OnDeviceVerdictWiring.currentHub } })
         let upload = OnDeviceVerdictUploadQueue.make(hub: { await MainActor.run { OnDeviceVerdictWiring.currentHub } })
         let onResult: ShadowLogWriter.Write = { day, result, computedAt in
             await shadow?(day, result, computedAt)

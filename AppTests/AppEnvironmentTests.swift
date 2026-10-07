@@ -7,7 +7,8 @@ import JIHub
     let env = try AppEnvironment(secrets: InMemorySecretStore(), inMemory: true)
     try env.boot()
     #expect(env.needsConnection)
-    #expect(env.providerStore == nil)
+    // W-OFFLINE2 OFF2-1: no hub → the on-device provider (NoHubBootTests), never a hub provider.
+    #expect(env.hubProvider == nil)
 }
 
 @Test @MainActor func bootWithConfigBuildsHubProvider() throws {

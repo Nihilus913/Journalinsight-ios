@@ -84,7 +84,8 @@ struct JournalInsightApp: App {
 
         let scheduler = OutboxRetryScheduler(
             drainerSource: {
-                guard let provider = builtEnv?.providerStore?.provider,
+                // W-OFFLINE2 OFF2-1: no hub (on-device boot) → nothing to drain to.
+                guard builtEnv?.isHubConnected == true, let provider = builtEnv?.providerStore?.provider,
                       let outbox = try? Outbox(db: .onDisk()) else { return nil }
                 return OutboxDrainer(outbox: outbox, hub: provider)
             },
@@ -210,7 +211,8 @@ struct JournalInsightApp: App {
     /// no hub to probe yet, and `ConnectionSheet` is the honest surface for that, not a banner.
     @MainActor
     private func makeWatchdog(env: AppEnvironment) -> HubWatchdog? {
-        guard let provider = env.providerStore?.provider else { return nil }
+        // W-OFFLINE2 OFF2-1: the on-device provider (no hub) has no hub to probe.
+        guard env.isHubConnected, let provider = env.providerStore?.provider else { return nil }
         let watchdog = HubWatchdog(provider: provider)
         // W8-L4: drain every kind this hub can deliver (weigh-in + gate-respond/feel), not just
         // weigh-in — `OutboxDrainer(hub:)` picks up whichever provider protocols `provider`
