@@ -140,6 +140,22 @@ public final class TrainingViewModel {
     /// W-OFFLINE OFF-1: `.needsHub` = no hub behind `provider`; `load()` never fetches.
     public let availability: HubAvailability
 
+    /// W-OFFLINE2 OFF2-4 (B-50 slice 2): with no hub, the completed workouts the provider can read
+    /// on the device (HealthKit), newest first. Empty with a hub (the day card's hub rows rule).
+    public private(set) var historyWorkouts: [DayActivity] = []
+    /// True once the on-device history answered (an empty answer included), so the screen can say
+    /// "none yet" instead of a skeleton.
+    public private(set) var historyLoaded = false
+    /// The no-hub screen shows the on-device history under the needs-hub line.
+    public var hasOnDeviceHistory: Bool { availability == .needsHub && provider is any TrainingHistoryProviding }
+    public nonisolated static let historyDays = 14
+
+    /// OFF2-4: a history row opens Activity detail only where an HR series can exist (the workout
+    /// recorded heart rate) and the provider serves series; else the row is not tappable.
+    public func historyRowIsTappable(_ activity: DayActivity) -> Bool {
+        activity.avgHr != nil && provider is any ActivitySeriesProviding
+    }
+
     public init(
         provider: any TrainingProviding,
         healthProvider: any HealthDataProvider,
@@ -324,6 +340,11 @@ public final class TrainingViewModel {
         // W-OFFLINE OFF-1: no hub → the cached plan/gate, else the one honest line; no fetch.
         if availability == .needsHub {
             if phase != .loaded { phase = .error(NeedsHubCopy.training) }
+            // OFF2-4: the plan stays needs-hub; the completed workouts come from the device.
+            if let history = provider as? any TrainingHistoryProviding {
+                historyWorkouts = (try? await history.recentWorkouts(days: Self.historyDays)) ?? historyWorkouts
+                historyLoaded = true
+            }
             return
         }
         let hadEverSynced = everSynced

@@ -10,8 +10,15 @@ public struct HKWorkoutRecord: Sendable, Equatable {
     public var start: Date
     public var end: Date
     public var sourceName: String?
-    public init(activityType: HKWorkoutActivityType, start: Date, end: Date, sourceName: String?) {
+    /// W-OFFLINE2 OFF2-4: the workout's own statistics for the no-hub Training history (nil = not
+    /// recorded — never shown as zero). Defaulted so the today reader's callers stay unchanged.
+    public var distanceM: Double?
+    public var avgHRBpm: Double?
+    public var maxHRBpm: Double?
+    public init(activityType: HKWorkoutActivityType, start: Date, end: Date, sourceName: String?,
+                distanceM: Double? = nil, avgHRBpm: Double? = nil, maxHRBpm: Double? = nil) {
         self.activityType = activityType; self.start = start; self.end = end; self.sourceName = sourceName
+        self.distanceM = distanceM; self.avgHRBpm = avgHRBpm; self.maxHRBpm = maxHRBpm
     }
 }
 
@@ -34,9 +41,15 @@ extension RealHealthStoreReader: HealthStoreWorkoutQuerying {
                     }
                     continuation.resume(throwing: error); return
                 }
-                let rows = (samples ?? []).compactMap { $0 as? HKWorkout }.map {
-                    HKWorkoutRecord(activityType: $0.workoutActivityType, start: $0.startDate, end: $0.endDate,
-                                    sourceName: $0.sourceRevision.source.name)
+                let bpm = HKUnit.count().unitDivided(by: .minute())
+                let rows = (samples ?? []).compactMap { $0 as? HKWorkout }.map { w in
+                    let hr = w.statistics(for: HKWorkoutUploadTypes.heartRate)
+                    let distance = HKWorkoutUploadTypes.distances.lazy
+                        .compactMap { w.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .meter()) }.first
+                    return HKWorkoutRecord(activityType: w.workoutActivityType, start: w.startDate, end: w.endDate,
+                                           sourceName: w.sourceRevision.source.name, distanceM: distance,
+                                           avgHRBpm: hr?.averageQuantity()?.doubleValue(for: bpm),
+                                           maxHRBpm: hr?.maximumQuantity()?.doubleValue(for: bpm))
                 }
                 continuation.resume(returning: rows)
             }

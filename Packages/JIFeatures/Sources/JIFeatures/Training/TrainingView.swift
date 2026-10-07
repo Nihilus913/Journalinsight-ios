@@ -70,7 +70,13 @@ public struct TrainingView: View {
                 StalenessBanner(fetchedAt: model.fetchedAt, hubReachable: model.hubReachable)
                 switch model.phase {
                 case .idle, .loading: loading
-                case .error(let msg): errorCard(msg)
+                case .error(let msg):
+                    errorCard(msg)
+                    // W-OFFLINE2 OFF2-4: no hub → the completed workouts from Apple Health below.
+                    if model.hasOnDeviceHistory {
+                        TrainingHistoryList(workouts: model.historyWorkouts, loaded: model.historyLoaded,
+                                            isTappable: model.historyRowIsTappable) { activityDetail = model.makeActivityDetailModel(activity: $0) }
+                    }
                 case .empty: Surface { Text("No data yet — run a sync on the hub.").foregroundStyle(theme.color(.muted)) }
                         .accessibilityIdentifier("training-empty")
                 case .loaded: loaded
