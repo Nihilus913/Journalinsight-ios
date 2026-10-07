@@ -802,6 +802,14 @@ struct RootTabView: View {
     /// `jiSyncedAt` carries the hub's last sync on every tab.
     private func primeShellSync() async {
         guard let store = env.providerStore else { return }
+        #if DEBUG
+        // W-OFFLINE2 OFF2-2 (merger): the DEBUG `-seed-healthkit-fixture` request (share for the seeded
+        // types + read for every kind) goes FIRST and alone, with the shell's window up. Two HealthKit
+        // requests in one process (concurrent, or a share request after a read request's sheet) leave
+        // the second's types "not determined" and its sheet never shows (iOS 27 sim); after this one
+        // the read request below is a no-op.
+        await HealthKitFixtureSeeder.seedIfRequested()
+        #endif
         await env.requestOnDeviceHealthAccess()   // W-OFFLINE2 OFF2-1: no hub → HealthKit read access first
         makeTodayModels(store: store)
         if let today = todayModel, Self.shouldPrimeShellSync(today) { await today.load() }
