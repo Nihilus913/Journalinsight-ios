@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Rule 5 + DESIGN-6: never a bare dash — "no data yet" or the shared source-missing copy.
-public nonisolated func summaryCardAccessibilityLabel(title: String, value: String?, unit: String?, timestamp: String?, sourceMissing: Bool) -> String {
-    if sourceMissing { return "\(title) \(sourceMissingCopy)" }
+public nonisolated func summaryCardAccessibilityLabel(title: String, value: String?, unit: String?, timestamp: String?, sourceMissing: Bool,
+                                                      missingCopy: String? = nil) -> String {
+    if sourceMissing { return "\(title) \(missingCopy ?? sourceMissingCopy)" }
     guard let value else { return "\(title), no data yet" }
     let head = [title, value, unit].compactMap { $0 }.joined(separator: " ")
     return timestamp.map { "\(head), \($0)" } ?? head
@@ -17,6 +18,8 @@ public struct SummaryCard: View {
     let family: JITileHeight?
     /// W-FIX11 H1-10: the sparkline's last day when it is not today ("30 Sep").
     var sparklineEndLabel: String? = nil
+    /// W-OFFLINE OFF-2: overrides the source-missing caption ("Garmin value — needs the hub").
+    var missingCopy: String? = nil
     @Environment(\.jiTheme) private var theme
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var sparkWidth: CGFloat = 72
@@ -24,8 +27,8 @@ public struct SummaryCard: View {
 
     public init(icon: String, tint: Color, title: String, value: String?, unit: String? = nil, timestamp: String? = nil,
                 sparkline: [Double?] = [], sourceMissing: Bool = false, family: JITileHeight? = .square,
-                sparklineEndLabel: String? = nil, action: (() -> Void)? = nil) {
-        self.sparklineEndLabel = sparklineEndLabel
+                sparklineEndLabel: String? = nil, missingCopy: String? = nil, action: (() -> Void)? = nil) {
+        self.sparklineEndLabel = sparklineEndLabel; self.missingCopy = missingCopy
         self.icon = icon; self.tint = tint; self.title = title; self.value = value; self.unit = unit
         self.timestamp = timestamp; self.sparkline = sparkline; self.sourceMissing = sourceMissing; self.family = family; self.action = action
     }
@@ -69,7 +72,8 @@ public struct SummaryCard: View {
                     // W-GUI F7: the caption is pinned to the bottom edge of the fixed tile.
                     Spacer(minLength: 0)
                     if sourceMissing {
-                        Text(sourceMissingCopy).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(missingCopy ?? sourceMissingCopy).jiFont(.caption).foregroundStyle(theme.color(.muted))
+                            .lineLimit(missingCopy == nil ? 1 : 2).minimumScaleFactor(0.8)
                     } else if let timestamp {
                         Text(timestamp).jiFont(.caption).foregroundStyle(theme.color(.muted)).lineLimit(1).minimumScaleFactor(0.8)
                     }
@@ -81,7 +85,8 @@ public struct SummaryCard: View {
         .buttonStyle(.pressableScale)
         .disabled(action == nil)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(summaryCardAccessibilityLabel(title: title, value: value, unit: unit, timestamp: timestamp, sourceMissing: sourceMissing))
+        .accessibilityLabel(summaryCardAccessibilityLabel(title: title, value: value, unit: unit, timestamp: timestamp, sourceMissing: sourceMissing,
+                                                           missingCopy: missingCopy))
     }
 
     /// Value + unit, side by side when they fit, stacked otherwise. Never wraps a number.

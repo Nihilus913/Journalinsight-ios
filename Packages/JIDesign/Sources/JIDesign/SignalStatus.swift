@@ -5,6 +5,9 @@ public nonisolated enum JIMissingReason: String, Sendable, CaseIterable, Equatab
     case calibrating = "Calibrating"
     case noData = "No data"
     case notInHealthYet = "Not in Health yet"
+    /// W-OFFLINE OFF-2: a ParityRegistry `.hubOnly` metric (Garmin's own reading) while the active
+    /// source is not the hub — never approximated on device (decision #23).
+    case needsHub = "Garmin value — needs the hub"
 }
 
 /// B-57 §1: the status word a `SignalRow` / square carries — tinted AND worded (never colour alone).

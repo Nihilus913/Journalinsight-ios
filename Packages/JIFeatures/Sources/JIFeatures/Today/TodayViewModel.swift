@@ -11,10 +11,14 @@ nonisolated public struct TodayChip: Identifiable, Equatable, Sendable {
     /// value IS today's. Explicit init with a default so existing construction sites are
     /// unchanged; the chip view renders it under the number.
     public let asOf: String?
+    /// W-OFFLINE OFF-2: a `.hubOnly` metric (`hubOnlyTileNeedsHub`) while the source is not the
+    /// hub — no value, no sparkline; the tile says "Garmin value — needs the hub".
+    public let needsHub: Bool
 
-    public init(id: String, label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool, asOf: String? = nil) {
+    public init(id: String, label: String, value: Double?, unit: String?, points: [Double?], sourceMissing: Bool, asOf: String? = nil,
+                needsHub: Bool = false) {
         self.id = id; self.label = label; self.value = value; self.unit = unit
-        self.points = points; self.sourceMissing = sourceMissing; self.asOf = asOf
+        self.points = points; self.sourceMissing = sourceMissing; self.asOf = asOf; self.needsHub = needsHub
     }
 }
 
@@ -231,7 +235,11 @@ public final class TodayViewModel {
     }
 
     private func chip(_ id: String, _ label: String, unit: String?, points: [Double?], sourceMissing: Bool, latest: (value: Double, date: String)?) -> TodayChip {
-        TodayChip(
+        // W-OFFLINE OFF-2: never a cached/approximated Garmin value off the hub (decision #23).
+        if hubOnlyTileNeedsHub(id, capabilities: provider.capabilities) {
+            return TodayChip(id: id, label: label, value: nil, unit: unit, points: [], sourceMissing: true, needsHub: true)
+        }
+        return TodayChip(
             id: id, label: label, value: latest?.value, unit: unit, points: points, sourceMissing: sourceMissing,
             asOf: kpiAsOfLabel(valueDate: latest?.date, today: todayDateString)
         )
