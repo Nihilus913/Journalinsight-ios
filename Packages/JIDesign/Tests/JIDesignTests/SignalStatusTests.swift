@@ -4,7 +4,7 @@ import Testing
 // B-57 W1 §0.2: missing data is "—" + one of three reason words, never a zero.
 struct SignalStatusTests {
     @Test func missingReasonsAreTheThreeSpecWords() {
-        #expect(JIMissingReason.allCases.map(\.rawValue) == ["Calibrating", "No data", "Not in Health yet"])
+        #expect(JIMissingReason.allCases.map(\.rawValue) == ["Calibrating", "No data", "Not in Health yet", "Garmin value — needs the hub"])
     }
 
     @Test func everyStatusHasAWordARoleAndASymbol() {

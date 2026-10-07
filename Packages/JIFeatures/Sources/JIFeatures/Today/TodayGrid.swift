@@ -243,7 +243,7 @@ public struct TodayGrid: View {
         SummaryCard(icon: spec.icon, tint: theme.color(spec.tintRole), title: spec.title,
                     value: spec.value, unit: spec.unit, timestamp: spec.timestamp,
                     sparkline: spec.sparkline, sourceMissing: spec.sourceMissing,
-                    sparklineEndLabel: spec.sparklineEndLabel,
+                    sparklineEndLabel: spec.sparklineEndLabel, missingCopy: spec.missingCopy,
                     action: chipTapAction(id: chip.id, onSelectKpi: onSelectKpi))
             // Label is the RN oracle's StatChip default (`${label} — open detail`), verbatim.
             .accessibilityLabel(chip.asOf.map { "\(chip.label) — open detail, \($0)" } ?? "\(chip.label) — open detail")
@@ -316,6 +316,8 @@ public nonisolated struct TodaySummaryCardSpec: Equatable, Sendable {
     public let sourceMissing: Bool
     /// W-FIX11 H1-10: the sparkline's last day ("30 Sep") when the reading is not today's.
     public var sparklineEndLabel: String? = nil
+    /// W-OFFLINE OFF-2: the caption that replaces the source-missing copy ("Garmin value — needs the hub").
+    public var missingCopy: String? = nil
 }
 
 /// W-B47 INTEGRATE SEAM (one line): L1 lands `metricTintRole(_:)` in `JIDesign/MetricTint.swift`.
@@ -355,7 +357,8 @@ public nonisolated func todaySummaryCardSpec(for chip: TodayChip) -> TodaySummar
         timestamp: chip.sourceMissing ? nil : todayCardCaption(chip),
         sparkline: chip.points,
         sourceMissing: chip.sourceMissing,
-        sparklineEndLabel: chip.asOf.map { $0.hasPrefix("as of ") ? String($0.dropFirst(6)) : $0 }
+        sparklineEndLabel: chip.asOf.map { $0.hasPrefix("as of ") ? String($0.dropFirst(6)) : $0 },
+        missingCopy: chip.needsHub ? JIMissingReason.needsHub.rawValue : nil
     )
 }
 
